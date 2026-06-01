@@ -6,7 +6,17 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     const raw = localStorage.getItem("user");
     const token = localStorage.getItem("accessToken");
-    return raw && token ? JSON.parse(raw) : null;
+    if (!raw || !token) {
+      return null;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+      return null;
+    }
   });
 
   const login = (payload) => {
