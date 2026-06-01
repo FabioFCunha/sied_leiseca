@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -47,6 +48,7 @@ router.register("education-goals", EducationGoalViewSet, basename="education-goa
 router.register("reports", ReportViewSet, basename="reports")
 
 urlpatterns = [
+    path("healthz/", lambda request: HttpResponse("ok"), name="healthz"),
     path("admin/", admin.site.urls),
     path("api/auth/login/", LoginView.as_view(), name="token_obtain_pair"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
