@@ -1,0 +1,461 @@
+from django.conf import settings
+from django.db import models
+from django.db.models import Q
+
+
+class Sector(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class NamedLookup(models.Model):
+    source_id = models.CharField(max_length=80, blank=True)
+    name = models.CharField(max_length=180, unique=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        abstract = True
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Vehicle(NamedLookup):
+    pass
+
+
+class Team(NamedLookup):
+    pass
+
+
+class Support(NamedLookup):
+    team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name="supports")
+    role = models.CharField(max_length=120, blank=True)
+    address = models.CharField(max_length=220, blank=True)
+
+
+class Agent(NamedLookup):
+    team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
+    role = models.CharField(max_length=120, blank=True)
+    address = models.CharField(max_length=220, blank=True)
+
+
+class ActionType(NamedLookup):
+    pass
+
+
+class Municipality(NamedLookup):
+    pass
+
+
+class Neighborhood(NamedLookup):
+    pass
+
+
+class Kit(NamedLookup):
+    pass
+
+
+class Material(NamedLookup):
+    pass
+
+
+class Chief(NamedLookup):
+    team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name="chiefs")
+    role = models.CharField(max_length=120, blank=True)
+    address = models.CharField(max_length=220, blank=True)
+    phone = models.CharField(max_length=160, blank=True)
+
+
+class Agenda(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pendente"
+        APPROVED = "APPROVED", "Aprovada"
+        CANCELLED = "CANCELLED", "Cancelada"
+        COMPLETED = "COMPLETED", "Concluída"
+
+    class Origin(models.TextChoices):
+        INTERNAL = "INTERNAL", "Interna"
+        PUBLIC_FORM = "PUBLIC_FORM", "Formulario publico"
+        WHATSAPP = "WHATSAPP", "WhatsApp"
+        PHONE = "PHONE", "Telefone"
+        EMAIL = "EMAIL", "E-mail"
+        DOCUMENT = "DOCUMENT", "Oficio"
+        OTHER = "OTHER", "Outra"
+
+    title = models.CharField(max_length=180)
+    source_id = models.CharField(max_length=80, unique=True, null=True, blank=True)
+    linked_action = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="linked_requests",
+    )
+    description = models.TextField()
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    location = models.CharField(max_length=180)
+    vehicle = models.CharField(max_length=120, blank=True)
+    vehicle_ref = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True)
+    team_name = models.CharField(max_length=160, blank=True)
+    team_ref = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True)
+    chief_name = models.CharField(max_length=160, blank=True)
+    chief_ref = models.ForeignKey(Chief, on_delete=models.SET_NULL, null=True, blank=True)
+    team_phone = models.CharField(max_length=160, blank=True)
+    agents = models.TextField(blank=True)
+    agents_ref = models.ManyToManyField(Agent, blank=True, related_name="agendas")
+    support_1 = models.CharField(max_length=160, blank=True)
+    support_1_ref = models.ForeignKey(
+        Support, on_delete=models.SET_NULL, null=True, blank=True, related_name="support_1_agendas"
+    )
+    support_2 = models.CharField(max_length=160, blank=True)
+    support_2_ref = models.ForeignKey(
+        Support, on_delete=models.SET_NULL, null=True, blank=True, related_name="support_2_agendas"
+    )
+    action_type = models.CharField(max_length=160, blank=True)
+    action_type_ref = models.ForeignKey(ActionType, on_delete=models.SET_NULL, null=True, blank=True)
+    institution_location = models.CharField(max_length=220, blank=True)
+    quantity = models.PositiveIntegerField(null=True, blank=True)
+    actions_count = models.PositiveSmallIntegerField(null=True, blank=True)
+    schedule_text = models.CharField(max_length=120, blank=True)
+    time_2 = models.TimeField(null=True, blank=True)
+    time_3 = models.TimeField(null=True, blank=True)
+    address = models.CharField(max_length=220, blank=True)
+    neighborhood = models.CharField(max_length=120, blank=True)
+    neighborhood_ref = models.ForeignKey(Neighborhood, on_delete=models.SET_NULL, null=True, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    state = models.CharField(max_length=40, blank=True)
+    municipality_ref = models.ForeignKey(Municipality, on_delete=models.SET_NULL, null=True, blank=True)
+    external_responsible = models.CharField(max_length=160, blank=True)
+    external_responsible_phone = models.CharField(max_length=160, blank=True)
+    external_email = models.EmailField(blank=True)
+    contact_email = models.EmailField(blank=True)
+    requester_cpf = models.CharField(max_length=20, blank=True)
+    requester_role = models.CharField(max_length=160, blank=True)
+    audience = models.CharField(max_length=160, blank=True)
+    requester_entity_type = models.CharField(max_length=160, blank=True)
+    age_ranges = models.CharField(max_length=220, blank=True)
+    has_ramps = models.CharField(max_length=3, blank=True)
+    has_elevators = models.CharField(max_length=3, blank=True)
+    has_accessible_bathrooms = models.CharField(max_length=3, blank=True)
+    media_equipment = models.TextField(blank=True)
+    image_authorization = models.TextField(blank=True)
+    activity_type = models.CharField(max_length=160, blank=True)
+    kit_1 = models.CharField(max_length=160, blank=True)
+    kit_1_quantity = models.PositiveIntegerField(null=True, blank=True)
+    material_1 = models.CharField(max_length=220, blank=True)
+    kit_2 = models.CharField(max_length=160, blank=True)
+    kit_2_quantity = models.PositiveIntegerField(null=True, blank=True)
+    material_2 = models.CharField(max_length=220, blank=True)
+    kit_3 = models.CharField(max_length=160, blank=True)
+    kit_3_quantity = models.PositiveIntegerField(null=True, blank=True)
+    material_3 = models.CharField(max_length=220, blank=True)
+    kit_4 = models.CharField(max_length=160, blank=True)
+    kit_4_quantity = models.PositiveIntegerField(null=True, blank=True)
+    material_4 = models.CharField(max_length=220, blank=True)
+    kit_5 = models.CharField(max_length=160, blank=True)
+    kit_5_quantity = models.PositiveIntegerField(null=True, blank=True)
+    material_5 = models.CharField(max_length=220, blank=True)
+    kit_6 = models.CharField(max_length=160, blank=True)
+    kit_6_quantity = models.PositiveIntegerField(null=True, blank=True)
+    material_6 = models.CharField(max_length=220, blank=True)
+    kit_7 = models.CharField(max_length=160, blank=True)
+    kit_7_quantity = models.PositiveIntegerField(null=True, blank=True)
+    responsible = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="responsible_agendas",
+    )
+    sector = models.ForeignKey(Sector, on_delete=models.PROTECT, related_name="agendas")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    origin = models.CharField(max_length=20, choices=Origin.choices, default=Origin.INTERNAL)
+    cancel_reason = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_agendas",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["date", "start_time"]
+        indexes = [
+            models.Index(fields=["date", "status"]),
+            models.Index(fields=["sector", "date"]),
+            models.Index(fields=["responsible", "date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.date}"
+
+    def overlaps_queryset(self):
+        return Agenda.objects.filter(date=self.date).filter(
+            Q(responsible=self.responsible) | Q(location__iexact=self.location),
+            start_time__lt=self.end_time,
+            end_time__gt=self.start_time,
+        ).exclude(pk=self.pk)
+
+
+class AgendaHistory(models.Model):
+    agenda = models.ForeignKey(Agenda, on_delete=models.CASCADE, related_name="history")
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    action = models.CharField(max_length=60)
+    snapshot = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.agenda_id} - {self.action}"
+
+
+class AgendaMaterial(models.Model):
+    agenda = models.ForeignKey(Agenda, on_delete=models.CASCADE, related_name="materials")
+    kit = models.ForeignKey(Kit, on_delete=models.SET_NULL, null=True, blank=True)
+    material = models.ForeignKey(Material, on_delete=models.SET_NULL, null=True, blank=True)
+    quantity = models.PositiveIntegerField(null=True, blank=True)
+    position = models.PositiveSmallIntegerField(default=1)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return f"{self.agenda_id} - {self.kit or self.material}"
+
+
+class EventReport(models.Model):
+    class ObjectiveStatus(models.TextChoices):
+        FULL = "FULL", "Totalmente atingido"
+        PARTIAL = "PARTIAL", "Parcialmente atingido"
+        NOT_REACHED = "NOT_REACHED", "Não atingido"
+
+    class ReportStatus(models.TextChoices):
+        DRAFT = "DRAFT", "Rascunho"
+        SUBMITTED = "SUBMITTED", "Enviado"
+
+    class ExecutionQuality(models.TextChoices):
+        AS_PLANNED = "AS_PLANNED", "Executada conforme planejado"
+        PARTIAL_CHANGE = "PARTIAL_CHANGE", "Executada com ajustes"
+        NOT_EXECUTED = "NOT_EXECUTED", "Não executada"
+
+    class ReceptivityLevel(models.TextChoices):
+        HIGH = "HIGH", "Alta receptividade"
+        MEDIUM = "MEDIUM", "Receptividade moderada"
+        LOW = "LOW", "Baixa receptividade"
+
+    class IncidentStatus(models.TextChoices):
+        NONE = "NONE", "Sem ocorrências"
+        MINOR = "MINOR", "Ocorrências sem impacto"
+        RELEVANT = "RELEVANT", "Ocorrências relevantes"
+
+    class MaterialStatus(models.TextChoices):
+        ADEQUATE = "ADEQUATE", "Materiais suficientes"
+        PARTIAL = "PARTIAL", "Materiais parcialmente suficientes"
+        INSUFFICIENT = "INSUFFICIENT", "Materiais insuficientes"
+
+    class TeamPerformance(models.TextChoices):
+        EXCELLENT = "EXCELLENT", "Excelente"
+        ADEQUATE = "ADEQUATE", "Adequada"
+        NEEDS_SUPPORT = "NEEDS_SUPPORT", "Necessita apoio"
+
+    agenda = models.OneToOneField(Agenda, on_delete=models.CASCADE, related_name="event_report")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    status = models.CharField(max_length=20, choices=ReportStatus.choices, default=ReportStatus.DRAFT)
+    objective_status = models.CharField(max_length=20, choices=ObjectiveStatus.choices, default=ObjectiveStatus.FULL)
+    execution_quality = models.CharField(max_length=20, choices=ExecutionQuality.choices, default=ExecutionQuality.AS_PLANNED)
+    receptivity_level = models.CharField(max_length=20, choices=ReceptivityLevel.choices, default=ReceptivityLevel.HIGH)
+    incident_status = models.CharField(max_length=20, choices=IncidentStatus.choices, default=IncidentStatus.NONE)
+    material_status = models.CharField(max_length=20, choices=MaterialStatus.choices, default=MaterialStatus.ADEQUATE)
+    team_performance_status = models.CharField(max_length=20, choices=TeamPerformance.choices, default=TeamPerformance.ADEQUATE)
+    participants_count = models.PositiveIntegerField(null=True, blank=True)
+    audience_profile = models.CharField(max_length=220, blank=True)
+    execution_summary = models.TextField()
+    public_receptivity = models.TextField(blank=True)
+    incidents = models.TextField(blank=True)
+    materials_used = models.TextField(blank=True)
+    team_performance = models.TextField(blank=True)
+    positive_points = models.TextField(blank=True)
+    improvement_points = models.TextField(blank=True)
+    recommendations = models.TextField(blank=True)
+    final_considerations = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Relatorio - {self.agenda}"
+
+
+class EducationReport(models.Model):
+    class Source(models.TextChoices):
+        LOCAL = "LOCAL", "Local"
+        IMPORTED = "IMPORTED", "Importado"
+
+    class ReportStatus(models.TextChoices):
+        DRAFT = "DRAFT", "Rascunho"
+        SUBMITTED = "SUBMITTED", "Enviado"
+
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.LOCAL)
+    source_id = models.CharField(max_length=80, unique=True, null=True, blank=True)
+    agenda = models.ForeignKey(
+        Agenda,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="technical_reports",
+    )
+    operation_date = models.DateField()
+    team = models.CharField(max_length=160)
+    management_id = models.IntegerField(null=True, blank=True)
+    management_name = models.CharField(max_length=180, blank=True)
+    education_pcd = models.TextField(blank=True)
+    education_agents = models.TextField(blank=True)
+    changes_staff = models.TextField(blank=True)
+    breathalyzers = models.CharField(max_length=220, blank=True)
+    cars = models.CharField(max_length=220, blank=True)
+    changes_general = models.TextField(blank=True)
+    contact_received = models.CharField(max_length=220, blank=True)
+    occurrence_observation = models.TextField(blank=True)
+    lat = models.DecimalField(max_digits=12, decimal_places=8, null=True, blank=True)
+    lng = models.DecimalField(max_digits=12, decimal_places=8, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=ReportStatus.choices, default=ReportStatus.DRAFT)
+    horus_created_at = models.DateTimeField(null=True, blank=True)
+    horus_updated_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="education_reports",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-operation_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["operation_date", "team"]),
+            models.Index(fields=["source", "operation_date"]),
+        ]
+
+    def __str__(self):
+        protocol = f"#{self.agenda_id} - " if self.agenda_id else ""
+        return f"{protocol}Relatorio - {self.team}"
+
+
+class EducationAction(models.Model):
+    report = models.ForeignKey(EducationReport, on_delete=models.CASCADE, related_name="actions")
+    agenda = models.ForeignKey(Agenda, on_delete=models.SET_NULL, null=True, blank=True, related_name="education_actions")
+    source_id = models.CharField(max_length=80, unique=True, null=True, blank=True)
+    place_action = models.CharField(max_length=260, blank=True)
+    type_action = models.CharField(max_length=160, blank=True)
+    type_audience = models.CharField(max_length=160, blank=True)
+    institution_name = models.CharField(max_length=220, blank=True)
+    start_time = models.CharField(max_length=30, blank=True)
+    final_hour = models.CharField(max_length=30, blank=True)
+    approach = models.PositiveIntegerField(default=0)
+    approached_lectures = models.PositiveIntegerField(default=0)
+    approached_actions = models.PositiveIntegerField(default=0)
+    tests = models.PositiveIntegerField(default=0)
+    used_caps = models.PositiveIntegerField(default=0)
+    available_caps = models.PositiveIntegerField(default=0)
+    distributed_folders = models.PositiveIntegerField(default=0)
+    cricris = models.PositiveIntegerField(default=0)
+    vetarolas = models.PositiveIntegerField(default=0)
+    used_adhesives = models.PositiveIntegerField(default=0)
+    sequence_certificates = models.PositiveIntegerField(default=0)
+    gibis = models.PositiveIntegerField(default=0)
+    distributed_certificates = models.PositiveIntegerField(default=0)
+    lectures = models.PositiveIntegerField(default=0)
+    schools = models.PositiveIntegerField(default=0)
+    universities = models.PositiveIntegerField(default=0)
+    companies = models.PositiveIntegerField(default=0)
+    educational_actions = models.PositiveIntegerField(default=0)
+    bars = models.PositiveIntegerField(default=0)
+    tolls = models.PositiveIntegerField(default=0)
+    sports = models.PositiveIntegerField(default=0)
+    beach = models.PositiveIntegerField(default=0)
+    events = models.PositiveIntegerField(default=0)
+    shopping = models.PositiveIntegerField(default=0)
+    social_actions = models.PositiveIntegerField(default=0)
+    other_actions = models.PositiveIntegerField(default=0)
+    publicity_materials = models.PositiveIntegerField(default=0)
+    horus_created_at = models.DateTimeField(null=True, blank=True)
+    horus_updated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["start_time", "id"]
+
+    def __str__(self):
+        return f"{self.type_action} - {self.institution_name}"
+
+
+class SatisfactionSurvey(models.Model):
+    agenda = models.ForeignKey(Agenda, on_delete=models.PROTECT, related_name="satisfaction_surveys")
+    report = models.ForeignKey(
+        EducationReport,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="satisfaction_surveys",
+    )
+    token = models.CharField(max_length=180, unique=True)
+    requester_email = models.EmailField(blank=True)
+    team = models.CharField(max_length=160, blank=True)
+    chief_name = models.CharField(max_length=160, blank=True)
+    audiovisual_resources = models.PositiveSmallIntegerField(null=True, blank=True)
+    speaker_knowledge = models.PositiveSmallIntegerField(null=True, blank=True)
+    wheelchair_testimony = models.PositiveSmallIntegerField(null=True, blank=True)
+    workshops = models.PositiveSmallIntegerField(null=True, blank=True)
+    support_material = models.PositiveSmallIntegerField(null=True, blank=True)
+    punctuality = models.PositiveSmallIntegerField(null=True, blank=True)
+    team_enthusiasm = models.PositiveSmallIntegerField(null=True, blank=True)
+    overall_rating = models.PositiveSmallIntegerField(null=True, blank=True)
+    suggestion = models.TextField(blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    answered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Pesquisa #{self.agenda_id}"
+
+
+class EducationGoal(models.Model):
+    year = models.PositiveIntegerField()
+    key = models.CharField(max_length=80)
+    label = models.CharField(max_length=160)
+    average = models.PositiveIntegerField(default=0)
+    target = models.PositiveIntegerField(default=0)
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["year", "order", "label"]
+        constraints = [
+            models.UniqueConstraint(fields=["year", "key"], name="unique_education_goal_year_key"),
+        ]
+
+    def __str__(self):
+        return f"{self.year} - {self.label}"
