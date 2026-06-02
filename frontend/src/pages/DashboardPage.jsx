@@ -270,7 +270,7 @@ function SatisfactionSurveyPanel({ surveys = {} }) {
               <div key={idx} className="message-card" style={{ background: "#fff", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: "8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <Stars rating={msg.overall_rating} />
-                  <span style={{ fontSize: "11px", color: "var(--text-soft)", fontWeight: "700" }}>{new Date(msg.created_at).toLocaleDateString("pt-BR")}</span>
+                  <span style={{ fontSize: "11px", color: "var(--text-soft)", fontWeight: "700" }}>{new Date(msg.answered_at).toLocaleDateString("pt-BR")}</span>
                 </div>
                 <p style={{ margin: 0, fontSize: "13px", color: "var(--text)", lineHeight: 1.5 }}>"{msg.suggestion}"</p>
                 {msg.team && <div style={{ fontSize: "11px", color: "var(--primary)", fontWeight: "800" }}>Equipe: {msg.team}</div>}

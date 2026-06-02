@@ -697,7 +697,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             if (calendar_start + timedelta(days=index)).month == today.month
         ]
 
-        surveys_qs = SatisfactionSurvey.objects.filter(agenda__in=base_qs)
+        surveys_qs = SatisfactionSurvey.objects.filter(agenda__in=base_qs, answered_at__isnull=False)
         overall_rating_avg = surveys_qs.aggregate(avg=Avg('overall_rating'))['avg'] or 0.0
 
         team_ratings = list(
@@ -709,8 +709,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
 
         recent_messages = list(
             surveys_qs.exclude(suggestion="")
-            .order_by('-created_at')
-            .values('team', 'suggestion', 'created_at', 'overall_rating')[:10]
+            .order_by('-answered_at')
+            .values('team', 'suggestion', 'answered_at', 'overall_rating')[:10]
         )
 
         data = {
