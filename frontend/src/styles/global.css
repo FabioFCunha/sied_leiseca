@@ -599,6 +599,7 @@ th {
   display: flex;
   gap: 12px;
   min-height: auto;
+  order: 3;
   position: relative;
 }
 
@@ -612,16 +613,16 @@ th {
 .brand-logo {
   align-items: center;
   display: flex;
-  flex: 0 0 96px;
-  height: 42px;
+  flex: 0 0 128px;
+  height: 56px;
   overflow: hidden;
 }
 
 .brand-logo img {
   display: block;
   height: auto;
-  max-height: 42px;
-  max-width: 96px;
+  max-height: 56px;
+  max-width: 128px;
   object-fit: contain;
   width: 100%;
 }
@@ -641,6 +642,7 @@ th {
   display: grid;
   gap: 6px;
   margin-top: 10px;
+  order: 1;
 }
 
 .is-collapsed .brand > div,
@@ -686,6 +688,7 @@ th {
   color: #fff;
   font-weight: 800;
   margin-top: 8px;
+  order: 2;
   width: 100%;
 }
 
