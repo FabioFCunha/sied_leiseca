@@ -482,10 +482,30 @@ th {
   outline: none;
 }
 
-.input-icon .input-action-icon {
+.input-action-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #0048d7;
+  cursor: pointer;
+  display: inline-flex;
+  min-height: 36px;
+  padding: 0;
+  position: absolute;
+  right: 13px;
+  top: 9px;
+  width: 36px;
+}
+
+.input-action-button svg {
   left: auto;
-  right: 14px;
-  top: 17px;
+  position: static;
+  top: auto;
+}
+
+.input-action-button:focus-visible {
+  outline: 2px solid #0048d7;
+  outline-offset: 2px;
 }
 
 .login-options {

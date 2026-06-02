@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, Eye, Lock, Mail, ShieldCheck } from "lucide-react";
+import { CalendarDays, ChevronRight, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client.js";
@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 export default function LoginPage() {
   const [email, setEmail] = useState("admin@agenda.local");
   const [password, setPassword] = useState("Admin@12345");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -84,8 +85,16 @@ export default function LoginPage() {
             Senha
             <span className="input-icon">
               <Lock size={18} />
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Digite sua senha" required />
-              <Eye className="input-action-icon" size={20} />
+              <input value={password} onChange={(e) => setPassword(e.target.value)} type={showPassword ? "text" : "password"} placeholder="Digite sua senha" required />
+              <button
+                className="input-action-button"
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </span>
           </label>
           <div className="login-options">
