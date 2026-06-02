@@ -5,6 +5,7 @@ export function getToken() {
 }
 
 export async function api(path, options = {}) {
+  const { redirectOnUnauthorized = true, ...fetchOptions } = options;
   const headers = new Headers(options.headers || {});
   if (!(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -14,14 +15,14 @@ export async function api(path, options = {}) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const response = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers });
   if (response.status === 204) {
     return null;
   }
   const contentType = response.headers.get("content-type") || "";
   const data = contentType.includes("application/json") ? await response.json() : await response.blob();
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && redirectOnUnauthorized) {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");

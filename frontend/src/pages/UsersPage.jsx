@@ -1,6 +1,7 @@
-import { Save } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const empty = { full_name: "", cpf: "", email: "", phone: "", role: "USER", sector: "", is_active: true };
 
@@ -11,6 +12,7 @@ const roleLabel = {
 };
 
 export default function UsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [form, setForm] = useState(empty);
@@ -35,7 +37,7 @@ export default function UsersPage() {
       setPasswordLink(saved.password_setup_link || "");
       setForm(empty);
       setEditing(null);
-      setMessage("Usuário salvo. Envie o link de senha para o e-mail do usuário.");
+      setMessage(saved.password_setup_email_sent ? "Usuario salvo. Link de senha enviado por e-mail." : "Usuario salvo. Nao foi possivel enviar o e-mail; copie o link de senha manualmente.");
       load();
     } catch (err) {
       setMessage(err.message);
@@ -48,19 +50,42 @@ export default function UsersPage() {
     setForm({ ...user, cpf: user.cpf || "", sector: user.sector || "", is_active: user.is_active });
   };
 
+  const remove = async (user) => {
+    if (user.id === currentUser?.id) {
+      setMessage("Voce nao pode excluir o proprio usuario conectado.");
+      return;
+    }
+    const label = user.full_name || user.email;
+    if (!window.confirm(`Excluir o usuario ${label}? Esta acao nao pode ser desfeita.`)) {
+      return;
+    }
+    try {
+      await api(`/users/${user.id}/`, { method: "DELETE" });
+      if (editing === user.id) {
+        setEditing(null);
+        setForm(empty);
+        setPasswordLink("");
+      }
+      setMessage("Usuario excluido.");
+      load();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
   return (
     <section className="page two-column">
       <div className="main-column">
         <div className="page-title">
           <div>
-            <h1>Usuários</h1>
+            <h1>Usuarios</h1>
             <p>Gerencie administradores, chefes e agentes do sistema.</p>
           </div>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>E-mail</th><th>Ocupação</th><th>Equipe</th><th></th></tr>
+              <tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>E-mail</th><th>Ocupacao</th><th>Equipe</th><th className="actions-heading">Acoes</th></tr>
             </thead>
             <tbody>
               {users.map((item) => (
@@ -71,7 +96,14 @@ export default function UsersPage() {
                   <td>{item.email}</td>
                   <td>{roleLabel[item.role] || item.role}</td>
                   <td>{item.sector_name}</td>
-                  <td><button className="secondary" onClick={() => edit(item)}>Editar</button></td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="secondary" onClick={() => edit(item)}>Editar</button>
+                      <button className="icon-button danger" onClick={() => remove(item)} disabled={item.id === currentUser?.id} aria-label={`Excluir ${item.full_name || item.email}`} title={item.id === currentUser?.id ? "Voce nao pode excluir seu proprio usuario" : "Excluir usuario"}>
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -79,7 +111,7 @@ export default function UsersPage() {
         </div>
       </div>
       <aside className="side-panel">
-        <h2>{editing ? "Editar usuário" : "Novo usuário"}</h2>
+        <h2>{editing ? "Editar usuario" : "Novo usuario"}</h2>
         <form className="stack-form" onSubmit={submit}>
           <input placeholder="Nome completo" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
           <input placeholder="CPF" value={form.cpf || ""} onChange={(e) => setForm({ ...form, cpf: e.target.value })} required />
@@ -94,7 +126,7 @@ export default function UsersPage() {
             <option value="">Sem equipe</option>
             {sectors.map((sector) => <option key={sector.id} value={sector.id}>{sector.name}</option>)}
           </select>
-          <label className="checkbox"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Usuário ativo</label>
+          <label className="checkbox"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Usuario ativo</label>
           {message && <div className="alert">{message}</div>}
           {passwordLink && (
             <div className="copy-box">

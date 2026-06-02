@@ -19,7 +19,8 @@ export default function LoginPage() {
     try {
       const payload = await api("/auth/login/", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
+        redirectOnUnauthorized: false,
       });
       login(payload);
       navigate("/");
