@@ -44,17 +44,18 @@ class PasswordResetRequestView(APIView):
         if user:
             link = UserSerializer(user).data["password_setup_link"]
             message = EmailMessage(
-                subject="Recuperacao de senha - Agenda Educacao",
+                subject="Recuperação de senha - Agenda Educação",
                 body=(
-                    "Recebemos uma solicitacao para recuperar seu acesso ao Agenda Educacao.\n\n"
+                    "Recebemos uma solicitação para recuperar seu acesso ao Agenda Educação.\n\n"
                     "Para definir uma nova senha, acesse o link abaixo:\n"
                     f"{link}\n\n"
-                    "Se voce nao solicitou essa recuperacao, ignore esta mensagem."
+                    "Se você não solicitou essa recuperação, ignore esta mensagem."
                 ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[user.email],
                 reply_to=[settings.AGENDA_REPLY_TO_EMAIL] if settings.AGENDA_REPLY_TO_EMAIL else None,
             )
+            message.encoding = "utf-8"
             try:
                 message.send(fail_silently=False)
             except Exception:
