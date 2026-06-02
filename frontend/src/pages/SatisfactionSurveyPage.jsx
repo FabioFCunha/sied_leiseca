@@ -53,7 +53,7 @@ export default function SatisfactionSurveyPage() {
     <main className="public-page">
       <section className="public-form">
         <div className="public-header">
-          <img className="public-mascot logo-ols" src={logoImg} alt="Logo Operação Lei Seca" style={{ maxHeight: '80px', objectFit: 'contain' }} />
+          <img className="public-mascot logo-ols" src={logoImg} alt="Logo Operação Lei Seca" style={{ maxHeight: '70px', objectFit: 'contain', backgroundColor: '#1a1a1a', padding: '10px 16px', borderRadius: '8px' }} />
           <div>
             <h1>Pesquisa de satisfação</h1>
             <p>{survey?.protocol ? `Protocolo #${survey.protocol}` : "Avaliação da palestra"}</p>

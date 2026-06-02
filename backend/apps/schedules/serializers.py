@@ -549,6 +549,31 @@ class EducationGoalSerializer(serializers.ModelSerializer):
         read_only_fields = ["created_at", "updated_at"]
 
 
+def get_next_available_dates(start_date, limit=3):
+    from datetime import timedelta
+    available_dates = []
+    current_date = start_date + timedelta(days=1)
+    
+    for _ in range(30):
+        if len(available_dates) >= limit:
+            break
+            
+        if current_date.weekday() >= 5:
+            current_date += timedelta(days=1)
+            continue
+            
+        agendas_count = Agenda.objects.filter(
+            date=current_date,
+            status__in=[Agenda.Status.PENDING, Agenda.Status.APPROVED]
+        ).count()
+        
+        if agendas_count < 4:
+            available_dates.append(current_date)
+            
+        current_date += timedelta(days=1)
+        
+    return available_dates
+
 class PublicAgendaRequestSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=180)
     description = serializers.CharField()
@@ -593,6 +618,24 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs["start_time"] >= attrs["end_time"]:
             raise serializers.ValidationError("A hora final deve ser maior que a hora inicial.")
+            
+        date = attrs.get("date")
+        if date:
+            agenda_id = self.context.get("agenda_id")
+            qs = Agenda.objects.filter(
+                date=date,
+                status__in=[Agenda.Status.PENDING, Agenda.Status.APPROVED]
+            )
+            if agenda_id:
+                qs = qs.exclude(id=agenda_id)
+            
+            if qs.count() >= 4:
+                suggested = get_next_available_dates(date)
+                suggested_str = ", ".join(d.strftime("%d/%m/%Y") for d in suggested)
+                raise serializers.ValidationError(
+                    f"Infelizmente já atingimos o limite de vagas para esta data. Sugerimos os dias úteis disponíveis a seguir: {suggested_str}."
+                )
+                
         return attrs
 
 
@@ -607,6 +650,24 @@ class PublicAgendaRequestRescheduleSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs["start_time"] >= attrs["end_time"]:
             raise serializers.ValidationError("A hora final deve ser maior que a hora inicial.")
+            
+        date = attrs.get("date")
+        if date:
+            agenda_id = self.context.get("agenda_id")
+            qs = Agenda.objects.filter(
+                date=date,
+                status__in=[Agenda.Status.PENDING, Agenda.Status.APPROVED]
+            )
+            if agenda_id:
+                qs = qs.exclude(id=agenda_id)
+                
+            if qs.count() >= 4:
+                suggested = get_next_available_dates(date)
+                suggested_str = ", ".join(d.strftime("%d/%m/%Y") for d in suggested)
+                raise serializers.ValidationError(
+                    f"Infelizmente já atingimos o limite de vagas para esta data. Sugerimos os dias úteis disponíveis a seguir: {suggested_str}."
+                )
+                
         return attrs
 
 

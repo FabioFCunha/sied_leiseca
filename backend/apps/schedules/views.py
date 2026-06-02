@@ -1719,7 +1719,7 @@ class PublicAgendaRequestUpdateView(APIView):
 
     def patch(self, request, token):
         agenda = self.get_agenda(token)
-        serializer = PublicAgendaRequestRescheduleSerializer(data=request.data)
+        serializer = PublicAgendaRequestRescheduleSerializer(data=request.data, context={"agenda_id": agenda.id})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         agenda.date = data["date"]
