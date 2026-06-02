@@ -2,6 +2,8 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
@@ -62,6 +64,22 @@ class UserSerializer(serializers.ModelSerializer):
         uid = urlsafe_base64_encode(force_bytes(obj.pk))
         token = default_token_generator.make_token(obj)
         return f"{settings.FRONTEND_URL}/definir-senha?uid={uid}&token={token}"
+
+    def validate_email(self, value):
+        email = (value or "").strip().lower()
+        try:
+            validate_email(email)
+        except DjangoValidationError:
+            raise serializers.ValidationError("Informe um e-mail valido.")
+        return email
+
+    def validate_phone(self, value):
+        digits = "".join(char for char in str(value or "") if char.isdigit())
+        if not digits:
+            return ""
+        if len(digits) not in {10, 11}:
+            raise serializers.ValidationError("Informe um telefone valido com DDD.")
+        return digits
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)

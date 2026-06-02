@@ -12,6 +12,22 @@ const roleLabel = {
   USER: "Agente",
 };
 
+function formatPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 10) {
+    return digits
+      .replace(/^(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  }
+  return digits
+    .replace(/^(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(value || "").trim());
+}
+
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
@@ -30,7 +46,16 @@ export default function UsersPage() {
 
   const submit = async (event) => {
     event.preventDefault();
-    const payload = { ...form };
+    const phoneDigits = String(form.phone || "").replace(/\D/g, "");
+    if (phoneDigits && (phoneDigits.length < 10 || phoneDigits.length > 11)) {
+      setMessage("Informe um telefone valido com DDD.");
+      return;
+    }
+    if (!isValidEmail(form.email)) {
+      setMessage("Informe um e-mail valido.");
+      return;
+    }
+    const payload = { ...form, email: form.email.trim().toLowerCase(), phone: phoneDigits };
     const isEditing = Boolean(editing);
     try {
       const saved = isEditing
@@ -130,8 +155,27 @@ export default function UsersPage() {
         <form className="stack-form" onSubmit={submit}>
           <input placeholder="Nome completo" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
           <input placeholder="CPF" value={form.cpf || ""} onChange={(e) => setForm({ ...form, cpf: e.target.value })} required />
-          <input placeholder="Telefone" value={form.phone || ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <input placeholder="E-mail" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          <input
+            placeholder="Telefone"
+            value={formatPhone(form.phone)}
+            onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
+            inputMode="numeric"
+            autoComplete="tel"
+            maxLength="15"
+            pattern="\(\d{2}\) \d{4,5}-\d{4}"
+            title="Informe um telefone com DDD. Exemplo: (21) 99999-9999"
+          />
+          <input
+            placeholder="E-mail"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            autoComplete="email"
+            inputMode="email"
+            pattern="[^\s@]+@[^\s@]+\.[^\s@]{2,}"
+            title="Informe um e-mail valido. Exemplo: nome@dominio.com"
+            required
+          />
           <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
             <option value="USER">Agente</option>
             <option value="SUPERVISOR">Chefe</option>
