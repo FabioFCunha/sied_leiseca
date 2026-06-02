@@ -38,7 +38,7 @@ export default function UsersPage() {
       setPasswordLink(saved.password_setup_link || "");
       setForm(empty);
       setEditing(null);
-      setMessage(isEditing ? "Usuario salvo." : (saved.password_setup_email_sent ? "Usuario salvo. Link de senha enviado por e-mail." : `Usuario salvo. Nao foi possivel enviar o e-mail; copie o link de senha manualmente.${saved.password_setup_email_error ? ` Erro: ${saved.password_setup_email_error}` : ""}`));
+      setMessage(isEditing ? "Usuário salvo." : (saved.password_setup_email_sent ? "Usuário salvo. Link de senha enviado por e-mail." : `Usuário salvo. Não foi possível enviar o e-mail; copie o link de senha manualmente.${saved.password_setup_email_error ? ` Erro: ${saved.password_setup_email_error}` : ""}`));
       load();
     } catch (err) {
       setMessage(err.message);
@@ -53,11 +53,11 @@ export default function UsersPage() {
 
   const remove = async (user) => {
     if (user.id === currentUser?.id) {
-      setMessage("Voce nao pode excluir o proprio usuario conectado.");
+      setMessage("Você não pode excluir o próprio usuário conectado.");
       return;
     }
     const label = user.full_name || user.email;
-    if (!window.confirm(`Excluir o usuario ${label}? Esta acao nao pode ser desfeita.`)) {
+    if (!window.confirm(`Excluir o usuário ${label}? Esta ação não pode ser desfeita.`)) {
       return;
     }
     try {
@@ -67,7 +67,7 @@ export default function UsersPage() {
         setForm(empty);
         setPasswordLink("");
       }
-      setMessage("Usuario excluido.");
+      setMessage("Usuário excluído.");
       load();
     } catch (err) {
       setMessage(err.message);
@@ -89,14 +89,14 @@ export default function UsersPage() {
       <div className="main-column">
         <div className="page-title">
           <div>
-            <h1>Usuarios</h1>
+            <h1>Usuários</h1>
             <p>Gerencie administradores, chefes e agentes do sistema.</p>
           </div>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>E-mail</th><th>Ocupacao</th><th>Equipe</th><th className="actions-heading">Acoes</th></tr>
+              <tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>E-mail</th><th>Ocupação</th><th>Equipe</th><th className="actions-heading">Ações</th></tr>
             </thead>
             <tbody>
               {users.map((item) => (
@@ -113,7 +113,7 @@ export default function UsersPage() {
                       <button className="icon-button" onClick={() => sendPasswordLink(item)} aria-label={`Enviar link para ${item.full_name || item.email}`} title="Enviar link de senha">
                         <Mail size={18} />
                       </button>
-                      <button className="icon-button danger" onClick={() => remove(item)} disabled={item.id === currentUser?.id} aria-label={`Excluir ${item.full_name || item.email}`} title={item.id === currentUser?.id ? "Voce nao pode excluir seu proprio usuario" : "Excluir usuario"}>
+                      <button className="icon-button danger" onClick={() => remove(item)} disabled={item.id === currentUser?.id} aria-label={`Excluir ${item.full_name || item.email}`} title={item.id === currentUser?.id ? "Você não pode excluir seu próprio usuário" : "Excluir usuário"}>
                         <Trash2 size={18} />
                       </button>
                     </div>
@@ -125,7 +125,7 @@ export default function UsersPage() {
         </div>
       </div>
       <aside className="side-panel">
-        <h2>{editing ? "Editar usuario" : "Novo usuario"}</h2>
+        <h2>{editing ? "Editar usuário" : "Novo usuário"}</h2>
         <form className="stack-form" onSubmit={submit}>
           <input placeholder="Nome completo" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
           <input placeholder="CPF" value={form.cpf || ""} onChange={(e) => setForm({ ...form, cpf: e.target.value })} required />
@@ -140,7 +140,7 @@ export default function UsersPage() {
             <option value="">{sectors.length ? "Sem equipe" : "Nenhuma equipe carregada"}</option>
             {sectors.map((sector) => <option key={sector.id} value={sector.id}>{sector.name}</option>)}
           </select>
-          <label className="checkbox"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Usuario ativo</label>
+          <label className="checkbox"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Usuário ativo</label>
           {message && <div className="alert">{message}</div>}
           {passwordLink && (
             <div className="copy-box">
