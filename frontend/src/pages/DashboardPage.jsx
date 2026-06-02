@@ -242,7 +242,7 @@ function SatisfactionSurveyPanel({ surveys = {} }) {
             <div style={{ fontSize: "42px", fontWeight: "900", color: "#17202a", lineHeight: 1 }}>{overall_rating.toFixed(1)}</div>
             <div>
               <Stars rating={overall_rating} />
-              <div style={{ fontSize: "13px", color: "var(--text-soft)", marginTop: "4px" }}>Média geral de {total_responses} avaliações</div>
+              <div style={{ fontSize: "13px", color: "var(--text-soft)", marginTop: "4px" }}>Baseado em {total_responses} avaliações</div>
             </div>
           </div>
           
