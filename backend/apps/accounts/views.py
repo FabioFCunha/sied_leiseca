@@ -6,6 +6,7 @@ from django.core.mail import EmailMessage
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -91,6 +92,20 @@ class SetPasswordView(APIView):
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, UserAccessPermission]
+
+    @action(detail=True, methods=["post"], url_path="send-password-link")
+    def send_password_link(self, request, pk=None):
+        user = self.get_object()
+        data = UserSerializer(user, context=self.get_serializer_context()).data
+        sent = send_password_setup_email(user, data["password_setup_link"])
+        return Response(
+            {
+                "detail": "Link de senha enviado por e-mail." if sent else "Nao foi possivel enviar o e-mail; copie o link de senha manualmente.",
+                "password_setup_link": data["password_setup_link"],
+                "password_setup_email_sent": sent,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

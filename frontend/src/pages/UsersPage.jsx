@@ -1,4 +1,4 @@
-import { Save, Trash2 } from "lucide-react";
+import { Mail, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -74,6 +74,16 @@ export default function UsersPage() {
     }
   };
 
+  const sendPasswordLink = async (user) => {
+    try {
+      const data = await api(`/users/${user.id}/send-password-link/`, { method: "POST" });
+      setPasswordLink(data.password_setup_link || "");
+      setMessage(data.detail);
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
   return (
     <section className="page two-column">
       <div className="main-column">
@@ -100,6 +110,9 @@ export default function UsersPage() {
                   <td>
                     <div className="row-actions">
                       <button className="secondary" onClick={() => edit(item)}>Editar</button>
+                      <button className="icon-button" onClick={() => sendPasswordLink(item)} aria-label={`Enviar link para ${item.full_name || item.email}`} title="Enviar link de senha">
+                        <Mail size={18} />
+                      </button>
                       <button className="icon-button danger" onClick={() => remove(item)} disabled={item.id === currentUser?.id} aria-label={`Excluir ${item.full_name || item.email}`} title={item.id === currentUser?.id ? "Voce nao pode excluir seu proprio usuario" : "Excluir usuario"}>
                         <Trash2 size={18} />
                       </button>
