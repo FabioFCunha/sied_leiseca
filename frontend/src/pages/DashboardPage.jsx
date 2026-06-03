@@ -498,9 +498,13 @@ export default function DashboardPage() {
     const end = new Date(today);
 
     if (range === chartFilters[1]) {
-      start.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+      start.setDate(today.getDate() - today.getDay());
+      end.setTime(start.getTime());
+      end.setDate(start.getDate() + 6);
     } else if (range === chartFilters[2]) {
       start.setDate(1);
+      end.setTime(start.getTime());
+      end.setMonth(start.getMonth() + 1, 0);
     } else if (range === chartFilters[3]) {
       start.setMonth(0, 1);
       end.setMonth(11, 31);
