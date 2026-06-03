@@ -425,8 +425,58 @@ class AgendaViewSet(viewsets.ModelViewSet):
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
         )
-        qs = self.get_queryset().filter(request_source_filter)
-        base_qs = self.get_scoped_queryset().filter(request_source_filter)
+        def unscoped_dashboard_queryset():
+            return Agenda.objects.select_related("responsible", "sector", "created_by").prefetch_related(
+                "history",
+                "satisfaction_surveys",
+            )
+
+        def apply_dashboard_filters(scoped):
+            params = request.query_params
+            if params.get("date"):
+                scoped = scoped.filter(date=params["date"])
+            if params.get("date_from"):
+                scoped = scoped.filter(date__gte=params["date_from"])
+            if params.get("date_to"):
+                scoped = scoped.filter(date__lte=params["date_to"])
+            if params.get("status"):
+                scoped = scoped.filter(status=params["status"])
+            if params.get("origin"):
+                scoped = scoped.filter(origin=params["origin"])
+            if params.get("sector"):
+                scoped = scoped.filter(sector_id=params["sector"])
+            if params.get("user"):
+                scoped = scoped.filter(created_by_id=params["user"])
+            if params.get("responsible"):
+                scoped = scoped.filter(responsible_id=params["responsible"])
+            if params.get("vehicle"):
+                scoped = scoped.filter(vehicle_ref_id=params["vehicle"])
+            if params.get("team"):
+                scoped = scoped.filter(team_ref_id=params["team"])
+            if params.get("municipality"):
+                scoped = scoped.filter(municipality_ref_id=params["municipality"])
+            if params.get("action_type"):
+                scoped = scoped.filter(action_type_ref_id=params["action_type"])
+            if params.get("q"):
+                term = params["q"].strip()
+                search_filter = (
+                    Q(source_id__icontains=term)
+                    | Q(title__icontains=term)
+                    | Q(institution_location__icontains=term)
+                    | Q(location__icontains=term)
+                    | Q(address__icontains=term)
+                    | Q(neighborhood__icontains=term)
+                    | Q(city__icontains=term)
+                    | Q(external_responsible__icontains=term)
+                    | Q(agents__icontains=term)
+                )
+                if term.isdigit():
+                    search_filter |= Q(id=int(term))
+                scoped = scoped.filter(search_filter)
+            return scoped.distinct()
+
+        qs = apply_dashboard_filters(unscoped_dashboard_queryset()).filter(request_source_filter)
+        base_qs = unscoped_dashboard_queryset().filter(request_source_filter)
         total = qs.count()
         yesterday = today - timedelta(days=1)
         week_start = today - timedelta(days=today.weekday())
@@ -508,7 +558,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return start, end
 
         def dashboard_base_queryset():
-            scoped = self.get_scoped_queryset().filter(request_source_filter)
+            scoped = unscoped_dashboard_queryset().filter(request_source_filter)
             if request.query_params.get("sector"):
                 scoped = scoped.filter(sector_id=request.query_params["sector"])
             if request.query_params.get("municipality"):
@@ -1964,11 +2014,12 @@ class ReportViewSet(viewsets.ViewSet):
         if not request.user.is_admin_role:
             raise PermissionDenied("Apenas Gestores e Administração podem acessar relatórios.")
 
-    def _queryset(self, request):
-        self._check_access(request)
+    def _queryset(self, request, *, check_access=True, unscoped=False):
+        if check_access:
+            self._check_access(request)
         user = request.user
         scoped = Agenda.objects.select_related("responsible", "sector", "created_by")
-        if user.is_admin_role:
+        if unscoped or user.is_admin_role:
             pass
         elif user.role == User.Role.SUPERVISOR:
             scoped = scoped.filter(
@@ -2066,7 +2117,7 @@ class ReportViewSet(viewsets.ViewSet):
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
         )
-        qs = self._queryset(request).filter(request_source_filter)
+        qs = self._queryset(request, check_access=False, unscoped=True).filter(request_source_filter)
         log_audit(
             request,
             AuditLog.Action.REPORT_EXPORT,
