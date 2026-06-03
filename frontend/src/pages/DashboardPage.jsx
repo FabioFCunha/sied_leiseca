@@ -212,7 +212,6 @@ function Heatmap({ data = [] }) {
                   key={slot}
                   title={`${day} ${slot}: ${value}`}
                   style={{
-                    display: "block",
                     height: "28px",
                     borderRadius: "6px",
                     cursor: "pointer",
@@ -498,7 +497,8 @@ export default function DashboardPage() {
     const end = new Date(today);
 
     if (range === chartFilters[1]) {
-      start.setDate(today.getDate() - today.getDay());
+      const mondayOffset = (today.getDay() + 6) % 7;
+      start.setDate(today.getDate() - mondayOffset);
       end.setTime(start.getTime());
       end.setDate(start.getDate() + 6);
     } else if (range === chartFilters[2]) {
