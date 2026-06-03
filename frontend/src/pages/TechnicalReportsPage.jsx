@@ -183,6 +183,7 @@ function normalizePayload(form) {
   };
 }
 
+export default function TechnicalReportsPage() {
   const [agendas, setAgendas] = useState([]);
   const [reports, setReports] = useState([]);
   const [activeTab, setActiveTab] = useState("pending");

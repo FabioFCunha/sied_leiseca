@@ -204,11 +204,22 @@ class Agenda(models.Model):
         return f"{self.title} - {self.date}"
 
     def overlaps_queryset(self):
-        return Agenda.objects.filter(date=self.date).filter(
-            Q(responsible=self.responsible) | Q(location__iexact=self.location),
+        qs = Agenda.objects.filter(
+            date=self.date,
             start_time__lt=self.end_time,
             end_time__gt=self.start_time,
-        ).exclude(pk=self.pk)
+        ).exclude(pk=self.pk).exclude(status__in=[Agenda.Status.CANCELLED])
+
+        filters = Q()
+        if self.responsible and not getattr(self.responsible, 'email', '') == 'solicitacao.publica@agenda.local':
+            filters |= Q(responsible=self.responsible)
+        if self.location:
+            filters |= Q(location__iexact=self.location)
+
+        if not filters:
+            return Agenda.objects.none()
+
+        return qs.filter(filters)
 
 
 class AgendaHistory(models.Model):

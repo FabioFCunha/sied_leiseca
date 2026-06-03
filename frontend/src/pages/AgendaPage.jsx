@@ -427,14 +427,17 @@ export default function AgendaPage() {
     setMessage("");
     const nextForm = { ...form, status };
     if (status === "APPROVED") {
+      const hasSchedule = nextForm.date && nextForm.start_time && nextForm.end_time;
+      const hasResponsible = nextForm.responsible;
+      const hasLocation = nextForm.location;
       const hasVehicle = nextForm.vehicle_ref || nextForm.vehicle;
       const hasTeam = nextForm.team_ref || nextForm.team_name || nextForm.sector;
       const hasChief = nextForm.chief_ref || nextForm.chief_name;
       const hasAgents = (nextForm.agents_ref || []).length || nextForm.agents;
       const hasKitQuantity = nextForm.kit_1_quantity;
       nextForm.kit_1 = nextForm.kit_1 || lookups.kits[0]?.name || "KIT PADRÃO";
-      if (!hasVehicle || !hasTeam || !hasChief || !hasAgents || !hasKitQuantity) {
-        setMessage("Para aprovar, selecione viatura, equipe, chefe, agentes e informe a quantidade de kits.");
+      if (!hasSchedule || !hasResponsible || !hasLocation || !hasVehicle || !hasTeam || !hasChief || !hasAgents || !hasKitQuantity) {
+        setMessage("Para aprovar, informe data, horário, responsável, local, viatura, equipe, chefe, agentes e quantidade de kits.");
         return;
       }
     }
@@ -748,6 +751,37 @@ export default function AgendaPage() {
               >
                 <div className="form-section">
                   <h3>Escala operacional</h3>
+                  <div className="compact-grid">
+                    <label className="field-label">
+                      <span>Data</span>
+                      <input type="date" value={form.date || ""} onChange={(e) => update("date", e.target.value)} required />
+                    </label>
+                    <label className="field-label">
+                      <span>Responsável interno</span>
+                      <select value={form.responsible || ""} onChange={(e) => update("responsible", e.target.value)} required>
+                        <option value="">Selecione o responsável</option>
+                        {responsibleOptions.map((option) => <option key={option.id} value={option.id}>{option.full_name}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="compact-grid">
+                    <label className="field-label">
+                      <span>Início</span>
+                      <input type="time" value={form.start_time || ""} onChange={(e) => updateTime("start_time", e.target.value)} required />
+                    </label>
+                    <label className="field-label">
+                      <span>Fim</span>
+                      <input type="time" value={form.end_time || ""} onChange={(e) => updateTime("end_time", e.target.value)} required />
+                    </label>
+                  </div>
+                  <label className="field-label">
+                    <span>Instituição/local</span>
+                    <input value={form.institution_location || ""} onChange={(e) => update("institution_location", e.target.value)} placeholder="Instituição/local" />
+                  </label>
+                  <label className="field-label">
+                    <span>Local para checagem de conflito</span>
+                    <input value={form.location || ""} onChange={(e) => update("location", e.target.value)} placeholder="Local" required />
+                  </label>
                   <div className="compact-grid">
                     <label className="field-label">
                       <span>Equipe</span>

@@ -283,9 +283,12 @@ class AgendaSerializer(serializers.ModelSerializer):
             responsible=attrs.get("responsible", getattr(instance, "responsible", None)),
         )
         if date and start_time and end_time and candidate.responsible and candidate.location:
-            if candidate.overlaps_queryset().exists():
+            conflict = candidate.overlaps_queryset().select_related("responsible").order_by("start_time").first()
+            if conflict:
+                conflict_time = f"{conflict.start_time:%H:%M} às {conflict.end_time:%H:%M}"
+                conflict_label = conflict.location or conflict.institution_location or "local não informado"
                 raise serializers.ValidationError(
-                    "Existe conflito de horário para o mesmo responsável ou local."
+                    f"Existe conflito de horário com o protocolo #{conflict.id}, das {conflict_time}, em {conflict_label}."
                 )
         return attrs
 
