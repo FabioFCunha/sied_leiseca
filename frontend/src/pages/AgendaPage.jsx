@@ -153,6 +153,7 @@ export default function AgendaPage() {
   const [reviewStep, setReviewStep] = useState("summary");
   const [message, setMessage] = useState("");
   const [publicLinkMessage, setPublicLinkMessage] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
   const { user } = useAuth();
 
   const hasMaxAccess = user?.role === "ADMIN" || user?.role === "MANAGER";
@@ -160,12 +161,21 @@ export default function AgendaPage() {
   const canChangeStatus = hasMaxAccess;
   const canManageRequests = hasMaxAccess;
 
+  const fetchPendingCount = () => {
+    if (canManageRequests) {
+      api("/agendas/?status=PENDING&source=requests&page_size=1")
+        .then((data) => setPendingCount(data.count || 0))
+        .catch(() => {});
+    }
+  };
+
   const loadAgendas = () => {
     const params = new URLSearchParams({ page_size: "50", order: "latest", source: "requests", ...filters }).toString();
     api(`/agendas/?${params}`).then((data) => {
       setAgendas(data.results || data);
       setPageInfo({ count: data.count || (data.results || data).length, next: data.next, previous: data.previous });
     });
+    fetchPendingCount();
   };
 
   useEffect(() => {
@@ -527,8 +537,28 @@ export default function AgendaPage() {
       <div className="main-column">
         <div className="page-title">
           <div>
-            <h1>Solicitações</h1>
-            <p>Avalie solicitações recebidas pelo formulário público e faça a escala operacional.</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "4px" }}>
+              <h1 style={{ margin: 0 }}>Solicitações</h1>
+              {canManageRequests && pendingCount > 0 && (
+                <span
+                  style={{
+                    background: "#f6bd16",
+                    color: "#001338",
+                    padding: "4px 10px",
+                    borderRadius: "20px",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    boxShadow: "0 4px 10px rgba(246, 189, 22, 0.3)",
+                    animation: "pulse 2s infinite"
+                  }}
+                >
+                  {pendingCount} {pendingCount === 1 ? "PENDENTE" : "PENDENTES"}
+                </span>
+              )}
+            </div>
+            <p style={{ margin: 0 }}>Avalie solicitações recebidas pelo formulário público e faça a escala operacional.</p>
           </div>
           {canManageRequests && <div className="page-actions">
             <a className="secondary action-link" href="/solicitacao-interna">

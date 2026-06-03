@@ -183,8 +183,9 @@ function normalizePayload(form) {
   };
 }
 
-export default function TechnicalReportsPage() {
   const [agendas, setAgendas] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [activeTab, setActiveTab] = useState("pending");
   const [protocolSearch, setProtocolSearch] = useState("");
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
@@ -200,8 +201,17 @@ export default function TechnicalReportsPage() {
   );
   const preview = useMemo(() => buildPreview(form), [form]);
 
+  const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(r.agenda))), [reports]);
+  const pendingAgendas = useMemo(() => agendas.filter(a => !completedAgendaIds.has(String(a.id))), [agendas, completedAgendaIds]);
+
   const load = () => {
-    api("/agendas/?page_size=1000&reportable=true").then((data) => setAgendas(data.results || data));
+    Promise.all([
+      api("/agendas/?page_size=1000&reportable=true"),
+      api("/education-reports/?page_size=1000")
+    ]).then(([agendasData, reportsData]) => {
+      setAgendas(agendasData.results || agendasData);
+      setReports(reportsData.results || reportsData);
+    });
   };
 
   useEffect(load, []);
@@ -376,6 +386,7 @@ export default function TechnicalReportsPage() {
     setProtocolSearch("");
     setForm({ ...empty, actions: [{ ...emptyAction }] });
     setMessage("");
+    setActiveTab("pending");
   };
 
   const copyPreview = () => {
@@ -388,8 +399,28 @@ export default function TechnicalReportsPage() {
       <div className="main-column">
         <div className="page-title">
           <div>
-            <h1>Novo Relatório Técnico</h1>
-            <p>Busque o protocolo da solicitação, vincule o relatório e registre a execução da equipe.</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "4px" }}>
+              <h1 style={{ margin: 0 }}>Novo Relatório Técnico</h1>
+              {pendingAgendas.length > 0 && (
+                <span
+                  style={{
+                    background: "#ef6b5a",
+                    color: "#fff",
+                    padding: "4px 10px",
+                    borderRadius: "20px",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    boxShadow: "0 4px 10px rgba(239, 107, 90, 0.3)",
+                    animation: "pulse 2s infinite"
+                  }}
+                >
+                  {pendingAgendas.length} {pendingAgendas.length === 1 ? "PENDENTE" : "PENDENTES"}
+                </span>
+              )}
+            </div>
+            <p style={{ margin: 0 }}>Busque o protocolo da solicitação, vincule o relatório e registre a execução da equipe.</p>
           </div>
           <button type="button" className="secondary" onClick={reset}><Plus size={18} /> Novo</button>
         </div>
@@ -515,15 +546,71 @@ export default function TechnicalReportsPage() {
         </form>
       </div>
 
-      <aside className="side-panel report-preview">
-        <div className="modal-header">
-          <h2>Resumo</h2>
-          <button className="secondary" type="button" onClick={copyPreview}>
-            <Clipboard size={16} /> Copiar
-          </button>
+      <aside className="side-panel report-sidebar">
+        <div className="sidebar-tabs" style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
+          <button type="button" className={activeTab === "pending" ? "active" : "secondary"} onClick={() => setActiveTab("pending")} style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}>Pendentes ({pendingAgendas.length})</button>
+          <button type="button" className={activeTab === "completed" ? "active" : "secondary"} onClick={() => setActiveTab("completed")} style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}>Feitos ({reports.length})</button>
+          <button type="button" className={activeTab === "preview" ? "active" : "secondary"} onClick={() => setActiveTab("preview")} style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}>Resumo</button>
         </div>
-        <pre>{preview}</pre>
-        {!isAdmin && <small>Chefes visualizam os relatórios criados por eles; administradores visualizam todos.</small>}
+
+        {activeTab === "preview" && (
+          <div className="report-preview-content">
+            <div className="modal-header" style={{ marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: "15px", margin: 0 }}>Resumo do Relatório</h2>
+              <button className="secondary" type="button" onClick={copyPreview} style={{ padding: "4px 8px", fontSize: "12px" }}>
+                <Clipboard size={14} /> Copiar
+              </button>
+            </div>
+            <pre style={{ fontSize: "11px", padding: "12px", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "8px", whiteSpace: "pre-wrap" }}>{preview}</pre>
+            {!isAdmin && <small style={{ display: "block", marginTop: "12px", color: "var(--text-soft)" }}>Chefes visualizam os relatórios criados por eles; administradores visualizam todos.</small>}
+          </div>
+        )}
+
+        {activeTab === "pending" && (
+          <div className="report-list-content" style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "calc(100vh - 180px)", overflowY: "auto", paddingRight: "4px" }}>
+            {pendingAgendas.length === 0 ? (
+              <p style={{ fontSize: "13px", color: "var(--text-soft)" }}>Nenhum relatório pendente para preencher.</p>
+            ) : pendingAgendas.map(agenda => (
+              <button
+                key={agenda.id}
+                type="button"
+                onClick={() => {
+                  setProtocolSearch(String(agenda.id));
+                  applyAgenda(agenda);
+                  fillCoordinatesFromAgenda(agenda);
+                }}
+                style={{ textAlign: "left", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--surface-2)", cursor: "pointer", transition: "all 0.2s" }}
+              >
+                <strong style={{ display: "block", fontSize: "13px", color: "var(--primary)", marginBottom: "4px" }}>#{agenda.id} - {agenda.title}</strong>
+                <span style={{ display: "block", fontSize: "11.5px", color: "var(--text-soft)" }}>{formatDateBR(agenda.date)} · {agenda.location || agenda.institution_location || "Local não informado"}</span>
+                {agenda.chief_name && <span style={{ display: "block", fontSize: "11px", color: "var(--text-soft)", marginTop: "4px", fontWeight: "600" }}>Chefe: {agenda.chief_name}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "completed" && (
+          <div className="report-list-content" style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "calc(100vh - 180px)", overflowY: "auto", paddingRight: "4px" }}>
+            {reports.length === 0 ? (
+              <p style={{ fontSize: "13px", color: "var(--text-soft)" }}>Nenhum relatório criado ainda.</p>
+            ) : reports.map(report => (
+              <button
+                key={report.id}
+                type="button"
+                onClick={() => edit(report)}
+                style={{ textAlign: "left", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--surface-2)", cursor: "pointer", transition: "all 0.2s" }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <strong style={{ fontSize: "13px", color: "var(--primary)" }}>Protocolo #{report.agenda}</strong>
+                  <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 6px", borderRadius: "10px", background: report.status === "DRAFT" ? "rgba(246, 189, 22, 0.2)" : "rgba(16, 185, 129, 0.2)", color: report.status === "DRAFT" ? "#d97706" : "#059669" }}>
+                    {report.status === "DRAFT" ? "Rascunho" : "Enviado"}
+                  </span>
+                </div>
+                <span style={{ display: "block", fontSize: "11.5px", color: "var(--text-soft)" }}>{formatDateBR(report.operation_date)} · Equipe {report.team}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </aside>
     </section>
   );
