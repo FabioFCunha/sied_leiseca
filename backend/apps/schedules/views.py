@@ -697,8 +697,12 @@ class AgendaViewSet(viewsets.ModelViewSet):
             if (calendar_start + timedelta(days=index)).month == today.month
         ]
 
-        # Metrics only consider approved surveys
-        surveys_qs = SatisfactionSurvey.objects.filter(agenda__in=base_qs, answered_at__isnull=False, is_approved=True)
+        # Metrics only consider approved surveys or surveys without text (which don't need moderation)
+        surveys_qs = SatisfactionSurvey.objects.filter(
+            Q(is_approved=True) | Q(suggestion=""),
+            agenda__in=base_qs, 
+            answered_at__isnull=False
+        )
         overall_rating_avg = surveys_qs.aggregate(avg=Avg('overall_rating'))['avg'] or 0.0
 
         team_ratings = list(
@@ -710,7 +714,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
 
         # Message source includes all answered messages, moderation depends on roles
         messages_qs = SatisfactionSurvey.objects.filter(agenda__in=base_qs, answered_at__isnull=False).exclude(suggestion="")
-        pending_moderation_count = SatisfactionSurvey.objects.filter(agenda__in=base_qs, answered_at__isnull=False, is_approved=False).count()
+        pending_moderation_count = SatisfactionSurvey.objects.filter(agenda__in=base_qs, answered_at__isnull=False, is_approved=False).exclude(suggestion="").count()
         if not (request.user.is_superuser or request.user.role in ["ADMIN", "MANAGER"]):
             messages_qs = messages_qs.filter(is_approved=True)
 
@@ -1814,7 +1818,11 @@ class SatisfactionSurveyPublicView(APIView):
             return response.Response({"detail": "Esta pesquisa já foi respondida."}, status=400)
         serializer = SatisfactionSurveySerializer(survey, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save(answered_at=timezone.now())
+        
+        suggestion = request.data.get("suggestion", "").strip()
+        is_approved = not bool(suggestion)
+        
+        serializer.save(answered_at=timezone.now(), is_approved=is_approved)
         return response.Response({"detail": "Pesquisa enviada com sucesso. Obrigado pela avaliação."})
 
 
