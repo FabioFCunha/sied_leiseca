@@ -19,11 +19,22 @@ const items = [
   { to: "/auditoria", label: "Auditoria", icon: ShieldCheck, roles: ["CREATOR"] },
 ];
 
+const menuBadgeStyle = {
+  background: "#f6bd16",
+  color: "#001338",
+  padding: "2px 8px",
+  borderRadius: "12px",
+  fontSize: "11px",
+  fontWeight: "800",
+  boxShadow: "0 2px 6px rgba(246, 189, 22, 0.3)",
+};
+
 export default function AppLayout() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
+  const [pendingTechnicalReports, setPendingTechnicalReports] = useState(0);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -31,6 +42,19 @@ export default function AppLayout() {
     if (user && canAccessRoute(user, ["ADMIN", "MANAGER", "SUPERVISOR"])) {
       api("/agendas/?status=PENDING&source=requests&page_size=1")
         .then((data) => setPendingRequests(data.count || 0))
+        .catch(() => {});
+      Promise.all([
+        api("/agendas/?page_size=1000&reportable=true"),
+        api("/education-reports/?page_size=1000"),
+      ])
+        .then(([agendasData, reportsData]) => {
+          const agendas = agendasData.results || agendasData;
+          const reports = reportsData.results || reportsData;
+          const completedAgendaIds = new Set(reports.map((report) => String(report.agenda)));
+          setPendingTechnicalReports(
+            agendas.filter((agenda) => !completedAgendaIds.has(String(agenda.id))).length
+          );
+        })
         .catch(() => {});
     }
   }, [user]);
@@ -71,11 +95,13 @@ export default function AppLayout() {
               <span style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, justifyContent: "space-between" }}>
                 {item.label}
                 {item.to === "/agendas" && pendingRequests > 0 && (
-                  <span style={{
-                    background: "#f6bd16", color: "#001338", padding: "2px 8px", borderRadius: "12px", 
-                    fontSize: "11px", fontWeight: "800", boxShadow: "0 2px 6px rgba(246, 189, 22, 0.3)"
-                  }}>
+                  <span style={menuBadgeStyle}>
                     {pendingRequests}
+                  </span>
+                )}
+                {item.to === "/relatorio-tecnico" && pendingTechnicalReports > 0 && (
+                  <span style={menuBadgeStyle}>
+                    {pendingTechnicalReports}
                   </span>
                 )}
               </span>

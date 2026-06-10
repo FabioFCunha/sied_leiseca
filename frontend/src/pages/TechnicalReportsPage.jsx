@@ -401,7 +401,7 @@ export default function TechnicalReportsPage() {
         <div className="page-title">
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "4px" }}>
-              <h1 style={{ margin: 0 }}>Novo Relatório Técnico</h1>
+              <h1 style={{ margin: 0 }}>Relatório Técnico</h1>
               {pendingAgendas.length > 0 && (
                 <span
                   style={{
