@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Max, Q
 
 
 class Sector(models.Model):
@@ -94,6 +95,15 @@ class ShiftSchedule(models.Model):
         blank=True,
         related_name="updated_shift_schedules",
     )
+    extra_chiefs = models.ManyToManyField(Chief, blank=True, related_name="extra_shift_schedules")
+    extra_agents = models.ManyToManyField(Agent, blank=True, related_name="extra_shift_schedules")
+    extra_supports = models.ManyToManyField(Support, blank=True, related_name="extra_shift_schedules")
+    removed_chiefs = models.ManyToManyField(Chief, blank=True, related_name="removed_shift_schedules")
+    removed_agents = models.ManyToManyField(Agent, blank=True, related_name="removed_shift_schedules")
+    removed_supports = models.ManyToManyField(Support, blank=True, related_name="removed_shift_schedules")
+    absent_chiefs = models.ManyToManyField(Chief, blank=True, related_name="absent_shift_schedules")
+    absent_agents = models.ManyToManyField(Agent, blank=True, related_name="absent_shift_schedules")
+    absent_supports = models.ManyToManyField(Support, blank=True, related_name="absent_shift_schedules")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -177,6 +187,7 @@ class Agenda(models.Model):
 
     title = models.CharField(max_length=180)
     source_id = models.CharField(max_length=80, unique=True, null=True, blank=True)
+    service_order_number = models.PositiveIntegerField(unique=True, db_index=True, editable=False, null=True, blank=True)
     linked_action = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
@@ -283,6 +294,22 @@ class Agenda(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.date}"
+
+    def should_have_service_order(self):
+        return self.status in [Agenda.Status.APPROVED, Agenda.Status.COMPLETED]
+
+    def save(self, *args, **kwargs):
+        if self.should_have_service_order() and not self.service_order_number:
+            with transaction.atomic():
+                last_number = Agenda.objects.select_for_update().aggregate(
+                    max_number=Max("service_order_number")
+                )["max_number"] or 0
+                self.service_order_number = last_number + 1
+                update_fields = kwargs.get("update_fields")
+                if update_fields is not None:
+                    kwargs["update_fields"] = set(update_fields) | {"service_order_number"}
+                return super().save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     def overlaps_queryset(self):
         qs = Agenda.objects.filter(

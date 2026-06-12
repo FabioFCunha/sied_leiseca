@@ -72,14 +72,18 @@ export default function AppLayout() {
       <aside className={`sidebar ${open ? "is-open" : ""}`}>
         <div className="sidebar-logo" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           <img src={logoOperacaoLeiSeca} alt="Operação Lei Seca" />
-          <span className="logo-subtitle desktop-only-text" style={{ color: "#f6bd16", fontSize: "14px", fontWeight: "900", letterSpacing: "3px", marginTop: "8px", textTransform: "uppercase" }}>
+          <span className="logo-subtitle desktop-only-text">
             Educação
           </span>
+          <div className="psi-logo-art desktop-only-text" aria-label="PSI - Plataforma de Sistemas Integrados">
+            <strong>PSI</strong>
+            <span>Plataforma de Sistemas Integrados</span>
+          </div>
         </div>
         <div className="brand">
 
           <div className="brand-text">
-            <strong>Agenda Educação</strong>
+            <strong>PSI</strong>
             <span>{user?.is_superuser ? "CRIADOR" : roleLabel[user?.role] || user?.role}</span>
           </div>
           <button className="icon-button desktop-only" onClick={() => setCollapsed((value) => !value)} aria-label="Recolher menu">

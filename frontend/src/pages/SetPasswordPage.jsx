@@ -40,7 +40,7 @@ export default function SetPasswordPage() {
     <main className="login-page">
       <section className="login-panel single set-password-panel">
         <div className="set-password-heading">
-          <span className="eyebrow">Agenda OLS</span>
+          <span className="eyebrow">PSI OLS</span>
           <h1>Definir senha de acesso</h1>
           <p>Cadastre uma senha para entrar no sistema com seu e-mail.</p>
         </div>

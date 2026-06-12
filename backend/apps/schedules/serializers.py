@@ -271,6 +271,15 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
             "notes",
             "members",
             "swap_requests",
+            "extra_chiefs",
+            "extra_agents",
+            "extra_supports",
+            "removed_chiefs",
+            "removed_agents",
+            "removed_supports",
+            "absent_chiefs",
+            "absent_agents",
+            "absent_supports",
             "created_by",
             "created_by_name",
             "created_at",
@@ -290,20 +299,48 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
         return attrs
 
     def get_members(self, obj):
-        def row(item):
+        absent_chief_ids = set(obj.absent_chiefs.values_list("id", flat=True))
+        absent_agent_ids = set(obj.absent_agents.values_list("id", flat=True))
+        absent_support_ids = set(obj.absent_supports.values_list("id", flat=True))
+
+        def row(item, is_extra=False, is_absent=False):
             return {
                 "id": item.id,
                 "name": item.name,
                 "role": item.role,
                 "cpf": item.cpf,
                 "team": item.team_id,
-                "team_name": obj.team.name,
+                "team_name": item.team.name if item.team else "Sem equipe",
+                "is_extra": is_extra,
+                "is_absent": is_absent,
             }
 
+        removed_chief_ids = set(obj.removed_chiefs.values_list("id", flat=True))
+        removed_agent_ids = set(obj.removed_agents.values_list("id", flat=True))
+        removed_support_ids = set(obj.removed_supports.values_list("id", flat=True))
+
+        chief_objs = Chief.objects.filter(team=obj.team, is_active=True).exclude(id__in=removed_chief_ids).order_by("name")
+        agent_objs = Agent.objects.filter(team=obj.team, is_active=True).exclude(id__in=removed_agent_ids).order_by("name")
+        support_objs = Support.objects.filter(team=obj.team, is_active=True).exclude(id__in=removed_support_ids).order_by("name")
+
+        chiefs = [row(item, is_absent=item.id in absent_chief_ids) for item in chief_objs]
+        agents = [row(item, is_absent=item.id in absent_agent_ids) for item in agent_objs]
+        supports = [row(item, is_absent=item.id in absent_support_ids) for item in support_objs]
+
+        for item in obj.extra_chiefs.filter(is_active=True):
+            if not any(m["id"] == item.id for m in chiefs):
+                chiefs.append(row(item, is_extra=True, is_absent=item.id in absent_chief_ids))
+        for item in obj.extra_agents.filter(is_active=True):
+            if not any(m["id"] == item.id for m in agents):
+                agents.append(row(item, is_extra=True, is_absent=item.id in absent_agent_ids))
+        for item in obj.extra_supports.filter(is_active=True):
+            if not any(m["id"] == item.id for m in supports):
+                supports.append(row(item, is_extra=True, is_absent=item.id in absent_support_ids))
+
         members = {
-            "chiefs": [row(item) for item in Chief.objects.filter(team=obj.team, is_active=True).order_by("name")],
-            "agents": [row(item) for item in Agent.objects.filter(team=obj.team, is_active=True).order_by("name")],
-            "supports": [row(item) for item in Support.objects.filter(team=obj.team, is_active=True).order_by("name")],
+            "chiefs": chiefs,
+            "agents": agents,
+            "supports": supports,
         }
         for swap in obj.swap_requests.filter(status=ShiftSwapRequest.Status.APPROVED):
             group = {
@@ -311,14 +348,25 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
                 ShiftSwapRequest.MemberType.AGENT: "agents",
                 ShiftSwapRequest.MemberType.SUPPORT: "supports",
             }.get(swap.member_type, "agents")
+
+            is_swap_absent = False
+            if swap.member_type == ShiftSwapRequest.MemberType.CHIEF:
+                is_swap_absent = swap.to_member_id in absent_chief_ids
+            elif swap.member_type == ShiftSwapRequest.MemberType.SUPPORT:
+                is_swap_absent = swap.to_member_id in absent_support_ids
+            else:
+                is_swap_absent = swap.to_member_id in absent_agent_ids
+
             replacement = {
                 "id": f"swap-{swap.id}",
+                "real_id": swap.to_member_id,
                 "name": swap.to_member_name,
                 "role": f"Troca aprovada: substitui {swap.from_member_name}",
                 "cpf": "",
                 "team": swap.target_team_id,
                 "team_name": swap.target_team.name,
                 "swapped": True,
+                "is_absent": is_swap_absent,
             }
             for index, member in enumerate(members[group]):
                 if int(member["id"]) == int(swap.from_member_id):
@@ -375,6 +423,7 @@ class AgendaSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "source_id",
+            "service_order_number",
             "linked_action",
             "linked_action_title",
             "linked_requests_count",
@@ -469,7 +518,7 @@ class AgendaSerializer(serializers.ModelSerializer):
             "history",
             "materials",
         ]
-        read_only_fields = ["created_by", "created_at", "updated_at", "history", "materials"]
+        read_only_fields = ["created_by", "service_order_number", "created_at", "updated_at", "history", "materials"]
 
     def validate(self, attrs):
         instance = self.instance

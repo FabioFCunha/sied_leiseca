@@ -89,9 +89,19 @@ function chiefFromAgenda(agenda) {
   return agenda?.chief_name || agenda?.chief_ref_name || "";
 }
 
+function serviceOrderLabel(agenda) {
+  const number = agenda?.service_order_number;
+  return number ? `OS ${String(number).padStart(4, "0")}` : "Sem OS";
+}
+
+function agendaReferenceLabel(agenda) {
+  if (!agenda) return "";
+  return `${serviceOrderLabel(agenda)} - Protocolo #${agenda.id}`;
+}
+
 function agendaSummary(agenda) {
   if (!agenda) return "";
-  return `#${agenda.id} - ${agenda.title} - ${formatDateBR(agenda.date)}`;
+  return `${agendaReferenceLabel(agenda)} - ${agenda.title} - ${formatDateBR(agenda.date)}`;
 }
 
 function joinValues(values, fallback = "") {
@@ -295,24 +305,27 @@ export default function TechnicalReportsPage() {
     }
   };
 
-  const findProtocol = async () => {
-    const protocol = protocolSearch.trim();
-    if (!protocol) {
-      setMessage("Informe o protocolo da solicitação.");
+  const findServiceOrder = async () => {
+    const search = protocolSearch.trim();
+    const numericSearch = search.replace(/^os\s*/i, "").replace(/\D/g, "").replace(/^0+/, "") || search.replace(/^os\s*/i, "").replace(/\D/g, "");
+    if (!search) {
+      setMessage("Informe a OS da agenda realizada.");
       return;
     }
     setMessage("");
     try {
-      const data = await api(`/agendas/?q=${encodeURIComponent(protocol)}&page_size=20&reportable=true`);
+      const data = await api(`/agendas/?q=${encodeURIComponent(numericSearch || search)}&page_size=20&reportable=true`);
       const list = data.results || data;
-      const agenda = list.find((item) => String(item.id) === protocol) || list[0];
+      const agenda = list.find((item) => String(item.service_order_number) === numericSearch)
+        || list.find((item) => String(item.id) === numericSearch)
+        || list[0];
       if (!agenda) {
-        setMessage("Nenhuma solicitação encontrada para esse protocolo.");
+        setMessage("Nenhuma agenda realizada encontrada para essa OS.");
         return;
       }
       applyAgenda(agenda);
       const foundLocation = await fillCoordinatesFromAgenda(agenda);
-      setMessage(foundLocation ? `Protocolo #${agenda.id} vinculado ao relatório com localização preenchida.` : `Protocolo #${agenda.id} vinculado ao relatório.`);
+      setMessage(foundLocation ? `${agendaReferenceLabel(agenda)} vinculada ao relatorio com localizacao preenchida.` : `${agendaReferenceLabel(agenda)} vinculada ao relatorio.`);
     } catch (err) {
       setMessage(err.message);
     }
@@ -350,7 +363,8 @@ export default function TechnicalReportsPage() {
       : await api("/education-reports/", { method: "POST", body: JSON.stringify(normalizePayload(nextForm)) });
     setEditing(saved.id);
     setForm({ ...saved, actions: saved.actions.length ? saved.actions : [{ ...emptyAction, agenda: saved.agenda }] });
-    setProtocolSearch(saved.agenda ? String(saved.agenda) : "");
+    const savedAgenda = agendas.find((agenda) => String(agenda.id) === String(saved.agenda));
+    setProtocolSearch(savedAgenda?.service_order_number ? serviceOrderLabel(savedAgenda) : saved.agenda ? String(saved.agenda) : "");
     load();
   };
 
@@ -377,7 +391,8 @@ export default function TechnicalReportsPage() {
 
   const edit = (report) => {
     setEditing(report.id);
-    setProtocolSearch(report.agenda ? String(report.agenda) : "");
+    const reportAgenda = agendas.find((agenda) => String(agenda.id) === String(report.agenda));
+    setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : report.agenda ? String(report.agenda) : "");
     setForm({ ...report, actions: report.actions.length ? report.actions : [{ ...emptyAction, agenda: report.agenda }] });
     setMessage("");
   };
@@ -421,7 +436,7 @@ export default function TechnicalReportsPage() {
                 </span>
               )}
             </div>
-            <p style={{ margin: 0 }}>Busque o protocolo da solicitação, vincule o relatório e registre a execução da equipe.</p>
+            <p style={{ margin: 0 }}>Busque a OS da agenda realizada, vincule o relatório e registre a execução da equipe.</p>
           </div>
           <button type="button" className="secondary" onClick={reset}><Plus size={18} /> Novo</button>
         </div>
@@ -430,10 +445,10 @@ export default function TechnicalReportsPage() {
           <h2>{reportName(form)}</h2>
 
           <div className="form-section">
-            <h3>Protocolo da solicitação</h3>
+            <h3>Ordem de serviço da agenda</h3>
             <div className="protocol-search">
-              <input placeholder="Digite o protocolo" value={protocolSearch} onChange={(event) => setProtocolSearch(event.target.value)} />
-              <button type="button" className="secondary" onClick={findProtocol}><Search size={18} /> Buscar</button>
+              <input placeholder="Digite a OS, ex: OS 0004" value={protocolSearch} onChange={(event) => setProtocolSearch(event.target.value)} />
+              <button type="button" className="secondary" onClick={findServiceOrder}><Search size={18} /> Buscar</button>
             </div>
             {(selectedAgenda || form.agenda) && (
               <div className="report-context">
@@ -576,13 +591,13 @@ export default function TechnicalReportsPage() {
                 key={agenda.id}
                 type="button"
                 onClick={() => {
-                  setProtocolSearch(String(agenda.id));
+                  setProtocolSearch(serviceOrderLabel(agenda));
                   applyAgenda(agenda);
                   fillCoordinatesFromAgenda(agenda);
                 }}
                 style={{ textAlign: "left", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--surface-2)", cursor: "pointer", transition: "all 0.2s" }}
               >
-                <strong style={{ display: "block", fontSize: "13px", color: "var(--primary)", marginBottom: "4px" }}>#{agenda.id} - {agenda.title}</strong>
+                <strong style={{ display: "block", fontSize: "13px", color: "var(--primary)", marginBottom: "4px" }}>{agendaReferenceLabel(agenda)} - {agenda.title}</strong>
                 <span style={{ display: "block", fontSize: "11.5px", color: "var(--text-soft)" }}>{formatDateBR(agenda.date)} · {agenda.location || agenda.institution_location || "Local não informado"}</span>
                 {agenda.chief_name && <span style={{ display: "block", fontSize: "11px", color: "var(--text-soft)", marginTop: "4px", fontWeight: "600" }}>Chefe: {agenda.chief_name}</span>}
               </button>
@@ -602,7 +617,7 @@ export default function TechnicalReportsPage() {
                 style={{ textAlign: "left", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--surface-2)", cursor: "pointer", transition: "all 0.2s" }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                  <strong style={{ fontSize: "13px", color: "var(--primary)" }}>Protocolo #{report.agenda}</strong>
+                  <strong style={{ fontSize: "13px", color: "var(--primary)" }}>{agendaReferenceLabel(agendas.find((agenda) => String(agenda.id) === String(report.agenda))) || `Protocolo #${report.agenda}`}</strong>
                   <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 6px", borderRadius: "10px", background: report.status === "DRAFT" ? "rgba(246, 189, 22, 0.2)" : "rgba(16, 185, 129, 0.2)", color: report.status === "DRAFT" ? "#d97706" : "#059669" }}>
                     {report.status === "DRAFT" ? "Rascunho" : "Enviado"}
                   </span>

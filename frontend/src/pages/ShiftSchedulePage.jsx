@@ -101,7 +101,36 @@ export default function ShiftSchedulePage() {
   const swapSchedule = schedules.find((item) => String(item.id) === String(swapForm.schedule));
   const swapRoster = swapSchedule?.members || { chiefs: [], agents: [], supports: [] };
   const targetRoster = rostersByTeam[String(swapForm.target_team)] || { chiefs: [], agents: [], supports: [] };
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportTeam, setReportTeam] = useState("");
+  const [reportMonth, setReportMonth] = useState(cursor.getMonth());
+  const [reportYear, setReportYear] = useState(cursor.getFullYear());
 
+  const openReportModal = () => {
+    if (teams.length > 0 && !reportTeam) {
+      setReportTeam(String(teams[0].id));
+    }
+    setReportMonth(cursor.getMonth());
+    setReportYear(cursor.getFullYear());
+    setIsReportOpen(true);
+  };
+
+  const reportSchedules = useMemo(() => {
+    if (!isReportOpen || !reportTeam) return [];
+    return schedules.filter((s) => {
+      const d = new Date(s.date + "T12:00:00");
+      return (
+        String(s.team) === String(reportTeam) &&
+        d.getMonth() === Number(reportMonth) &&
+        d.getFullYear() === Number(reportYear)
+      );
+    }).sort((a, b) => a.date.localeCompare(b.date));
+  }, [schedules, isReportOpen, reportTeam, reportMonth, reportYear]);
+
+  const reportChiefName = useMemo(() => {
+    const teamChief = chiefs.find((c) => String(c.team) === String(reportTeam) && c.is_active);
+    return teamChief ? teamChief.name : "Chefe não cadastrado";
+  }, [chiefs, reportTeam]);
   const loadSchedules = async () => {
     const params = new URLSearchParams({
       date_from: toISO(days[0]),
@@ -256,6 +285,149 @@ export default function ShiftSchedulePage() {
     }
   };
 
+  const handleAddMember = async (group, memberId) => {
+    if (!detailSchedule) return;
+    setLoading(true);
+    setMessage("");
+    try {
+      const idNum = Number(memberId);
+      const isChief = group === "chiefs";
+      const isSupport = group === "supports";
+      const isAgent = group === "agents";
+
+      let memberObj = null;
+      if (isChief) memberObj = chiefs.find((c) => c.id === idNum);
+      if (isAgent) memberObj = agents.find((a) => a.id === idNum);
+      if (isSupport) memberObj = supports.find((s) => s.id === idNum);
+
+      if (!memberObj) return;
+
+      const isDefaultTeamMember = String(memberObj.team) === String(detailSchedule.team);
+
+      let payload = {};
+      if (isChief) {
+        if (isDefaultTeamMember) {
+          payload.removed_chiefs = (detailSchedule.removed_chiefs || []).filter((id) => id !== idNum);
+        } else {
+          payload.extra_chiefs = [...(detailSchedule.extra_chiefs || []), idNum];
+        }
+      } else if (isSupport) {
+        if (isDefaultTeamMember) {
+          payload.removed_supports = (detailSchedule.removed_supports || []).filter((id) => id !== idNum);
+        } else {
+          payload.extra_supports = [...(detailSchedule.extra_supports || []), idNum];
+        }
+      } else if (isAgent) {
+        if (isDefaultTeamMember) {
+          payload.removed_agents = (detailSchedule.removed_agents || []).filter((id) => id !== idNum);
+        } else {
+          payload.extra_agents = [...(detailSchedule.extra_agents || []), idNum];
+        }
+      }
+
+      const updated = await api(`/shift-schedules/${detailSchedule.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+
+      setSchedules((current) =>
+        current.map((s) => (String(s.id) === String(detailSchedule.id) ? updated : s))
+      );
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (group, member) => {
+    if (!detailSchedule) return;
+    setLoading(true);
+    setMessage("");
+    try {
+      const idNum = Number(member.id);
+      const isChief = group === "chiefs";
+      const isSupport = group === "supports";
+      const isAgent = group === "agents";
+
+      let payload = {};
+      if (member.is_extra) {
+        if (isChief) {
+          payload.extra_chiefs = (detailSchedule.extra_chiefs || []).filter((id) => id !== idNum);
+        } else if (isSupport) {
+          payload.extra_supports = (detailSchedule.extra_supports || []).filter((id) => id !== idNum);
+        } else if (isAgent) {
+          payload.extra_agents = (detailSchedule.extra_agents || []).filter((id) => id !== idNum);
+        }
+      } else {
+        if (isChief) {
+          payload.removed_chiefs = [...(detailSchedule.removed_chiefs || []), idNum];
+        } else if (isSupport) {
+          payload.removed_supports = [...(detailSchedule.removed_supports || []), idNum];
+        } else if (isAgent) {
+          payload.removed_agents = [...(detailSchedule.removed_agents || []), idNum];
+        }
+      }
+
+      const updated = await api(`/shift-schedules/${detailSchedule.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+
+      setSchedules((current) =>
+        current.map((s) => (String(s.id) === String(detailSchedule.id) ? updated : s))
+      );
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleAbsence = async (group, member) => {
+    if (!detailSchedule) return;
+    setLoading(true);
+    setMessage("");
+    try {
+      const idNum = Number(member.real_id || member.id);
+      const isChief = group === "chiefs";
+      const isSupport = group === "supports";
+      const isAgent = group === "agents";
+
+      let payload = {};
+      if (member.is_absent) {
+        if (isChief) {
+          payload.absent_chiefs = (detailSchedule.absent_chiefs || []).filter((id) => id !== idNum);
+        } else if (isSupport) {
+          payload.absent_supports = (detailSchedule.absent_supports || []).filter((id) => id !== idNum);
+        } else if (isAgent) {
+          payload.absent_agents = (detailSchedule.absent_agents || []).filter((id) => id !== idNum);
+        }
+      } else {
+        if (isChief) {
+          payload.absent_chiefs = [...(detailSchedule.absent_chiefs || []), idNum];
+        } else if (isSupport) {
+          payload.absent_supports = [...(detailSchedule.absent_supports || []), idNum];
+        } else if (isAgent) {
+          payload.absent_agents = [...(detailSchedule.absent_agents || []), idNum];
+        }
+      }
+
+      const updated = await api(`/shift-schedules/${detailSchedule.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+
+      setSchedules((current) =>
+        current.map((s) => (String(s.id) === String(detailSchedule.id) ? updated : s))
+      );
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const deleteSchedule = async () => {
     if (!detailSchedule) return;
     if (!window.confirm(`Excluir a escala da equipe ${detailSchedule.team_name} em ${formatDateBR(detailSchedule.date)}?`)) {
@@ -275,6 +447,15 @@ export default function ShiftSchedulePage() {
     }
   };
 
+  const handleExportPDF = () => {
+    const originalTitle = document.title;
+    const teamName = teams.find((t) => String(t.id) === String(reportTeam))?.name || "Equipe";
+    const monthName = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][Number(reportMonth)];
+    document.title = `Relatorio_Mensal_${teamName}_${monthName}_${reportYear}`;
+    window.print();
+    document.title = originalTitle;
+  };
+
   return (
     <section className="page shift-page">
       <div className="page-title">
@@ -289,7 +470,8 @@ export default function ShiftSchedulePage() {
         <strong>{cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</strong>
         <button className="icon-button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} aria-label="Próximo mês"><ChevronRight size={18} /></button>
         <input className="jump-date" type="date" value={toISO(cursor)} onChange={(event) => setCursor(new Date(`${event.target.value}T12:00:00`))} />
-        <button type="button" onClick={() => openSwapModal()}><Repeat2 size={17} /> Solicitar troca</button>
+        <button type="button" className="secondary" onClick={() => openSwapModal()}><Repeat2 size={17} /> Solicitar troca</button>
+        <button type="button" className="secondary" onClick={() => openReportModal()} style={{ marginLeft: 8 }}><CalendarDays size={17} /> Relatório RH</button>
       </div>
 
       {message && <div className="alert">{message}</div>}
@@ -400,18 +582,73 @@ export default function ShiftSchedulePage() {
               <h3>Integrantes em serviço</h3>
               {["chiefs", "agents", "supports"].map((group) => (
                 <div key={group} className="shift-roster-group">
-                  <strong>{group === "chiefs" ? "Chefes" : group === "agents" ? "Agentes" : "Apoio"}</strong>
+                  <strong>{group === "chiefs" ? "👤 Chefes" : group === "agents" ? "🛡️ Agentes" : "🤝 Apoio"}</strong>
                   {(detailRoster[group] || []).length ? (
                     <div className="shift-member-list">
-                      {(detailRoster[group] || []).map((member) => (
-                        <span key={`${group}-${member.id}`} className={member.swapped ? "swapped" : ""}>
-                          {member.name}
-                          {member.role && <small>{member.role}</small>}
+                       {(detailRoster[group] || []).map((member) => (
+                        <span
+                          key={`${group}-${member.id}`}
+                          className={`${member.swapped ? "swapped" : ""} ${member.is_extra ? "extra-member" : ""} ${member.is_absent ? "absent-member" : ""}`}
+                        >
+                          <span style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+                            <span style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "4px" }}>
+                              <span style={{ fontWeight: 500, textDecoration: member.is_absent ? "line-through" : "none", opacity: member.is_absent ? 0.6 : 1 }}>{member.name}</span>
+                              {member.is_extra && <span className="member-badge extra">Extra</span>}
+                              {member.is_absent && <span className="member-badge absent">Falta</span>}
+                            </span>
+                            {member.role && <small>{member.role}</small>}
+                          </span>
+                          <div className="shift-member-actions">
+                            {canApprove && (
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={!!member.is_absent}
+                                  onChange={() => handleToggleAbsence(group, member)}
+                                />
+                                <span>Falta</span>
+                              </label>
+                            )}
+                            {canApprove && !member.swapped && (
+                              <button
+                                type="button"
+                                className="remove-btn"
+                                onClick={() => handleRemoveMember(group, member)}
+                                title="Remover da escala"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <p>Nenhum integrante cadastrado.</p>
+                    <p style={{ color: "var(--text-soft)", fontSize: "0.85rem", margin: "4px 0", fontStyle: "italic" }}>Nenhum integrante cadastrado.</p>
+                  )}
+                  {canApprove && (
+                    <select
+                      className="shift-add-member-select"
+                      defaultValue=""
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleAddMember(group, e.target.value);
+                          e.target.value = "";
+                        }
+                      }}
+                    >
+                      <option value="">+ Adicionar integrante...</option>
+                      {(group === "chiefs" ? chiefs : group === "agents" ? agents : supports)
+                        .filter((allM) => !(detailRoster[group] || []).some((m) => String(m.id) === String(allM.id)))
+                        .map((allM) => {
+                          const teamObj = teams.find((t) => String(t.id) === String(allM.team));
+                          return (
+                            <option key={allM.id} value={allM.id}>
+                              {allM.name} {teamObj ? `(${teamObj.name})` : ""}
+                            </option>
+                          );
+                        })}
+                    </select>
                   )}
                 </div>
               ))}
@@ -516,6 +753,186 @@ export default function ShiftSchedulePage() {
             </section>
 
             {swapMessage && <div className="alert">{swapMessage}</div>}
+          </article>
+        </div>
+      )}
+
+      {isReportOpen && (
+        <div className="modal-backdrop" onClick={() => setIsReportOpen(false)}>
+          <article className="modal shift-modal" onClick={(event) => event.stopPropagation()} style={{ maxWidth: "800px", width: "95%" }}>
+            <header className="modal-header">
+              <div>
+                <h2>Relatório Mensal de Escala e Frequência (RH)</h2>
+                <p>Gere e imprima a folha de frequência mensal consolidada de uma equipe para entrega ao RH.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setIsReportOpen(false)} aria-label="Fechar"><X size={18} /></button>
+            </header>
+
+            <div className="filters report-filters" style={{ display: "flex", gap: "12px", marginBottom: "20px", padding: "12px", background: "var(--bg-light, #f8fafc)", borderRadius: "8px" }}>
+              <label style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: "600" }}>Equipe</span>
+                <select value={reportTeam} onChange={(e) => setReportTeam(e.target.value)} style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid #ccc" }}>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>{team.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ width: "150px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: "600" }}>Mês</span>
+                <select value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid #ccc" }}>
+                  {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((m, idx) => (
+                    <option key={idx} value={idx}>{m}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ width: "100px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: "600" }}>Ano</span>
+                <input
+                  type="number"
+                  value={reportYear}
+                  onChange={(e) => setReportYear(e.target.value)}
+                  style={{ padding: "6px 10px", borderRadius: "4px", border: "1px solid #ccc" }}
+                />
+              </label>
+            </div>
+
+            <section className="print-report-area" style={{ background: "#fff", color: "#000", padding: "30px", border: "1px solid #e2e8f0", borderRadius: "6px", fontFamily: "Courier New, monospace" }}>
+              <style>{`
+                @media print {
+                  @page {
+                    size: A4 portrait !important;
+                    margin: 1.5cm !important;
+                  }
+                  body, html {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #fff !important;
+                    width: 100% !important;
+                  }
+                  .sidebar,
+                  .topbar,
+                  .page-title,
+                  .calendar-toolbar,
+                  .calendar-grid,
+                  .alert,
+                  .modal-header,
+                  .report-filters,
+                  .modal-actions {
+                    display: none !important;
+                  }
+                  .app-shell,
+                  .content {
+                    display: block !important;
+                    position: static !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    overflow: visible !important;
+                  }
+                  .modal-backdrop {
+                    position: static !important;
+                    background: transparent !important;
+                    display: block !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    overflow: visible !important;
+                    width: 100% !important;
+                  }
+                  .modal {
+                    box-shadow: none !important;
+                    border: none !important;
+                    background: transparent !important;
+                    max-width: 100% !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    display: block !important;
+                  }
+                  .print-report-area {
+                    border: none !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    width: 100% !important;
+                    box-sizing: border-box !important;
+                  }
+                }
+              `}</style>
+
+              <div style={{ textAlign: "center", borderBottom: "2px double #000", paddingBottom: "10px", marginBottom: "20px" }}>
+                <h3 style={{ margin: "0 0 5px 0", fontSize: "1.3rem", fontWeight: "bold" }}>OPERAÇÃO LEI SECA</h3>
+                <h4 style={{ margin: "0", fontSize: "1rem", textTransform: "uppercase" }}>RELATÓRIO MENSAL DE FREQUÊNCIA E ESCALA</h4>
+                <span style={{ fontSize: "0.8rem", color: "#666" }}>Destinatário: Departamento de Recursos Humanos (RH)</span>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px", fontSize: "0.9rem", borderBottom: "1px solid #ccc", paddingBottom: "10px" }}>
+                <div><strong>Equipe:</strong> {teams.find(t => String(t.id) === String(reportTeam))?.name || "-"}</div>
+                <div><strong>Competência:</strong> {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][Number(reportMonth)]} / {reportYear}</div>
+                <div><strong>Chefe de Equipe:</strong> {reportChiefName}</div>
+                <div><strong>Total de Plantões:</strong> {reportSchedules.length}</div>
+              </div>
+
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", marginBottom: "20px" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1.5px solid #000" }}>
+                    <th style={{ textAlign: "left", padding: "6px", border: "1px solid #ddd" }}>Data</th>
+                    <th style={{ textAlign: "left", padding: "6px", border: "1px solid #ddd" }}>Presenças</th>
+                    <th style={{ textAlign: "left", padding: "6px", border: "1px solid #ddd" }}>Faltas</th>
+                    <th style={{ textAlign: "left", padding: "6px", border: "1px solid #ddd" }}>Trocas/Substituições Homologadas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportSchedules.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: "center", padding: "20px", color: "#666" }}>Nenhum plantão registrado nesta competência.</td>
+                    </tr>
+                  ) : (
+                    reportSchedules.map((sched) => {
+                      const allMembers = [
+                        ...(sched.members?.chiefs || []),
+                        ...(sched.members?.agents || []),
+                        ...(sched.members?.supports || [])
+                      ];
+                      
+                      const presences = allMembers.filter(m => !m.is_absent).map(m => m.name);
+                      const absences = allMembers.filter(m => m.is_absent).map(m => m.name);
+                      
+                      const approvedSwaps = (sched.swap_requests || [])
+                        .filter(sw => sw.status === "APPROVED")
+                        .map(sw => `${sw.from_member_name} por ${sw.to_member_name}`);
+
+                      return (
+                        <tr key={sched.id} style={{ borderBottom: "1px solid #eee" }}>
+                          <td style={{ padding: "6px", whiteSpace: "nowrap", fontWeight: "bold", border: "1px solid #ddd" }}>{formatDateBR(sched.date)}</td>
+                          <td style={{ padding: "6px", border: "1px solid #ddd" }}>{presences.length > 0 ? presences.join(", ") : "-"}</td>
+                          <td style={{ padding: "6px", color: absences.length > 0 ? "#b91c1c" : "inherit", border: "1px solid #ddd" }}>{absences.length > 0 ? absences.join(", ") : "Nenhuma"}</td>
+                          <td style={{ padding: "6px", fontSize: "0.8rem", fontStyle: "italic", border: "1px solid #ddd" }}>{approvedSwaps.length > 0 ? approvedSwaps.join(" | ") : "Nenhuma"}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+
+              <div style={{ marginTop: "40px", fontSize: "0.85rem", lineHeight: "1.5" }}>
+                <p style={{ margin: "0 0 40px 0" }}>
+                  Declaro que as informações constantes neste relatório correspondem fielmente às escalas de serviço
+                  efetivamente cumpridas pela equipe e as ausências ou substituições foram devidamente registradas e justificadas.
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "20px" }}>
+                  <div style={{ width: "300px", borderBottom: "1px solid #000", marginBottom: "5px" }}></div>
+                  <strong style={{ fontSize: "0.9rem" }}>{reportChiefName}</strong>
+                  <span style={{ fontSize: "0.8rem", color: "#555" }}>Chefe de Equipe / Responsável</span>
+                </div>
+              </div>
+            </section>
+
+            <div className="modal-actions" style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button className="secondary" type="button" onClick={() => setIsReportOpen(false)}>Fechar</button>
+              <button type="button" onClick={handleExportPDF} disabled={reportSchedules.length === 0}>
+                Exportar PDF
+              </button>
+            </div>
           </article>
         </div>
       )}

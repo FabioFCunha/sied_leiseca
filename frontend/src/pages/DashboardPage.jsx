@@ -567,7 +567,7 @@ export default function DashboardPage() {
               </span>
             )}
           </div>
-          <p style={{ margin: 0, color: "#d2e1ff", opacity: 0.9, fontSize: "13.5px", marginTop: "4px" }}>Agenda OLS com indicadores, tendências, calendário e atividades recentes.</p>
+          <p style={{ margin: 0, color: "#d2e1ff", opacity: 0.9, fontSize: "13.5px", marginTop: "4px" }}>PSI OLS com indicadores, tendências, calendário e atividades recentes.</p>
         </div>
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <div className="hero-search" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: "10px", display: "flex", alignItems: "center", padding: "0 12px" }}>

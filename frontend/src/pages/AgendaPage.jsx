@@ -7,6 +7,7 @@ import { formatDateBR } from "../utils/date.js";
 import { statusClass, statusLabel } from "../utils/status.js";
 
 const emptyForm = {
+  service_order_number: "",
   title: "",
   description: "",
   date: "",
@@ -99,6 +100,7 @@ function normalizePayload(form) {
   if (vehicles.length) {
     payload.vehicle = vehicles.join(" - ");
   }
+  delete payload.service_order_number;
   delete payload.lookupVehicles;
   delete payload.vehicle_2_ref;
   delete payload.vehicle_3_ref;
@@ -126,6 +128,11 @@ function normalizePayload(form) {
     payload[field] = valueForPayload(payload[field]);
   });
   return payload;
+}
+
+function serviceOrderLabel(agenda) {
+  const number = agenda?.service_order_number;
+  return number ? `OS ${String(number).padStart(4, "0")}` : "-";
 }
 
 export default function AgendaPage() {
@@ -602,7 +609,7 @@ export default function AgendaPage() {
         {publicLinkMessage && <div className="alert">{publicLinkMessage}</div>}
         <div className="filters request-filters">
           <input
-            placeholder="Buscar protocolo"
+            placeholder="Buscar protocolo ou OS"
             value={filters.q || ""}
             onChange={(event) => updateFilter("q", event.target.value)}
           />
@@ -625,6 +632,7 @@ export default function AgendaPage() {
             <thead>
               <tr>
                 <th>Protocolo</th>
+                <th>O.S.</th>
                 <th>Solicitante</th>
                 <th>Instituição</th>
                 <th>Data</th>
@@ -639,6 +647,7 @@ export default function AgendaPage() {
               {agendas.map((agenda) => (
                 <tr key={agenda.id}>
                   <td><strong>#{agenda.id}</strong></td>
+                  <td><strong>{serviceOrderLabel(agenda)}</strong></td>
                   <td>{agenda.external_responsible || "-"}</td>
                   <td>{agenda.institution_location || agenda.location || "-"}</td>
                   <td>{formatDateBR(agenda.date)}</td>
@@ -679,6 +688,7 @@ export default function AgendaPage() {
             </div>
             <div className="request-summary-grid">
               <span><b>Protocolo</b>#{editing || "-"}</span>
+              <span><b>Ordem de serviço</b>{serviceOrderLabel(form)}</span>
               <span><b>Solicitante</b>{form.external_responsible || "-"}</span>
               <span><b>E-mail</b>{form.external_email || "-"}</span>
               <span><b>Telefone</b>{form.external_responsible_phone || "-"}</span>

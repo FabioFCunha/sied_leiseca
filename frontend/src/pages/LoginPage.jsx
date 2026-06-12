@@ -70,8 +70,8 @@ export default function LoginPage() {
             <span className="login-calendar"><CalendarDays size={34} /></span>
             <div>
               <span className="eyebrow">Operação Lei Seca</span>
-              <h1>Agenda Educação</h1>
-              <p>Sistema de Agendamento de Ações e Atividades</p>
+              <h1>PSI</h1>
+              <p>Plataforma de Sistemas Integrados da OLS</p>
             </div>
           </div>
           <label>

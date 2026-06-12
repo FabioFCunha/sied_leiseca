@@ -189,6 +189,15 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             "swap_requests__requester",
             "swap_requests__target_team",
             "swap_requests__decided_by",
+            "extra_chiefs",
+            "extra_agents",
+            "extra_supports",
+            "removed_chiefs",
+            "removed_agents",
+            "removed_supports",
+            "absent_chiefs",
+            "absent_agents",
+            "absent_supports",
         )
         params = self.request.query_params
         if params.get("date"):
@@ -370,7 +379,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 | Q(agents__icontains=term)
             )
             if term.isdigit():
-                search_filter |= Q(id=int(term))
+                search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
             scoped = scoped.filter(search_filter)
         if params.get("order") == "latest":
             return (
@@ -583,7 +592,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                     | Q(agents__icontains=term)
                 )
                 if term.isdigit():
-                    search_filter |= Q(id=int(term))
+                    search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
                 scoped = scoped.filter(search_filter)
             return scoped.distinct()
 
@@ -693,7 +702,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                     | Q(agents__icontains=term)
                 )
                 if term.isdigit():
-                    search_filter |= Q(id=int(term))
+                    search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
                 scoped = scoped.filter(search_filter)
             return scoped
 
@@ -1113,7 +1122,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 | Q(actions__institution_name__icontains=term)
             )
             if term.isdigit():
-                search_filter |= Q(agenda_id=int(term))
+                search_filter |= Q(agenda_id=int(term)) | Q(agenda__service_order_number=int(term))
             scoped = scoped.filter(search_filter)
         return scoped.distinct().order_by("-operation_date", "-created_at")
 
@@ -1327,7 +1336,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                     | Q(actions__institution_name__icontains=term)
                 )
                 if term.isdigit():
-                    search_filter |= Q(agenda_id=int(term))
+                    search_filter |= Q(agenda_id=int(term)) | Q(agenda__service_order_number=int(term))
                 qs = qs.filter(search_filter)
             return qs
 
@@ -1812,7 +1821,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 | Q(actions__institution_name__icontains=term)
             )
             if term.isdigit():
-                search_filter |= Q(agenda_id=int(term))
+                search_filter |= Q(agenda_id=int(term)) | Q(agenda__service_order_number=int(term))
             scoped = scoped.filter(search_filter)
         return scoped.distinct()
 
@@ -2161,7 +2170,7 @@ class ReportViewSet(viewsets.ViewSet):
                 | Q(agents__icontains=term)
             )
             if term.isdigit():
-                search_filter |= Q(id=int(term))
+                search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
             scoped = scoped.filter(search_filter)
         return scoped.distinct().order_by("date", "start_time")
 
