@@ -238,7 +238,8 @@ class ShiftSwapRequestViewSet(viewsets.ModelViewSet):
 
     def _decide(self, request, pk, decision):
         swap = self.get_object()
-        if swap.requester_id == request.user.id:
+        can_approve = request.user.is_superuser or getattr(request.user, "is_admin_role", False) or getattr(request.user, "role", "") in ["ADMIN", "MANAGER"]
+        if swap.requester_id == request.user.id and not can_approve:
             return response.Response(
                 {"detail": "O solicitante nao pode aprovar ou rejeitar a propria troca."},
                 status=status.HTTP_403_FORBIDDEN,

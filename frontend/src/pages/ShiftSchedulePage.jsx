@@ -65,8 +65,9 @@ export default function ShiftSchedulePage() {
   const requestSeq = useRef(0);
   const canApprove = user?.is_superuser || user?.is_staff || ["ADMIN", "MANAGER", "CREATOR"].includes(user?.role);
   const canDecideSwap = (swap) => {
+    if (canApprove) return true;
     const isRequester = swap.requester && user?.id && String(swap.requester) === String(user.id);
-    return !isRequester && (swap.can_decide === true || canApprove);
+    return !isRequester && swap.can_decide === true;
   };
 
   const days = useMemo(() => {
