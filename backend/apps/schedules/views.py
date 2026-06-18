@@ -37,6 +37,7 @@ from .models import (
     Neighborhood,
     Sector,
     SatisfactionSurvey,
+    ShiftAbsence,
     ShiftSchedule,
     ShiftSwapRequest,
     Support,
@@ -184,6 +185,7 @@ class SupportViewSet(LookupViewSet):
 class ShiftScheduleViewSet(viewsets.ModelViewSet):
     serializer_class = ShiftScheduleSerializer
     permission_classes = [IsAuthenticated, ShiftSchedulePermission]
+    parser_classes = [parsers.JSONParser, parsers.MultiPartParser, parsers.FormParser]
 
     def get_queryset(self):
         queryset = ShiftSchedule.objects.select_related("team", "created_by").prefetch_related(
@@ -200,6 +202,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             "absent_chiefs",
             "absent_agents",
             "absent_supports",
+            "absence_records",
         )
         params = self.request.query_params
         if params.get("date"):
@@ -217,6 +220,67 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
+
+    def _member_model(self, member_type):
+        return {
+            ShiftAbsence.MemberType.CHIEF: Chief,
+            ShiftAbsence.MemberType.AGENT: Agent,
+            ShiftAbsence.MemberType.SUPPORT: Support,
+        }.get(member_type)
+
+    def _absence_relation(self, schedule, member_type):
+        return {
+            ShiftAbsence.MemberType.CHIEF: schedule.absent_chiefs,
+            ShiftAbsence.MemberType.AGENT: schedule.absent_agents,
+            ShiftAbsence.MemberType.SUPPORT: schedule.absent_supports,
+        }.get(member_type)
+
+    @decorators.action(detail=True, methods=["post", "delete"], url_path="absence")
+    def absence(self, request, pk=None):
+        schedule = self.get_object()
+        member_type = request.data.get("member_type")
+        member_id = request.data.get("member_id")
+        lookup_model = self._member_model(member_type)
+        relation = self._absence_relation(schedule, member_type)
+
+        if not lookup_model or not relation:
+            return response.Response({"detail": "Informe o tipo de integrante da falta."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            member_id = int(member_id)
+        except (TypeError, ValueError):
+            return response.Response({"detail": "Informe o integrante da falta."}, status=status.HTTP_400_BAD_REQUEST)
+
+        member = lookup_model.objects.filter(id=member_id, is_active=True).first()
+        if not member:
+            return response.Response({"detail": "Integrante nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method == "DELETE":
+            ShiftAbsence.objects.filter(schedule=schedule, member_type=member_type, member_id=member_id).delete()
+            relation.remove(member)
+        else:
+            reason = str(request.data.get("reason") or "").strip()
+            if not reason:
+                return response.Response({"detail": "Informe a justificativa da falta."}, status=status.HTTP_400_BAD_REQUEST)
+            absence, _created = ShiftAbsence.objects.update_or_create(
+                schedule=schedule,
+                member_type=member_type,
+                member_id=member_id,
+                defaults={
+                    "member_name": member.name,
+                    "reason": reason,
+                    "created_by": request.user,
+                },
+            )
+            if request.FILES.get("attachment"):
+                absence.attachment = request.FILES["attachment"]
+                absence.save(update_fields=["attachment", "updated_at"])
+            relation.add(member)
+
+        schedule.updated_by = request.user
+        schedule.save(update_fields=["updated_by", "updated_at"])
+        schedule = self.get_queryset().get(pk=schedule.pk)
+        serializer = self.get_serializer(schedule)
+        return response.Response(serializer.data)
 
 
 class ShiftSwapRequestViewSet(viewsets.ModelViewSet):

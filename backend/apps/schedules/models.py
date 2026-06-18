@@ -120,6 +120,39 @@ class ShiftSchedule(models.Model):
         return f"{self.date} - {self.team}"
 
 
+class ShiftAbsence(models.Model):
+    class MemberType(models.TextChoices):
+        CHIEF = "CHIEF", "Chefe"
+        AGENT = "AGENT", "Agente"
+        SUPPORT = "SUPPORT", "Apoio"
+
+    schedule = models.ForeignKey(ShiftSchedule, on_delete=models.CASCADE, related_name="absence_records")
+    member_type = models.CharField(max_length=16, choices=MemberType.choices)
+    member_id = models.PositiveIntegerField()
+    member_name = models.CharField(max_length=180)
+    reason = models.TextField()
+    attachment = models.FileField(upload_to="shift_absences/", null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_shift_absences",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["member_name"]
+        constraints = [
+            models.UniqueConstraint(fields=["schedule", "member_type", "member_id"], name="unique_shift_absence_member"),
+        ]
+        indexes = [
+            models.Index(fields=["schedule", "member_type"], name="shift_abs_sched_type_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.member_name} - {self.schedule}"
+
+
 class ShiftSwapRequest(models.Model):
     class MemberType(models.TextChoices):
         CHIEF = "CHIEF", "Chefe"

@@ -46,6 +46,13 @@ function emptySwapForm(scheduleId = "") {
   };
 }
 
+function emptyAbsenceForm() {
+  return {
+    reason: "",
+    attachment: null,
+  };
+}
+
 export default function ShiftSchedulePage() {
   const { user } = useAuth();
   const [cursor, setCursor] = useState(new Date());
@@ -59,6 +66,8 @@ export default function ShiftSchedulePage() {
   const [detailScheduleId, setDetailScheduleId] = useState("");
   const [isSwapOpen, setIsSwapOpen] = useState(false);
   const [swapForm, setSwapForm] = useState(emptySwapForm());
+  const [absenceTarget, setAbsenceTarget] = useState(null);
+  const [absenceForm, setAbsenceForm] = useState(emptyAbsenceForm());
   const [message, setMessage] = useState("");
   const [swapMessage, setSwapMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -386,41 +395,57 @@ export default function ShiftSchedulePage() {
 
   const handleToggleAbsence = async (group, member) => {
     if (!detailSchedule) return;
+    const idNum = Number(member.real_id || member.id);
+    const memberType = group === "chiefs" ? "CHIEF" : group === "supports" ? "SUPPORT" : "AGENT";
+
+    if (!member.is_absent) {
+      setAbsenceTarget({ scheduleId: detailSchedule.id, group, member, memberId: idNum, memberType });
+      setAbsenceForm(emptyAbsenceForm());
+      setMessage("");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
     try {
-      const idNum = Number(member.real_id || member.id);
-      const isChief = group === "chiefs";
-      const isSupport = group === "supports";
-      const isAgent = group === "agents";
-
-      let payload = {};
-      if (member.is_absent) {
-        if (isChief) {
-          payload.absent_chiefs = (detailSchedule.absent_chiefs || []).filter((id) => id !== idNum);
-        } else if (isSupport) {
-          payload.absent_supports = (detailSchedule.absent_supports || []).filter((id) => id !== idNum);
-        } else if (isAgent) {
-          payload.absent_agents = (detailSchedule.absent_agents || []).filter((id) => id !== idNum);
-        }
-      } else {
-        if (isChief) {
-          payload.absent_chiefs = [...(detailSchedule.absent_chiefs || []), idNum];
-        } else if (isSupport) {
-          payload.absent_supports = [...(detailSchedule.absent_supports || []), idNum];
-        } else if (isAgent) {
-          payload.absent_agents = [...(detailSchedule.absent_agents || []), idNum];
-        }
-      }
-
-      const updated = await api(`/shift-schedules/${detailSchedule.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
+      const body = new FormData();
+      body.append("member_type", memberType);
+      body.append("member_id", idNum);
+      const updated = await api(`/shift-schedules/${detailSchedule.id}/absence/`, { method: "DELETE", body });
 
       setSchedules((current) =>
         current.map((s) => (String(s.id) === String(detailSchedule.id) ? updated : s))
       );
+    } catch (err) {
+      setMessage(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const submitAbsence = async () => {
+    if (!absenceTarget) return;
+    const reason = absenceForm.reason.trim();
+    if (!reason) {
+      setMessage("Informe a justificativa da falta.");
+      return;
+    }
+    setLoading(true);
+    setMessage("");
+    try {
+      const body = new FormData();
+      body.append("member_type", absenceTarget.memberType);
+      body.append("member_id", absenceTarget.memberId);
+      body.append("reason", reason);
+      if (absenceForm.attachment) {
+        body.append("attachment", absenceForm.attachment);
+      }
+      const updated = await api(`/shift-schedules/${absenceTarget.scheduleId}/absence/`, { method: "POST", body });
+      setSchedules((current) =>
+        current.map((s) => (String(s.id) === String(absenceTarget.scheduleId) ? updated : s))
+      );
+      setAbsenceTarget(null);
+      setAbsenceForm(emptyAbsenceForm());
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -597,6 +622,14 @@ export default function ShiftSchedulePage() {
                               {member.is_absent && <span className="member-badge absent">Falta</span>}
                             </span>
                             {member.role && <small>{member.role}</small>}
+                            {member.is_absent && member.absence_reason && (
+                              <small className="absence-note">{member.absence_reason}</small>
+                            )}
+                            {member.is_absent && member.absence_attachment_url && (
+                              <a className="absence-attachment" href={member.absence_attachment_url} target="_blank" rel="noreferrer">
+                                <Paperclip size={13} /> Anexo da justificativa
+                              </a>
+                            )}
                           </span>
                           <div className="shift-member-actions">
                             {canApprove && (
@@ -653,6 +686,45 @@ export default function ShiftSchedulePage() {
                 </div>
               ))}
             </section>
+          </article>
+        </div>
+      )}
+
+      {absenceTarget && (
+        <div className="modal-backdrop" onClick={() => setAbsenceTarget(null)}>
+          <article className="modal shift-modal absence-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="modal-header">
+              <div>
+                <h2>Lançar falta</h2>
+                <p>{absenceTarget.member.name} - {absenceTarget.memberType === "CHIEF" ? "Chefe" : absenceTarget.memberType === "SUPPORT" ? "Apoio" : "Agente"}</p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setAbsenceTarget(null)} aria-label="Fechar"><X size={18} /></button>
+            </header>
+
+            <section className="absence-form">
+              <label>
+                <span>Justificativa da falta</span>
+                <textarea
+                  value={absenceForm.reason}
+                  onChange={(event) => setAbsenceForm((current) => ({ ...current, reason: event.target.value }))}
+                  rows={4}
+                  placeholder="Descreva o motivo informado pelo integrante."
+                  autoFocus
+                />
+              </label>
+              <label>
+                <span>Documento comprobatório</span>
+                <input
+                  type="file"
+                  onChange={(event) => setAbsenceForm((current) => ({ ...current, attachment: event.target.files?.[0] || null }))}
+                />
+              </label>
+            </section>
+
+            <div className="modal-actions">
+              <button className="secondary" type="button" onClick={() => setAbsenceTarget(null)}>Cancelar</button>
+              <button type="button" onClick={submitAbsence} disabled={loading}>Salvar falta</button>
+            </div>
           </article>
         </div>
       )}

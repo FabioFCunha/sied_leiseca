@@ -19,6 +19,7 @@ from .models import (
     Neighborhood,
     Sector,
     SatisfactionSurvey,
+    ShiftAbsence,
     ShiftSchedule,
     ShiftSwapRequest,
     Support,
@@ -303,8 +304,20 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
         absent_chief_ids = set(obj.absent_chiefs.values_list("id", flat=True))
         absent_agent_ids = set(obj.absent_agents.values_list("id", flat=True))
         absent_support_ids = set(obj.absent_supports.values_list("id", flat=True))
+        absence_records = {
+            (record.member_type, record.member_id): record
+            for record in obj.absence_records.all()
+        }
 
         def row(item, is_extra=False, is_absent=False):
+            member_type = None
+            if isinstance(item, Chief):
+                member_type = ShiftAbsence.MemberType.CHIEF
+            elif isinstance(item, Support):
+                member_type = ShiftAbsence.MemberType.SUPPORT
+            else:
+                member_type = ShiftAbsence.MemberType.AGENT
+            absence = absence_records.get((member_type, item.id))
             return {
                 "id": item.id,
                 "name": item.name,
@@ -314,6 +327,8 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
                 "team_name": item.team.name if item.team else "Sem equipe",
                 "is_extra": is_extra,
                 "is_absent": is_absent,
+                "absence_reason": absence.reason if absence else "",
+                "absence_attachment_url": absence.attachment.url if absence and absence.attachment else "",
             }
 
         removed_chief_ids = set(obj.removed_chiefs.values_list("id", flat=True))
@@ -357,6 +372,7 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
                 is_swap_absent = swap.to_member_id in absent_support_ids
             else:
                 is_swap_absent = swap.to_member_id in absent_agent_ids
+            swap_absence = absence_records.get((swap.member_type, swap.to_member_id))
 
             replacement = {
                 "id": f"swap-{swap.id}",
@@ -368,6 +384,8 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
                 "team_name": swap.target_team.name,
                 "swapped": True,
                 "is_absent": is_swap_absent,
+                "absence_reason": swap_absence.reason if swap_absence else "",
+                "absence_attachment_url": swap_absence.attachment.url if swap_absence and swap_absence.attachment else "",
             }
             for index, member in enumerate(members[group]):
                 if int(member["id"]) == int(swap.from_member_id):

@@ -3499,6 +3499,23 @@ button.stat-card.active {
   font-weight: 600;
 }
 
+.shift-member-list .absence-note {
+  color: #991b1b;
+  font-weight: 600;
+  line-height: 1.35;
+  max-width: 360px;
+}
+
+.absence-attachment {
+  align-items: center;
+  color: var(--primary);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 800;
+  gap: 5px;
+  text-decoration: none;
+}
+
 .shift-member-actions {
   display: flex;
   align-items: center;
@@ -3648,6 +3665,40 @@ button.stat-card.active {
   color: var(--danger);
 }
 
+.absence-modal {
+  max-width: 520px;
+}
+
+.absence-form {
+  display: grid;
+  gap: 14px;
+}
+
+.absence-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.absence-form label span {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.absence-form textarea,
+.absence-form input[type="file"] {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.absence-form textarea {
+  resize: vertical;
+}
+
 .swap-actions {
   display: flex;
   gap: 8px;
@@ -3730,6 +3781,17 @@ button.stat-card.active {
 .app-shell.dark-mode .member-badge.absent {
   background: #3a1a1a;
   color: #fca5a5;
+}
+
+.app-shell.dark-mode .shift-member-list .absence-note {
+  color: #fecaca;
+}
+
+.app-shell.dark-mode .absence-form textarea,
+.app-shell.dark-mode .absence-form input[type="file"] {
+  background: #152431;
+  border-color: #365164;
+  color: #d8ecff;
 }
 
 .app-shell.dark-mode .shift-member-actions label {
