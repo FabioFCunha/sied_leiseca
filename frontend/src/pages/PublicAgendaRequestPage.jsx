@@ -374,8 +374,9 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
           </div>
           <div className="public-intro-title">SOLICITAÇÃO DE AGENDAMENTO</div>
           <p>
-            A palestra <strong><em>Mudança de comportamento na Sociedade</em></strong> tem duração média de 60 minutos
-            e é ministrada por uma equipe composta por integrantes da Operação Lei Seca todos devidamente uniformizados.
+            A Operação Lei Seca atua em duas frentes: fiscalização e educação. A educação dispõe de palestras direcionadas
+            ao público infantil, adolescente e adulto. As palestras e dinâmicas têm duração média de 60 (sessenta) minutos
+            e são ministradas por uma equipe composta por integrantes da Operação Lei Seca, todos devidamente uniformizados.
           </p>
           <p><strong>Ressaltamos que nossa palestra é INTEIRAMENTE GRATUITA.</strong></p>
           <p><strong><em>Sua solicitação será avaliada e confirmada posteriormente através do e-mail cadastrado.</em></strong></p>
