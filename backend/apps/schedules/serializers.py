@@ -145,6 +145,27 @@ def shift_swap_visibility_filter(user):
     return query
 
 
+def _digits(value):
+    return "".join(char for char in str(value or "") if char.isdigit())
+
+
+def _same_text(left, right):
+    return str(left or "").strip().casefold() == str(right or "").strip().casefold()
+
+
+def _member_matches_user(member, user):
+    user_cpf = _digits(getattr(user, "cpf", ""))
+    member_cpf = _digits(getattr(member, "cpf", ""))
+    if user_cpf and member_cpf and user_cpf == member_cpf:
+        return True
+    return bool(getattr(user, "full_name", "")) and _same_text(member.name, user.full_name)
+
+
+def _user_team_matches_schedule(user, schedule):
+    sector = getattr(user, "sector", None)
+    return bool(sector and schedule and _same_text(sector.name, schedule.team.name))
+
+
 class ShiftSwapRequestSerializer(serializers.ModelSerializer):
     requester_name = serializers.CharField(source="requester.full_name", read_only=True)
     target_team_name = serializers.CharField(source="target_team.name", read_only=True)
@@ -239,6 +260,15 @@ class ShiftSwapRequestSerializer(serializers.ModelSerializer):
         to_member = lookup_model.objects.filter(id=to_member_id, team=target_team, is_active=True).first()
         if not to_member:
             raise serializers.ValidationError("O integrante substituto precisa ser da equipe selecionada e da mesma funcao.")
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        user_role = getattr(user, "role", "")
+        if user and user.is_authenticated:
+            if user_role == "USER" and not _member_matches_user(from_member, user):
+                raise serializers.ValidationError("Agentes so podem solicitar troca para o proprio integrante.")
+            if user_role == "SUPERVISOR" and not _user_team_matches_schedule(user, schedule):
+                raise serializers.ValidationError("Chefes so podem solicitar troca para integrantes da propria equipe.")
 
         attrs["from_member_name"] = from_member.name
         attrs["to_member_name"] = to_member.name

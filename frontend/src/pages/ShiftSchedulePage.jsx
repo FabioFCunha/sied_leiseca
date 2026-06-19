@@ -73,6 +73,17 @@ export default function ShiftSchedulePage() {
   const [loading, setLoading] = useState(false);
   const requestSeq = useRef(0);
   const canApprove = user?.is_superuser || user?.is_staff || ["ADMIN", "MANAGER", "CREATOR"].includes(user?.role);
+  const isAgentRole = user?.role === "USER";
+  const isSupervisorRole = user?.role === "SUPERVISOR";
+  const normalizeText = (value) => String(value || "").trim().toLocaleLowerCase("pt-BR");
+  const onlyDigits = (value) => String(value || "").replace(/\D/g, "");
+  const memberMatchesUser = (member) => {
+    const userCpf = onlyDigits(user?.cpf);
+    const memberCpf = onlyDigits(member?.cpf);
+    if (userCpf && memberCpf && userCpf === memberCpf) return true;
+    return Boolean(user?.full_name) && normalizeText(member?.name) === normalizeText(user.full_name);
+  };
+  const teamMatchesUser = (teamName) => Boolean(user?.sector_name || user?.sector?.name) && normalizeText(teamName) === normalizeText(user.sector_name || user.sector?.name);
   const canDecideSwap = (swap) => {
     if (canApprove) return true;
     const isRequester = swap.requester && user?.id && String(swap.requester) === String(user.id);
@@ -107,9 +118,17 @@ export default function ShiftSchedulePage() {
   const detailSchedule = schedules.find((item) => String(item.id) === String(detailScheduleId));
   const detailRoster = detailSchedule?.members || { chiefs: [], agents: [], supports: [] };
   const detailPendingSwaps = (detailSchedule?.swap_requests || []).filter((swap) => swap.status === "PENDING");
+  const swapSchedules = schedules.filter((schedule) => {
+    if (isSupervisorRole) return teamMatchesUser(schedule.team_name);
+    if (isAgentRole) return memberRows(schedule.members).some(memberMatchesUser);
+    return true;
+  });
   const swapSchedule = schedules.find((item) => String(item.id) === String(swapForm.schedule));
   const swapRoster = swapSchedule?.members || { chiefs: [], agents: [], supports: [] };
   const targetRoster = rostersByTeam[String(swapForm.target_team)] || { chiefs: [], agents: [], supports: [] };
+  const fromMemberOptions = sameTypeMembers(swapForm.member_type, swapRoster).filter((member) => (
+    isAgentRole ? memberMatchesUser(member) : true
+  ));
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportTeam, setReportTeam] = useState("");
   const [reportMonth, setReportMonth] = useState(cursor.getMonth());
@@ -232,9 +251,14 @@ export default function ShiftSchedulePage() {
   };
 
   const openSwapModal = (scheduleId = "") => {
-    const firstSchedule = scheduleId || schedules[0]?.id || "";
+    const allowedSchedules = swapSchedules.length ? swapSchedules : schedules;
+    const firstSchedule = scheduleId || allowedSchedules[0]?.id || "";
     if (!firstSchedule) {
       setMessage("Cadastre uma escala antes de solicitar troca.");
+      return;
+    }
+    if ((isAgentRole || isSupervisorRole) && !allowedSchedules.some((schedule) => String(schedule.id) === String(firstSchedule))) {
+      setMessage(isAgentRole ? "Seu perfil so pode solicitar troca para o proprio agente." : "Chefes so podem solicitar troca da propria equipe.");
       return;
     }
     setSwapForm(emptySwapForm(String(firstSchedule)));
@@ -745,7 +769,7 @@ export default function ShiftSchedulePage() {
                 <label className="full">
                   <span>Escala</span>
                   <select value={swapForm.schedule} onChange={(event) => changeSwapSchedule(event.target.value)}>
-                    {schedules.map((schedule) => (
+                    {swapSchedules.map((schedule) => (
                       <option key={schedule.id} value={schedule.id}>
                         {formatDateBR(schedule.date)} - {schedule.team_name}
                       </option>
@@ -755,16 +779,16 @@ export default function ShiftSchedulePage() {
                 <label>
                   <span>Função</span>
                   <select value={swapForm.member_type} onChange={(event) => setSwapForm({ ...emptySwapForm(swapForm.schedule), member_type: event.target.value })}>
-                    <option value="CHIEF">Chefe</option>
+                    {!isAgentRole && <option value="CHIEF">Chefe</option>}
                     <option value="AGENT">Agente</option>
-                    <option value="SUPPORT">Apoio</option>
+                    {!isAgentRole && <option value="SUPPORT">Apoio</option>}
                   </select>
                 </label>
                 <label>
                   <span>Quem sai</span>
                   <select value={swapForm.from_member_id} onChange={(event) => setSwapForm((current) => ({ ...current, from_member_id: event.target.value }))}>
                     <option value="">Selecione</option>
-                    {sameTypeMembers(swapForm.member_type, swapRoster).map((member) => (
+                    {fromMemberOptions.map((member) => (
                       <option key={member.id} value={member.id}>{member.name}</option>
                     ))}
                   </select>
