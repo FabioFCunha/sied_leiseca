@@ -1,4 +1,4 @@
-import { BarChart3, Bell, CalendarDays, LayoutDashboard, ListPlus, LogOut, Menu, Moon, Search, ShieldCheck, Sun, Target, Users, X } from "lucide-react";
+import { BarChart3, Bell, CalendarDays, LayoutDashboard, ListPlus, LogOut, Menu, Search, ShieldCheck, Target, Users, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import logoOperacaoLeiSeca from "../assets/operacao-lei-seca-logo.png";
@@ -33,7 +33,6 @@ const menuBadgeStyle = {
 export default function AppLayout() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
   const [pendingTechnicalReports, setPendingTechnicalReports] = useState(0);
   const [pendingShiftSwaps, setPendingShiftSwaps] = useState(0);
@@ -83,7 +82,7 @@ export default function AppLayout() {
   const visibleItems = items.filter((item) => canAccessRoute(user, item.roles));
 
   return (
-    <div className={`app-shell ${collapsed ? "is-collapsed" : ""} ${darkMode ? "dark-mode" : ""}`}>
+    <div className={`app-shell ${collapsed ? "is-collapsed" : ""}`}>
       <aside className={`sidebar ${open ? "is-open" : ""}`}>
         <div className="sidebar-logo" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           <img src={logoOperacaoLeiSeca} alt="Operação Lei Seca" />
@@ -150,9 +149,6 @@ export default function AppLayout() {
           </div>
           <button className="icon-button" aria-label="Notificações">
             <Bell size={18} />
-          </button>
-          <button className="icon-button" onClick={() => setDarkMode((value) => !value)} aria-label="Alternar tema">
-            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
           <div>
             <strong>{user?.full_name}</strong>
