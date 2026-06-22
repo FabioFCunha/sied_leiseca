@@ -45,7 +45,14 @@ from .models import (
     Vehicle,
 )
 from .permissions import AdminOrReadSectorPermission, AgendaPermission, ShiftSchedulePermission, agent_agenda_filter
-from .emails import PUBLIC_REQUEST_SALT, public_update_url, send_agenda_available_dates_email, send_agenda_status_email, send_satisfaction_survey_email
+from .emails import (
+    PUBLIC_REQUEST_SALT,
+    available_dates_message,
+    public_update_url,
+    send_agenda_available_dates_email,
+    send_agenda_status_email,
+    send_satisfaction_survey_email,
+)
 from .serializers import (
     ActionTypeSerializer,
     AgentSerializer,
@@ -557,14 +564,10 @@ class AgendaViewSet(viewsets.ModelViewSet):
         suggested = get_next_available_dates(agenda.date, limit=6)
         days = ", ".join(day.strftime("%d/%m/%Y") for day in suggested)
         month = suggested[0].strftime("%m/%Y") if suggested else ""
-        message = (
-            "Prezado(a) solicitante,\n\n"
-            "Não temos disponibilidade para atender na data solicitada. "
-            f"Temos disponibilidade nas seguintes datas: {days or 'nenhuma data disponível nos próximos dias'}.\n\n"
-            "Caso uma das datas informadas atenda sua necessidade, acesse o link abaixo, altere a data da realização da palestra e reenvie o formulário:\n"
-            f"{public_update_url(agenda)}\n\n"
-            "Atenciosamente,\n"
-            "Superintendência da Operação Lei Seca"
+        _, message = available_dates_message(
+            agenda,
+            month,
+            days or "nenhuma data disponível nos próximos dias",
         )
         return response.Response(
             {
@@ -2615,4 +2618,3 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             user = request.user
             if not (user.is_superuser or user.role in ["ADMIN", "MANAGER"]):
                 self.permission_denied(request, message="Apenas Gestores e Administração podem moderar avaliações.")
-

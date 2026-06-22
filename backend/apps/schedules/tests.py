@@ -1,12 +1,41 @@
 from datetime import date, time
 
+from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import User
+from apps.schedules.emails import approval_message, available_dates_message, rejection_message
 from apps.schedules.models import Agenda, Agent, EducationAction, EducationReport, Sector, ShiftSchedule, Team
 
 
+
+@override_settings(FRONTEND_URL="https://agenda.example.com")
+class AgendaEmailMessageTests(SimpleTestCase):
+    def setUp(self):
+        self.agenda = Agenda(id=123, external_responsible="Maria da Silva")
+
+    def test_approval_message_greets_requester_by_name(self):
+        _, body = approval_message(self.agenda)
+
+        self.assertTrue(body.startswith("Prezado(a) Maria da Silva,"))
+
+    def test_rejection_message_greets_requester_by_name(self):
+        _, body = rejection_message(self.agenda)
+
+        self.assertTrue(body.startswith("Prezado(a) Maria da Silva,"))
+
+    def test_available_dates_message_greets_requester_by_name(self):
+        _, body = available_dates_message(self.agenda, "06/2026", "23/06/2026")
+
+        self.assertTrue(body.startswith("Prezado(a) Maria da Silva,"))
+
+    def test_requester_name_ignores_surrounding_whitespace(self):
+        self.agenda.external_responsible = "  João Souza  "
+
+        _, body = approval_message(self.agenda)
+
+        self.assertTrue(body.startswith("Prezado(a) João Souza,"))
 
 class TeamLookupTests(APITestCase):
     def test_manager_can_create_and_list_custom_team(self):

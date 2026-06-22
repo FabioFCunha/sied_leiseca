@@ -12,6 +12,7 @@ from .models import Agenda, SatisfactionSurvey
 
 logger = logging.getLogger(__name__)
 PUBLIC_REQUEST_SALT = "agenda-public-request-update"
+INSTAGRAM_URL = "https://www.instagram.com/leisecarj/"
 
 
 def sanitize_smtp_error(error):
@@ -37,6 +38,13 @@ def format_time(value):
 def protocol_line(agenda):
     return f"Protocolo: #{agenda.id}"
 
+
+def requester_name(agenda):
+    return (agenda.external_responsible or "").strip() or "solicitante"
+
+
+def requester_greeting(agenda):
+    return f"Prezado(a) {requester_name(agenda)},"
 
 def agenda_details(agenda):
     return "\n".join(
@@ -115,27 +123,35 @@ def approval_message(agenda):
     return (
         f"Aprovação da solicitação - Protocolo #{agenda.id}",
         (
-            "Prezado(a) solicitante,\n\n"
-            "Seu pedido de apresentação da Palestra de educação no trânsito foi aprovado.\n\n"
-            "Informamos que a Equipe da Educação da Operação Lei Seca fará contato, em breve, "
-            "para alinhar sobre a palestra solicitada.\n\n"
-            "Atenciosamente,\n"
-            "Superintendência da Operação Lei Seca"
+            f"{requester_greeting(agenda)}\n\n"
+            "Esperamos que esteja bem! Sua solicitação de apresentação da Palestra de educação no trânsito foi aprovada!\n\n"
+            "Queremos agradecer pela sua admiração! Informamos que a nossa Equipe da Educação entrará em contato "
+            "para alinhar toda a dinâmica e necessidades sobre a palestra solicitada, o mais rápido possível. "
+            "Por isso, mantenha-se atento(a) aos meios de contato disponibilizados na solicitação. Desde já queremos "
+            "te convidar para começar a transformar o trânsito com a gente! Se conecte conosco acessando o nosso "
+            f"instagram e fique por dentro de tudo que acontece na Operação Lei Seca: {INSTAGRAM_URL}.\n\n"
+            "Nos encontraremos, em breve!\n\n"
+            "Atenciosamente,\n\n"
+            "Superintendência da Operação Lei Seca."
         ),
     )
-
 
 def rejection_message(agenda):
     return (
         f"Resposta da solicitação - Protocolo #{agenda.id}",
         (
-            "Prezado(a) solicitante,\n\n"
-            "No momento, não temos condições técnicas de atender a sua solicitação.\n\n"
-            "Atenciosamente,\n"
-            "Superintendência da Operação Lei Seca"
+            f"{requester_greeting(agenda)}\n\n"
+            "Nós queremos agradecer a sua confiança! Esperamos que esteja bem! Neste momento, não temos condições "
+            "técnicas para fornecer a palestra no lugar proposto, por isso, não será possível a sua continuidade para "
+            "a sua solicitação. Mas isso não significa que você não pode ter outros momentos conosco, ao contrário! "
+            "Sabemos que essa notícia não é a esperada, mas desde já queremos estender o convite a futuras oportunidades "
+            "para transformarmos o trânsito com a gente.\n\n"
+            "Se conecte conosco acessando o nosso instagram e fique por dentro de tudo que acontece na Operação Lei Seca: "
+            f"{INSTAGRAM_URL}. Agradecemos mais uma vez sua solicitação e a sua admiração! Esperamos te encontrar por aí!\n\n"
+            "Atenciosamente,\n\n"
+            "Superintendência da Operação Lei Seca."
         ),
     )
-
 
 def available_dates_message(agenda, month, days, custom_message=""):
     if custom_message:
@@ -143,17 +159,19 @@ def available_dates_message(agenda, month, days, custom_message=""):
     return (
         f"Datas disponíveis - Protocolo #{agenda.id}",
         (
-            "Prezado(a) solicitante,\n\n"
-            "Não temos disponibilidade para atender na data solicitada. "
-            f"No mês {month}, temos disponibilidade nos dias {days}.\n\n"
-            "Caso as datas informadas atendam sua necessidade, orientamos acessar o protocolo gerado, "
-            "alterar a data da realização da palestra e nos reenviar o formulário:\n"
+            f"{requester_greeting(agenda)}\n\n"
+            "Nós queremos agradecer a sua confiança! Esperamos que esteja bem! Neste momento, não temos disponibilidade "
+            "para atender na data solicitada. Sabemos que essa notícia não é a esperada, mas isso não significa que você "
+            "não pode ter outro momento conosco, ao contrário! "
+            f"Para lhe ajudar, informamos que no mês {month}, temos os seguintes dias disponíveis: {days}.\n\n"
+            f"Caso algum destes dias atenda a sua necessidade, será necessário que acesse o número de protocolo #{agenda.id} "
+            "para conseguir realizar a alteração de data e nos reenviar o formulário.\n"
             f"{public_update_url(agenda)}\n\n"
-            "Atenciosamente,\n"
-            "Superintendência da Operação Lei Seca"
+            "Aguardamos o seu retorno e agradecemos a atenção e a sua admiração! Esperamos te encontrar logo!\n\n"
+            "Atenciosamente,\n\n"
+            "Superintendência da Operação Lei Seca."
         ),
     )
-
 
 def message_for_status(agenda, status):
     if status == Agenda.Status.PENDING:
