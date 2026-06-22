@@ -2,6 +2,7 @@ export const roleLabel = {
   ADMIN: "Administração",
   MANAGER: "Gestor",
   SUPERVISOR: "Chefe",
+  SUPPORT: "Apoio",
   VISITOR: "Visitante",
   USER: "Agente",
 };

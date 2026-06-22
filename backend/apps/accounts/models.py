@@ -61,6 +61,10 @@ class User(AbstractUser):
     def is_supervisor_role(self):
         return self.role == self.Role.SUPERVISOR
 
+    @property
+    def is_agent_role(self):
+        return self.role in {self.Role.USER, self.Role.SUPPORT}
+
 
 class AuditLog(models.Model):
     class Action(models.TextChoices):

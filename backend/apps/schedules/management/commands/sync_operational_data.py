@@ -9,6 +9,7 @@ from django.core.management.color import no_style
 from django.db import connection, transaction
 
 from apps.accounts.models import AuditLog, User
+from apps.accounts.serializers import sync_all_user_lookups
 
 
 FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures"
@@ -47,6 +48,7 @@ class Command(BaseCommand):
             for item in serializers.deserialize("json", json.dumps(remapped)):
                 item.save()
             self._reset_sequences()
+            sync_all_user_lookups()
             AuditLog.objects.create(
                 user=fallback_user,
                 action=AuditLog.Action.UPDATE,

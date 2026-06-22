@@ -1,15 +1,11 @@
 from django.core.management.base import BaseCommand
 
-from apps.accounts.models import User
-from apps.accounts.serializers import sync_user_lookup
+from apps.accounts.serializers import sync_all_user_lookups
 
 
 class Command(BaseCommand):
-    help = "Sincroniza usuários com os cadastros de Chefes e Agentes."
+    help = "Sincroniza usuários operacionais com os cadastros de Chefes, Agentes e Apoios."
 
     def handle(self, *args, **options):
-        total = 0
-        for user in User.objects.exclude(role__in=[User.Role.ADMIN, User.Role.MANAGER]):
-            sync_user_lookup(user)
-            total += 1
+        total = sync_all_user_lookups()
         self.stdout.write(self.style.SUCCESS(f"{total} usuários sincronizados."))

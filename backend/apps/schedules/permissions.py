@@ -65,13 +65,18 @@ class AdminOrReadSectorPermission(BasePermission):
 
 
 class ShiftSchedulePermission(BasePermission):
+    def _can_manage_shift_schedule(self, user):
+        return getattr(user, "is_admin_role", False)
+
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
         if request.user.role == User.Role.VISITOR:
             return False
+        if view.__class__.__name__ == "ShiftScheduleViewSet" and view.action in {"create", "update", "partial_update", "destroy", "absence"}:
+            return self._can_manage_shift_schedule(request.user)
         if view.action in {"approve", "reject", "destroy"}:
-            return request.user.is_superuser or request.user.is_staff or request.user.is_admin_role
+            return self._can_manage_shift_schedule(request.user)
         return True
 
     def has_object_permission(self, request, view, obj):
@@ -79,6 +84,8 @@ class ShiftSchedulePermission(BasePermission):
             return False
         if request.user.role == User.Role.VISITOR:
             return False
+        if view.__class__.__name__ == "ShiftScheduleViewSet" and view.action in {"update", "partial_update", "destroy", "absence"}:
+            return self._can_manage_shift_schedule(request.user)
         if view.action in {"approve", "reject", "destroy"}:
-            return request.user.is_superuser or request.user.is_staff or request.user.is_admin_role
+            return self._can_manage_shift_schedule(request.user)
         return True

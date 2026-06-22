@@ -93,7 +93,7 @@ export default function ShiftSchedulePage() {
   const [swapMessage, setSwapMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const requestSeq = useRef(0);
-  const canApprove = user?.is_superuser || user?.is_staff || ["ADMIN", "MANAGER", "CREATOR"].includes(user?.role);
+  const canApprove = ["ADMIN", "MANAGER"].includes(user?.role);
   const isAgentRole = user?.role === "USER";
   const isSupervisorRole = user?.role === "SUPERVISOR";
   const normalizeText = (value) => String(value || "").trim().toLocaleLowerCase("pt-BR");
@@ -162,6 +162,7 @@ export default function ShiftSchedulePage() {
   const [reportYear, setReportYear] = useState(cursor.getFullYear());
 
   const openReportModal = () => {
+    if (!canApprove) return;
     if (teams.length > 0 && !reportTeam) {
       setReportTeam(String(teams[0].id));
     }
@@ -218,6 +219,7 @@ export default function ShiftSchedulePage() {
   }, [days]);
 
   const openDay = (date) => {
+    if (!canApprove) return;
     const iso = toISO(date);
     const daySchedules = schedules.filter((item) => item.date === iso);
     setSelectedDate(iso);
@@ -240,6 +242,10 @@ export default function ShiftSchedulePage() {
   };
 
   const saveDayTeams = async () => {
+    if (!canApprove) {
+      setMessage("Apenas gestores e administradores podem fazer escala.");
+      return;
+    }
     if (!selectedDate || !selectedTeamIds.length) {
       setMessage("Selecione ao menos uma equipe para a escala.");
       return;
@@ -346,7 +352,7 @@ export default function ShiftSchedulePage() {
   };
 
   const handleAddMember = async (group, memberId) => {
-    if (!detailSchedule) return;
+    if (!canApprove || !detailSchedule) return;
     setLoading(true);
     setMessage("");
     try {
@@ -401,7 +407,7 @@ export default function ShiftSchedulePage() {
   };
 
   const handleRemoveMember = async (group, member) => {
-    if (!detailSchedule) return;
+    if (!canApprove || !detailSchedule) return;
     setLoading(true);
     setMessage("");
     try {
@@ -445,7 +451,7 @@ export default function ShiftSchedulePage() {
   };
 
   const handleToggleAbsence = async (group, member) => {
-    if (!detailSchedule) return;
+    if (!canApprove || !detailSchedule) return;
     const idNum = Number(member.real_id || member.id);
     const memberType = group === "chiefs" ? "CHIEF" : group === "supports" ? "SUPPORT" : "AGENT";
 
@@ -475,7 +481,7 @@ export default function ShiftSchedulePage() {
   };
 
   const submitAbsence = async () => {
-    if (!absenceTarget) return;
+    if (!canApprove || !absenceTarget) return;
     const reason = absenceForm.reason.trim();
     if (!reason) {
       setMessage("Informe a justificativa da falta.");
@@ -505,7 +511,7 @@ export default function ShiftSchedulePage() {
   };
 
   const deleteSchedule = async () => {
-    if (!detailSchedule) return;
+    if (!canApprove || !detailSchedule) return;
     if (!window.confirm(`Excluir a escala da equipe ${detailSchedule.team_name} em ${formatDateBR(detailSchedule.date)}?`)) {
       return;
     }

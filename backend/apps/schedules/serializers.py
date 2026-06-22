@@ -231,11 +231,7 @@ class ShiftSwapRequestSerializer(serializers.ModelSerializer):
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
-        can_manage = bool(
-            getattr(user, "is_superuser", False)
-            or getattr(user, "is_staff", False)
-            or getattr(user, "is_admin_role", False)
-        )
+        can_manage = bool(getattr(user, "is_admin_role", False))
         return can_manage and obj.status == ShiftSwapRequest.Status.PENDING and obj.requester_id != user.id
 
     def _lookup_model(self, member_type):
@@ -269,7 +265,7 @@ class ShiftSwapRequestSerializer(serializers.ModelSerializer):
         user = getattr(request, "user", None)
         user_role = getattr(user, "role", "")
         if user and user.is_authenticated:
-            if user_role == "USER" and not _member_matches_user(from_member, user):
+            if user_role in {"USER", "SUPPORT"} and not _member_matches_user(from_member, user):
                 raise serializers.ValidationError("Agentes so podem solicitar troca para o proprio integrante.")
             if user_role == "SUPERVISOR":
                 if not _user_team_matches_schedule(user, schedule):

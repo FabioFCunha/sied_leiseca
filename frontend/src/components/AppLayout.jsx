@@ -7,10 +7,10 @@ import { canAccessRoute, roleLabel } from "../utils/permissions.js";
 import { api } from "../api/client.js";
 
 const items = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "CREATOR"] },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"] },
   { to: "/agendas", label: "Solicitações", icon: CalendarDays, roles: ["ADMIN", "MANAGER", "SUPERVISOR"] },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
-  { to: "/escala", label: "Escala", icon: CalendarDays, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "CREATOR"] },
+  { to: "/escala", label: "Escala", icon: CalendarDays, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"] },
   { to: "/relatorio-tecnico", label: "Relatório técnico", icon: BarChart3, roles: ["ADMIN", "MANAGER", "SUPERVISOR"] },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3, roles: ["ADMIN", "MANAGER"] },
   { to: "/estatisticas", label: "Estatísticas", icon: BarChart3, roles: ["ADMIN", "MANAGER", "SUPERVISOR"] },
@@ -41,7 +41,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user && canAccessRoute(user, ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "CREATOR"])) {
+    if (user && canAccessRoute(user, ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"])) {
       api("/shift-swaps/?status=PENDING&page_size=1")
         .then((data) => setPendingShiftSwaps(data.count || 0))
         .catch(() => {});

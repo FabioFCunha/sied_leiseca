@@ -312,7 +312,7 @@ class ShiftSwapRequestViewSet(viewsets.ModelViewSet):
 
     def _decide(self, request, pk, decision):
         swap = self.get_object()
-        can_approve = request.user.is_superuser or getattr(request.user, "is_admin_role", False) or getattr(request.user, "role", "") in ["ADMIN", "MANAGER"]
+        can_approve = getattr(request.user, "is_admin_role", False)
         if swap.requester_id == request.user.id and not can_approve:
             return response.Response(
                 {"detail": "O solicitante nao pode aprovar ou rejeitar a propria troca."},
@@ -1159,7 +1159,7 @@ class EventReportViewSet(viewsets.ModelViewSet):
             scoped = queryset
         if user.role == User.Role.SUPERVISOR:
             scoped = queryset.filter(chief_agenda_filter(user, prefix="agenda__")).distinct()
-        if user.role == User.Role.USER:
+        if user.is_agent_role:
             return queryset.none()
 
         params = self.request.query_params
@@ -1191,7 +1191,7 @@ class EventReportViewSet(viewsets.ModelViewSet):
 
             if not Agenda.objects.filter(pk=agenda.pk).filter(chief_agenda_filter(user)).exists():
                 raise PermissionDenied("Você só pode relatar agendas em que você está vinculado como Chefe.")
-        if user.role == User.Role.USER:
+        if user.is_agent_role:
             from rest_framework.exceptions import PermissionDenied
 
             raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem enviar relatórios técnicos.")
@@ -1245,7 +1245,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             "actions",
             "actions__agenda",
         )
-        if user.role == User.Role.USER:
+        if user.is_agent_role:
             scoped = queryset.none()
         elif user.is_admin_role:
             scoped = queryset
@@ -1309,7 +1309,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_admin_role:
             return
-        if user.role == User.Role.USER:
+        if user.is_agent_role:
             raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem preencher relatórios.")
         allowed = Agenda.objects.filter(pk=agenda.pk).filter(chief_agenda_filter(user)).exists()
         if not allowed:
@@ -1490,7 +1490,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 "actions",
                 "actions__agenda",
             )
-            if user.role == User.Role.USER:
+            if user.is_agent_role:
                 qs = qs.none()
             elif not user.is_admin_role:
                 qs = qs.filter(chief_agenda_filter(user, prefix="agenda__")).distinct()
@@ -1972,7 +1972,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             "actions",
             "actions__agenda",
         )
-        if user.role == User.Role.USER:
+        if user.is_agent_role:
             scoped = queryset.none()
         elif user.is_admin_role:
             scoped = queryset

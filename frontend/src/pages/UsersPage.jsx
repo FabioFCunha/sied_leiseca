@@ -195,7 +195,7 @@ export default function UsersPage() {
         </div>
         <div className="table-wrap users-table-wrap">
           <h2>Usuários operacionais</h2>
-          {renderUsersTable(operationalUsers, "Nenhum agente ou chefe cadastrado.")}
+          {renderUsersTable(operationalUsers, "Nenhum agente, apoio ou chefe cadastrado.")}
         </div>
         <div className="table-wrap users-table-wrap">
           <h2>Visitantes</h2>
@@ -209,6 +209,7 @@ export default function UsersPage() {
             Perfil
             <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
               <option value="USER">Agente</option>
+              <option value="SUPPORT">Apoio</option>
               <option value="SUPERVISOR">Chefe</option>
               <option value="MANAGER">Gestor</option>
               <option value="VISITOR">Visitante</option>

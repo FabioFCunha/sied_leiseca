@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
-from apps.schedules.models import Agent, Chief, Sector
+from apps.schedules.models import Agent, Chief, Sector, Support
 
 
 def only_digits(value):
@@ -42,24 +42,57 @@ def find_lookup(model, user):
 from .models import AuditLog, User
 
 
+USER_LOOKUP_SOURCE_PREFIX = "user:"
+USER_LOOKUP_MODELS = (Agent, Chief, Support)
+
+
+def user_lookup_source_id(user):
+    return f"{USER_LOOKUP_SOURCE_PREFIX}{user.id}"
+
+
+def deactivate_other_user_lookups(user, active_model=None):
+    source_id = user_lookup_source_id(user)
+    for model in USER_LOOKUP_MODELS:
+        if active_model is not None and model is active_model:
+            continue
+        model.objects.filter(source_id=source_id).update(is_active=False)
+
+
+def upsert_user_lookup(model, user, role_label, extra_defaults=None):
+    lookup = model.objects.filter(source_id=user_lookup_source_id(user)).first() or find_lookup(model, user)
+    defaults = {
+        "source_id": user_lookup_source_id(user),
+        "name": user.full_name,
+        "cpf": only_digits(user.cpf) or None,
+        "role": role_label,
+        "is_active": user.is_active,
+    }
+    if extra_defaults:
+        defaults.update(extra_defaults)
+    if lookup:
+        for field, value in defaults.items():
+            setattr(lookup, field, value)
+        lookup.save()
+    else:
+        lookup = model.objects.create(**defaults)
+    return lookup
+
+
 def sync_user_lookup(user):
     if not user.full_name:
+        deactivate_other_user_lookups(user)
         return
+
     if user.role == User.Role.SUPERVISOR:
-        lookup = find_lookup(Chief, user)
-        phone = user.phone or (lookup.phone if lookup else "")
-        defaults = {
-            "name": user.full_name,
-            "cpf": only_digits(user.cpf) or None,
-            "phone": phone,
-            "is_active": user.is_active,
-        }
-        if lookup:
-            for field, value in defaults.items():
-                setattr(lookup, field, value)
-            lookup.save()
-        else:
-            lookup = Chief.objects.create(**defaults)
+        existing = Chief.objects.filter(source_id=user_lookup_source_id(user)).first() or find_lookup(Chief, user)
+        phone = user.phone or (existing.phone if existing else "")
+        lookup = upsert_user_lookup(
+            Chief,
+            user,
+            "CHEFE",
+            {"phone": phone},
+        )
+        deactivate_other_user_lookups(user, Chief)
         sector = sector_for_team(lookup.team)
         changed_fields = []
         if phone and user.phone != phone:
@@ -70,23 +103,35 @@ def sync_user_lookup(user):
             changed_fields.append("sector")
         if changed_fields:
             user.save(update_fields=changed_fields)
-    elif user.role == User.Role.USER:
-        lookup = find_lookup(Agent, user)
-        defaults = {
-            "name": user.full_name,
-            "cpf": only_digits(user.cpf) or None,
-            "is_active": user.is_active,
-        }
-        if lookup:
-            for field, value in defaults.items():
-                setattr(lookup, field, value)
-            lookup.save()
-        else:
-            lookup = Agent.objects.create(**defaults)
+        return
+
+    if user.role == User.Role.USER:
+        lookup = upsert_user_lookup(Agent, user, "AGENTE")
+        deactivate_other_user_lookups(user, Agent)
         sector = sector_for_team(lookup.team)
         if sector and user.sector_id != sector.id:
             user.sector = sector
             user.save(update_fields=["sector"])
+        return
+
+    if user.role == User.Role.SUPPORT:
+        lookup = upsert_user_lookup(Support, user, "APOIO")
+        deactivate_other_user_lookups(user, Support)
+        sector = sector_for_team(lookup.team)
+        if sector and user.sector_id != sector.id:
+            user.sector = sector
+            user.save(update_fields=["sector"])
+        return
+
+    deactivate_other_user_lookups(user)
+
+
+def sync_all_user_lookups():
+    total = 0
+    for user in User.objects.exclude(role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.VISITOR]):
+        sync_user_lookup(user)
+        total += 1
+    return total
 
 
 class LoginSerializer(TokenObtainPairSerializer):
