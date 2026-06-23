@@ -12,7 +12,8 @@ SIGNATURE_PATH = settings.BASE_DIR / "assets" / "email" / "signature.png"
 
 def text_to_html(body):
     escaped = html.escape(body or "")
-    return escaped.replace("\n", "<br>")
+    html_text = escaped.replace("\n", "<br>")
+    return f'<div style="text-align: justify;">{html_text}</div>'
 
 
 def signature_html():
