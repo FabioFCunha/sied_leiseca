@@ -8,6 +8,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.views import AuditLogViewSet, CurrentUserView, LoginView, PasswordResetRequestView, SetPasswordView, UserViewSet
 from apps.schedules.views import (
+    AccessibilityBlocklistViewSet,
     ActionTypeViewSet,
     AgentViewSet,
     AgendaViewSet,
@@ -34,6 +35,7 @@ from apps.schedules.views import (
 )
 
 router = DefaultRouter()
+router.register("accessibility-blocklist", AccessibilityBlocklistViewSet, basename="accessibility-blocklist")
 router.register("audit-logs", AuditLogViewSet, basename="audit-logs")
 router.register("users", UserViewSet, basename="users")
 router.register("sectors", SectorViewSet, basename="sectors")

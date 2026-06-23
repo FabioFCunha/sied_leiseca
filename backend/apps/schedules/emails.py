@@ -248,25 +248,37 @@ def send_satisfaction_survey_email(report):
 
 
 def send_accessibility_rejection_email(data):
+    # Suporta tanto dicionário (vindo do serializer/request) quanto instância de Agenda
+    if hasattr(data, "external_email"):
+        external_email = data.external_email
+        contact_email = getattr(data, "contact_email", "")
+        institution = getattr(data, "institution_location", "") or getattr(data, "location", "") or "instituição"
+    else:
+        external_email = data.get("external_email")
+        contact_email = data.get("contact_email")
+        institution = data.get("institution_location") or data.get("location") or "instituição"
+
     recipients = []
-    for email in [data.get("external_email"), data.get("contact_email")]:
+    for email in [external_email, contact_email]:
         if email and email.strip():
             recipients.append(email.strip())
     if not recipients:
         return False
 
-    institution = data.get("institution_location") or data.get("location") or "instituição"
-    responsible = data.get("external_responsible") or "solicitante"
-
     subject = "Recusa de solicitação - Operação Lei Seca"
     body = (
-        f"Prezado(a) {responsible},\n\n"
-        "Esperamos que esteja bem.\n\n"
-        f"Agradecemos o seu interesse em contar com a Operação Lei Seca. No entanto, informamos que a sua solicitação para a instituição {institution} não pôde ser aceita no momento.\n\n"
-        "Motivo: A instituição ou o solicitante possui uma restrição ativa por não atender às condições de acessibilidade para cadeirantes em atividades anteriores. A Operação Lei Seca preza pela inclusão e acessibilidade de todos os participantes.\n\n"
-        "Caso as adequações de acessibilidade tenham sido realizadas ou para obter mais esclarecimentos, por favor, entre em contato conosco.\n\n"
-        "Atenciosamente,\n\n"
-        "Superintendência da Operação Lei Seca"
+        "Prezado(a)!\n\n"
+        "Agradecemos o interesse em receber a palestra da Operação Lei Seca novamente!\n\n"
+        "Durante a análise técnica, após a última palestra no local indicado na solicitação, verificamos que, "
+        "ele ainda não possui todas as condições de acessibilidade necessárias para garantir a participação segura e "
+        "confortável de todos os integrantes de nossa equipe, especialmente de nossos palestrantes cadeirantes, "
+        "que participam ativamente das ações educativas.\n\n"
+        "Gostaríamos de destacar que a inclusão é um valor fundamental para nós!\n\n"
+        "Permanecemos à disposição e teremos grande satisfação em reavaliar a solicitação caso, futuramente, "
+        "o espaço receba as adequações necessárias de acessibilidade.\n\n"
+        "Agradecemos pela compreensão!\n\n"
+        "Atenciosamente,\n"
+        "Superintendência da Operação Lei Seca."
     )
     email = build_email(subject, body, recipients)
     return send_email_safely(email, f"recusa de acessibilidade para {institution}")

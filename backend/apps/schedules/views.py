@@ -54,6 +54,7 @@ from .emails import (
     send_satisfaction_survey_email,
 )
 from .serializers import (
+    AccessibilityBlocklistSerializer,
     ActionTypeSerializer,
     AgentSerializer,
     AgendaSerializer,
@@ -2027,6 +2028,32 @@ class EducationGoalViewSet(viewsets.ModelViewSet):
         return queryset.order_by("year", "order", "label")
 
 
+class AccessibilityBlocklistViewSet(viewsets.ModelViewSet):
+    serializer_class = AccessibilityBlocklistSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if not (user.is_admin_role or user.role == User.Role.SUPERVISOR):
+            raise PermissionDenied("Sem permissão para gerenciar a lista de restrições de acessibilidade.")
+        
+        queryset = AccessibilityBlocklist.objects.all()
+        term = self.request.query_params.get("search")
+        if term:
+            queryset = queryset.filter(
+                Q(institution_location__icontains=term)
+                | Q(address__icontains=term)
+                | Q(external_responsible__icontains=term)
+                | Q(external_email__icontains=term)
+            )
+        
+        include_inactive = self.request.query_params.get("include_inactive")
+        if include_inactive != "true":
+            queryset = queryset.filter(is_active=True)
+            
+        return queryset.order_by("-created_at")
+
+
 class PublicAgendaRequestView(APIView):
     permission_classes = [AllowAny]
 
@@ -2062,16 +2089,7 @@ class PublicAgendaRequestView(APIView):
 
     def post(self, request):
         serializer = PublicAgendaRequestSerializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            from rest_framework.exceptions import ValidationError
-            if isinstance(e, ValidationError):
-                from apps.schedules.serializers import find_accessibility_block
-                from apps.schedules.emails import send_accessibility_rejection_email
-                if find_accessibility_block(serializer.initial_data):
-                    send_accessibility_rejection_email(serializer.initial_data)
-            raise e
+        serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         public_sector, _ = Sector.objects.get_or_create(
             name="Solicitações externas",
@@ -2141,6 +2159,11 @@ class PublicAgendaRequestView(APIView):
             action="SOLICITACAO_PUBLICA",
             snapshot=snapshot_for(agenda),
         )
+        from apps.schedules.serializers import find_accessibility_block
+        from apps.schedules.accessibility import schedule_accessibility_rejection
+        block = find_accessibility_block(data)
+        if block:
+            schedule_accessibility_rejection(agenda, block)
         transaction.on_commit(lambda: send_agenda_status_email(agenda, Agenda.Status.PENDING))
         return response.Response(
             {
@@ -2254,16 +2277,7 @@ class InternalAgendaRequestView(APIView):
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
             raise PermissionDenied("Apenas Chefes, Gestores e Administração podem criar solicitações internas.")
         serializer = PublicAgendaRequestSerializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            from rest_framework.exceptions import ValidationError
-            if isinstance(e, ValidationError):
-                from apps.schedules.serializers import find_accessibility_block
-                from apps.schedules.emails import send_accessibility_rejection_email
-                if find_accessibility_block(serializer.initial_data):
-                    send_accessibility_rejection_email(serializer.initial_data)
-            raise e
+        serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         internal_sector, _ = Sector.objects.get_or_create(
             name="Solicitações internas",
@@ -2322,6 +2336,11 @@ class InternalAgendaRequestView(APIView):
             f"Solicitacao interna criada: protocolo {agenda.id}.",
             {"agenda_id": agenda.id, "title": agenda.title, "status": agenda.status},
         )
+        from apps.schedules.serializers import find_accessibility_block
+        from apps.schedules.accessibility import schedule_accessibility_rejection
+        block = find_accessibility_block(data)
+        if block:
+            schedule_accessibility_rejection(agenda, block)
         transaction.on_commit(lambda: send_agenda_status_email(agenda, Agenda.Status.PENDING))
         return response.Response(
             {

@@ -275,6 +275,15 @@ class Agenda(models.Model):
     requester_entity_type = models.CharField(max_length=160, blank=True)
     age_ranges = models.CharField(max_length=220, blank=True)
     accessibility_access = models.CharField(max_length=80, blank=True)
+    accessibility_block = models.ForeignKey(
+        "AccessibilityBlocklist",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="blocked_agendas",
+    )
+    accessibility_rejection_due_at = models.DateTimeField(null=True, blank=True)
+    accessibility_rejection_sent_at = models.DateTimeField(null=True, blank=True)
     has_ramps = models.CharField(max_length=3, blank=True)
     has_elevators = models.CharField(max_length=3, blank=True)
     has_accessible_bathrooms = models.CharField(max_length=3, blank=True)
@@ -325,6 +334,7 @@ class Agenda(models.Model):
             models.Index(fields=["date", "status"]),
             models.Index(fields=["sector", "date"]),
             models.Index(fields=["responsible", "date"]),
+            models.Index(fields=["accessibility_rejection_due_at", "accessibility_rejection_sent_at"]),
         ]
 
     def __str__(self):

@@ -94,7 +94,7 @@ class PublicAgendaRequestSerializerTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("age_ranges", serializer.errors)
 
-    def test_rejects_blocked_address(self):
+    def test_serializer_ignores_blocked_address(self):
         from apps.schedules.models import AccessibilityBlocklist
 
         # Create an active accessibility block on the address
@@ -107,9 +107,7 @@ class PublicAgendaRequestSerializerTests(TestCase):
         data = self.valid_data()
         serializer = PublicAgendaRequestSerializer(data=data)
 
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("non_field_errors", serializer.errors)
-        self.assertIn("Solicitação recusada automaticamente", str(serializer.errors["non_field_errors"]))
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
 
 class EducationReportSerializerTests(APITestCase):
@@ -382,10 +380,13 @@ class DashboardMetricsTests(APITestCase):
 class PublicAgendaRequestRejectionEmailTests(APITestCase):
     def test_sends_email_on_blocked_address_rejection(self):
         from django.core import mail
-        from apps.schedules.models import AccessibilityBlocklist
+        from django.utils import timezone
+        from datetime import timedelta
+        from apps.schedules.models import AccessibilityBlocklist, Agenda
+        from apps.schedules.accessibility import process_due_accessibility_rejections
 
         # Create active block on the address
-        AccessibilityBlocklist.objects.create(
+        block = AccessibilityBlocklist.objects.create(
             address="Rua Exemplo, 10",
             is_active=True,
             reason="Não acessível"
@@ -415,13 +416,31 @@ class PublicAgendaRequestRejectionEmailTests(APITestCase):
         # Submit request
         response = self.client.post(reverse("public_agenda_request"), data)
 
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("Solicitação recusada automaticamente", str(response.json()))
+        self.assertEqual(response.status_code, 201)
+        
+        # Verify agenda has block + rejection scheduled
+        agenda = Agenda.objects.get(id=response.json()["protocol"])
+        self.assertEqual(agenda.status, Agenda.Status.PENDING)
+        self.assertEqual(agenda.accessibility_block, block)
+        self.assertIsNotNone(agenda.accessibility_rejection_due_at)
+        self.assertIsNone(agenda.accessibility_rejection_sent_at)
 
-        # Check outbox
+        # Check outbox - should have 0 emails (since pending email is sent on_commit and APITestCase rolls back transaction)
+        self.assertEqual(len(mail.outbox), 0)
+
+        # Run process_due_accessibility_rejections with simulated time (+6 minutes)
+        processed = process_due_accessibility_rejections(now=timezone.now() + timedelta(minutes=6))
+        self.assertEqual(processed, 1)
+
+        # Verify agenda is cancelled
+        agenda.refresh_from_db()
+        self.assertEqual(agenda.status, Agenda.Status.CANCELLED)
+        self.assertIsNotNone(agenda.accessibility_rejection_sent_at)
+
+        # Check outbox - should now have 1 email (the rejection email)
         self.assertEqual(len(mail.outbox), 1)
         email = mail.outbox[0]
         self.assertEqual(email.subject, "Recusa de solicitação - Operação Lei Seca")
         self.assertIn("maria@example.com", email.to)
-        self.assertIn("Agradecemos o seu interesse em contar com a Operação Lei Seca", email.body)
-        self.assertIn("Motivo: A instituição ou o solicitante possui uma restrição ativa por não atender às condições de acessibilidade para cadeirantes", email.body)
+        self.assertIn("Agradecemos o interesse em receber a palestra da Operação Lei Seca novamente", email.body)
+        self.assertIn("Durante a análise técnica, após a última palestra no local indicado na solicitação", email.body)

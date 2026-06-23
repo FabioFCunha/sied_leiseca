@@ -34,6 +34,31 @@ class SectorSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "description", "is_active"]
 
 
+class AccessibilityBlocklistSerializer(serializers.ModelSerializer):
+    source_agenda_protocol = serializers.IntegerField(source="source_agenda_id", read_only=True)
+    source_report_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = AccessibilityBlocklist
+        fields = [
+            "id",
+            "institution_location",
+            "address",
+            "external_responsible",
+            "external_responsible_phone",
+            "external_email",
+            "requester_cpf",
+            "reason",
+            "source_agenda",
+            "source_agenda_protocol",
+            "source_report",
+            "source_report_id",
+            "is_active",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "source_agenda_protocol", "source_report_id"]
+
+
 class LookupSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ["id", "source_id", "name", "is_active"]
@@ -1029,12 +1054,6 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
-        blocked = find_accessibility_block(attrs)
-        if blocked:
-            raise serializers.ValidationError(
-                "Solicitação recusada automaticamente: instituição ou solicitante possui restrição ativa por não atender às condições de acessibilidade para cadeirantes."
-            )
-
         if attrs["start_time"] >= attrs["end_time"]:
             raise serializers.ValidationError("A hora final deve ser maior que a hora inicial.")
             
