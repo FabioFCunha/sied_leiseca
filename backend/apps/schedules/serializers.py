@@ -468,11 +468,12 @@ class AgendaHistorySerializer(serializers.ModelSerializer):
 
 class AgendaMaterialSerializer(serializers.ModelSerializer):
     kit_name = serializers.CharField(source="kit.name", read_only=True)
+    dynamic_name = serializers.CharField(source="dynamic.name", read_only=True)
     material_name = serializers.CharField(source="material.name", read_only=True)
 
     class Meta:
         model = AgendaMaterial
-        fields = ["id", "position", "kit", "kit_name", "material", "material_name", "quantity"]
+        fields = ["id", "position", "kit", "kit_name", "dynamic", "dynamic_name", "material", "material_name", "quantity"]
 
 
 class AgendaSerializer(serializers.ModelSerializer):

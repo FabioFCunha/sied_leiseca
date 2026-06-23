@@ -234,7 +234,8 @@ export default function AgendaPage() {
       api("/neighborhoods/?page_size=500"),
       api("/kits/?page_size=1000"),
       api("/materials/?page_size=1000"),
-    ]).then(([vehicles, teams, chiefs, agents, supports, actionTypes, municipalities, neighborhoods, kits, materials]) => {
+      api("/dynamics/?page_size=1000"),
+    ]).then(([vehicles, teams, chiefs, agents, supports, actionTypes, municipalities, neighborhoods, kits, materials, dynamics]) => {
       setLookups({
         vehicles: vehicles.results || vehicles,
         teams: teams.results || teams,
@@ -246,6 +247,7 @@ export default function AgendaPage() {
         neighborhoods: neighborhoods.results || neighborhoods,
         kits: kits.results || kits,
         materials: materials.results || materials,
+        dynamics: dynamics.results || dynamics,
       });
     });
   }, [user]);
@@ -323,6 +325,8 @@ export default function AgendaPage() {
               position: rows.length + 1,
               kit: type === "kit" ? option.id : null,
               kit_name: type === "kit" ? option.name : "",
+              dynamic: type === "dynamic" ? option.id : null,
+              dynamic_name: type === "dynamic" ? option.name : "",
               material: type === "material" ? option.id : null,
               material_name: type === "material" ? option.name : "",
               quantity: "",
@@ -1176,8 +1180,8 @@ export default function AgendaPage() {
                     </label>
                   </div>
                   <div className="material-selection-grid">
-                    {renderMaterialChecklist("Material/equipamento", "kit", filteredKits)}
-                    {renderMaterialChecklist("Material distribuição", "kit", distributionKits)}
+                    {renderMaterialChecklist("Dinâmica", "dynamic", lookups.dynamics || [])}
+                    {renderMaterialChecklist("Material distribuição", "material", lookups.materials || [])}
                   </div>
                 </div>
                 {message && <div className="alert">{message}</div>}

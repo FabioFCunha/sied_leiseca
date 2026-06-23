@@ -713,11 +713,11 @@ export default function TechnicalReportsPage() {
                 </div>
                 <div className="report-material-grid">
                   <div className="field-label report-text-box">
-                    <span>Material/equipamento retirado</span>
+                    <span>Dinâmica retirada</span>
                     <MaterialSummary value={action.equipment_materials_removed || ""} />
                   </div>
                   <div className="field-label report-text-box">
-                    <span>Material/equipamento distribuído</span>
+                    <span>Dinâmica distribuída</span>
                     <MaterialQuantityEditor value={action.equipment_materials_distributed || ""} onChange={(value) => updateAction(index, "equipment_materials_distributed", value)} />
                   </div>
                 </div>

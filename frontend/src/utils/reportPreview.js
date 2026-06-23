@@ -33,8 +33,8 @@ export function buildPreview(report) {
         `   Público: ${action.type_audience || "não informado"}\n` +
         `   Horário: ${action.start_time || "--"} às ${action.final_hour || "--"}\n` +
         `   Público alcançado (Ação/Palestra): ${action.approach || 0}\n` +
-        `   Material/equipamento retirado: ${action.equipment_materials_removed ? action.equipment_materials_removed.replace(/\\n/g, ", ") : "-"}\n` +
-        `   Material/equipamento distribuído: ${action.equipment_materials_distributed ? action.equipment_materials_distributed.replace(/\\n/g, ", ") : "-"}\n` +
+        `   Dinâmica retirada: ${action.equipment_materials_removed ? action.equipment_materials_removed.replace(/\\n/g, ", ") : "-"}\n` +
+        `   Dinâmica distribuída: ${action.equipment_materials_distributed ? action.equipment_materials_distributed.replace(/\\n/g, ", ") : "-"}\n` +
         `   Material distribuição retirado: ${action.distribution_materials_removed ? action.distribution_materials_removed.replace(/\\n/g, ", ") : "-"}\n` +
         `   Material distribuição distribuído: ${action.distribution_materials_distributed ? action.distribution_materials_distributed.replace(/\\n/g, ", ") : "-"}`
       )).join("\n\n")

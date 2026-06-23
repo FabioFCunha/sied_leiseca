@@ -400,6 +400,7 @@ class AgendaHistory(models.Model):
 class AgendaMaterial(models.Model):
     agenda = models.ForeignKey(Agenda, on_delete=models.CASCADE, related_name="materials")
     kit = models.ForeignKey(Kit, on_delete=models.SET_NULL, null=True, blank=True)
+    dynamic = models.ForeignKey(Dynamic, on_delete=models.SET_NULL, null=True, blank=True)
     material = models.ForeignKey(Material, on_delete=models.SET_NULL, null=True, blank=True)
     quantity = models.PositiveIntegerField(null=True, blank=True)
     position = models.PositiveSmallIntegerField(default=1)
