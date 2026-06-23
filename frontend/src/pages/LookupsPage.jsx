@@ -95,7 +95,6 @@ export default function LookupsPage() {
         external_responsible: form.external_responsible || "",
         external_responsible_phone: form.external_responsible_phone || "",
         external_email: form.external_email || "",
-        requester_cpf: String(form.requester_cpf || "").replace(/\D/g, "") || "",
         reason: form.reason || "",
         is_active: form.is_active,
       };
@@ -307,13 +306,6 @@ export default function LookupsPage() {
                 placeholder="Telefone do responsável"
                 value={form.external_responsible_phone || ""}
                 onChange={(event) => setForm({ ...form, external_responsible_phone: event.target.value })}
-              />
-              <input
-                placeholder="CPF do solicitante"
-                value={form.requester_cpf || ""}
-                onChange={(event) => setForm({ ...form, requester_cpf: event.target.value.replace(/\D/g, "").slice(0, 11) })}
-                inputMode="numeric"
-                maxLength="11"
               />
               <textarea
                 placeholder="Motivo da restrição"

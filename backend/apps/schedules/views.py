@@ -1325,15 +1325,17 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         if report.accessibility_conditions_met != "NO" or not report.agenda_id:
             return
         agenda = report.agenda
+        address_parts = [p for p in [agenda.address, agenda.neighborhood, agenda.city, agenda.state] if p]
+        full_address = ", ".join(address_parts) if address_parts else (agenda.location or "")
+
         AccessibilityBlocklist.objects.update_or_create(
             source_report=report,
             defaults={
                 "institution_location": agenda.institution_location or agenda.location or "",
-                "address": agenda.address or "",
+                "address": full_address[:220],
                 "external_responsible": agenda.external_responsible or "",
                 "external_responsible_phone": agenda.external_responsible_phone or "",
                 "external_email": agenda.external_email or agenda.contact_email or "",
-                "requester_cpf": agenda.requester_cpf or "",
                 "source_agenda": agenda,
                 "reason": "Local não atendeu às condições de acessibilidade para cadeirantes no relatório técnico.",
                 "is_active": True,
