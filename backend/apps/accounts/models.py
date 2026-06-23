@@ -45,6 +45,7 @@ class User(AbstractUser):
         blank=True,
         related_name="users",
     )
+    last_activity = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["full_name"]

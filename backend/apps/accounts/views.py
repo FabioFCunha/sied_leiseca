@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
+from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.db.models import Q
@@ -287,3 +288,17 @@ class UserViewSet(viewsets.ModelViewSet):
         if can_manage_users(user):
             return queryset
         return queryset.filter(id=user.id)
+
+    @action(detail=False, methods=["post"], url_path="ping", permission_classes=[IsAuthenticated])
+    def ping(self, request):
+        user = request.user
+        user.last_activity = timezone.now()
+        user.save(update_fields=["last_activity"])
+        return Response({"status": "ok"})
+
+    @action(detail=False, methods=["get"], url_path="online", permission_classes=[IsAuthenticated, UserAccessPermission])
+    def online(self, request):
+        five_minutes_ago = timezone.now() - timezone.timedelta(minutes=5)
+        online_users = User.objects.filter(last_activity__gte=five_minutes_ago).exclude(email__in=SYSTEM_USER_EMAILS).order_by("full_name")
+        serializer = self.get_serializer(online_users, many=True)
+        return Response(serializer.data)

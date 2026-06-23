@@ -7,26 +7,7 @@ import soprinhoMascot from "../assets/soprinho-transparent.png";
 const actionTypes = [
   "Palestra Empresa",
   "Palestra Escola",
-  "Palestra Virtual",
   "Ação educativa (Espaço interno)",
-  "Palestra bilíngue (Inglês)",
-];
-
-const entityTypes = [
-  "Empresa Privada",
-  "Escola Privada",
-  "Escola Municipal",
-  "Escola Estadual",
-  "Órgão Público",
-  "Escola Federal",
-  "Empresa Pública",
-  "ONG",
-  "Fundação",
-  "Sistema S",
-  "Associação",
-  "Hospital",
-  "Universidade",
-  "Outro",
 ];
 
 const ageRangeOptions = [
@@ -62,8 +43,7 @@ const mediaEquipmentOptions = [
 
 const imageAuthorizationOptions = [
   "O requisitante da palestra acima identificado(a), com fundamento no art. 5º, X e XXVIII da Constituição Federal/1988, e no art. 18, da Lei 10.406, de 10/01/2002, AUTORIZA a Operação Lei Seca do Estado do Rio de Janeiro a utilizar as imagens, vídeos e/ou voz captadas durante a palestra promovida pela Operação Lei Seca, realizada na data solicitada neste formulário, ou em data posteriormente acordada, para fins de divulgação das atividades e propaganda, podendo, para tanto, reproduzi-la e/ou divulgá-la pela internet, mídia eletrônica, por jornais, revistas, folders; bem como por todo e qualquer material e veículo de comunicação, público e/ou privado, e por parceiros, com finalidade informativa e de utilidade pública, por tempo indeterminado. Declara ainda que não há nada a ser reclamado, a título de direitos conexos; referentes ao uso da imagem e/ou nome. A presente autorização é concedida a título gratuito.",
-  "Não se aplica por envolver crianças e adolescentes.",
-  "Não autorizo o uso de imagem.",
+  "Outro",
 ];
 
 const empty = {
@@ -75,8 +55,8 @@ const empty = {
   action_type: "",
   actions_count: "1",
   institution_location: "",
-  requester_entity_type: "",
-  requester_entity_other: "",
+  requester_entity_kind: "",
+  requester_entity_nature: "",
   cep: "",
   address: "",
   address_number: "",
@@ -99,6 +79,7 @@ const empty = {
   has_accessible_bathrooms: "",
   media_equipment: [],
   image_authorization: "",
+  image_authorization_other: "",
   notes: "",
 };
 
@@ -275,10 +256,11 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
         address: fullAddress,
         title,
         description: form.notes || title,
-        requester_entity_type:
-          form.requester_entity_type === "Outro"
-            ? form.requester_entity_other
-            : form.requester_entity_type,
+        requester_entity_type: `${form.requester_entity_kind} ${form.requester_entity_nature}`.trim(),
+        image_authorization:
+          form.image_authorization === "Outro"
+            ? form.image_authorization_other
+            : form.image_authorization,
         end_time: addOneHour(form.start_time),
         quantity: form.quantity === "" ? null : Number(form.quantity),
         actions_count: form.actions_count === "" ? null : Number(form.actions_count),
@@ -287,7 +269,9 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
         age_ranges: form.age_ranges,
         media_equipment: form.media_equipment.join(", "),
       };
-      delete payload.requester_entity_other;
+      delete payload.requester_entity_kind;
+      delete payload.requester_entity_nature;
+      delete payload.image_authorization_other;
       delete payload.cep;
       delete payload.address_number;
       delete payload.address_complement;
@@ -341,7 +325,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 </label>
                 <label className="field-label" style={{ flex: 1 }}>
                   <span>Horário pretendido de início</span>
-                  <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} required />
+                  <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} max="18:00" required />
                 </label>
               </div>
               <div className="field-card">
@@ -387,7 +371,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
           </div>
           <div className="public-intro-title">SOLICITAÇÃO DE AGENDAMENTO</div>
           <p>
-            A Operação Lei Seca atua em duas frentes: fiscalização e educação. A educação dispõe de palestras direcionadas
+            A Operação Lei Seca atua sobre dois pilares: fiscalização e educação. A educação dispõe de palestras direcionadas
             ao público infantil, adolescente e adulto. As palestras e dinâmicas têm duração média de 60 (sessenta) minutos
             e são ministradas por uma equipe composta por integrantes da Operação Lei Seca, todos devidamente uniformizados.
           </p>
@@ -413,30 +397,40 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               <span>Instituição/Organização <b>*</b></span>
               <input value={form.institution_location} onChange={(event) => update("institution_location", event.target.value)} required />
             </label>
-            <div className="field-card">
-              <strong>Descrição da entidade solicitante <b>*</b></strong>
-              <div className="radio-list" role="radiogroup" aria-label="Descrição da entidade solicitante">
-                {entityTypes.map((option) => (
-                  <label className="radio-option compact-radio option-tile" key={option}>
-                    <input
-                      type="radio"
-                      name="requester_entity_type"
-                      checked={form.requester_entity_type === option}
-                      onChange={() => update("requester_entity_type", option)}
-                      required
-                    />
-                    <span>{option === "Outro" ? "Outro:" : option}</span>
-                    {option === "Outro" && (
+            <div className="split">
+              <div className="field-card" style={{ flex: 1 }}>
+                <strong>Empresa/Órgão ou Escola? <b>*</b></strong>
+                <div className="radio-list" role="radiogroup" aria-label="Tipo de entidade">
+                  {["Empresa/Órgão", "Escola"].map((option) => (
+                    <label className="radio-option compact-radio option-tile" key={option}>
                       <input
-                        className="inline-other-input"
-                        value={form.requester_entity_other}
-                        onChange={(event) => update("requester_entity_other", event.target.value)}
-                        required={form.requester_entity_type === "Outro"}
-                        aria-label="Outra entidade solicitante"
+                        type="radio"
+                        name="requester_entity_kind"
+                        checked={form.requester_entity_kind === option}
+                        onChange={() => update("requester_entity_kind", option)}
+                        required
                       />
-                    )}
-                  </label>
-                ))}
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="field-card" style={{ flex: 1 }}>
+                <strong>Público ou Privado? <b>*</b></strong>
+                <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
+                  {["Público", "Privado"].map((option) => (
+                    <label className="radio-option compact-radio option-tile" key={option}>
+                      <input
+                        type="radio"
+                        name="requester_entity_nature"
+                        checked={form.requester_entity_nature === option}
+                        onChange={() => update("requester_entity_nature", option)}
+                        required
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
             <label className="field-label">
@@ -472,7 +466,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               </label>
               <label className="field-label" style={{ flex: 1 }}>
                 <span>HORÁRIO PRETENDIDO / Informar horário pretendido de início <b>*</b></span>
-                <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} required />
+                <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} max="18:00" required />
               </label>
             </div>
           </div>
@@ -651,7 +645,16 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                       onChange={() => update("image_authorization", option)}
                       required
                     />
-                    <span>{option}</span>
+                    <span>{option === "Outro" ? "Outro:" : option}</span>
+                    {option === "Outro" && (
+                      <input
+                        className="inline-other-input"
+                        value={form.image_authorization_other}
+                        onChange={(event) => update("image_authorization_other", event.target.value)}
+                        required={form.image_authorization === "Outro"}
+                        aria-label="Outra autorização de imagem"
+                      />
+                    )}
                   </label>
                 ))}
               </div>

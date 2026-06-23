@@ -1,4 +1,4 @@
-import { BarChart3, Bell, CalendarDays, LayoutDashboard, ListPlus, LogOut, Menu, Search, ShieldCheck, Target, Users, X } from "lucide-react";
+import { Activity, BarChart3, Bell, CalendarDays, LayoutDashboard, ListPlus, LogOut, Menu, Search, ShieldCheck, Target, Users, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import logoOperacaoLeiSeca from "../assets/operacao-lei-seca-logo.png";
@@ -36,8 +36,20 @@ export default function AppLayout() {
   const [pendingRequests, setPendingRequests] = useState(0);
   const [pendingTechnicalReports, setPendingTechnicalReports] = useState(0);
   const [pendingShiftSwaps, setPendingShiftSwaps] = useState(0);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [showOnlinePanel, setShowOnlinePanel] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) return;
+    const ping = () => {
+      api("/users/ping/", { method: "POST" }).catch(() => {});
+    };
+    ping();
+    const interval = setInterval(ping, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     const loadPendingShiftSwaps = () => {
@@ -74,6 +86,19 @@ export default function AppLayout() {
 
     return () => window.removeEventListener("shift-swaps:changed", loadPendingShiftSwaps);
   }, [user]);
+  const fetchOnlineUsers = () => {
+    api("/users/online/")
+      .then(data => setOnlineUsers(data))
+      .catch(() => {});
+  };
+
+  const toggleOnlinePanel = () => {
+    setShowOnlinePanel(val => {
+      if (!val) fetchOnlineUsers();
+      return !val;
+    });
+  };
+
   const doLogout = () => {
     logout();
     navigate("/login");
@@ -147,6 +172,36 @@ export default function AppLayout() {
             <Search size={17} />
             <input placeholder="Pesquisar no sistema" />
           </div>
+          {canAccessRoute(user, ["ADMIN", "MANAGER"]) && (
+            <div style={{ position: "relative" }}>
+              <button className={`icon-button ${showOnlinePanel ? "active" : ""}`} aria-label="Usuários online" onClick={toggleOnlinePanel} title="Usuários online">
+                <Activity size={18} />
+              </button>
+              {showOnlinePanel && (
+                <div style={{ position: "absolute", right: 0, top: "100%", marginTop: "8px", background: "white", border: "1px solid #ddd", borderRadius: "8px", width: "250px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 100, padding: "12px", maxHeight: "300px", overflowY: "auto" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", color: "#333" }}>Usuários Online</h4>
+                    <button className="icon-button" style={{ padding: "4px" }} onClick={toggleOnlinePanel}><X size={14} /></button>
+                  </div>
+                  {onlineUsers.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: "12px", color: "#666" }}>Nenhum usuário online.</p>
+                  ) : (
+                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                      {onlineUsers.map(ou => (
+                        <li key={ou.id} style={{ fontSize: "12px", padding: "6px 0", borderBottom: "1px solid #eee", color: "#444" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "#4caf50" }}></span>
+                            <strong>{ou.full_name || ou.email}</strong>
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#888", marginLeft: "14px" }}>{ou.occupation}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           <button className="icon-button" aria-label="Notificações">
             <Bell size={18} />
           </button>
