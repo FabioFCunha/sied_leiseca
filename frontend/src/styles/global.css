@@ -621,7 +621,7 @@ th {
 }
 
 .login-action-card.left {
-  animation: loginCardFromLeft 12s ease-in-out infinite;
+  animation: loginCardFromLeft 8s ease-in-out infinite;
   left: 0;
   opacity: .96;
   transform: translateY(44px);
@@ -629,7 +629,7 @@ th {
 }
 
 .login-action-card.active {
-  animation: loginCardFromCenter 12s ease-in-out infinite;
+  animation: loginCardFromCenter 8s ease-in-out infinite;
   left: 50%;
   height: 420px;
   transform: translateX(-50%);
@@ -638,7 +638,7 @@ th {
 }
 
 .login-action-card.right {
-  animation: loginCardFromRight 12s ease-in-out infinite;
+  animation: loginCardFromRight 8s ease-in-out infinite;
   left: calc(100% - 238px);
   opacity: .92;
   right: auto;
