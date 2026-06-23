@@ -552,15 +552,36 @@ export default function AgendaPage() {
   const edit = (agenda) => {
     setEditing(agenda.id);
     setIsModalOpen(true);
-    setForm(
-      agendaFields.reduce((values, field) => {
-        const value = field === "materials" ? normalizeMaterialRows(agenda.materials) : agenda[field] ?? "";
-        values[field] = field === "responsible"
-          ? (user?.id || value)
-          : field.endsWith("_time") && value ? value.slice(0, 5) : value;
-        return values;
-      }, { responsible: user?.id || "" })
-    );
+    let newForm = agendaFields.reduce((values, field) => {
+      const value = field === "materials" ? normalizeMaterialRows(agenda.materials) : agenda[field] ?? "";
+      values[field] = field === "responsible"
+        ? (user?.id || value)
+        : field.endsWith("_time") && value ? value.slice(0, 5) : value;
+      return values;
+    }, { responsible: user?.id || "" });
+
+    if (newForm.materials.length === 0) {
+      let kitToSelect = null;
+      if (newForm.action_type === "Palestra Empresa") {
+        kitToSelect = lookups.kits.find(k => (k.name || "").toUpperCase() === "PALESTRA EMPRESA");
+      } else if (newForm.action_type === "Palestra Escola") {
+        const ranges = Array.isArray(newForm.age_ranges) ? newForm.age_ranges : [];
+        const hasKids = ranges.includes("04 até 8 anos") || ranges.includes("09 até 13 anos");
+        const hasAdults = ranges.includes("14 até 17 anos") || ranges.includes("acima de 18 anos");
+        
+        if (hasKids && !hasAdults) {
+          kitToSelect = lookups.kits.find(k => (k.name || "").toUpperCase() === "PALESTRA INFANTIL");
+        } else if (hasAdults && !hasKids) {
+          kitToSelect = lookups.kits.find(k => (k.name || "").toUpperCase() === "PALESTRA JOVENS E ADULTOS");
+        } else if (hasKids && hasAdults) {
+          kitToSelect = lookups.kits.find(k => (k.name || "").toUpperCase() === "PALESTRA JOVENS E ADULTOS");
+        }
+      }
+      if (kitToSelect) {
+        newForm.materials = [{ kit: kitToSelect.id, kit_name: kitToSelect.name, quantity: "1", position: 1 }];
+      }
+    }
+    setForm(newForm);
   };
 
   const reviewAndSchedule = (agenda) => {
