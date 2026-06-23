@@ -2162,11 +2162,15 @@ class PublicAgendaRequestView(APIView):
             snapshot=snapshot_for(agenda),
         )
         from apps.schedules.serializers import find_accessibility_block
-        from apps.schedules.accessibility import schedule_accessibility_rejection
+        from apps.schedules.accessibility import process_accessibility_rejection
         block = find_accessibility_block(data)
-        if block:
-            schedule_accessibility_rejection(agenda, block)
-        transaction.on_commit(lambda: send_agenda_status_email(agenda, Agenda.Status.PENDING))
+        
+        def process_post_commit():
+            send_agenda_status_email(agenda, Agenda.Status.PENDING)
+            if block:
+                process_accessibility_rejection(agenda, block)
+
+        transaction.on_commit(process_post_commit)
         return response.Response(
             {
                 "detail": "Solicitação enviada com sucesso. Acompanhe o retorno pelo contato informado.",
