@@ -1,4 +1,4 @@
-import { Clipboard, MapPin, Plus, Save, Search, Trash2 } from "lucide-react";
+import { Clipboard, MapPin, Plus, Save, Search, Trash2, Eye, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -328,6 +328,9 @@ function normalizePayload(form) {
 export default function TechnicalReportsPage() {
   const [agendas, setAgendas] = useState([]);
   const [reports, setReports] = useState([]);
+  const [techFilters, setTechFilters] = useState({ protocol: "", team: "", date: "" });
+  const [pendingTechFilters, setPendingTechFilters] = useState({ protocol: "", team: "", date: "" });
+  const [reportsPreviewModal, setReportsPreviewModal] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
   const [protocolSearch, setProtocolSearch] = useState("");
   const [form, setForm] = useState(empty);
@@ -351,9 +354,14 @@ export default function TechnicalReportsPage() {
 
   const load = async () => {
     setLoadError("");
+    const params = new URLSearchParams({ page_size: "1000" });
+    Object.entries(techFilters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+
     const [agendasResult, reportsResult] = await Promise.allSettled([
       api("/agendas/?page_size=1000&reportable=true"),
-      api("/education-reports/?page_size=1000"),
+      api(`/education-reports/?${params.toString()}`),
     ]);
 
     if (agendasResult.status === "fulfilled") {
@@ -362,7 +370,8 @@ export default function TechnicalReportsPage() {
     }
     if (reportsResult.status === "fulfilled") {
       const data = reportsResult.value;
-      setReports(data.results || data);
+      const results = data?.results || data;
+      setReports(Array.isArray(results) ? results : []);
     }
 
     const failures = [agendasResult, reportsResult]
@@ -373,7 +382,7 @@ export default function TechnicalReportsPage() {
       setLoadError(failures.join(" "));
     }
   };
-  useEffect(load, []);
+  useEffect(() => { load(); }, [techFilters]);
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
 
@@ -570,6 +579,7 @@ export default function TechnicalReportsPage() {
 
   return (
     <section className="page two-column report-editor">
+      {activeTab !== "completed" && (
       <div className="main-column">
         <div className="page-title">
           <div>
@@ -754,7 +764,97 @@ export default function TechnicalReportsPage() {
           </div>
         </form>
       </div>
+      )}
 
+
+      {activeTab === "completed" && (
+        <div className="main-column" style={{ maxWidth: "100%" }}>
+          <div className="page-title">
+            <div>
+              <h1 style={{ margin: 0 }}>Relatórios Técnicos</h1>
+              <p style={{ margin: 0 }}>Visão geral unificada dos relatórios e execuções técnicas.</p>
+            </div>
+          </div>
+          <div style={{ animation: "fadeIn 0.4s ease" }}>
+            <div className="filters glass-card" style={{ marginBottom: 24, display: 'flex', gap: 16 }}>
+              <div className="filter-field">
+                <span>Protocolo</span>
+                <input placeholder="Ex: 123" value={pendingTechFilters.protocol} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, protocol: e.target.value })} />
+              </div>
+              <div className="filter-field">
+                <span>Equipe</span>
+                <input placeholder="Ex: E1" value={pendingTechFilters.team} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, team: e.target.value })} />
+              </div>
+              <div className="filter-field">
+                <span>Data</span>
+                <input type="date" value={pendingTechFilters.date} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, date: e.target.value })} />
+              </div>
+              <div style={{ alignSelf: 'flex-end' }}>
+                <button onClick={() => setTechFilters(pendingTechFilters)}>Pesquisar</button>
+              </div>
+            </div>
+
+            <div className="premium-table-wrap">
+              <h2>Relatórios Técnicos Registrados</h2>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Protocolo</th>
+                    <th>Nome da Equipe</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                    <th>Ações Realizadas</th>
+                    <th style={{ width: 140 }}>Detalhes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reports.length === 0 && (
+                    <tr><td colSpan="6" style={{ textAlign: "center", padding: 32 }}>Nenhum relatório encontrado.</td></tr>
+                  )}
+                  {reports.map((r) => (
+                    <tr key={r.id}>
+                      <td><strong>{r.agenda ? `#${r.agenda}` : "-"}</strong></td>
+                      <td>{reportName(r)}</td>
+                      <td>{formatDateBR(r.operation_date)}</td>
+                      <td>
+                        <span style={{ 
+                          background: r.status === "SUBMITTED" ? "var(--success)" : "var(--warning)", 
+                          color: "#fff", padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: "bold" 
+                        }}>
+                          {r.status === "SUBMITTED" ? "ENVIADO" : "RASCUNHO"}
+                        </span>
+                      </td>
+                      <td>{r.actions_count || r.actions?.length || 0} ações</td>
+                      <td>
+                        <button className="secondary icon-button" style={{ marginRight: 8 }} onClick={() => { setReportsPreviewModal(r); }} title="Visualizar">
+                          <Eye size={16} />
+                        </button>
+                        <button className="secondary icon-button" onClick={() => { edit(r); setActiveTab("pending"); }} title="Editar">
+                          <Clipboard size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {reportsPreviewModal && (
+            <div className="modal-overlay" onClick={() => setReportsPreviewModal(null)}>
+              <div className="premium-modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header-premium">
+                  <h2>Detalhes do Relatório</h2>
+                  <button className="secondary icon-button" onClick={() => setReportsPreviewModal(null)}><X size={20} /></button>
+                </div>
+                <div className="modal-body-premium">
+                  <pre>{buildPreview(reportsPreviewModal)}</pre>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       <aside className="side-panel report-sidebar">
         <div className="sidebar-tabs" style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
           <button type="button" className={activeTab === "pending" ? "active" : "secondary"} onClick={() => setActiveTab("pending")} style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}>Pendentes ({pendingAgendas.length})</button>
@@ -799,25 +899,8 @@ export default function TechnicalReportsPage() {
         )}
 
         {activeTab === "completed" && (
-          <div className="report-list-content" style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "calc(100vh - 180px)", overflowY: "auto", paddingRight: "4px" }}>
-            {reports.length === 0 ? (
-              <p style={{ fontSize: "13px", color: "var(--text-soft)" }}>Nenhum relatório criado ainda.</p>
-            ) : reports.map(report => (
-              <button
-                key={report.id}
-                type="button"
-                onClick={() => edit(report)}
-                style={{ textAlign: "left", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--surface-2)", cursor: "pointer", transition: "all 0.2s", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "4px", width: "100%", wordBreak: "break-word", flexShrink: 0 }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: "8px" }}>
-                  <strong style={{ fontSize: "13px", color: "var(--primary)", lineHeight: "1.3", flex: 1 }}>{agendaReferenceLabel(agendas.find((agenda) => String(agenda.id) === String(report.agenda))) || `Protocolo #${report.agenda}`}</strong>
-                  <span style={{ fontSize: "10px", fontWeight: "700", padding: "2px 6px", borderRadius: "10px", background: report.status === "DRAFT" ? "rgba(246, 189, 22, 0.2)" : "rgba(16, 185, 129, 0.2)", color: report.status === "DRAFT" ? "#d97706" : "#059669", whiteSpace: "nowrap" }}>
-                    {report.status === "DRAFT" ? "Rascunho" : "Enviado"}
-                  </span>
-                </div>
-                <span style={{ display: "block", fontSize: "11.5px", color: "var(--text-soft)", lineHeight: "1.3" }}>{formatDateBR(report.operation_date)} · Equipe {report.team}</span>
-              </button>
-            ))}
+          <div className="report-list-content" style={{ padding: "12px" }}>
+            <p style={{ fontSize: "13px", color: "var(--text-soft)" }}>Utilize a busca na área principal da tela para encontrar e visualizar relatórios concluídos.</p>
           </div>
         )}
       </aside>

@@ -8,7 +8,6 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import LookupsPage from "./pages/LookupsPage.jsx";
 import GoalsPage from "./pages/GoalsPage.jsx";
-import ReportsPage from "./pages/ReportsPage.jsx";
 import PublicAgendaRequestPage from "./pages/PublicAgendaRequestPage.jsx";
 import SetPasswordPage from "./pages/SetPasswordPage.jsx";
 import ShiftSchedulePage from "./pages/ShiftSchedulePage.jsx";
@@ -48,7 +47,6 @@ export default function App() {
         <Route path="calendario" element={<CalendarPage />} />
         <Route path="escala" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"]}><ShiftSchedulePage /></ProtectedRoute>} />
         <Route path="relatorio-tecnico" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]}><TechnicalReportsPage /></ProtectedRoute>} />
-        <Route path="relatorios" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><ReportsPage /></ProtectedRoute>} />
         <Route path="estatisticas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]}><StatisticsPage /></ProtectedRoute>} />
         <Route path="metas" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><GoalsPage /></ProtectedRoute>} />
         <Route path="cadastros" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><LookupsPage /></ProtectedRoute>} />
