@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8012/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://sied-api-iyye.onrender.com/api";
 const DEFAULT_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 12000);
 
 export function getToken() {
@@ -72,9 +72,9 @@ export async function api(path, options = {}) {
     });
   } catch (err) {
     if (err.name === "AbortError") {
-      throw new Error("A API demorou para responder. Verifique se o backend local esta rodando.");
+      throw new Error("A API demorou muito para responder (pode estar iniciando). Tente novamente em alguns segundos.");
     }
-    throw new Error("Nao foi possivel conectar a API. Verifique se o backend local esta rodando.");
+    throw new Error("Não foi possível conectar à API. Verifique sua conexão ou se a API está online.");
   } finally {
     if (timeoutId) {
       window.clearTimeout(timeoutId);

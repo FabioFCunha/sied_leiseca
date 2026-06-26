@@ -73,3 +73,5 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://sied-api-iyye.onrender.com/api
+      - key: VITE_API_TIMEOUT_MS
+        value: "90000"
