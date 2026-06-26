@@ -11,10 +11,10 @@ const actionTypes = [
 ];
 
 const ageRangeOptions = [
-  "04 até 8 anos",
-  "09 até 13 anos",
-  "14 até 17 anos",
-  "acima de 18 anos",
+  "05 - 10 anos (ensino fundamental - anos iniciais)",
+  "11 - 14 anos (ensino fundamental - anos finais)",
+  "15 - 17 anos (ensino médio)",
+  "acima de 18 anos - Adultos",
 ];
 
 const participantRangeOptions = [

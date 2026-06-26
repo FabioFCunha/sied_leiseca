@@ -74,7 +74,7 @@ class PublicAgendaRequestSerializerTests(TestCase):
             "external_email": "maria@example.com",
             "requester_entity_type": "Escola Municipal",
             "participant_range": "51 a 100",
-            "age_ranges": "09 até 13 anos",
+            "age_ranges": "11 - 14 anos (ensino fundamental - anos finais)",
             "accessibility_access": "Não se aplica, pois será realizado no térreo",
             "has_accessible_bathrooms": "Sim",
             "quantity": 100,
@@ -87,12 +87,20 @@ class PublicAgendaRequestSerializerTests(TestCase):
 
     def test_rejects_multiple_age_ranges(self):
         data = self.valid_data()
-        data["age_ranges"] = "04 até 8 anos, 09 até 13 anos"
+        data["age_ranges"] = "05 - 10 anos (ensino fundamental - anos iniciais), 11 - 14 anos (ensino fundamental - anos finais)"
 
         serializer = PublicAgendaRequestSerializer(data=data)
 
         self.assertFalse(serializer.is_valid())
         self.assertIn("age_ranges", serializer.errors)
+
+    def test_accepts_legacy_age_range_for_backward_compatibility(self):
+        data = self.valid_data()
+        data["age_ranges"] = "09 até 13 anos"
+
+        serializer = PublicAgendaRequestSerializer(data=data)
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
     def test_serializer_ignores_blocked_address(self):
         from apps.schedules.models import AccessibilityBlocklist

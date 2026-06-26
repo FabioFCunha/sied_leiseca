@@ -91,6 +91,37 @@ const emptyForm = {
 
 const agendaFields = Object.keys(emptyForm);
 
+const lowerAgeRangeOptions = new Set([
+  "04 até 8 anos",
+  "09 até 13 anos",
+  "05 - 10 anos (ensino fundamental - anos iniciais)",
+  "11 - 14 anos (ensino fundamental - anos finais)",
+]);
+
+const teenAgeRangeOptions = new Set([
+  "14 até 17 anos",
+  "15 - 17 anos (ensino médio)",
+]);
+
+const adultAgeRangeOptions = new Set([
+  "acima de 18 anos",
+  "acima de 18 anos - Adultos",
+]);
+
+function normalizeAgeRanges(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    return value.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function hasAnyAgeRange(ranges, allowedRanges) {
+  return ranges.some((range) => allowedRanges.has(range));
+}
+
 function normalizeMaterialRows(rows = []) {
   return rows
     .filter((item) => item?.kit || item?.material)
@@ -369,18 +400,11 @@ export default function AgendaPage() {
       return false;
     }
 
-    let ranges = [];
-    if (Array.isArray(form.age_ranges)) {
-      ranges = form.age_ranges;
-    } else if (typeof form.age_ranges === "string" && form.age_ranges) {
-      ranges = form.age_ranges.split(",").map((r) => r.trim());
-    }
-
-    const isKids = ranges.includes("04 até 8 anos") || ranges.includes("09 até 13 anos");
-    const isTeens = ranges.includes("14 até 17 anos");
-    const isAdults = ranges.includes("acima de 18 anos");
+    const ranges = normalizeAgeRanges(form.age_ranges);
+    const isKids = hasAnyAgeRange(ranges, lowerAgeRangeOptions);
+    const isTeens = hasAnyAgeRange(ranges, teenAgeRangeOptions);
+    const isAdults = hasAnyAgeRange(ranges, adultAgeRangeOptions);
     const is14Plus = isTeens || isAdults;
-
     const isInfantilKit = upper.includes("CIRCUITO INFANTIL") || upper.includes("PALESTRA INFANTIL");
     const isJovensAdultosKit = upper.includes("PALESTRA JOVENS E ADULTOS") || upper.includes("CIRCUITO ÓCULOS");
     const isEmpresaKit = upper.includes("PALESTRA EMPRESA");
@@ -597,9 +621,9 @@ export default function AgendaPage() {
       if (newForm.action_type === "Palestra Empresa") {
         kitToSelect = lookups.kits.find(k => (k.name || "").toUpperCase() === "PALESTRA EMPRESA");
       } else if (newForm.action_type === "Palestra Escola") {
-        const ranges = Array.isArray(newForm.age_ranges) ? newForm.age_ranges : [];
-        const hasKids = ranges.includes("04 até 8 anos") || ranges.includes("09 até 13 anos");
-        const hasAdults = ranges.includes("14 até 17 anos") || ranges.includes("acima de 18 anos");
+        const ranges = normalizeAgeRanges(newForm.age_ranges);
+        const hasKids = hasAnyAgeRange(ranges, lowerAgeRangeOptions);
+        const hasAdults = hasAnyAgeRange(ranges, teenAgeRangeOptions) || hasAnyAgeRange(ranges, adultAgeRangeOptions);
         
         if (hasKids && !hasAdults) {
           kitToSelect = lookups.kits.find(k => (k.name || "").toUpperCase() === "PALESTRA INFANTIL");

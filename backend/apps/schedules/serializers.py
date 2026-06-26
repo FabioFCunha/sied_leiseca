@@ -1016,6 +1016,21 @@ def find_accessibility_block(attrs):
     return None
 
 
+PUBLIC_AGE_RANGE_CHOICES = [
+    "05 - 10 anos (ensino fundamental - anos iniciais)",
+    "11 - 14 anos (ensino fundamental - anos finais)",
+    "15 - 17 anos (ensino médio)",
+    "acima de 18 anos - Adultos",
+]
+
+LEGACY_PUBLIC_AGE_RANGE_CHOICES = [
+    "04 até 8 anos",
+    "09 até 13 anos",
+    "14 até 17 anos",
+    "acima de 18 anos",
+]
+
+
 class PublicAgendaRequestSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=180)
     description = serializers.CharField()
@@ -1051,7 +1066,7 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
         choices=["30 a 50", "51 a 100", "100 a 200"]
     )
     age_ranges = serializers.ChoiceField(
-        choices=["04 até 8 anos", "09 até 13 anos", "14 até 17 anos", "acima de 18 anos"]
+        choices=PUBLIC_AGE_RANGE_CHOICES + LEGACY_PUBLIC_AGE_RANGE_CHOICES
     )
     accessibility_access = serializers.ChoiceField(
         choices=["Sim", "Não", "Não se aplica, pois será realizado no térreo"]
