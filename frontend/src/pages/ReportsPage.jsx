@@ -15,7 +15,15 @@ export default function ReportsPage() {
     Object.entries(techFilters).forEach(([key, value]) => {
       if (value) params.set(key, value);
     });
-    api(`/education-reports/?${params.toString()}`).then((data) => setTechReports(data.results || data));
+    api(`/education-reports/?${params.toString()}`)
+      .then((data) => {
+        const results = data?.results || data;
+        setTechReports(Array.isArray(results) ? results : []);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar relatórios:", err);
+        setTechReports([]);
+      });
   };
 
   useEffect(() => {
