@@ -70,6 +70,8 @@ class Kit(NamedLookup):
 
 
 class Dynamic(NamedLookup):
+    materials = models.TextField(blank=True, default="")
+
     class Meta(NamedLookup.Meta):
         verbose_name = "Dinâmica"
         verbose_name_plural = "Dinâmicas"

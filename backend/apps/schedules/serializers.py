@@ -134,6 +134,7 @@ class KitSerializer(LookupSerializer):
 class DynamicSerializer(LookupSerializer):
     class Meta(LookupSerializer.Meta):
         model = Dynamic
+        fields = LookupSerializer.Meta.fields + ["materials"]
 
     def validate_name(self, value):
         return value.strip().upper()

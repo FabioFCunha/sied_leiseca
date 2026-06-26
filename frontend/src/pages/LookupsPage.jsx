@@ -15,6 +15,7 @@ const emptyForm = {
   phone: "",
   team: "",
   address: "",
+  materials: "",
   is_active: true,
   institution_location: "",
   external_responsible: "",
@@ -112,6 +113,9 @@ export default function LookupsPage() {
       if (activeType.key === "agents" || activeType.hasTeam) {
         payload.team = form.team || null;
       }
+      if (activeType.key === "dynamics") {
+        payload.materials = form.materials || "";
+      }
     }
 
     try {
@@ -151,6 +155,7 @@ export default function LookupsPage() {
         phone: row.phone || "",
         team: row.team || "",
         address: row.address || "",
+        materials: row.materials || "",
         is_active: row.is_active,
       });
     }
@@ -220,6 +225,7 @@ export default function LookupsPage() {
                   {activeType.hasPhone && <th>Telefone</th>}
                   {(activeType.key === "agents" || activeType.hasTeam) && <th>{activeType.teamLabel || "Equipe"}</th>}
                   {activeType.hasAddress && <th>Localização</th>}
+                  {activeType.key === "dynamics" && <th>Materiais Utilizados</th>}
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -245,6 +251,7 @@ export default function LookupsPage() {
                       {activeType.hasPhone && <td>{row.phone || "-"}</td>}
                       {(activeType.key === "agents" || activeType.hasTeam) && <td>{row.team_name || "-"}</td>}
                       {activeType.hasAddress && <td>{row.address || "-"}</td>}
+                      {activeType.key === "dynamics" && <td>{row.materials || "-"}</td>}
                     </>
                   )}
                   <td>
@@ -340,6 +347,15 @@ export default function LookupsPage() {
               )}
               {activeType.hasAddress && (
                 <input placeholder="Localização" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} />
+              )}
+              {activeType.key === "dynamics" && (
+                <textarea
+                  placeholder="Materiais utilizados (ex: 2 bolas, 1 fita)"
+                  value={form.materials || ""}
+                  onChange={(event) => setForm({ ...form, materials: event.target.value })}
+                  rows={4}
+                  style={{ padding: "8px", borderRadius: "8px", border: "1px solid var(--line)", width: "100%", fontFamily: "inherit" }}
+                />
               )}
             </>
           )}
