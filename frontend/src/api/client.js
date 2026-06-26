@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "https://sied-api-iyye.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://sied-api-qcij.onrender.com/api";
 const DEFAULT_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 12000);
 
 export function getToken() {
