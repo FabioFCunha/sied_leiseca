@@ -15,10 +15,10 @@ def sanitize_smtp_error(error):
 
 def send_password_setup_email(user, link):
     message = build_signed_email(
-        subject="Acesso ao Agenda Educacao OLS",
+        subject="Acesso ao SIED Sistema Integrado da Educação",
         body=(
             f"Ola, {user.full_name or user.email}.\n\n"
-            "Seu acesso ao Agenda Educacao OLS foi criado.\n\n"
+            "Seu acesso ao SIED Sistema Integrado da Educação foi criado.\n\n"
             "Para definir sua senha, acesse o link abaixo:\n"
             f"{link}\n\n"
             "Se voce nao esperava esta mensagem, ignore este e-mail."

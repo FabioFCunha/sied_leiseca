@@ -105,9 +105,9 @@ class PasswordResetRequestView(APIView):
         if user:
             link = UserSerializer(user).data["password_setup_link"]
             message = build_signed_email(
-                subject="Recuperação de senha - Agenda Educação",
+                subject="Recuperação de senha - SIED Sistema Integrado da Educação",
                 body=(
-                    "Recebemos uma solicitação para recuperar seu acesso ao Agenda Educação.\n\n"
+                    "Recebemos uma solicitação para recuperar seu acesso ao SIED Sistema Integrado da Educação.\n\n"
                     "Para definir uma nova senha, acesse o link abaixo:\n"
                     f"{link}\n\n"
                     "Se você não solicitou essa recuperação, ignore esta mensagem."
