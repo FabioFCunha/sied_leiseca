@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import soprinhoMascot from "../assets/soprinho-transparent.png";
+import leiSecaLogo from "../assets/logo lei seca preto.jpg.jpeg";
 
 const actionTypes = [
   "Palestra Empresa",
@@ -365,9 +366,8 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
           </div>
         </div>
         <div className="public-intro-card">
-          <div className="lei-seca-wordmark">
-            <small>OPERAÇÃO</small>
-            <strong>LEI SECA</strong>
+          <div style={{ textAlign: "center", marginBottom: "10px" }}>
+            <img src={leiSecaLogo} alt="Operação Lei Seca" style={{ maxWidth: "250px", width: "100%" }} />
           </div>
           <div className="public-intro-title">SOLICITAÇÃO DE AGENDAMENTO</div>
           <p>
