@@ -13,6 +13,22 @@ ACCESSIBILITY_REJECTION_REASON = (
 )
 
 
+def schedule_accessibility_rejection(agenda, block, *, now=None):
+    if not block or not block.is_active:
+        return agenda
+
+    agenda.accessibility_block = block
+    agenda.accessibility_rejection_due_at = (now or timezone.now()) + timedelta(minutes=5)
+    agenda.accessibility_rejection_sent_at = None
+    agenda.save(update_fields=[
+        "accessibility_block",
+        "accessibility_rejection_due_at",
+        "accessibility_rejection_sent_at",
+        "updated_at",
+    ])
+    return agenda
+
+
 def process_accessibility_rejection(agenda, block):
     if not block or not block.is_active:
         return agenda
@@ -43,3 +59,21 @@ def process_accessibility_rejection(agenda, block):
         },
     )
     return agenda
+
+
+def process_due_accessibility_rejections(*, now=None):
+    reference = now or timezone.now()
+    agendas = Agenda.objects.select_related("accessibility_block", "created_by").filter(
+        accessibility_block__isnull=False,
+        accessibility_rejection_due_at__lte=reference,
+        accessibility_rejection_sent_at__isnull=True,
+        status=Agenda.Status.PENDING,
+    )
+
+    processed = 0
+    for agenda in agendas:
+        if not agenda.accessibility_block or not agenda.accessibility_block.is_active:
+            continue
+        process_accessibility_rejection(agenda, agenda.accessibility_block)
+        processed += 1
+    return processed
