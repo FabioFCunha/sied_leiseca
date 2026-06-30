@@ -36,6 +36,7 @@ from .models import (
     Material,
     Municipality,
     Neighborhood,
+    Region,
     Sector,
     SatisfactionSurvey,
     SatisfactionSurveyModerationHistory,
