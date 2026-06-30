@@ -16,6 +16,26 @@ class Command(BaseCommand):
         if updated:
             self.stdout.write(self.style.SUCCESS(f"Updated {updated} previously imported reports to SUBMITTED status."))
 
+        team_map = {
+            'A': 'ALFA', 'B': 'BRAVO', 'C': 'CHARLIE', 'D': 'DELTA', 
+            'E': 'ECHO', 'F': 'FOX', 'G': 'GOLF', 'H': 'HOTEL', 
+            'I': 'INDIA', 'J': 'JULIET', 'K': 'KILO', 'L': 'LIMA', 'M': 'MIKE'
+        }
+
+        # Try to link any reports that are missing an agenda
+        unlinked = EducationReport.objects.filter(source_id__startswith="external:", agenda__isnull=True)
+        linked_count = 0
+        for r in unlinked:
+            r_team = team_map.get(r.team, r.team).lower()
+            agendas = Agenda.objects.filter(date=r.operation_date)
+            agendas = [a for a in agendas if (a.sector and a.sector.name.lower().startswith(r_team)) or a.team_name.lower().startswith(r_team)]
+            if agendas:
+                r.agenda = agendas[0]
+                r.save(update_fields=['agenda'])
+                linked_count += 1
+        if linked_count:
+            self.stdout.write(self.style.SUCCESS(f"Linked {linked_count} previously unlinked reports to agendas."))
+
         try:
             with open(json_path, 'r') as f:
                 data = json.load(f)
@@ -54,9 +74,10 @@ class Command(BaseCommand):
                 # Try to find corresponding Agenda
                 agenda = None
                 if operation_date and team:
-                    # Match by date and (sector__name or team_name)
+                    # Match by date and (sector__name or team_name) using phonetic prefix
+                    r_team = team_map.get(team, team).lower()
                     agendas = Agenda.objects.filter(date=operation_date)
-                    agendas = [a for a in agendas if (a.sector and a.sector.name.lower() == team.lower()) or a.team_name.lower() == team.lower()]
+                    agendas = [a for a in agendas if (a.sector and a.sector.name.lower().startswith(r_team)) or a.team_name.lower().startswith(r_team)]
                     if agendas:
                         agenda = agendas[0] # Take the first match
 
