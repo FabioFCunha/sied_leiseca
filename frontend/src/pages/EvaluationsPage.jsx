@@ -776,31 +776,6 @@ export default function EvaluationsPage() {
                 </div>
               </div>
 
-              <div className="chart-card" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                <div className="section-heading">
-                  <MessageSquare size={18} />
-                  <h3>Comentários Recentes ({data.comments.length})</h3>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "12px", overflowY: "auto", flex: 1, paddingRight: "4px" }}>
-                  {data.comments.length === 0 ? (
-                    <div style={{ color: "var(--text-soft)", textAlign: "center", padding: "20px 0" }}>Nenhum comentário no período</div>
-                  ) : (
-                    data.comments.map((c, i) => (
-                      <div key={i} className="comment-card">
-                        <div className="comment-meta">
-                          <span className="comment-school">{c.school}</span>
-                          <span className="comment-date">{c.date}</span>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span className="comment-municipality">{c.municipality}</span>
-                          <Stars rating={c.overall_rating} />
-                        </div>
-                        <p className="comment-text">"{c.comment}"</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
 
             </aside>
           </div>
