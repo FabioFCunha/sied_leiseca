@@ -90,7 +90,10 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
                 <p style={{ margin: 0, fontSize: "12.5px", color: "var(--text)", lineHeight: 1.4 }}>"{msg.moderated_comment || msg.suggestion}"</p>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
-                  {msg.team && <div style={{ fontSize: "11px", color: "var(--primary)", fontWeight: "800" }}>Equipe: {msg.team}</div>}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    {msg.team && <div style={{ fontSize: "11px", color: "var(--primary)", fontWeight: "800" }}>Equipe: {msg.team}</div>}
+                    {msg.agenda__id && <div style={{ fontSize: "10px", color: "var(--text-soft)", fontWeight: "600" }}>OS: #{msg.agenda__id} - {msg.agenda__institution_location || "Local não informado"}</div>}
+                  </div>
 
                   {isModerator && msg.moderation_status === "PENDING" && (
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>

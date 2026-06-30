@@ -2945,7 +2945,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
                 )
             )
             .order_by("moderation_rank", "-answered_at")
-            .values("id", "team", "suggestion", "moderated_comment", "answered_at", "overall_rating", "is_approved", "moderation_status")[:15]
+            .values("id", "team", "suggestion", "moderated_comment", "answered_at", "overall_rating", "is_approved", "moderation_status", "agenda__id", "agenda__institution_location")[:15]
         )
         satisfaction_panel = {
             "overall_rating": round(panel_overall_avg, 1),
