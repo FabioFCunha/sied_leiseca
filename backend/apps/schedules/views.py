@@ -429,6 +429,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         request_source_filter = (
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
+            | Q(source_id__startswith="appsheet:")
             | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
@@ -632,6 +633,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         request_source_filter = (
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
+            | Q(source_id__startswith="appsheet:")
             | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
@@ -2524,6 +2526,7 @@ class ReportViewSet(viewsets.ViewSet):
         request_source_filter = (
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
+            | Q(source_id__startswith="appsheet:")
             | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")

@@ -661,16 +661,24 @@ export default function TechnicalReportsPage() {
           <div className="form-section">
             <h3>Efetivo e recursos</h3>
             <label className="field-label report-text-box">
-              <span>Público e dados da solicitação</span>
+              <span>Público aproximado e dados da solicitação</span>
+              <textarea value={form.approximate_public || ""} onChange={(event) => update("approximate_public", event.target.value)} readOnly={requestFieldsReadOnly} />
+            </label>
+            <label className="field-label report-text-box">
+              <span>Agentes PCDs</span>
               <textarea value={form.education_pcd || ""} onChange={(event) => update("education_pcd", event.target.value)} readOnly={requestFieldsReadOnly} />
             </label>
             <label className="field-label report-text-box">
-              <span>Efetivo escalado</span>
+              <span>Agentes de Educação</span>
               <textarea value={form.education_agents || ""} onChange={(event) => update("education_agents", event.target.value)} readOnly={requestFieldsReadOnly} />
             </label>
             <label className="field-label report-text-box">
-              <span>Observações do protocolo</span>
+              <span>Alterações de Efetivo</span>
               <textarea value={form.changes_staff || ""} onChange={(event) => update("changes_staff", event.target.value)} readOnly={requestFieldsReadOnly} />
+            </label>
+            <label className="field-label report-text-box">
+              <span>Observações gerais do protocolo</span>
+              <textarea value={form.general_observations || ""} onChange={(event) => update("general_observations", event.target.value)} readOnly={requestFieldsReadOnly} />
             </label>
             <label className="field-label report-text-box">
               <span>Recursos, kits e materiais</span>
