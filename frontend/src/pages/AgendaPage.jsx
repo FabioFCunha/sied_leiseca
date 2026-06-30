@@ -993,13 +993,7 @@ export default function AgendaPage() {
                 {form.satisfaction_survey_answered_at && <span className="badge success">Pesquisa respondida</span>}
               </div>
             )}
-            {canManageRequests && !form.satisfaction_survey_token && (
-              <div className="review-actions">
-                <button type="button" className="secondary" onClick={() => ensureSurveyLink({ ...form, id: editing })}>
-                  <ExternalLink size={18} /> Gerar link da pesquisa
-                </button>
-              </div>
-            )}
+
             </>
             )}
             {editing && reviewStep === "summary" && message && <div className="alert">{message}</div>}
