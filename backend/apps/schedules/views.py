@@ -422,7 +422,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         request_source_filter = (
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
-            | Q(sector__name__in=["SolicitaÃƒÂ§ÃƒÂµes externas", "SolicitaÃƒÂ§ÃƒÂµes internas"])
+            | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
         )
@@ -578,7 +578,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         _, message = available_dates_message(
             agenda,
             month,
-            days or "nenhuma data disponÃƒÂ­vel nos prÃƒÂ³ximos dias",
+            days or "nenhuma data disponível nos próximos dias",
         )
         return response.Response(
             {
@@ -621,7 +621,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         request_source_filter = (
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
-            | Q(sector__name__in=["SolicitaÃƒÂ§ÃƒÂµes externas", "SolicitaÃƒÂ§ÃƒÂµes internas"])
+            | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
         )
@@ -937,7 +937,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             (
                 row.get("municipality_ref__name")
                 or row.get("city")
-                or "Sem municÃƒÂ­pio"
+                or "Sem município"
             ).strip()
             for row in qs.values("municipality_ref__name", "city")
         )
@@ -1102,8 +1102,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
             "bars": {
                 "by_team_actions": by_team_actions,
                 "by_origin": [
-                    {"label": "SolicitaÃƒÂ§ÃƒÂ£o externa", "value": external_requests},
-                    {"label": "SolicitaÃƒÂ§ÃƒÂ£o interna", "value": internal_requests},
+                    {"label": "Solicitação externa", "value": external_requests},
+                    {"label": "Solicitação interna", "value": internal_requests},
                 ],
                 "by_neighborhood": by_neighborhood,
                 "by_user": [{"label": row["responsible__full_name"] or "Sem responsável", "value": row["total"]} for row in by_user],
@@ -1204,11 +1204,11 @@ class EventReportViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
 
             if not Agenda.objects.filter(pk=agenda.pk).filter(chief_agenda_filter(user)).exists():
-                raise PermissionDenied("VocÃƒÂª sÃƒÂ³ pode relatar agendas em que vocÃƒÂª estÃƒÂ¡ vinculado como Chefe.")
+                raise PermissionDenied("Você só pode relatar agendas em que você está vinculado como Chefe.")
         if user.is_agent_role:
             from rest_framework.exceptions import PermissionDenied
 
-            raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem enviar relatÃƒÂ³rios tÃƒÂ©cnicos.")
+            raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem enviar relatórios técnicos.")
         submitted_at = timezone.now() if serializer.validated_data.get("status") == EventReport.ReportStatus.SUBMITTED else None
         serializer.save(created_by=user, submitted_at=submitted_at)
 
@@ -1226,31 +1226,31 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     statistics_fields = [
         ("approach", "Abordagens"),
         ("approached_lectures", "Abordados em palestras"),
-        ("approached_actions", "Abordados em aÃƒÂ§ÃƒÂµes"),
+        ("approached_actions", "Abordados em ações"),
         ("tests", "Testes"),
         ("used_caps", "Bocais usados"),
-        ("available_caps", "Bocais disponÃƒÂ­veis"),
+        ("available_caps", "Bocais disponíveis"),
         ("distributed_folders", "Pastas"),
         ("cricris", "Cricris"),
         ("vetarolas", "Vetarolas"),
         ("used_adhesives", "Adesivos"),
-        ("sequence_certificates", "SequÃƒÂªncia certificados"),
+        ("sequence_certificates", "Sequência certificados"),
         ("gibis", "Gibis"),
         ("distributed_certificates", "Certificados"),
         ("lectures", "Palestras realizadas"),
         ("schools", "Escolas"),
         ("universities", "Universidades"),
         ("companies", "Empresas"),
-        ("educational_actions", "AÃƒÂ§ÃƒÂµes educativas"),
+        ("educational_actions", "Ações educativas"),
         ("bars", "Bares"),
-        ("tolls", "PedÃƒÂ¡gio"),
+        ("tolls", "Pedágio"),
         ("sports", "Esportes"),
         ("beach", "Praia"),
         ("events", "Eventos"),
         ("shopping", "Shopping"),
-        ("social_actions", "AÃƒÂ§ÃƒÂ£o social"),
+        ("social_actions", "Ação social"),
         ("other_actions", "Outros"),
-        ("publicity_materials", "Materiais de divulgaÃƒÂ§ÃƒÂ£o"),
+        ("publicity_materials", "Materiais de divulgação"),
     ]
 
     def get_queryset(self):
@@ -1326,10 +1326,10 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         if user.is_admin_role:
             return
         if user.is_agent_role:
-            raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem preencher relatÃƒÂ³rios.")
+            raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem preencher relatórios.")
         allowed = Agenda.objects.filter(pk=agenda.pk).filter(chief_agenda_filter(user)).exists()
         if not allowed:
-            raise PermissionDenied("VocÃƒÂª sÃƒÂ³ pode preencher relatÃƒÂ³rios dos protocolos em que ÃƒÂ© Chefe responsável.")
+            raise PermissionDenied("Você só pode preencher relatórios dos protocolos em que é Chefe responsável.")
 
     def _register_accessibility_block(self, report):
         if report.accessibility_conditions_met != "NO" or not report.agenda_id:
@@ -1347,7 +1347,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 "external_responsible_phone": agenda.external_responsible_phone or "",
                 "external_email": agenda.external_email or agenda.contact_email or "",
                 "source_agenda": agenda,
-                "reason": "Local nÃƒÂ£o atendeu às condições de acessibilidade para cadeirantes no relatÃƒÂ³rio tÃƒÂ©cnico.",
+                "reason": "Local não atendeu às condições de acessibilidade para cadeirantes no relatório técnico.",
                 "is_active": True,
             },
         )
@@ -1355,7 +1355,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=False, methods=["get"])
     def statistics(self, request):
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
-            raise PermissionDenied("Apenas Chefes, Gestores e AdministraÃƒÂ§ÃƒÂ£o podem acessar estatÃƒÂ­sticas.")
+            raise PermissionDenied("Apenas Chefes, Gestores e Administração podem acessar estatísticas.")
         reports = self.get_queryset()
         actions = EducationAction.objects.filter(report_id__in=reports.values("id"))
         params = request.query_params
@@ -1485,7 +1485,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         ]
 
         # Previous Year Comparison for 4 indicators
-        # Usa o ano de referÃƒÂªncia (date_to) para determinar o ano atual e o anterior completo
+        # Usa o ano de referência (date_to) para determinar o ano atual e o anterior completo
         date_to_str = params.get("date_to")
         try:
             ref_date = date.fromisoformat(date_to_str) if date_to_str else timezone.localdate()
@@ -1495,11 +1495,11 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         ref_year = ref_date.year
         prev_year = ref_year - 1
 
-        # PerÃƒÂ­odo atual: todo o ano de referÃƒÂªncia até a data selecionada
+        # Período atual: todo o ano de referência até a data selecionada
         current_date_from = date(ref_year, 1, 1)
         current_date_to = ref_date
 
-        # PerÃƒÂ­odo anterior: ano inteiro anterior (01/01 a 31/12)
+        # Período anterior: ano inteiro anterior (01/01 a 31/12)
         prev_date_from = date(prev_year, 1, 1)
         prev_date_to = date(prev_year, 12, 31)
 
@@ -1548,8 +1548,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         comparison_fields = [
             ("approach",           "Abordagens"),
-            ("approached_actions", "Abordados em aÃƒÂ§ÃƒÂµes"),
-            ("publicity_materials","Materiais de divulgaÃƒÂ§ÃƒÂ£o"),
+            ("approached_actions", "Abordados em ações"),
+            ("publicity_materials","Materiais de divulgação"),
             ("approached_lectures","Abordados em palestras"),
         ]
 
@@ -1627,7 +1627,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=False, methods=["get"], url_path="export-statistics")
     def export_statistics(self, request):
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
-            raise PermissionDenied("Apenas Chefes, Gestores e AdministraÃƒÂ§ÃƒÂ£o podem exportar estatÃƒÂ­sticas.")
+            raise PermissionDenied("Apenas Chefes, Gestores e Administração podem exportar estatísticas.")
         from reportlab.lib import colors
         from reportlab.lib.units import mm
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, KeepTogether
@@ -1676,7 +1676,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 "key": "educational_actions", "label": "3 - AÃƒâ€¡Ãƒâ€¢ES", "section": True,
                 "children": [
                     {"key": "bars", "label": "3.1 - BAR/RESTAURANTE"},
-                    {"key": "tolls", "label": "3.2 - PEDÃƒÂGIO"},
+                    {"key": "tolls", "label": "3.2 - PEDÀGIO"},
                     {"key": "sports", "label": "3.3 - PRAÃƒâ€¡A ESPORTIVA"},
                     {"key": "beach", "label": "3.4 - PRAIA"},
                     {"key": "events", "label": "3.5 - EVENTO"},
@@ -1770,18 +1770,18 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         note_style = ParagraphStyle("NoteStyle", parent=styles["Normal"], fontSize=7.5, leading=10, textColor=colors.HexColor("#666666"), spaceBefore=2)
         footer_style = ParagraphStyle("Footer", parent=styles["Normal"], fontSize=7, textColor=colors.HexColor("#999999"), alignment=TA_CENTER)
 
-        period_from = request.query_params.get("date_from") or "inÃƒÂ­cio"
+        period_from = request.query_params.get("date_from") or "início"
         period_to = request.query_params.get("date_to") or today.isoformat()
         month_label = reference_date.strftime("%m")
 
         elements = []
 
         # --- Header ---
-        elements.append(Paragraph("OperaÃƒÂ§ÃƒÂ£o Lei Seca", title_style))
-        elements.append(Paragraph("RelatÃƒÂ³rio TÃƒÂ©cnico de EstatÃƒÂ­sticas", ParagraphStyle("Sub", parent=subtitle_style, fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#333333"))))
+        elements.append(Paragraph("Operação Lei Seca", title_style))
+        elements.append(Paragraph("Relatório Técnico de Estatísticas", ParagraphStyle("Sub", parent=subtitle_style, fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#333333"))))
         elements.append(Spacer(1, 4))
-        elements.append(Paragraph(f"PerÃƒÂ­odo analisado: {period_from} a {period_to}", subtitle_style))
-        elements.append(Paragraph(f"Emitido em: {today.strftime('%d/%m/%Y')} &nbsp;|&nbsp; RelatÃƒÂ³rios: {reports.count()} &nbsp;|&nbsp; AÃƒÂ§ÃƒÂµes registradas: {actions.count()}", subtitle_style))
+        elements.append(Paragraph(f"Período analisado: {period_from} a {period_to}", subtitle_style))
+        elements.append(Paragraph(f"Emitido em: {today.strftime('%d/%m/%Y')} &nbsp;|&nbsp; Relatórios: {reports.count()} &nbsp;|&nbsp; Ações registradas: {actions.count()}", subtitle_style))
         elements.append(Spacer(1, 6))
 
         # --- Section 1: Quadro de metas ---
@@ -1789,8 +1789,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         data_2 = [[
             Paragraph("Indicador", header_left),
             Paragraph(f"{reference_year} até {month_label}", header_cell),
-            Paragraph(f"ProjeÃƒÂ§ÃƒÂ£o {reference_year}", header_cell),
-            Paragraph("MÃƒÂ©dia*", header_cell),
+            Paragraph(f"Projeção {reference_year}", header_cell),
+            Paragraph("Média*", header_cell),
             Paragraph(f"Meta {reference_year}", header_cell),
         ]]
         goal_section_indices = []
@@ -1836,12 +1836,12 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         elements.append(Spacer(1, 12))
 
-        # --- Section 2: EvoluÃƒÂ§ÃƒÂ£o anual ---
-        elements.append(Paragraph("2. EvoluÃƒÂ§ÃƒÂ£o anual desde 2019", section_title_style))
+        # --- Section 2: Evolução anual ---
+        elements.append(Paragraph("2. Evolução anual desde 2019", section_title_style))
         data_3 = [[
             Paragraph("Ano", header_left),
             Paragraph("Abordados em palestras", header_cell),
-            Paragraph("Abordados em aÃƒÂ§ÃƒÂµes", header_cell),
+            Paragraph("Abordados em ações", header_cell),
         ]]
         for row in yearly_rows:
             data_3.append([
@@ -1903,7 +1903,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         elements.append(Spacer(1, 16))
 
-        # --- Section 4: ComparaÃƒÂ§ÃƒÂ£o Ano a Ano ---
+        # --- Section 4: Comparação Ano a Ano ---
         params = request.query_params
         date_to_str = params.get("date_to")
         try:
@@ -1926,23 +1926,23 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         comparison_fields = [
             ("approach", "Abordagens"),
-            ("approached_actions", "Abordados em aÃƒÂ§ÃƒÂµes"),
-            ("publicity_materials", "Materiais de divulgaÃƒÂ§ÃƒÂ£o"),
+            ("approached_actions", "Abordados em ações"),
+            ("publicity_materials", "Materiais de divulgação"),
             ("approached_lectures", "Abordados em palestras"),
         ]
 
         BLUE_HEADER = colors.HexColor("#003299")
 
-        elements.append(Paragraph("4. ComparaÃƒÂ§ÃƒÂ£o Ano a Ano", section_title_style))
-        elements.append(Paragraph(f"Indicadores do ano de referÃƒÂªncia ({cmp_ref_year}) versus o ano anterior ({cmp_prev_year}) completo.", note_style))
+        elements.append(Paragraph("4. Comparação Ano a Ano", section_title_style))
+        elements.append(Paragraph(f"Indicadores do ano de referência ({cmp_ref_year}) versus o ano anterior ({cmp_prev_year}) completo.", note_style))
         elements.append(Spacer(1, 4))
 
         data_cmp = [[
             Paragraph("Indicador", header_left),
             Paragraph(f"{cmp_ref_year} (acumulado)", header_cell),
             Paragraph(f"{cmp_prev_year} (total)", header_cell),
-            Paragraph("DiferenÃƒÂ§a", header_cell),
-            Paragraph("VariaÃƒÂ§ÃƒÂ£o %", header_cell),
+            Paragraph("Diferença", header_cell),
+            Paragraph("Variação %", header_cell),
         ]]
         for key, label in comparison_fields:
             cur_val = cmp_cur_actions.aggregate(total=Sum(key))["total"] or 0
@@ -1984,19 +1984,19 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         elements.append(Spacer(1, 16))
 
-        # --- Section 5: Nota tÃƒÂ©cnica ---
-        elements.append(Paragraph("5. Nota tÃƒÂ©cnica", section_title_style))
+        # --- Section 5: Nota técnica ---
+        elements.append(Paragraph("5. Nota técnica", section_title_style))
         notes = [
-            "Os dados deste relatÃƒÂ³rio sÃƒÂ£o calculados a partir dos relatÃƒÂ³rios tÃƒÂ©cnicos cadastrados no sistema.",
-            "A projeÃƒÂ§ÃƒÂ£o anual considera o acumulado do ano dividido pela quantidade de meses transcorridos e multiplicado por 12.",
-            "As metas e mÃƒÂ©dias histÃƒÂ³ricas sÃƒÂ£o obtidas do cadastro anual de metas da aplicaÃƒÂ§ÃƒÂ£o.",
-            "* MÃƒÂ©dia refere-se ÃƒÂ  mÃƒÂ©dia histÃƒÂ³rica dos anos anteriores registrados no sistema.",
+            "Os dados deste relatório são calculados a partir dos relatórios técnicos cadastrados no sistema.",
+            "A projeção anual considera o acumulado do ano dividido pela quantidade de meses transcorridos e multiplicado por 12.",
+            "As metas e médias históricas são obtidas do cadastro anual de metas da aplicação.",
+            "* Média refere-se à média histórica dos anos anteriores registrados no sistema.",
         ]
         for note in notes:
             elements.append(Paragraph(f"Ã¢â‚¬Â¢ {note}", note_style))
 
         elements.append(Spacer(1, 20))
-        elements.append(Paragraph(f"OperaÃƒÂ§ÃƒÂ£o Lei Seca Ã¢â‚¬â€ RelatÃƒÂ³rio gerado automaticamente em {today.strftime('%d/%m/%Y')}", footer_style))
+        elements.append(Paragraph(f"Operação Lei Seca Ã¢â‚¬â€ Relatório gerado automaticamente em {today.strftime('%d/%m/%Y')}", footer_style))
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -2006,7 +2006,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             rightMargin=30,
             topMargin=30,
             bottomMargin=30,
-            title=f"RelatÃƒÂ³rio de EstatÃƒÂ­sticas {reference_year}",
+            title=f"Relatório de Estatísticas {reference_year}",
             author="Agenda OLS",
         )
         doc.build(elements)
@@ -2079,7 +2079,7 @@ class AccessibilityBlocklistViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if not (user.is_admin_role or user.role == User.Role.SUPERVISOR):
-            raise PermissionDenied("Sem permissÃƒÂ£o para gerenciar a lista de restriÃƒÂ§ÃƒÂµes de acessibilidade.")
+            raise PermissionDenied("Sem permissão para gerenciar a lista de restrições de acessibilidade.")
         
         queryset = AccessibilityBlocklist.objects.all()
         term = self.request.query_params.get("search")
@@ -2110,7 +2110,7 @@ class PublicAgendaRequestView(APIView):
             from datetime import datetime
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            return response.Response({"detail": "Formato de data invÃƒÂ¡lido."}, status=400)
+            return response.Response({"detail": "Formato de data inválido."}, status=400)
             
         agenda_id = request.query_params.get("agenda_id")
         qs = Agenda.objects.filter(
@@ -2136,14 +2136,14 @@ class PublicAgendaRequestView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         public_sector, _ = Sector.objects.get_or_create(
-            name="SolicitaÃƒÂ§ÃƒÂµes externas",
-            defaults={"description": "SolicitaÃƒÂ§ÃƒÂµes recebidas por formulÃƒÂ¡rio público"},
+            name="Solicitações externas",
+            defaults={"description": "Solicitações recebidas por formulário público"},
         )
         system_user, created = User.objects.get_or_create(
             email="solicitacao.publica@agenda.local",
             defaults={
                 "username": "solicitacao.publica@agenda.local",
-                "full_name": "SolicitaÃƒÂ§ÃƒÂ£o PÃƒÂºblica",
+                "full_name": "Solicitação Pública",
                 "role": User.Role.USER,
                 "is_active": False,
                 "sector": public_sector,
@@ -2212,7 +2212,7 @@ class PublicAgendaRequestView(APIView):
         transaction.on_commit(lambda: send_agenda_status_email(agenda, Agenda.Status.PENDING))
         return response.Response(
             {
-                "detail": "SolicitaÃƒÂ§ÃƒÂ£o enviada com sucesso. Acompanhe o retorno pelo contato informado.",
+                "detail": "Solicitação enviada com sucesso. Acompanhe o retorno pelo contato informado.",
                 "protocol": agenda.id,
             },
             status=201,
@@ -2227,7 +2227,7 @@ class PublicAgendaRequestUpdateView(APIView):
             payload = signing.loads(token, salt=PUBLIC_REQUEST_SALT)
             return Agenda.objects.get(pk=payload["agenda"])
         except (signing.BadSignature, KeyError, Agenda.DoesNotExist):
-            raise PermissionDenied("Link de alteraÃƒÂ§ÃƒÂ£o invÃƒÂ¡lido.")
+            raise PermissionDenied("Link de alteração inválido.")
 
     def get(self, request, token):
         agenda = self.get_agenda(token)
@@ -2282,7 +2282,7 @@ class PublicAgendaRequestUpdateView(APIView):
         )
         return response.Response(
             {
-                "detail": "Data atualizada e formulÃƒÂ¡rio reenviado para avaliaÃƒÂ§ÃƒÂ£o.",
+                "detail": "Data atualizada e formulário reenviado para avaliação.",
                 "protocol": agenda.id,
             }
         )
@@ -2295,7 +2295,7 @@ class SatisfactionSurveyPublicView(APIView):
         try:
             return SatisfactionSurvey.objects.select_related("agenda", "report").get(token=token)
         except SatisfactionSurvey.DoesNotExist:
-            raise PermissionDenied("Link da pesquisa invÃƒÂ¡lido.")
+            raise PermissionDenied("Link da pesquisa inválido.")
 
     def get(self, request, token):
         survey = self.get_survey(token)
@@ -2304,7 +2304,7 @@ class SatisfactionSurveyPublicView(APIView):
     def post(self, request, token):
         survey = self.get_survey(token)
         if survey.answered_at:
-            return response.Response({"detail": "Esta pesquisa jÃƒÂ¡ foi respondida."}, status=400)
+            return response.Response({"detail": "Esta pesquisa já foi respondida."}, status=400)
         serializer = SatisfactionSurveySerializer(survey, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         
@@ -2319,7 +2319,7 @@ class SatisfactionSurveyPublicView(APIView):
             is_approved=moderation_status == SatisfactionSurvey.ModerationStatus.APPROVED,
             moderation_status=moderation_status,
         )
-        return response.Response({"detail": "Pesquisa enviada com sucesso. Obrigado pela avaliaÃƒÂ§ÃƒÂ£o."})
+        return response.Response({"detail": "Pesquisa enviada com sucesso. Obrigado pela avaliação."})
 
 
 class InternalAgendaRequestView(APIView):
@@ -2327,13 +2327,13 @@ class InternalAgendaRequestView(APIView):
 
     def post(self, request):
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
-            raise PermissionDenied("Apenas Chefes, Gestores e AdministraÃƒÂ§ÃƒÂ£o podem criar solicitaÃƒÂ§ÃƒÂµes internas.")
+            raise PermissionDenied("Apenas Chefes, Gestores e Administração podem criar solicitações internas.")
         serializer = PublicAgendaRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         internal_sector, _ = Sector.objects.get_or_create(
-            name="SolicitaÃƒÂ§ÃƒÂµes internas",
-            defaults={"description": "SolicitaÃƒÂ§ÃƒÂµes cadastradas internamente pela equipe"},
+            name="Solicitações internas",
+            defaults={"description": "Solicitações cadastradas internamente pela equipe"},
         )
         agenda = Agenda.objects.create(
             title=data["title"],
@@ -2396,7 +2396,7 @@ class InternalAgendaRequestView(APIView):
         transaction.on_commit(lambda: send_agenda_status_email(agenda, Agenda.Status.PENDING))
         return response.Response(
             {
-                "detail": "SolicitaÃƒÂ§ÃƒÂ£o interna registrada com sucesso.",
+                "detail": "Solicitação interna registrada com sucesso.",
                 "protocol": agenda.id,
             },
             status=201,
@@ -2408,7 +2408,7 @@ class ReportViewSet(viewsets.ViewSet):
 
     def _check_access(self, request):
         if not request.user.is_admin_role:
-            raise PermissionDenied("Apenas Gestores e AdministraÃƒÂ§ÃƒÂ£o podem acessar relatÃƒÂ³rios.")
+            raise PermissionDenied("Apenas Gestores e Administração podem acessar relatórios.")
 
     def _queryset(self, request, *, check_access=True, unscoped=False):
         if check_access:
@@ -2478,7 +2478,7 @@ class ReportViewSet(viewsets.ViewSet):
         wb = Workbook()
         ws = wb.active
         ws.title = "Agendas"
-        ws.append(["TÃƒÂ­tulo", "Data", "InÃƒÂ­cio", "Fim", "Status", "Equipe", "ResponsÃƒÂ¡vel", "Local"])
+        ws.append(["Título", "Data", "Início", "Fim", "Status", "Equipe", "Responsável", "Local"])
         for agenda in qs:
             ws.append([
                 agenda.title,
@@ -2509,7 +2509,7 @@ class ReportViewSet(viewsets.ViewSet):
         request_source_filter = (
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
-            | Q(sector__name__in=["SolicitaÃƒÂ§ÃƒÂµes externas", "SolicitaÃƒÂ§ÃƒÂµes internas"])
+            | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
         )
@@ -2554,7 +2554,7 @@ class ReportViewSet(viewsets.ViewSet):
 
         # 3. Compute Top categories lists
         by_municipality_counter = Counter(
-            (row.get("municipality_ref__name") or row.get("city") or "Sem municÃƒÂ­pio").strip()
+            (row.get("municipality_ref__name") or row.get("city") or "Sem município").strip()
             for row in qs.values("municipality_ref__name", "city")
         )
         by_municipality = by_municipality_counter.most_common(8)
@@ -2617,17 +2617,17 @@ class ReportViewSet(viewsets.ViewSet):
             t.setStyle(t_style)
             return t
 
-        date_from = request.query_params.get("date_from") or "InÃƒÂ­cio"
+        date_from = request.query_params.get("date_from") or "Início"
         date_to = request.query_params.get("date_to") or today.strftime("%d/%m/%Y")
 
         elements = []
 
         # --- Header ---
-        elements.append(Paragraph("OperaÃƒÂ§ÃƒÂ£o Lei Seca", title_style))
-        elements.append(Paragraph("RelatÃƒÂ³rio Consolidado de Atividades - Dashboard", ParagraphStyle("Sub", parent=subtitle_style, fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#333333"))))
+        elements.append(Paragraph("Operação Lei Seca", title_style))
+        elements.append(Paragraph("Relatório Consolidado de Atividades - Dashboard", ParagraphStyle("Sub", parent=subtitle_style, fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#333333"))))
         elements.append(Spacer(1, 4))
-        elements.append(Paragraph(f"PerÃƒÂ­odo analisado: {date_from} a {date_to}", subtitle_style))
-        elements.append(Paragraph(f"Emitido em: {today.strftime('%d/%m/%Y')} &nbsp;|&nbsp; Total de agendas no perÃƒÂ­odo: {total}", subtitle_style))
+        elements.append(Paragraph(f"Período analisado: {date_from} a {date_to}", subtitle_style))
+        elements.append(Paragraph(f"Emitido em: {today.strftime('%d/%m/%Y')} &nbsp;|&nbsp; Total de agendas no período: {total}", subtitle_style))
         elements.append(Spacer(1, 8))
 
         # --- Section 1: Resumo Operacional ---
@@ -2639,20 +2639,20 @@ class ReportViewSet(viewsets.ViewSet):
             ("Agendas de Hoje", today_count),
             ("Agentes Escalados Hoje", today_agents_count),
             ("Agendas em Andamento", in_progress),
-            ("PrÃƒÂ³ximas Agendas", upcoming_count),
+            ("Próximas Agendas", upcoming_count),
         ]
-        elements.append(make_table(["MÃƒÂ©trica Operacional", "Quantidade"], operacionais_rows, [350, 150]))
+        elements.append(make_table(["Métrica Operacional", "Quantidade"], operacionais_rows, [350, 150]))
         elements.append(Spacer(1, 6))
 
-        # --- Section 2: Indicadores AvanÃƒÂ§ados ---
-        elements.append(Paragraph("2. Indicadores AvanÃƒÂ§ados", section_title_style))
+        # --- Section 2: Indicadores Avançados ---
+        elements.append(Paragraph("2. Indicadores Avançados", section_title_style))
         avancados_rows = [
-            ("Taxa de aprovaÃƒÂ§ÃƒÂ£o", f"{completion_rate}%"),
+            ("Taxa de aprovação", f"{completion_rate}%"),
             ("Taxa de cancelamento", f"{cancellation_rate}%"),
-            ("Tempo mÃƒÂ©dio de aprovaÃƒÂ§ÃƒÂ£o", "24h"),
-            ("MÃƒÂ©dia por usuÃƒÂ¡rio", avg_per_user),
+            ("Tempo médio de aprovação", "24h"),
+            ("Média por usuário", avg_per_user),
         ]
-        elements.append(make_table(["Indicador AvanÃƒÂ§ado", "Valor"], avancados_rows, [350, 150]))
+        elements.append(make_table(["Indicador Avançado", "Valor"], avancados_rows, [350, 150]))
         elements.append(Spacer(1, 6))
 
         # --- Section 3: Agendas por Município ---
@@ -2667,15 +2667,15 @@ class ReportViewSet(viewsets.ViewSet):
             elements.append(make_table(["Bairro", "Agendas"], by_neighborhood, [350, 150]))
             elements.append(Spacer(1, 6))
 
-        # --- Section 5: AÃƒÂ§ÃƒÂµes por Equipe ---
+        # --- Section 5: Ações por Equipe ---
         if by_team_actions:
-            elements.append(Paragraph("5. AÃƒÂ§ÃƒÂµes por Equipe (Top 8)", section_title_style))
+            elements.append(Paragraph("5. Ações por Equipe (Top 8)", section_title_style))
             team_rows = [(t["team_ref__name"] or t["team_name"] or "Sem equipe", t["total"]) for t in by_team_actions]
-            elements.append(make_table(["Equipe", "AÃƒÂ§ÃƒÂµes ConcluÃƒÂ­das"], team_rows, [350, 150]))
+            elements.append(make_table(["Equipe", "Ações Concluídas"], team_rows, [350, 150]))
             elements.append(Spacer(1, 6))
 
         elements.append(Spacer(1, 10))
-        elements.append(Paragraph(f"OperaÃƒÂ§ÃƒÂ£o Lei Seca Ã¢â‚¬â€ RelatÃƒÂ³rio gerado automaticamente em {today.strftime('%d/%m/%Y')}", footer_style))
+        elements.append(Paragraph(f"Operação Lei Seca Ã¢â‚¬â€ Relatório gerado automaticamente em {today.strftime('%d/%m/%Y')}", footer_style))
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -2685,7 +2685,7 @@ class ReportViewSet(viewsets.ViewSet):
             rightMargin=30,
             topMargin=25,
             bottomMargin=25,
-            title="RelatÃƒÂ³rio Operacional de Agendas - Dashboard",
+            title="Relatório Operacional de Agendas - Dashboard",
             author="Agenda OLS",
         )
         doc.build(elements)
@@ -2816,10 +2816,10 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             qs = qs.filter(team__iexact=team)
 
         CRITERIA_FIELDS = [
-            ("audiovisual_resources", "Recursos ÃƒÂ¡udio-visuais"),
+            ("audiovisual_resources", "Recursos áudio-visuais"),
             ("speaker_knowledge", "Palestrante"),
             ("wheelchair_testimony", "Depoimento dos cadeirantes"),
-            ("workshops", "DinÃƒÂ¢micas"),
+            ("workshops", "Dinâmicas"),
             ("support_material", "Material de apoio"),
             ("punctuality", "Pontualidade"),
             ("team_enthusiasm", "Entusiasmo"),
@@ -3122,11 +3122,11 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
         best1 = sorted_criteria[0][0] if len(sorted_criteria) > 0 else ""
         best2 = sorted_criteria[1][0] if len(sorted_criteria) > 1 else ""
         executive_summary = (
-            f"Foram recebidas {total_surveys} avaliaÃƒÂ§ÃƒÂµes no perÃƒÂ­odo selecionado. "
-            f"A nota mÃƒÂ©dia geral foi {overall_avg:.2f}. "
-            f"O ÃƒÂ­ndice de excelÃƒÂªncia atingiu {satisfaction_index:.1f}%. "
-            f"Os critÃƒÂ©rios mais bem avaliados foram {best1} e {best2}. "
-            f"O critÃƒÂ©rio com menor mÃƒÂ©dia foi {worst_criteria}, indicando oportunidade de melhoria."
+            f"Foram recebidas {total_surveys} avaliações no período selecionado. "
+            f"A nota média geral foi {overall_avg:.2f}. "
+            f"O índice de excelência atingiu {satisfaction_index:.1f}%. "
+            f"Os critérios mais bem avaliados foram {best1} e {best2}. "
+            f"O critério com menor média foi {worst_criteria}, indicando oportunidade de melhoria."
         )
 
         return response.Response({
