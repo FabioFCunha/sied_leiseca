@@ -34,8 +34,7 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
           <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Avalia&ccedil;&otilde;es baseadas nas pesquisas de satisfa&ccedil;&atilde;o respondidas.</p>
         </div>
       </div>
-      <div className="satisfaction-grid" style={{ display: "grid", gap: "20px", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-        <div className="satisfaction-ratings" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div className="satisfaction-grid" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           <div className="overall-rating-card" style={{ background: "var(--surface-2)", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)", display: "flex", alignItems: "center", gap: "16px" }}>
             <div className="overall-rating-value" style={{ fontSize: "40px", fontWeight: "900", color: "var(--text)", lineHeight: 1 }}>{overallRating.toFixed(1)}</div>
             <div>
@@ -43,26 +42,6 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
               <div style={{ fontSize: "12px", color: "var(--text-soft)", marginTop: "4px", fontWeight: "500" }}>Baseado em {total_responses} avalia&ccedil;&otilde;es</div>
             </div>
           </div>
-
-          <div className="team-ratings-list" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <h3 style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)", margin: "4px 0" }}>Avalia&ccedil;&otilde;es por equipe</h3>
-            {team_ratings.length ? team_ratings.map((team, idx) => {
-              const avg = Number(team.avg || 0);
-              return (
-                <div key={`${team.team}-${idx}`} className="team-rating-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "8px", borderBottom: "1px solid var(--line)" }}>
-                  <div style={{ display: "flex", flexDirection: "column" }}>
-                    <strong style={{ fontSize: "13px", color: "var(--text)" }}>{team.team}</strong>
-                    <span style={{ fontSize: "11px", color: "var(--text-soft)" }}>{team.count} avalia&ccedil;&otilde;es</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ fontSize: "13px", fontWeight: "800" }}>{avg.toFixed(1)}</span>
-                    <Stars rating={avg} />
-                  </div>
-                </div>
-              );
-            }) : <p style={{ color: "var(--text-soft)", fontSize: "12px" }}>Nenhuma avalia&ccedil;&atilde;o dispon&iacute;vel.</p>}
-          </div>
-        </div>
 
         <div className="satisfaction-messages" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <h3 style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)", margin: 0 }}>Mensagens de feedback</h3>
@@ -95,52 +74,61 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
                     {msg.agenda__id && <div style={{ fontSize: "10px", color: "var(--text-soft)", fontWeight: "600" }}>OS: #{msg.agenda__id} - {msg.agenda__institution_location || "Local não informado"}</div>}
                   </div>
 
-                  {isModerator && msg.moderation_status === "PENDING" && (
+                  {isModerator && (
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => onModerateSurvey(msg.id, "APPROVED", msg.moderated_comment || msg.suggestion || "")}
-                        style={{
-                          background: "var(--primary)",
-                          border: "none",
-                          borderRadius: "6px",
-                          padding: "4px 8px",
-                          fontSize: "11px",
-                          fontWeight: "800",
-                          color: "#fff",
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          boxShadow: "0 2px 4px rgba(0,72,215,0.15)"
-                        }}
-                        type="button"
-                      >
-                        <ThumbsUp size={11} /> Aprovar
-                      </button>
-                      <button
-                        onClick={() => onModerateSurvey(msg.id, "REJECTED", msg.moderated_comment || msg.suggestion || "")}
-                        style={{
-                          background: "#fff",
-                          border: "1px solid var(--danger)",
-                          borderRadius: "6px",
-                          padding: "4px 8px",
-                          fontSize: "11px",
-                          fontWeight: "800",
-                          color: "var(--danger)",
-                          cursor: "pointer"
-                        }}
-                        type="button"
-                      >
-                        Recusar
-                      </button>
+                      {msg.moderation_status !== "APPROVED" && (
+                        <button
+                          onClick={() => onModerateSurvey(msg.id, "APPROVED", msg.moderated_comment || msg.suggestion || "")}
+                          style={{
+                            background: "var(--primary)",
+                            border: "none",
+                            borderRadius: "6px",
+                            padding: "4px 8px",
+                            fontSize: "11px",
+                            fontWeight: "800",
+                            color: "#fff",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            boxShadow: "0 2px 4px rgba(0,72,215,0.15)"
+                          }}
+                          type="button"
+                        >
+                          <ThumbsUp size={11} /> Aprovar
+                        </button>
+                      )}
+                      {msg.moderation_status !== "HIDDEN" && (
+                        <button
+                          onClick={() => onModerateSurvey(msg.id, "HIDDEN", msg.moderated_comment || msg.suggestion || "")}
+                          style={{
+                            background: "#fff",
+                            border: "1px solid var(--danger)",
+                            borderRadius: "6px",
+                            padding: "4px 8px",
+                            fontSize: "11px",
+                            fontWeight: "800",
+                            color: "var(--danger)",
+                            cursor: "pointer"
+                          }}
+                          type="button"
+                        >
+                          Ocultar
+                        </button>
+                      )}
                     </div>
                   )}
-                  {msg.moderation_status === "APPROVED" && (
-                    <span style={{ fontSize: "10px", color: "var(--success)", fontWeight: "700" }}>Aprovado</span>
-                  )}
-                  {msg.moderation_status === "REJECTED" && (
-                    <span style={{ fontSize: "10px", color: "var(--danger)", fontWeight: "700" }}>Recusado</span>
-                  )}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-end" }}>
+                    {msg.moderation_status === "APPROVED" && (
+                      <span style={{ fontSize: "10px", color: "var(--success)", fontWeight: "700" }}>Aprovado</span>
+                    )}
+                    {msg.moderation_status === "HIDDEN" && (
+                      <span style={{ fontSize: "10px", color: "var(--danger)", fontWeight: "700" }}>Oculto</span>
+                    )}
+                    {msg.moderation_status === "REJECTED" && (
+                      <span style={{ fontSize: "10px", color: "var(--danger)", fontWeight: "700" }}>Recusado</span>
+                    )}
+                  </div>
                 </div>
               </div>
             )) : <p style={{ color: "var(--text-soft)", fontSize: "12px" }}>Nenhum feedback recente.</p>}
