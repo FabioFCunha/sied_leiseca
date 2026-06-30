@@ -148,6 +148,7 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
                       <span style={{ fontSize: "10px", color: "var(--danger)", fontWeight: "700" }}>Recusado</span>
                     )}
                   </div>
+                </div>
               </div>
             )) : <p style={{ color: "var(--text-soft)", fontSize: "12px" }}>Nenhum feedback recente.</p>}
             </div>
