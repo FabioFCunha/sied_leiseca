@@ -742,6 +742,16 @@ export default function TechnicalReportsPage() {
                     <MaterialQuantityEditor value={action.equipment_materials_distributed || ""} onChange={(value) => updateAction(index, "equipment_materials_distributed", value)} />
                   </div>
                 </div>
+                <div className="report-material-grid" style={{ marginTop: '1rem' }}>
+                  <div className="field-label report-text-box">
+                    <span>Material retirado</span>
+                    <MaterialSummary value={action.distribution_materials_removed || ""} />
+                  </div>
+                  <div className="field-label report-text-box">
+                    <span>Material distribuído</span>
+                    <MaterialQuantityEditor value={action.distribution_materials_distributed || ""} onChange={(value) => updateAction(index, "distribution_materials_distributed", value)} />
+                  </div>
+                </div>
               </div>
             ))}
             <button type="button" className="secondary" onClick={addAction}><Plus size={18} /> Adicionar ação</button>
