@@ -1,44 +1,25 @@
-import psycopg2
+import json
+import os
 from django.core.management.base import BaseCommand
 from django.utils.timezone import make_aware, is_naive
 from django.db import transaction
 from apps.schedules.models import Agenda, EducationReport, EducationAction
 
 class Command(BaseCommand):
-    help = "Imports education reports from external PostgreSQL database"
+    help = "Imports education reports from exported JSON data"
 
     def handle(self, *args, **options):
-        # Database connection details
-        host = "10.11.89.202"
-        port = 5432
-        user = "looker"
-        password = "eef016c359387b02def0ba508dccdadf593b0b1d"
-        dbname = "horus"
-
+        json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), 'external_reports.json')
         try:
-            conn = psycopg2.connect(host=host, port=port, user=user, password=password, dbname=dbname)
-            cur = conn.cursor()
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            reports_data = data["reports"]
+            actions_data = data["actions"]
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Failed to connect to db: {e}"))
+            self.stdout.write(self.style.ERROR(f"Failed to load JSON: {e}"))
             return
 
-        self.stdout.write("Connected to external database.")
-
-        cur.execute("""
-            SELECT id, user_id, team, operation_date, "educationPcd_id", "educationAgents_id",
-                   changes_staff, breathalyzers, cars_id, changes_general, contact_received,
-                   occurrence_observation, lat, lng, created_at, updated_at
-            FROM reducols_sections
-        """)
-        reports_data = cur.fetchall()
-
-        cur.execute("""
-            SELECT id, reducols_section_id, place_action, type_action, type_audience, institution_name,
-                   start_time, final_hour, approach, tests, used_caps, available_caps,
-                   distributed_folders, cricris, vetarolas, used_adhesives, sequence_certificates, gibis, distributed_certificates
-            FROM reducols_section_twos
-        """)
-        actions_data = cur.fetchall()
+        self.stdout.write("Loaded external_reports.json.")
 
         # Group actions by report id
         actions_by_report = {}
@@ -138,7 +119,4 @@ class Command(BaseCommand):
                         distribution_materials_distributed=distribution_distributed,
                     )
                     
-        cur.close()
-        conn.close()
-
         self.stdout.write(self.style.SUCCESS(f"Finished importing. Imported: {imported}, Skipped: {skipped}"))
