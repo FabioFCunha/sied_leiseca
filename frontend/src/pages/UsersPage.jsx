@@ -4,7 +4,7 @@ import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { roleLabel } from "../utils/permissions.js";
 
-const empty = { full_name: "", cpf: "", email: "", phone: "", role: "USER", team: "", sector: "", sector_name: "", is_active: true, is_on_vacation: false };
+const empty = { full_name: "", cpf: "", email: "", phone: "", role: "USER", team: "", sector: "", sector_name: "", is_active: true, is_on_vacation: false, vacation_start: "", vacation_end: "" };
 
 const adminRoles = new Set(["ADMIN", "MANAGER"]);
 const visitorRoles = new Set(["VISITOR"]);
@@ -92,10 +92,6 @@ export default function UsersPage() {
       setMessage("Informe o nome do setor do visitante.");
       return;
     }
-    if (operationalRoles.has(form.role) && !form.team) {
-      setMessage("Informe a equipe do usuário operacional.");
-      return;
-    }
     if (!isValidEmail(form.email)) {
       setMessage("Informe um e-mail válido.");
       return;
@@ -111,12 +107,14 @@ export default function UsersPage() {
         role: form.role,
         is_active: form.is_active,
         is_on_vacation: operationalRoles.has(form.role) ? form.is_on_vacation : false,
+        vacation_start: (operationalRoles.has(form.role) && form.is_on_vacation && form.vacation_start) ? form.vacation_start : null,
+        vacation_end: (operationalRoles.has(form.role) && form.is_on_vacation && form.vacation_end) ? form.vacation_end : null,
       };
       if (form.role === "VISITOR") {
         payload.sector = sectorId;
       }
       if (operationalRoles.has(form.role)) {
-        payload.team = form.team;
+        payload.team = form.team || null;
       }
       const saved = isEditing
         ? await api(`/users/${editing}/`, { method: "PUT", body: JSON.stringify(payload) })
@@ -134,7 +132,7 @@ export default function UsersPage() {
   const edit = (user) => {
     setEditing(user.id);
     setPasswordLink(user.password_setup_link || "");
-    setForm({ ...user, cpf: user.cpf || "", team: user.team_id || "", sector: user.sector || "", sector_name: user.sector_name || "", is_active: user.is_active, is_on_vacation: user.is_on_vacation || false });
+    setForm({ ...user, cpf: user.cpf || "", team: user.team_id || "", sector: user.sector || "", sector_name: user.sector_name || "", is_active: user.is_active, is_on_vacation: user.is_on_vacation || false, vacation_start: user.vacation_start || "", vacation_end: user.vacation_end || "" });
   };
 
   const remove = async (user) => {
@@ -327,9 +325,8 @@ export default function UsersPage() {
               <select
                 value={form.team || ""}
                 onChange={(e) => setForm({ ...form, team: e.target.value })}
-                required
               >
-                <option value="">Selecione a equipe</option>
+                <option value="">Sem equipe</option>
                 {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
               </select>
             </label>
@@ -339,10 +336,24 @@ export default function UsersPage() {
             Usuário ativo
           </label>
           {operationalRoles.has(form.role) && (
-            <label className="checkbox">
-              <input type="checkbox" checked={form.is_on_vacation} onChange={(e) => setForm({ ...form, is_on_vacation: e.target.checked })} />
-              Marcar como férias
-            </label>
+            <>
+              <label className="checkbox">
+                <input type="checkbox" checked={form.is_on_vacation} onChange={(e) => setForm({ ...form, is_on_vacation: e.target.checked })} />
+                Marcar como férias
+              </label>
+              {form.is_on_vacation && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  <label>
+                    Data Início
+                    <input type="date" value={form.vacation_start || ""} onChange={e => setForm({ ...form, vacation_start: e.target.value })} required />
+                  </label>
+                  <label>
+                    Data Fim
+                    <input type="date" value={form.vacation_end || ""} onChange={e => setForm({ ...form, vacation_end: e.target.value })} required />
+                  </label>
+                </div>
+              )}
+            </>
           )}
           {message && <div className="alert">{message}</div>}
           {passwordLink && (
