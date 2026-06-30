@@ -111,11 +111,12 @@ def sync_user_lookup(user, team=None, clear_team=False):
         )
         deactivate_other_user_lookups(user, Chief)
         sector = sector_for_team(lookup.team)
+        sector_id = sector.id if sector else None
         changed_fields = []
         if phone and user.phone != phone:
             user.phone = phone
             changed_fields.append("phone")
-        if sector and user.sector_id != sector.id:
+        if user.sector_id != sector_id:
             user.sector = sector
             changed_fields.append("sector")
         if changed_fields:
@@ -128,7 +129,8 @@ def sync_user_lookup(user, team=None, clear_team=False):
         lookup = upsert_user_lookup(Agent, user, "AGENTE", {"team": selected_team})
         deactivate_other_user_lookups(user, Agent)
         sector = sector_for_team(lookup.team)
-        if sector and user.sector_id != sector.id:
+        sector_id = sector.id if sector else None
+        if user.sector_id != sector_id:
             user.sector = sector
             user.save(update_fields=["sector"])
         return
@@ -139,7 +141,8 @@ def sync_user_lookup(user, team=None, clear_team=False):
         lookup = upsert_user_lookup(Support, user, "APOIO", {"team": selected_team})
         deactivate_other_user_lookups(user, Support)
         sector = sector_for_team(lookup.team)
-        if sector and user.sector_id != sector.id:
+        sector_id = sector.id if sector else None
+        if user.sector_id != sector_id:
             user.sector = sector
             user.save(update_fields=["sector"])
         return
