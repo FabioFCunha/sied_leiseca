@@ -217,6 +217,13 @@ const RadarChart = ({ data }) => {
           if (Math.abs(Math.cos((Math.PI / 2) - (i * angleStep))) > 0.1) {
             textAnchor = Math.cos((Math.PI / 2) - (i * angleStep)) > 0 ? "start" : "end";
           }
+          const words = d.criteria.split(" ");
+          let lines = [d.criteria];
+          if (words.length > 1 && d.criteria.length > 14) {
+            const mid = Math.ceil(words.length / 2);
+            lines = [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
+          }
+
           return (
             <g key={i}>
               <line x1={center} y1={center} x2={p.x} y2={p.y} stroke="var(--line)" strokeWidth="1" />
@@ -230,7 +237,11 @@ const RadarChart = ({ data }) => {
                 fill="var(--text-soft)"
                 style={{ transformOrigin: `${labelP.x}px ${labelP.y}px` }}
               >
-                {d.criteria}
+                {lines.map((line, idx) => (
+                  <tspan key={idx} x={labelP.x} dy={idx === 0 ? (lines.length > 1 ? "-0.5em" : "0") : "1.2em"}>
+                    {line}
+                  </tspan>
+                ))}
               </text>
             </g>
           );
