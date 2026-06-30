@@ -45,11 +45,30 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
 
         <div className="satisfaction-messages" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           <h3 style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)", margin: 0 }}>Mensagens de feedback</h3>
-          <div className="messages-list" style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "360px", overflowY: "auto", paddingRight: "4px" }}>
-            {messages.length ? messages.map((msg, idx) => (
-              <div
-                key={msg.id || idx}
-                className="message-card"
+          
+          <style>{`
+            @keyframes scrollVertical {
+              0% { transform: translateY(0); }
+              100% { transform: translateY(-50%); }
+            }
+          `}</style>
+          
+          <div className="messages-list-carousel" style={{ maxHeight: "360px", overflow: "hidden", position: "relative" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                paddingRight: "4px",
+                animation: messages.length > 3 ? "scrollVertical 40s linear infinite" : "none",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.animationPlayState = "paused"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.animationPlayState = "running"; }}
+            >
+              {messages.length ? [...(messages.length > 3 ? [...messages, ...messages] : messages)].map((msg, idx) => (
+                <div
+                  key={`${msg.id || idx}-${idx}`}
+                  className="message-card"
                 style={{
                   background: msg.is_approved ? "#fff" : "rgba(246, 189, 22, 0.06)",
                   padding: "12px",
@@ -129,9 +148,9 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
                       <span style={{ fontSize: "10px", color: "var(--danger)", fontWeight: "700" }}>Recusado</span>
                     )}
                   </div>
-                </div>
               </div>
             )) : <p style={{ color: "var(--text-soft)", fontSize: "12px" }}>Nenhum feedback recente.</p>}
+            </div>
           </div>
         </div>
       </div>
@@ -549,6 +568,7 @@ export default function EvaluationsPage() {
     { key: "wheelchair_avg", label: "Depoimento Cadeirantes", icon: Accessibility, tone: "violet", format: "decimal" },
     { key: "best_criteria", label: "Melhor Criterio", icon: Award, tone: "green", format: "criteria" },
     { key: "worst_criteria", label: "Menor Avaliacao", icon: TrendingDown, tone: "red", format: "criteria" },
+    { key: "most_improved", label: "Maior Aumento", icon: TrendingUp, tone: "green", format: "criteria" },
   ];
 
   return (

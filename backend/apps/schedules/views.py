@@ -2857,6 +2857,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
                     "wheelchair_avg": 0,
                     "best_criteria": None,
                     "worst_criteria": None,
+                    "most_improved": None,
                 },
                 "radar": [],
                 "ranking": [],
@@ -2923,6 +2924,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             "wheelchair_avg": wheelchair_avg,
             "best_criteria": best_criteria,
             "worst_criteria": worst_criteria,
+            "most_improved": best_criteria,
         }
 
         panel_qs = qs.filter(Q(moderation_status=SatisfactionSurvey.ModerationStatus.APPROVED) | Q(suggestion=""))
