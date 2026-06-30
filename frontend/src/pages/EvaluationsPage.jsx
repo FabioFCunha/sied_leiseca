@@ -617,6 +617,7 @@ export default function EvaluationsPage() {
             <option value="">Todos</option>
             {availableStates.map(state => <option key={state} value={state}>{state}</option>)}
           </select>
+        </div>
         <div className="filter-group">
           <label>Região</label>
           <select value={filters.region} onChange={(e) => setFilters(f => ({ ...f, region: e.target.value, municipality: "" }))}>
