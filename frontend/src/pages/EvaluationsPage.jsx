@@ -1,8 +1,9 @@
 import { Award, BarChart3, BookOpen, Download, Heart, MessageSquare, Mic, Search, Star, StarHalf, Target, ThumbsUp, TrendingDown, TrendingUp, Users, Zap, Clock } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { api } from "../api/client.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
-const emptyFilters = { date_from: "", date_to: "", municipality: "", school: "", status: "", speaker: "", sector: "" };
+const emptyFilters = { date_from: "", date_to: "", state: "", municipality: "", status: "", team: "" };
 
 function Stars({ rating }) {
   if (rating === undefined || rating === null) return null;
@@ -19,6 +20,112 @@ function Stars({ rating }) {
   );
 }
 
+function SatisfactionSummaryPanel({ surveys = {}, onApproveSurvey }) {
+  const { overall_rating = 0, total_responses = 0, team_ratings = [], messages = [] } = surveys;
+  const { user } = useAuth();
+  const isModerator = user?.is_superuser || user?.role === "ADMIN" || user?.role === "MANAGER";
+  const overallRating = Number(overall_rating || 0);
+
+  return (
+    <div className="chart-card satisfaction-panel" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px", marginBottom: "24px" }}>
+      <div className="section-heading" style={{ marginBottom: "20px" }}>
+        <div>
+          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Indicadores de Satisfa&ccedil;&atilde;o</h2>
+          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Avalia&ccedil;&otilde;es baseadas nas pesquisas de satisfa&ccedil;&atilde;o respondidas.</p>
+        </div>
+      </div>
+      <div className="satisfaction-grid" style={{ display: "grid", gap: "20px", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+        <div className="satisfaction-ratings" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div className="overall-rating-card" style={{ background: "var(--surface-2)", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)", display: "flex", alignItems: "center", gap: "16px" }}>
+            <div className="overall-rating-value" style={{ fontSize: "40px", fontWeight: "900", color: "var(--text)", lineHeight: 1 }}>{overallRating.toFixed(1)}</div>
+            <div>
+              <Stars rating={overallRating} />
+              <div style={{ fontSize: "12px", color: "var(--text-soft)", marginTop: "4px", fontWeight: "500" }}>Baseado em {total_responses} avalia&ccedil;&otilde;es</div>
+            </div>
+          </div>
+
+          <div className="team-ratings-list" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <h3 style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)", margin: "4px 0" }}>Avalia&ccedil;&otilde;es por equipe</h3>
+            {team_ratings.length ? team_ratings.map((team, idx) => {
+              const avg = Number(team.avg || 0);
+              return (
+                <div key={`${team.team}-${idx}`} className="team-rating-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "8px", borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <strong style={{ fontSize: "13px", color: "var(--text)" }}>{team.team}</strong>
+                    <span style={{ fontSize: "11px", color: "var(--text-soft)" }}>{team.count} avalia&ccedil;&otilde;es</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: "800" }}>{avg.toFixed(1)}</span>
+                    <Stars rating={avg} />
+                  </div>
+                </div>
+              );
+            }) : <p style={{ color: "var(--text-soft)", fontSize: "12px" }}>Nenhuma avalia&ccedil;&atilde;o dispon&iacute;vel.</p>}
+          </div>
+        </div>
+
+        <div className="satisfaction-messages" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <h3 style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)", margin: 0 }}>Mensagens de feedback</h3>
+          <div className="messages-list" style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "360px", overflowY: "auto", paddingRight: "4px" }}>
+            {messages.length ? messages.map((msg, idx) => (
+              <div
+                key={msg.id || idx}
+                className="message-card"
+                style={{
+                  background: msg.is_approved ? "#fff" : "rgba(246, 189, 22, 0.06)",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  border: msg.is_approved ? "1px solid var(--line)" : "1px solid var(--warning)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                  position: "relative",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Stars rating={msg.overall_rating} />
+                  <span style={{ fontSize: "10px", color: "var(--text-soft)", fontWeight: "700" }}>{msg.answered_at ? new Date(msg.answered_at).toLocaleDateString("pt-BR") : "-"}</span>
+                </div>
+                <p style={{ margin: 0, fontSize: "12.5px", color: "var(--text)", lineHeight: 1.4 }}>"{msg.suggestion}"</p>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
+                  {msg.team && <div style={{ fontSize: "11px", color: "var(--primary)", fontWeight: "800" }}>Equipe: {msg.team}</div>}
+
+                  {isModerator && !msg.is_approved && (
+                    <button
+                      onClick={() => onApproveSurvey(msg.id)}
+                      style={{
+                        background: "var(--primary)",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "4px 8px",
+                        fontSize: "11px",
+                        fontWeight: "800",
+                        color: "#fff",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        boxShadow: "0 2px 4px rgba(0,72,215,0.15)"
+                      }}
+                      type="button"
+                    >
+                      <ThumbsUp size={11} /> Aprovar
+                    </button>
+                  )}
+                  {msg.is_approved && (
+                    <span style={{ fontSize: "10px", color: "var(--success)", fontWeight: "700" }}>Aprovado</span>
+                  )}
+                </div>
+              </div>
+            )) : <p style={{ color: "var(--text-soft)", fontSize: "12px" }}>Nenhum feedback recente.</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 const RadarChart = ({ data }) => {
   const svgRef = useRef(null);
   const [progress, setProgress] = useState(0);
@@ -329,13 +436,13 @@ export default function EvaluationsPage() {
   const [data, setData] = useState(null);
   const [filters, setFilters] = useState(emptyFilters);
   const [municipalities, setMunicipalities] = useState([]);
-  const [sectors, setSectors] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    api("/municipalities/?page_size=500").then(setMunicipalities).catch(console.error);
-    api("/sectors/?page_size=500").then(setSectors).catch(console.error);
+    api("/municipalities/?page_size=500").then((res) => setMunicipalities(res.results || res)).catch(console.error);
+    api("/teams/?page_size=1000").then((res) => setTeams(res.results || res)).catch(console.error);
   }, []);
 
   const loadData = async () => {
@@ -376,6 +483,21 @@ export default function EvaluationsPage() {
       alert("Erro ao exportar. Tente novamente.");
     }
   };
+
+  const handleApproveSurvey = async (surveyId) => {
+    try {
+      await api(`/surveys/${surveyId}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_approved: true }),
+      });
+      loadData();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Erro ao aprovar avaliacao.");
+    }
+  };
+  const availableStates = data?.states || [];
+  const availableMunicipalities = data?.municipalities?.length ? data.municipalities : municipalities;
 
   const cardConfig = [
     { key: "total_surveys", label: "Avaliações Recebidas", icon: BarChart3, tone: "blue", format: "int" },
@@ -418,15 +540,18 @@ export default function EvaluationsPage() {
           <input type="date" value={filters.date_to} onChange={(e) => setFilters(f => ({ ...f, date_to: e.target.value }))} />
         </div>
         <div className="filter-group">
-          <label>Município</label>
-          <select value={filters.municipality} onChange={(e) => setFilters(f => ({ ...f, municipality: e.target.value }))}>
+          <label>Estado</label>
+          <select value={filters.state} onChange={(e) => setFilters(f => ({ ...f, state: e.target.value, municipality: "" }))}>
             <option value="">Todos</option>
-            {municipalities?.results?.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            {availableStates.map(state => <option key={state} value={state}>{state}</option>)}
           </select>
         </div>
         <div className="filter-group">
-          <label>Escola / Local</label>
-          <input type="text" placeholder="Buscar..." value={filters.school} onChange={(e) => setFilters(f => ({ ...f, school: e.target.value }))} />
+          <label>Município</label>
+          <select value={filters.municipality} onChange={(e) => setFilters(f => ({ ...f, municipality: e.target.value }))}>
+            <option value="">Todos</option>
+            {availableMunicipalities.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
         </div>
         <div className="filter-group">
           <label>Status Agenda</label>
@@ -438,14 +563,10 @@ export default function EvaluationsPage() {
           </select>
         </div>
         <div className="filter-group">
-          <label>Equipe / Palestrante</label>
-          <input type="text" placeholder="Buscar..." value={filters.speaker} onChange={(e) => setFilters(f => ({ ...f, speaker: e.target.value }))} />
-        </div>
-        <div className="filter-group">
-          <label>Setor</label>
-          <select value={filters.sector} onChange={(e) => setFilters(f => ({ ...f, sector: e.target.value }))}>
-            <option value="">Todos</option>
-            {sectors?.results?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          <label>Equipe</label>
+          <select value={filters.team} onChange={(e) => setFilters(f => ({ ...f, team: e.target.value }))}>
+            <option value="">Todas</option>
+            {teams.map(team => <option key={team.id} value={team.name}>{team.name}</option>)}
           </select>
         </div>
         <div className="filter-group" style={{ display: "flex", alignItems: "flex-end" }}>
@@ -462,6 +583,7 @@ export default function EvaluationsPage() {
         <div className="alert">{error}</div>
       ) : data ? (
         <>
+          <SatisfactionSummaryPanel surveys={data.satisfaction_panel || {}} onApproveSurvey={handleApproveSurvey} />
           {/* Metric Cards */}
           <div className="metric-grid" style={{ marginBottom: "24px" }}>
             {cardConfig.map(({ key, label, icon: Icon, tone, format }) => {

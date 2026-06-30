@@ -6,11 +6,8 @@ import {
   Download,
   PauseCircle,
   Search,
-  Star,
-  StarHalf,
   Users,
   XCircle,
-  ThumbsUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../api/client.js";
@@ -369,123 +366,6 @@ function MiniCalendarWrap({ calendar }) {
   return <MiniCalendar days={calendar} />;
 }
 
-function Stars({ rating, max = 5 }) {
-  const stars = [];
-  for (let i = 1; i <= max; i++) {
-    if (rating >= i) {
-      stars.push(<Star key={i} size={15} fill="#f59e0b" color="#f59e0b" />);
-    } else if (rating >= i - 0.5) {
-      stars.push(<StarHalf key={i} size={15} fill="#f59e0b" color="#f59e0b" />);
-    } else {
-      stars.push(<Star key={i} size={15} color="#d1d5db" />);
-    }
-  }
-  return <div className="stars-container" style={{ display: "flex", gap: "2px" }}>{stars}</div>;
-}
-
-function SatisfactionSurveyPanel({ surveys = {}, onApproveSurvey }) {
-  const { overall_rating = 0, total_responses = 0, team_ratings = [], messages = [] } = surveys;
-  const { user } = useAuth();
-  const isModerator = user?.is_superuser || user?.role === "ADMIN" || user?.role === "MANAGER";
-
-  return (
-    <div className="chart-card satisfaction-panel" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px" }}>
-      <div className="section-heading" style={{ marginBottom: "20px" }}>
-        <div>
-          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Indicadores de Satisfação</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Avaliações baseadas nas pesquisas de satisfação respondidas.</p>
-        </div>
-      </div>
-      <div className="satisfaction-grid" style={{ display: "grid", gap: "20px", gridTemplateColumns: "1fr 1fr" }}>
-        <div className="satisfaction-ratings" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div className="overall-rating-card" style={{ background: "var(--surface-2)", padding: "16px", borderRadius: "12px", border: "1px solid var(--line)", display: "flex", alignItems: "center", gap: "16px" }}>
-            <div className="overall-rating-value" style={{ fontSize: "40px", fontWeight: "900", color: "var(--text)", lineHeight: 1 }}>{overall_rating.toFixed(1)}</div>
-            <div>
-              <Stars rating={overall_rating} />
-              <div style={{ fontSize: "12px", color: "var(--text-soft)", marginTop: "4px", fontWeight: "500" }}>Baseado em {total_responses} avaliações</div>
-            </div>
-          </div>
-          
-          <div className="team-ratings-list" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <h3 style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)", margin: "4px 0" }}>Avaliações por equipe</h3>
-            {team_ratings.length ? team_ratings.map((team, idx) => (
-              <div key={idx} className="team-rating-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "8px", borderBottom: "1px solid var(--line)" }}>
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <strong style={{ fontSize: "13px", color: "var(--text)" }}>{team.team}</strong>
-                  <span style={{ fontSize: "11px", color: "var(--text-soft)" }}>{team.count} avaliações</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: "800" }}>{team.avg.toFixed(1)}</span>
-                  <Stars rating={team.avg} />
-                </div>
-              </div>
-            )) : <p style={{ color: "var(--text-soft)", fontSize: "12px" }}>Nenhuma avaliação disponível.</p>}
-          </div>
-        </div>
-
-        <div className="satisfaction-messages" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          <h3 style={{ fontSize: "13px", fontWeight: "800", color: "var(--text)", margin: 0 }}>Mensagens de feedback</h3>
-          <div className="messages-list" style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "360px", overflowY: "auto", paddingRight: "4px" }}>
-            {messages.length ? messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className="message-card"
-                style={{
-                  background: msg.is_approved ? "#fff" : "rgba(246, 189, 22, 0.06)",
-                  padding: "12px",
-                  borderRadius: "10px",
-                  border: msg.is_approved ? "1px solid var(--line)" : "1px solid var(--warning)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                  position: "relative",
-                  transition: "all 0.2s ease"
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Stars rating={msg.overall_rating} />
-                  <span style={{ fontSize: "10px", color: "var(--text-soft)", fontWeight: "700" }}>{new Date(msg.answered_at).toLocaleDateString("pt-BR")}</span>
-                </div>
-                <p style={{ margin: 0, fontSize: "12.5px", color: "var(--text)", lineHeight: 1.4 }}>"{msg.suggestion}"</p>
-                
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
-                  {msg.team && <div style={{ fontSize: "11px", color: "var(--primary)", fontWeight: "800" }}>Equipe: {msg.team}</div>}
-                  
-                  {isModerator && !msg.is_approved && (
-                    <button
-                      onClick={() => onApproveSurvey(msg.id)}
-                      style={{
-                        background: "var(--primary)",
-                        border: "none",
-                        borderRadius: "6px",
-                        padding: "4px 8px",
-                        fontSize: "11px",
-                        fontWeight: "800",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        boxShadow: "0 2px 4px rgba(0,72,215,0.15)"
-                      }}
-                      type="button"
-                    >
-                      <ThumbsUp size={11} /> Aprovar
-                    </button>
-                  )}
-                  {msg.is_approved && (
-                    <span style={{ fontSize: "10px", color: "var(--success)", fontWeight: "700" }}>Aprovado</span>
-                  )}
-                </div>
-              </div>
-            )) : <p style={{ color: "var(--text-soft)", fontSize: "12px" }}>Nenhum feedback recente.</p>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ActivityPanel({ activity, advanced, materials }) {
   const distributedMaterials = materials?.distributed || { total: 0, items: [] };
   return (
@@ -572,19 +452,6 @@ export default function DashboardPage() {
     const interval = setInterval(() => setRefreshTick((current) => current + 1), 60000);
     return () => clearInterval(interval);
   }, []);
-
-  const handleApproveSurvey = async (surveyId) => {
-    try {
-      await api(`/surveys/${surveyId}/`, {
-        method: "PATCH",
-        body: JSON.stringify({ is_approved: true }),
-      });
-      loadDashboardData();
-    } catch (err) {
-      console.error(err);
-      alert(err.message || "Erro ao aprovar avaliação.");
-    }
-  };
 
   const updateFilter = (field, value) => {
     if (field === "date_from" || field === "date_to") {
@@ -775,7 +642,6 @@ export default function DashboardPage() {
               </div>
               <div className="analytics-grid bottom" style={{ display: "grid", gap: "24px" }}>
                 <MiniCalendar days={dashboard?.calendar || []} />
-                <SatisfactionSurveyPanel surveys={dashboard?.surveys || {}} onApproveSurvey={handleApproveSurvey} />
               </div>
             </div>
             <ActivityPanel activity={dashboard?.activity} advanced={dashboard?.advanced} materials={dashboard?.materials} />

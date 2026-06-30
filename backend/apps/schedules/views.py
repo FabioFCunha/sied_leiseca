@@ -2713,26 +2713,23 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
 
         date_from = request.query_params.get("date_from")
         date_to = request.query_params.get("date_to")
+        state_param = request.query_params.get("state")
         municipality = request.query_params.get("municipality")
-        school = request.query_params.get("school")
         status_param = request.query_params.get("status")
-        speaker = request.query_params.get("speaker")
-        sector = request.query_params.get("sector")
+        team = request.query_params.get("team") or request.query_params.get("speaker")
 
         if date_from:
             qs = qs.filter(agenda__date__gte=date_from)
         if date_to:
             qs = qs.filter(agenda__date__lte=date_to)
+        if state_param:
+            qs = qs.filter(agenda__state__iexact=state_param)
         if municipality:
             qs = qs.filter(agenda__municipality_ref_id=municipality)
-        if school:
-            qs = qs.filter(agenda__location__icontains=school)
         if status_param:
             qs = qs.filter(agenda__status=status_param)
-        if speaker:
-            qs = qs.filter(team__icontains=speaker)
-        if sector:
-            qs = qs.filter(agenda__sector_id=sector)
+        if team:
+            qs = qs.filter(team__iexact=team)
 
         CRITERIA_FIELDS = [
             ("audiovisual_resources", "Recursos áudio-visuais"),
@@ -2744,6 +2741,20 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             ("team_enthusiasm", "Entusiasmo"),
         ]
         ALL_CRITERIA = CRITERIA_FIELDS + [("overall_rating", "Nota geral")]
+
+        states = [
+            value for value in state_options_qs.exclude(agenda__state="")
+            .values_list("agenda__state", flat=True)
+            .distinct()
+            .order_by("agenda__state")
+        ]
+        municipalities = [
+            {"id": item["agenda__municipality_ref_id"], "name": item["agenda__municipality_ref__name"]}
+            for item in qs.exclude(agenda__municipality_ref_id__isnull=True)
+            .values("agenda__municipality_ref_id", "agenda__municipality_ref__name")
+            .distinct()
+            .order_by("agenda__municipality_ref__name")
+        ]
 
         total_surveys = qs.count()
 
@@ -2766,6 +2777,14 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
                 "monthly_evolution": [],
                 "heatmap": [],
                 "comments": [],
+                "states": states,
+                "municipalities": municipalities,
+                "satisfaction_panel": {
+                    "overall_rating": 0,
+                    "total_responses": 0,
+                    "team_ratings": [],
+                    "messages": [],
+                },
                 "intelligence": {
                     "excellence_index": 0,
                     "best_criteria": None,
@@ -2812,6 +2831,31 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             "resources_avg": resources_avg,
             "best_criteria": best_criteria,
             "worst_criteria": worst_criteria,
+        }
+
+        panel_qs = qs.filter(Q(is_approved=True) | Q(suggestion=""))
+        panel_overall_avg = panel_qs.aggregate(avg=Avg("overall_rating"))["avg"] or 0.0
+        panel_team_ratings = list(
+            panel_qs.values("team")
+            .annotate(avg=Avg("overall_rating"), count=Count("id"))
+            .exclude(team="")
+            .order_by("-avg", "-count")[:10]
+        )
+        panel_messages_qs = qs.filter(suggestion__gt="")
+        if not (request.user.is_superuser or request.user.role in ["ADMIN", "MANAGER"]):
+            panel_messages_qs = panel_messages_qs.filter(is_approved=True)
+        panel_messages = list(
+            panel_messages_qs.order_by("-answered_at")
+            .values("id", "team", "suggestion", "answered_at", "overall_rating", "is_approved")[:15]
+        )
+        satisfaction_panel = {
+            "overall_rating": round(panel_overall_avg, 1),
+            "total_responses": panel_qs.count(),
+            "team_ratings": [
+                {"team": item["team"], "avg": round(item["avg"], 1), "count": item["count"]}
+                for item in panel_team_ratings if item["avg"] is not None
+            ],
+            "messages": panel_messages,
         }
 
         # ── Radar ────────────────────────────────────────────────────
@@ -2926,16 +2970,14 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
                     agenda__date__gte=prev_from,
                     agenda__date__lte=prev_to,
                 )
+                if state_param:
+                    prev_qs = prev_qs.filter(agenda__state__iexact=state_param)
                 if municipality:
                     prev_qs = prev_qs.filter(agenda__municipality_ref_id=municipality)
-                if school:
-                    prev_qs = prev_qs.filter(agenda__location__icontains=school)
                 if status_param:
                     prev_qs = prev_qs.filter(agenda__status=status_param)
-                if speaker:
-                    prev_qs = prev_qs.filter(team__icontains=speaker)
-                if sector:
-                    prev_qs = prev_qs.filter(agenda__sector_id=sector)
+                if team:
+                    prev_qs = prev_qs.filter(team__iexact=team)
 
                 prev_agg_kwargs = {}
                 for field, _ in CRITERIA_FIELDS:
@@ -2993,6 +3035,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             "monthly_evolution": monthly_evolution,
             "heatmap": heatmap,
             "comments": comments,
+            "satisfaction_panel": satisfaction_panel,
             "intelligence": intelligence,
             "executive_summary": executive_summary,
         })
