@@ -2,10 +2,12 @@ from datetime import datetime, timedelta
 import csv
 import hashlib
 import io
+from pathlib import Path
 import re
 import unicodedata
 from urllib.request import urlopen
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -94,15 +96,27 @@ class Command(BaseCommand):
     help = "Importa solicitações publicadas em CSV pelo Google Sheets para a tabela de agendas."
 
     def add_arguments(self, parser):
-        parser.add_argument("--url", default=DEFAULT_CSV_URL)
+        parser.add_argument("--url", default=settings.PUBLIC_REQUESTS_CSV_URL or DEFAULT_CSV_URL)
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--limit", type=int, default=0)
+        parser.add_argument("--clear-existing", action="store_true")
+        parser.add_argument("--clear-all-statuses", action="store_true")
 
     @transaction.atomic
     def handle(self, *args, **options):
         admin = User.objects.filter(role__in=[User.Role.ADMIN, User.Role.MANAGER]).first()
         if not admin:
             raise CommandError("Crie um usuário administrador antes de importar solicitações.")
+
+        if options["clear_existing"]:
+            summary = self.clear_existing_requests(options["dry_run"], clear_all_statuses=options["clear_all_statuses"])
+            action = "seriam removidas" if options["dry_run"] else "removidas"
+            self.stdout.write(
+                self.style.WARNING(
+                    f"{summary['deleted']} solicita??es p?blicas {action} antes da importa??o"
+                    f" (bloqueadas por relat?rio t?cnico: {summary['protected']})."
+                )
+            )
 
         content = self.fetch_csv(options["url"])
         reader = csv.reader(io.StringIO(content))
@@ -133,8 +147,32 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Google Sheet: {created} criadas, {updated} atualizadas, {skipped} ignoradas."))
 
     def fetch_csv(self, url):
-        with urlopen(url, timeout=45) as response:
+        source = (url or "").strip()
+        if not source:
+            raise CommandError("Informe --url ou defina PUBLIC_REQUESTS_CSV_URL.")
+
+        candidate = Path(source)
+        if candidate.exists() and candidate.is_file():
+            return candidate.read_text(encoding="utf-8-sig")
+
+        with urlopen(source, timeout=45) as response:
             return response.read().decode("utf-8-sig")
+
+    def clear_existing_requests(self, dry_run, clear_all_statuses=False):
+        qs = Agenda.objects.filter(origin=Agenda.Origin.PUBLIC_FORM)
+        if not clear_all_statuses:
+            qs = qs.filter(status=Agenda.Status.PENDING)
+
+        protected_ids = list(qs.filter(technical_reports__isnull=False).values_list("id", flat=True).distinct())
+        deletable_qs = qs.exclude(id__in=protected_ids)
+        deleted = deletable_qs.count()
+        if not dry_run and deleted:
+            deletable_qs.delete()
+        return {
+            "matched": qs.count(),
+            "deleted": deleted,
+            "protected": len(protected_ids),
+        }
 
     def import_row(self, row, index, admin, sector, dry_run):
         data = {clean(header): value for header, value in row.items() if header is not None}
