@@ -10,7 +10,7 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: ./build.sh
-    startCommand: python manage.py migrate && python manage.py bootstrap_admin && python manage.py sync_operational_data --sync-version 2026-06-19-1 && python manage.py sync_user_lookups && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: python manage.py migrate && python manage.py bootstrap_admin && python manage.py sync_operational_data --sync-version 2026-06-19-1 && python manage.py sync_user_lookups && if [ -n "$PUBLIC_REQUESTS_CSV_URL" ]; then python manage.py import_google_sheet_requests --url "$PUBLIC_REQUESTS_CSV_URL" --clear-existing; fi && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --threads 2 --timeout 60 --keep-alive 5 --max-requests 1000 --max-requests-jitter 50
     healthCheckPath: /healthz/
     envVars:
       - key: PYTHON_VERSION
@@ -29,6 +29,8 @@ services:
         value: https://sied.onrender.com
       - key: FRONTEND_URL
         value: https://sied.onrender.com
+      - key: PUBLIC_REQUESTS_CSV_URL
+        sync: false
       - key: EMAIL_PROVIDER
         value: smtp
       - key: RESEND_API_KEY

@@ -629,6 +629,18 @@ class AgendaViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=False, methods=["get"])
     def dashboard(self, request):
+        from django.core.cache import cache
+        import hashlib
+        
+        query_string = request.META.get('QUERY_STRING', '')
+        user_id = request.user.id if request.user.is_authenticated else 0
+        cache_key = f"agenda_dash_{user_id}_{query_string}"
+        cache_key = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
+        
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return response.Response(cached_data)
+
         today = timezone.localdate()
         request_source_filter = (
             Q(origin=Agenda.Origin.PUBLIC_FORM)
@@ -1184,6 +1196,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         data["advanced"]["abordados_palestras"] = aggs_palestras["palestras"] or 0
         data["advanced"]["abordados_acoes"] = aggs_palestras["acoes"] or 0
 
+        cache.set(cache_key, data, 60 * 15)
         return response.Response(data)
 
 
@@ -1381,6 +1394,19 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     def statistics(self, request):
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
             raise PermissionDenied("Apenas Chefes, Gestores e Administração podem acessar estatísticas.")
+            
+        from django.core.cache import cache
+        import hashlib
+        
+        query_string = request.META.get('QUERY_STRING', '')
+        user_id = request.user.id if request.user.is_authenticated else 0
+        cache_key = f"report_stats_{user_id}_{query_string}"
+        cache_key = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
+        
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return response.Response(cached_data)
+
         reports = self.get_queryset()
         actions = EducationAction.objects.filter(report_id__in=reports.values("id"))
         params = request.query_params
@@ -1634,23 +1660,24 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             )
         ]
 
-        return response.Response(
-            {
-                "reports_count": reports.count(),
-                "actions_count": actions.count(),
-                "totals": totals,
-                "by_team": by_team,
-                "by_action_type": by_action_type,
-                "by_audience": by_audience,
-                "by_day": by_day,
-                "by_status": by_status,
-                "by_month_year": by_month_year,
-                "comparison": comparison_list,
-                "by_entity_type": by_entity_type,
-                "by_modality": by_modality,
-                "by_age_range": by_age_range,
-            }
-        )
+        data = {
+            "reports_count": reports.count(),
+            "actions_count": actions.count(),
+            "totals": totals,
+            "by_team": by_team,
+            "by_action_type": by_action_type,
+            "by_audience": by_audience,
+            "by_day": by_day,
+            "by_status": by_status,
+            "by_month_year": by_month_year,
+            "comparison": comparison_list,
+            "by_entity_type": by_entity_type,
+            "by_modality": by_modality,
+            "by_age_range": by_age_range,
+        }
+        
+        cache.set(cache_key, data, 60 * 15)
+        return response.Response(data)
 
     @decorators.action(detail=False, methods=["get"], url_path="export-statistics")
     def export_statistics(self, request):
