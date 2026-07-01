@@ -3188,3 +3188,50 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             "intelligence": intelligence,
             "executive_summary": executive_summary,
         })
+
+
+class GoogleFormsWebhookView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """
+        Recebe o payload via POST do Google Apps Script (onFormSubmit)
+        O payload esperado é {"namedValues": {"Carimbo de data/hora": ["valor"], ...}}
+        """
+        named_values = request.data.get("namedValues")
+        
+        # Fallback caso o script envie diretamente o objeto
+        if not named_values and request.data:
+            named_values = request.data
+
+        if not named_values or not isinstance(named_values, dict):
+            return response.Response({"detail": "Payload inválido. Esperado 'namedValues'."}, status=400)
+
+        # Converte dicionário de listas para dicionário simples
+        row = {}
+        for k, v in named_values.items():
+            if isinstance(v, list) and len(v) > 0:
+                row[k] = v[0]
+            else:
+                row[k] = v
+
+        from apps.accounts.models import User
+        from apps.schedules.models import Sector
+        from apps.schedules.management.commands.import_google_sheet_requests import Command as ImportGoogleSheetCommand
+
+        admin = User.objects.filter(role__in=["ADMIN", "MANAGER"]).first()
+        if not admin:
+            return response.Response({"detail": "Nenhum administrador encontrado."}, status=500)
+
+        sector, _ = Sector.objects.get_or_create(
+            name="Solicitações externas",
+            defaults={"description": "Solicitações importadas do Google Forms/Sheets."},
+        )
+
+        cmd = ImportGoogleSheetCommand()
+        try:
+            # O índice 0 é usado apenas para log na descrição
+            result = cmd.import_row(row, index=0, admin=admin, sector=sector, dry_run=False)
+            return response.Response({"status": "success", "result": result})
+        except Exception as e:
+            return response.Response({"detail": str(e)}, status=500)

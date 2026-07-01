@@ -34,6 +34,7 @@ from apps.schedules.views import (
     SupportViewSet,
     TeamViewSet,
     VehicleViewSet,
+    GoogleFormsWebhookView,
 )
 
 router = DefaultRouter()
@@ -76,6 +77,7 @@ urlpatterns = [
     path("api/public/agenda-request/<str:token>/", PublicAgendaRequestUpdateView.as_view(), name="public_agenda_request_update"),
     path("api/public/satisfaction-survey/<str:token>/", SatisfactionSurveyPublicView.as_view(), name="satisfaction_survey_public"),
     path("api/internal/agenda-request/", InternalAgendaRequestView.as_view(), name="internal_agenda_request"),
+    path("api/webhooks/google-forms/", GoogleFormsWebhookView.as_view(), name="google_forms_webhook"),
     path("api/", include(router.urls)),
 ]
 
