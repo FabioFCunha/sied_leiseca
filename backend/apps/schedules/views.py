@@ -399,7 +399,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         queryset = Agenda.objects.select_related("responsible", "sector", "created_by").prefetch_related(
             "history",
             "satisfaction_surveys",
-        )
+        ).annotate(linked_requests_count_annotated=Count('linked_requests', distinct=True))
         if user.is_admin_role:
             return queryset
         elif user.role == User.Role.VISITOR:
@@ -854,14 +854,19 @@ class AgendaViewSet(viewsets.ModelViewSet):
             comparison_qs = None
         comparison_label = f"vs {format_period(previous_start, previous_end)}"
 
-        today_count = qs.filter(date=today).count()
+        aggs = qs.aggregate(
+            today_count=Count('id', filter=Q(date=today)),
+            pending=Count('id', filter=Q(status=Agenda.Status.PENDING)),
+            approved=Count('id', filter=Q(status=Agenda.Status.APPROVED)),
+            cancelled=Count('id', filter=Q(status=Agenda.Status.CANCELLED)),
+            in_progress=Count('id', filter=Q(date=today, start_time__lte=now, end_time__gte=now) & ~Q(status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]))
+        )
+        today_count = aggs['today_count']
         yesterday_count = base_qs.filter(date=yesterday).count()
-        pending = qs.filter(status=Agenda.Status.PENDING).count()
-        approved = qs.filter(status=Agenda.Status.APPROVED).count()
-        cancelled = qs.filter(status=Agenda.Status.CANCELLED).count()
-        in_progress = qs.filter(date=today, start_time__lte=now, end_time__gte=now).exclude(
-            status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]
-        ).count()
+        pending = aggs['pending']
+        approved = aggs['approved']
+        cancelled = aggs['cancelled']
+        in_progress = aggs['in_progress']
         upcoming_qs = qs.filter(date__gte=today).order_by("date", "start_time")
         upcoming_count = upcoming_qs.count()
         today_agents = set()
@@ -1170,10 +1175,15 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "reschedules": 0,
                 "avg_per_user": avg_per_user,
                 "sla": round(100 - cancellation_rate, 1),
-                "abordados_palestras": qs.filter(action_type__icontains="palestra").aggregate(total=Sum("quantity"))["total"] or 0,
-                "abordados_acoes": qs.exclude(action_type__icontains="palestra").aggregate(total=Sum("quantity"))["total"] or 0,
-            },
+            }
         }
+        aggs_palestras = qs.aggregate(
+            palestras=Sum('quantity', filter=Q(action_type__icontains="palestra")),
+            acoes=Sum('quantity', filter=~Q(action_type__icontains="palestra"))
+        )
+        data["advanced"]["abordados_palestras"] = aggs_palestras["palestras"] or 0
+        data["advanced"]["abordados_acoes"] = aggs_palestras["acoes"] or 0
+
         return response.Response(data)
 
 
@@ -1312,7 +1322,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             if term.isdigit():
                 search_filter |= Q(agenda_id=int(term)) | Q(agenda__service_order_number=int(term))
             scoped = scoped.filter(search_filter)
-        return scoped.distinct().order_by("-operation_date", "-created_at")
+        return scoped.annotate(actions_count_annotated=Count('actions', distinct=True)).order_by("-operation_date", "-created_at")
 
     def perform_create(self, serializer):
         with transaction.atomic():
@@ -1569,10 +1579,13 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         ]
 
         comparison_list = []
+        cur_agg = cur_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
+        prev_agg = prev_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
+        
         for key, label in comparison_fields:
-            current_val = cur_actions.aggregate(total=Sum(key))["total"] or 0
-            prev_val    = prev_actions.aggregate(total=Sum(key))["total"] or 0
-            diff        = current_val - prev_val
+            current_val = cur_agg.get(key) or 0
+            prev_val = prev_agg.get(key) or 0
+            diff = current_val - prev_val
             if prev_val > 0:
                 pct_change = round((diff / prev_val) * 100, 1)
             elif current_val > 0:
@@ -1662,8 +1675,9 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         reference_year = reference_date.year
         elapsed_months = max(reference_date.month, 1)
 
+        totals_agg = actions.aggregate(**{field: Sum(field) for field, _ in self.statistics_fields})
         totals = {
-            field: actions.aggregate(total=Sum(field))["total"] or 0
+            field: totals_agg.get(field) or 0
             for field, _label in self.statistics_fields
         }
         goals = {
@@ -1959,9 +1973,12 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             Paragraph("Diferença", header_cell),
             Paragraph("Variação %", header_cell),
         ]]
+        cmp_cur_agg = cmp_cur_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
+        cmp_prev_agg = cmp_prev_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
+        
         for key, label in comparison_fields:
-            cur_val = cmp_cur_actions.aggregate(total=Sum(key))["total"] or 0
-            prev_val = cmp_prev_actions.aggregate(total=Sum(key))["total"] or 0
+            cur_val = cmp_cur_agg.get(key) or 0
+            prev_val = cmp_prev_agg.get(key) or 0
             diff = cur_val - prev_val
             if prev_val > 0:
                 pct = round((diff / prev_val) * 100, 1)
@@ -2537,22 +2554,26 @@ class ReportViewSet(viewsets.ViewSet):
             AuditLog.Action.REPORT_EXPORT,
             "Relatorios",
             "Relatorio operacional exportado em PDF.",
-            {"format": "pdf", "total": qs.count()},
+            {"format": "pdf"},
         )
         today = timezone.localdate()
-        total = qs.count()
-
-        # 2. Compute the exact operational metrics shown on the dashboard page
-        approved = qs.filter(status=Agenda.Status.APPROVED).count()
-        pending = qs.filter(status=Agenda.Status.PENDING).count()
-        cancelled = qs.filter(status=Agenda.Status.CANCELLED).count()
-        today_count = qs.filter(date=today).count()
-        upcoming_count = qs.filter(date__gte=today).count()
-        
         now = timezone.localtime().time()
-        in_progress = qs.filter(date=today, start_time__lte=now, end_time__gte=now).exclude(
-            status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]
-        ).count()
+        aggs = qs.aggregate(
+            total=Count('id'),
+            approved=Count('id', filter=Q(status=Agenda.Status.APPROVED)),
+            pending=Count('id', filter=Q(status=Agenda.Status.PENDING)),
+            cancelled=Count('id', filter=Q(status=Agenda.Status.CANCELLED)),
+            today_count=Count('id', filter=Q(date=today)),
+            upcoming_count=Count('id', filter=Q(date__gte=today)),
+            in_progress=Count('id', filter=Q(date=today, start_time__lte=now, end_time__gte=now) & ~Q(status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]))
+        )
+        total = aggs['total']
+        approved = aggs['approved']
+        pending = aggs['pending']
+        cancelled = aggs['cancelled']
+        today_count = aggs['today_count']
+        upcoming_count = aggs['upcoming_count']
+        in_progress = aggs['in_progress']
 
         today_agents = set()
         for agenda in qs.filter(date=today).prefetch_related("agents_ref"):

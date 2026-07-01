@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.db import transaction
 from django.db.models import Max, Q
+from django.contrib.postgres.indexes import GinIndex
 
 
 class Sector(models.Model):
@@ -343,12 +344,12 @@ class Agenda(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["date", "start_time"]
         indexes = [
             models.Index(fields=["date", "status"]),
             models.Index(fields=["sector", "date"]),
             models.Index(fields=["responsible", "date"]),
             models.Index(fields=["accessibility_rejection_due_at", "accessibility_rejection_sent_at"]),
+            GinIndex(name='action_type_gin_idx', fields=['action_type'], opclasses=['gin_trgm_ops']),
         ]
 
     def __str__(self):

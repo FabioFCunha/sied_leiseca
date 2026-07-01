@@ -500,7 +500,7 @@ class AgendaSerializer(serializers.ModelSerializer):
     municipality_ref_name = serializers.CharField(source="municipality_ref.name", read_only=True)
     neighborhood_ref_name = serializers.CharField(source="neighborhood_ref.name", read_only=True)
     linked_action_title = serializers.CharField(source="linked_action.title", read_only=True)
-    linked_requests_count = serializers.IntegerField(source="linked_requests.count", read_only=True)
+    linked_requests_count = serializers.SerializerMethodField()
     satisfaction_survey_token = serializers.SerializerMethodField()
     satisfaction_survey_answered_at = serializers.SerializerMethodField()
     satisfaction_rating = serializers.SerializerMethodField()
@@ -642,20 +642,30 @@ class AgendaSerializer(serializers.ModelSerializer):
                 )
         return attrs
 
+    def get_linked_requests_count(self, obj):
+        if hasattr(obj, 'linked_requests_count_annotated'):
+            return obj.linked_requests_count_annotated
+        return obj.linked_requests.count()
+
     def get_satisfaction_survey_token(self, obj):
-        survey = obj.satisfaction_surveys.order_by("-created_at").first()
-        return survey.token if survey else ""
+        surveys = list(obj.satisfaction_surveys.all())
+        if not surveys:
+            return ""
+        survey = sorted(surveys, key=lambda s: s.created_at, reverse=True)[0]
+        return survey.token
 
     def get_satisfaction_survey_answered_at(self, obj):
-        survey = obj.satisfaction_surveys.order_by("-created_at").first()
-        return survey.answered_at if survey else None
+        surveys = list(obj.satisfaction_surveys.all())
+        if not surveys:
+            return None
+        survey = sorted(surveys, key=lambda s: s.created_at, reverse=True)[0]
+        return survey.answered_at
 
     def get_satisfaction_rating(self, obj):
-        answered_surveys = obj.satisfaction_surveys.filter(answered_at__isnull=False)
-        if not answered_surveys.exists():
+        answered_surveys = [s for s in obj.satisfaction_surveys.all() if s.answered_at]
+        if not answered_surveys:
             return None
-        from django.db.models import Avg
-        return answered_surveys.aggregate(avg=Avg('overall_rating'))['avg']
+        return sum(s.overall_rating for s in answered_surveys if s.overall_rating) / len(answered_surveys)
 
     def create(self, validated_data):
         materials_data = validated_data.pop("materials", [])
@@ -930,6 +940,8 @@ class EducationReportSerializer(serializers.ModelSerializer):
         return value or None
 
     def get_actions_count(self, obj):
+        if hasattr(obj, 'actions_count_annotated'):
+            return obj.actions_count_annotated
         return obj.actions.count()
 
     def get_satisfaction_survey(self, obj):
@@ -995,25 +1007,26 @@ class EducationGoalSerializer(serializers.ModelSerializer):
 
 def get_next_available_dates(start_date, limit=3):
     from datetime import timedelta
+    from django.db.models import Count
     available_dates = []
+    end_date = start_date + timedelta(days=40)  # buffer para os finais de semana
+
+    # Busca as contagens de todos os dias futuros em uma unica query
+    busy_dates_query = Agenda.objects.filter(
+        date__gt=start_date,
+        date__lte=end_date,
+        status__in=[Agenda.Status.PENDING, Agenda.Status.APPROVED]
+    ).values('date').annotate(count=Count('id'))
+    
+    busy_dates = {item['date']: item['count'] for item in busy_dates_query}
+    
     current_date = start_date + timedelta(days=1)
     
-    for _ in range(30):
-        if len(available_dates) >= limit:
-            break
-            
-        if current_date.weekday() >= 5:
-            current_date += timedelta(days=1)
-            continue
-            
-        agendas_count = Agenda.objects.filter(
-            date=current_date,
-            status__in=[Agenda.Status.PENDING, Agenda.Status.APPROVED]
-        ).count()
-        
-        if agendas_count < 4:
-            available_dates.append(current_date)
-            
+    while len(available_dates) < limit and current_date <= end_date:
+        if current_date.weekday() < 5:
+            count = busy_dates.get(current_date, 0)
+            if count < 4:
+                available_dates.append(current_date)
         current_date += timedelta(days=1)
         
     return available_dates
