@@ -18,11 +18,15 @@ import { formatDateBR } from "../utils/date.js";
 import { statusLabel } from "../utils/status.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
+const today = new Date();
+const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split("T")[0];
+
 const emptyFilters = {
   q: "",
-  date_from: "",
-  date_to: "",
-  status: "",
+  date_from: firstDay,
+  date_to: lastDay,
+  status: "APPROVED",
   municipality: "",
 };
 

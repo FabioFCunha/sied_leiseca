@@ -793,7 +793,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return start, end
 
         def dashboard_base_queryset():
-            scoped = unscoped_dashboard_queryset().filter(request_source_filter)
+            scoped = unscoped_dashboard_queryset()
             if request.query_params.get("sector"):
                 scoped = scoped.filter(sector_id=request.query_params["sector"])
             if request.query_params.get("municipality"):
