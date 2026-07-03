@@ -213,9 +213,9 @@ export default function ShiftSchedulePage() {
     }).toString();
     const seq = requestSeq.current + 1;
     requestSeq.current = seq;
-    const data = await api(`/shift-schedules/?${params}`);
+    const data = await loadAll(`/shift-schedules/?${params}`);
     if (seq === requestSeq.current) {
-      setSchedules(data.results || data);
+      setSchedules(data);
     }
   };
 
