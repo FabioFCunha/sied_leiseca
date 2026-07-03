@@ -23,6 +23,8 @@ services:
     depends_on:
       - db
       - redis
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgres://${DB_USER:-agenda_user}:${DB_PASSWORD:-agenda_pass}@db:5432/${DB_NAME:-agenda_educacao}
       - CACHE_URL=redis://redis:6379/1
