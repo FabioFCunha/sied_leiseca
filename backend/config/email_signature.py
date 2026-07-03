@@ -36,7 +36,7 @@ def attach_signature_image(message):
     message.attach(image)
 
 
-def build_signed_email(subject, body, from_email, to, reply_to=None):
+def build_signed_email(subject, body, from_email, to, reply_to=None, html_body=None):
     message = EmailMultiAlternatives(
         subject=subject,
         body=body,
@@ -45,6 +45,7 @@ def build_signed_email(subject, body, from_email, to, reply_to=None):
         reply_to=reply_to,
     )
     message.encoding = "utf-8"
-    message.attach_alternative(f"{text_to_html(body)}{signature_html()}", "text/html")
+    html_content = html_body if html_body else text_to_html(body)
+    message.attach_alternative(f"{html_content}{signature_html()}", "text/html")
     attach_signature_image(message)
     return message
