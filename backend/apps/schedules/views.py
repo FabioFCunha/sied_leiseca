@@ -1283,14 +1283,9 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     serializer_class = EducationReportSerializer
     permission_classes = [IsAuthenticated]
     statistics_fields = [
-        ("approach", "Abordagens"),
+        ("approach", "Total de abordagens"),
         ("approached_lectures", "Abordados em palestras"),
         ("approached_actions", "Abordados em ações"),
-        ("tests", "Testes"),
-        ("used_caps", "Bocais usados"),
-        ("available_caps", "Bocais disponíveis"),
-        ("distributed_folders", "Pastas"),
-        ("cricris", "Cricris"),
         ("vetarolas", "Vetarolas"),
         ("used_adhesives", "Adesivos"),
         ("sequence_certificates", "Sequência certificados"),
