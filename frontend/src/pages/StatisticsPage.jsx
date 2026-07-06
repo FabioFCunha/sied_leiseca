@@ -129,8 +129,8 @@ export default function StatisticsPage() {
   const currentYear = refDateTo.getFullYear();
   const prevYear = currentYear - 1;
 
-  const prevDateFrom = shiftYear(filters.date_from, -1);
-  const prevDateTo = shiftYear(filters.date_to, -1);
+  const prevDateFrom = `${prevYear}-01-01`;
+  const prevDateTo = `${prevYear}-12-31`;
 
 
 
@@ -336,7 +336,7 @@ export default function StatisticsPage() {
                 </h2>
               </div>
               <p style={{ margin: 0, fontSize: 13, color: "var(--text-soft)" }}>
-                Período: <strong>{formatPeriod(filters.date_from, filters.date_to)}</strong> comparado com <strong>{formatPeriod(prevDateFrom, prevDateTo)}</strong>
+                Período: <strong>{refDateTo.toLocaleDateString("pt-BR")}</strong> comparado com o ano todo de <strong>{prevYear}</strong>
               </p>
             </div>
             <div style={{ overflowX: "auto" }}>
