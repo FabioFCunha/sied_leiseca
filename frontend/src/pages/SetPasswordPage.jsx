@@ -1,4 +1,4 @@
-import { Lock } from "lucide-react";
+import { Lock, Eye, EyeOff } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
@@ -7,6 +7,8 @@ export default function SetPasswordPage() {
   const [params] = useSearchParams();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -49,14 +51,32 @@ export default function SetPasswordPage() {
             Nova senha
             <span className="input-icon">
               <Lock size={18} />
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength="8" required />
+              <input value={password} onChange={(e) => setPassword(e.target.value)} type={showPassword ? "text" : "password"} minLength="8" required />
+              <button
+                className="input-action-button"
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </span>
           </label>
           <label>
             Confirmar senha
             <span className="input-icon">
               <Lock size={18} />
-              <input value={confirm} onChange={(e) => setConfirm(e.target.value)} type="password" minLength="8" required />
+              <input value={confirm} onChange={(e) => setConfirm(e.target.value)} type={showConfirm ? "text" : "password"} minLength="8" required />
+              <button
+                className="input-action-button"
+                type="button"
+                onClick={() => setShowConfirm((value) => !value)}
+                aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}
+                title={showConfirm ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </span>
           </label>
           {message && <div className="alert">{message}</div>}
