@@ -469,10 +469,11 @@ export default function StatisticsPage() {
             >
               <DonutChart
                 data={entityTypeData.map(d => {
-                  const isEscola = d.label.toLowerCase().includes("escola");
-                  const isEmpresa = d.label.toLowerCase().includes("empresa") || d.label.toLowerCase().includes("órgão");
+                  const labelStr = d.label || "";
+                  const isEscola = labelStr.toLowerCase().includes("escola");
+                  const isEmpresa = labelStr.toLowerCase().includes("empresa") || labelStr.toLowerCase().includes("órgão");
                   return {
-                    label: isEscola ? "Escola" : isEmpresa ? "Empresa/Órgão" : d.label,
+                    label: isEscola ? "Escola" : isEmpresa ? "Empresa/Órgão" : (d.label || "Sem informação"),
                     value: d.value,
                     color: isEscola ? "#7c3aed" : isEmpresa ? "#0048d7" : "#64748b",
                   };
@@ -490,10 +491,11 @@ export default function StatisticsPage() {
             >
               <DonutChart
                 data={entityTypeData.map(d => {
-                  const isPublico = d.label.toLowerCase().includes("público");
-                  const isPrivado = d.label.toLowerCase().includes("privado");
+                  const labelStr = d.label || "";
+                  const isPublico = labelStr.toLowerCase().includes("público");
+                  const isPrivado = labelStr.toLowerCase().includes("privado");
                   return {
-                    label: d.label,
+                    label: d.label || "Sem informação",
                     value: d.value,
                     color: isPublico ? "#047857" : isPrivado ? "#dc6b16" : "#64748b",
                   };
