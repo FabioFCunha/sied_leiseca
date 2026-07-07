@@ -42,7 +42,7 @@ for model, role in models:
                 full_name=lookup.name,
                 cpf=cpf,
                 role=role,
-                is_active=True
+                is_active=lookup.is_active
             )
             user.set_unusable_password()
             user.save()
