@@ -468,13 +468,36 @@ export default function UsersPage() {
           {operationalRoles.has(form.role) && (
             <label>
               Equipe
-              <select
-                value={form.team || ""}
-                onChange={(e) => setForm({ ...form, team: e.target.value })}
-              >
-                <option value="">Sem equipe</option>
-                {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
-              </select>
+              {editing ? (
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <select
+                    value={form.team || ""}
+                    onChange={(e) => setForm({ ...form, team: e.target.value })}
+                    style={{ flex: 1 }}
+                    title="Altere aqui apenas para correções de cadastro."
+                  >
+                    <option value="">Sem equipe</option>
+                    {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+                  </select>
+                  <button 
+                    type="button" 
+                    className="secondary" 
+                    onClick={() => setTransferModal({ open: true, user: form, newTeam: "", date: "" })}
+                    style={{ padding: "8px 12px", whiteSpace: "nowrap" }}
+                  >
+                    Transferir
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={form.team || ""}
+                  onChange={(e) => setForm({ ...form, team: e.target.value })}
+                >
+                  <option value="">Sem equipe</option>
+                  {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+                </select>
+              )}
+              {editing && <small style={{color: "#666", marginTop: "4px"}}>Dica: Use "Transferir" em vez de apenas alterar a equipe, para não perder o histórico das escalas passadas.</small>}
             </label>
           )}
           <label className="checkbox">
