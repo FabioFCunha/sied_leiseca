@@ -103,8 +103,8 @@ export default function ShiftSchedulePage() {
   const [detailScheduleId, setDetailScheduleId] = useState("");
   const [isSwapOpen, setIsSwapOpen] = useState(false);
   const [swapForm, setSwapForm] = useState(emptySwapForm());
-  const [absenceTarget, setAbsenceTarget] = useState(null);
-  const [absenceForm, setAbsenceForm] = useState(emptyAbsenceForm());
+  const [attendanceTarget, setAttendanceTarget] = useState(null);
+  const [attendanceForm, setAttendanceForm] = useState({});
   const [message, setMessage] = useState("");
   const [swapMessage, setSwapMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -472,52 +472,59 @@ export default function ShiftSchedulePage() {
     }
   };
 
-  const handleToggleAbsence = async (group, member) => {
-    if (!canApprove || !detailSchedule) return;
-    const idNum = Number(member.real_id || member.id);
-    const memberType = group === "chiefs" ? "CHIEF" : group === "supports" ? "SUPPORT" : "AGENT";
+  const openAttendanceManager = (schedule) => {
+    const form = {};
+    memberRows(schedule.members).forEach(m => {
+       form[`${m.type}_${m.id}`] = {
+         is_absent: !!m.is_absent,
+         reason: m.absence_reason || "",
+         attachment: null,
+         member: m
+       };
+    });
+    setAttendanceForm(form);
+    setAttendanceTarget(schedule);
+  };
 
-    if (!member.is_absent) {
-      setAbsenceTarget({ scheduleId: detailSchedule.id, group, member, memberId: idNum, memberType });
-      setAbsenceForm(emptyAbsenceForm());
-      setMessage("");
-      return;
-    }
-
+  const submitAttendanceManager = async () => {
+    if (!canApprove || !attendanceTarget) return;
     setLoading(true);
     setMessage("");
     try {
-      const body = new FormData();
-      body.append("member_type", memberType);
-      body.append("member_id", idNum);
-      const updated = await api(`/shift-schedules/${detailSchedule.id}/absence/`, { method: "DELETE", body });
-
-      setSchedules((current) =>
-        current.map((s) => (String(s.id) === String(detailSchedule.id) ? updated : s))
-      );
+      const promises = Object.entries(attendanceForm).map(([key, data]) => {
+        const [memberType, memberId] = key.split("_");
+        if (data.is_absent) {
+          const body = new FormData();
+          body.append("member_type", memberType);
+          body.append("member_id", memberId);
+          body.append("reason", data.reason || "Falta");
+          if (data.attachment) body.append("attachment", data.attachment);
+          return api(`/shift-schedules/${attendanceTarget.id}/absence/`, { method: "POST", body });
+        } else {
+          return api(`/shift-schedules/${attendanceTarget.id}/absence/`, { 
+            method: "DELETE", 
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ member_type: memberType, member_id: memberId })
+          });
+        }
+      });
+      await Promise.all(promises);
+      
+      if (attendanceTarget.attendance_reported && !attendanceTarget.attendance_approved) {
+        await api(`/shift-schedules/${attendanceTarget.id}/approve-attendance/`, { method: "POST" });
+      }
+      
+      await loadSchedules();
+      setAttendanceTarget(null);
+      if (detailScheduleId === String(attendanceTarget.id)) {
+        setDetailScheduleId(""); // close details to force reload if needed, or we just let it reload
+      }
     } catch (err) {
       setMessage(err.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const submitAbsence = async () => {
-    if (!canApprove || !absenceTarget) return;
-    const reason = absenceForm.reason.trim();
-    if (!reason) {
-      setMessage("Informe a justificativa da falta.");
-      return;
-    }
-    setLoading(true);
-    setMessage("");
-    try {
-      const body = new FormData();
-      body.append("member_type", absenceTarget.memberType);
-      body.append("member_id", absenceTarget.memberId);
-      body.append("reason", reason);
-      if (absenceForm.attachment) {
-        body.append("attachment", absenceForm.attachment);
       }
       const updated = await api(`/shift-schedules/${absenceTarget.scheduleId}/absence/`, { method: "POST", body });
       setSchedules((current) =>
@@ -726,16 +733,6 @@ export default function ShiftSchedulePage() {
                             )}
                           </span>
                           <div className="shift-member-actions">
-                            {canApprove && (
-                              <label>
-                                <input
-                                  type="checkbox"
-                                  checked={!!member.is_absent}
-                                  onChange={() => handleToggleAbsence(group, member)}
-                                />
-                                <span>Falta</span>
-                              </label>
-                            )}
                             {canApprove && !member.swapped && (
                               <button
                                 type="button"
@@ -779,52 +776,101 @@ export default function ShiftSchedulePage() {
                   )}
                 </div>
               ))}
+              {canApprove && (
+                <div style={{ marginTop: "20px", display: "flex", justifyContent: "center", gap: "10px", padding: "10px", borderTop: "1px solid #ddd" }}>
+                  <button className="primary" onClick={() => openAttendanceManager(detailSchedule)}>
+                    {detailSchedule.attendance_reported && !detailSchedule.attendance_approved ? "Dar Ciência / Aprovar Frequência" : "Gerenciar Frequência"}
+                  </button>
+                </div>
+              )}
             </section>
           </article>
         </div>
       )}
 
-      {absenceTarget && (
-        <div className="modal-backdrop" onClick={() => setAbsenceTarget(null)}>
-          <article className="modal shift-modal absence-modal" onClick={(event) => event.stopPropagation()}>
+      {attendanceTarget && (
+        <div className="modal-backdrop" onClick={() => setAttendanceTarget(null)}>
+          <article className="modal shift-modal" onClick={(event) => event.stopPropagation()} style={{ maxWidth: "800px" }}>
             <header className="modal-header">
               <div>
-                <h2>Lançar falta ou férias</h2>
-                <p>{absenceTarget.member.name} - {absenceTarget.memberType === "CHIEF" ? "Chefe" : absenceTarget.memberType === "SUPPORT" ? "Apoio" : "Agente"}</p>
+                <h2>Gerenciar Frequência - {formatTeamName(attendanceTarget.team_name)}</h2>
+                <p>Data: {formatDateBR(attendanceTarget.date)}</p>
+                {attendanceTarget.attendance_reported && !attendanceTarget.attendance_approved && (
+                  <p style={{ color: "#854d0e", fontWeight: "bold" }}>O relatório de frequência foi enviado. Revise e aprove abaixo.</p>
+                )}
               </div>
-              <button className="icon-button" type="button" onClick={() => setAbsenceTarget(null)} aria-label="Fechar"><X size={18} /></button>
+              <button className="icon-button" type="button" onClick={() => setAttendanceTarget(null)} aria-label="Fechar"><X size={18} /></button>
             </header>
 
-            <section className="absence-form">
-              <label>
-                <span>Justificativa da falta</span>
-                <textarea
-                  value={absenceForm.reason}
-                  onChange={(event) => setAbsenceForm((current) => ({ ...current, reason: event.target.value }))}
-                  rows={4}
-                  placeholder="Descreva o motivo informado pelo integrante."
-                  autoFocus
-                />
-              </label>
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => setAbsenceForm((current) => ({ ...current, reason: "Férias" }))}
-              >
-                Marcar como férias
-              </button>
-              <label>
-                <span>Documento comprobatório</span>
-                <input
-                  type="file"
-                  onChange={(event) => setAbsenceForm((current) => ({ ...current, attachment: event.target.files?.[0] || null }))}
-                />
-              </label>
+            <section className="attendance-manager-list" style={{ maxHeight: "60vh", overflowY: "auto", padding: "10px" }}>
+              {Object.entries(attendanceForm).map(([key, data]) => (
+                <div key={key} style={{ border: "1px solid #ddd", borderRadius: "8px", padding: "12px", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <div style={{ fontWeight: 500, fontSize: "1.1rem" }}>
+                      {data.member.name} <small style={{ color: "var(--text-soft)" }}>({data.member.typeLabel})</small>
+                    </div>
+                    <div style={{ display: "flex", gap: "15px" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                        <input
+                          type="radio"
+                          name={`status_${key}`}
+                          checked={!data.is_absent}
+                          onChange={() => setAttendanceForm(prev => ({ ...prev, [key]: { ...prev[key], is_absent: false } }))}
+                        />
+                        <span style={{ color: !data.is_absent ? "#15803d" : "inherit", fontWeight: !data.is_absent ? "bold" : "normal" }}>Presente</span>
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+                        <input
+                          type="radio"
+                          name={`status_${key}`}
+                          checked={data.is_absent}
+                          onChange={() => setAttendanceForm(prev => ({ ...prev, [key]: { ...prev[key], is_absent: true } }))}
+                        />
+                        <span style={{ color: data.is_absent ? "#b91c1c" : "inherit", fontWeight: data.is_absent ? "bold" : "normal" }}>Falta</span>
+                      </label>
+                    </div>
+                  </div>
+                  {data.is_absent && (
+                    <div style={{ background: "#f9fafb", padding: "10px", borderRadius: "4px", marginTop: "10px" }}>
+                      <label style={{ display: "block", marginBottom: "10px" }}>
+                        <span style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px" }}>Justificativa</span>
+                        <input
+                          type="text"
+                          value={data.reason}
+                          onChange={(e) => setAttendanceForm(prev => ({ ...prev, [key]: { ...prev[key], reason: e.target.value } }))}
+                          placeholder="Ex: Férias, Atestado, etc."
+                          style={{ width: "100%", padding: "6px", border: "1px solid #ccc", borderRadius: "4px" }}
+                        />
+                      </label>
+                      <label style={{ display: "block" }}>
+                        <span style={{ display: "block", fontSize: "0.85rem", marginBottom: "4px" }}>Comprovante (opcional)</span>
+                        {data.member.absence_attachment_url && !data.attachment && (
+                          <div style={{ marginBottom: "5px" }}>
+                            <a href={data.member.absence_attachment_url} target="_blank" rel="noreferrer" style={{ fontSize: "0.85rem", color: "var(--primary-color)" }}>
+                              <Paperclip size={12} /> Ver anexo enviado pelo chefe
+                            </a>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          onChange={(e) => setAttendanceForm(prev => ({ ...prev, [key]: { ...prev[key], attachment: e.target.files?.[0] || null } }))}
+                          style={{ fontSize: "0.85rem" }}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {Object.keys(attendanceForm).length === 0 && (
+                <p>Nenhum integrante na equipe.</p>
+              )}
             </section>
 
             <div className="modal-actions">
-              <button className="secondary" type="button" onClick={() => setAbsenceTarget(null)}>Cancelar</button>
-              <button type="button" onClick={submitAbsence} disabled={loading}>Salvar falta</button>
+              <button className="secondary" type="button" onClick={() => setAttendanceTarget(null)}>Cancelar</button>
+              <button type="button" onClick={submitAttendanceManager} disabled={loading}>
+                {attendanceTarget.attendance_reported && !attendanceTarget.attendance_approved ? "Aprovar Frequência" : "Salvar Frequência"}
+              </button>
             </div>
           </article>
         </div>
