@@ -21,6 +21,9 @@ import { useAuth } from "./context/AuthContext.jsx";
 function HomeRoute() {
   const { user } = useAuth();
   if (user?.role === "VISITOR") {
+    const sector = user?.sector_name;
+    if (sector === "OLS/CooAdm") return <Navigate to="/estatisticas" replace />;
+    if (sector === "Subsecretaria") return <DashboardPage />;
     return <Navigate to="/calendario" replace />;
   }
   return <DashboardPage />;
@@ -43,13 +46,13 @@ export default function App() {
         }
       >
         <Route index element={<HomeRoute />} />
-        <Route path="agendas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]}><AgendaPage /></ProtectedRoute>} />
-        <Route path="solicitacao-interna" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]}><PublicAgendaRequestPage internalRequest /></ProtectedRoute>} />
+        <Route path="agendas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AGENDAS"><AgendaPage /></ProtectedRoute>} />
+        <Route path="solicitacao-interna" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AGENDAS"><PublicAgendaRequestPage internalRequest /></ProtectedRoute>} />
         <Route path="calendario" element={<CalendarPage />} />
-        <Route path="escala" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"]}><ShiftSchedulePage /></ProtectedRoute>} />
-        <Route path="relatorio-tecnico" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]}><TechnicalReportsPage /></ProtectedRoute>} />
-        <Route path="estatisticas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]}><StatisticsPage /></ProtectedRoute>} />
-        <Route path="avaliacoes" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]}><EvaluationsPage /></ProtectedRoute>} />
+        <Route path="escala" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"]} moduleName="ESCALA"><ShiftSchedulePage /></ProtectedRoute>} />
+        <Route path="relatorio-tecnico" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="RELATORIOS"><TechnicalReportsPage /></ProtectedRoute>} />
+        <Route path="estatisticas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="ESTATISTICAS"><StatisticsPage /></ProtectedRoute>} />
+        <Route path="avaliacoes" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AVALIACOES"><EvaluationsPage /></ProtectedRoute>} />
         <Route path="metas" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><GoalsPage /></ProtectedRoute>} />
         <Route path="cadastros" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><LookupsPage /></ProtectedRoute>} />
         <Route path="usuarios" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "CREATOR"]}><UsersPage /></ProtectedRoute>} />

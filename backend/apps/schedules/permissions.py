@@ -72,7 +72,10 @@ class ShiftSchedulePermission(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         if request.user.role == User.Role.VISITOR:
-            return False
+            if request.method in SAFE_METHODS and request.user.sector and request.user.sector.name == "Subsecretaria":
+                pass
+            else:
+                return False
         if view.__class__.__name__ == "ShiftScheduleViewSet" and view.action in {"create", "update", "partial_update", "destroy", "absence"}:
             return self._can_manage_shift_schedule(request.user)
         if view.action in {"approve", "reject", "destroy"}:
@@ -83,7 +86,10 @@ class ShiftSchedulePermission(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         if request.user.role == User.Role.VISITOR:
-            return False
+            if request.method in SAFE_METHODS and request.user.sector and request.user.sector.name == "Subsecretaria":
+                pass
+            else:
+                return False
         if view.__class__.__name__ == "ShiftScheduleViewSet" and view.action in {"update", "partial_update", "destroy", "absence"}:
             return self._can_manage_shift_schedule(request.user)
         if view.action in {"approve", "reject", "destroy"}:

@@ -1312,6 +1312,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             scoped = queryset.none()
         elif user.is_admin_role:
             scoped = queryset
+        elif user.role == User.Role.VISITOR and user.sector and user.sector.name == "Subsecretaria":
+            scoped = queryset
         else:
             scoped = queryset.filter(chief_agenda_filter(user, prefix="agenda__")).distinct()
 
@@ -1403,8 +1405,10 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=False, methods=["get"])
     def statistics(self, request):
-        if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
-            raise PermissionDenied("Apenas Chefes, Gestores e Administração podem acessar estatísticas.")
+        allowed_visitors = ["OLS/CooAdm", "Subsecretaria"]
+        is_allowed_visitor = request.user.role == User.Role.VISITOR and request.user.sector and request.user.sector.name in allowed_visitors
+        if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR or is_allowed_visitor):
+            raise PermissionDenied("Acesso restrito.")
             
         from django.core.cache import cache
         import hashlib
