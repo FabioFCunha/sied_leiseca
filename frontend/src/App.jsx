@@ -23,10 +23,9 @@ function HomeRoute() {
   if (user?.role === "VISITOR") {
     const sector = user?.sector_name;
     if (sector === "OLS/CooAdm") return <Navigate to="/estatisticas" replace />;
-    if (sector === "Subsecretaria") return <DashboardPage />;
-    return <Navigate to="/calendario" replace />;
+    if (sector === "Subsecretaria") return <Navigate to="/dashboard" replace />;
   }
-  return <DashboardPage />;
+  return <Navigate to="/calendario" replace />;
 }
 
 export default function App() {
@@ -46,6 +45,7 @@ export default function App() {
         }
       >
         <Route index element={<HomeRoute />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="agendas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AGENDAS"><AgendaPage /></ProtectedRoute>} />
         <Route path="solicitacao-interna" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AGENDAS"><PublicAgendaRequestPage internalRequest /></ProtectedRoute>} />
         <Route path="calendario" element={<CalendarPage />} />
