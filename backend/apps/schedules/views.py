@@ -297,6 +297,26 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(schedule)
         return response.Response(serializer.data)
 
+    @decorators.action(detail=True, methods=["post"], url_path="report-attendance")
+    def report_attendance(self, request, pk=None):
+        from django.utils import timezone
+        schedule = self.get_object()
+        schedule.attendance_reported = True
+        schedule.attendance_reported_at = timezone.now()
+        schedule.attendance_approved = False
+        schedule.attendance_approved_at = None
+        schedule.save(update_fields=["attendance_reported", "attendance_reported_at", "attendance_approved", "attendance_approved_at"])
+        return response.Response({"detail": "Frequência reportada com sucesso."})
+
+    @decorators.action(detail=True, methods=["post"], url_path="approve-attendance")
+    def approve_attendance(self, request, pk=None):
+        from django.utils import timezone
+        schedule = self.get_object()
+        schedule.attendance_approved = True
+        schedule.attendance_approved_at = timezone.now()
+        schedule.save(update_fields=["attendance_approved", "attendance_approved_at"])
+        return response.Response({"detail": "Frequência aprovada."})
+
 
 class ShiftSwapRequestViewSet(viewsets.ModelViewSet):
     serializer_class = ShiftSwapRequestSerializer

@@ -348,12 +348,16 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
             "absent_chiefs",
             "absent_agents",
             "absent_supports",
+            "attendance_reported",
+            "attendance_reported_at",
+            "attendance_approved",
+            "attendance_approved_at",
             "created_by",
             "created_by_name",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_by", "created_by_name", "created_at", "updated_at", "members", "swap_requests"]
+        read_only_fields = ["created_by", "created_by_name", "created_at", "updated_at", "members", "swap_requests", "attendance_reported_at", "attendance_approved_at"]
 
     def validate(self, attrs):
         date = attrs.get("date") or getattr(self.instance, "date", None)

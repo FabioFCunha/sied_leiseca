@@ -134,6 +134,12 @@ class ShiftSchedule(models.Model):
     absent_chiefs = models.ManyToManyField(Chief, blank=True, related_name="absent_shift_schedules")
     absent_agents = models.ManyToManyField(Agent, blank=True, related_name="absent_shift_schedules")
     absent_supports = models.ManyToManyField(Support, blank=True, related_name="absent_shift_schedules")
+    
+    attendance_reported = models.BooleanField(default=False)
+    attendance_reported_at = models.DateTimeField(null=True, blank=True)
+    attendance_approved = models.BooleanField(default=False)
+    attendance_approved_at = models.DateTimeField(null=True, blank=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

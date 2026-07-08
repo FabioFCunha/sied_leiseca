@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Paperclip, Repeat2, Trash2, X, AlertCircle } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Paperclip, Repeat2, Trash2, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -595,9 +595,19 @@ export default function ShiftSchedulePage() {
                       <b><AlertTriangle size={12} /> Troca</b>
                     )}
                     {schedule.date <= toISO(new Date()) && (
-                      <b style={{ background: "#fee2e2", color: "#b91c1c", marginLeft: "4px", gap: "2px" }} title="Lembrete: Tirar falta da equipe">
-                        <AlertCircle size={12} /> Faltas
-                      </b>
+                      schedule.attendance_approved ? (
+                        <b style={{ background: "#dcfce7", color: "#15803d", marginLeft: "4px", gap: "2px" }} title="Frequência Aprovada">
+                          <CheckCircle2 size={12} /> Freq. OK
+                        </b>
+                      ) : schedule.attendance_reported ? (
+                        <b style={{ background: "#fef08a", color: "#854d0e", marginLeft: "4px", gap: "2px" }} title="Frequência reportada. Aguardando revisão.">
+                          <AlertCircle size={12} /> Revisar Freq.
+                        </b>
+                      ) : (
+                        <b style={{ background: "#fee2e2", color: "#b91c1c", marginLeft: "4px", gap: "2px" }} title="Frequência pendente de envio pelo relatório">
+                          <AlertCircle size={12} /> Freq. Pendente
+                        </b>
+                      )
                     )}
                   </span>
                   <small>{memberRows(schedule.members).length} integrantes</small>
