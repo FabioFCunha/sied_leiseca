@@ -5,6 +5,7 @@ import { api } from "../api/client.js";
 const lookupTypes = [
   { key: "vehicles", label: "Viaturas", endpoint: "/vehicles/" },
   { key: "kits", label: "Material de distribuição", endpoint: "/kits/" },
+  { key: "materials", label: "Material de Apoio", endpoint: "/materials/" },
   { key: "dynamics", label: "Dinâmicas", endpoint: "/dynamics/" },
   { key: "accessibility-blocklist", label: "Bloqueios de Acessibilidade", endpoint: "/accessibility-blocklist/", isBlocklist: true },
 ];

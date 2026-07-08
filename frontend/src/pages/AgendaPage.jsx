@@ -1236,6 +1236,7 @@ export default function AgendaPage() {
                   <div className="material-selection-grid">
                     {renderMaterialChecklist("Dinâmica", "dynamic", lookups.dynamics || [])}
                     {renderMaterialChecklist("Material distribuição", "kit", lookups.kits || [])}
+                    {renderMaterialChecklist("Material de Apoio", "material", lookups.materials || [])}
                   </div>
                 </div>
                 {message && <div className="alert">{message}</div>}
