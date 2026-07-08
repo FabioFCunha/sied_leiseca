@@ -201,7 +201,7 @@ th {
 }
 
 .public-intro-title {
-  background: var(--primary);
+  background: linear-gradient(135deg, #001338 0%, #002d72 100%);
   color: #fff;
   font-size: 22px;
   font-weight: 800;
@@ -222,7 +222,7 @@ th {
 }
 
 .notice-card strong {
-  background: var(--primary);
+  background: linear-gradient(135deg, #001338 0%, #002d72 100%);
   color: #fff;
   display: block;
   padding: 11px 14px;
