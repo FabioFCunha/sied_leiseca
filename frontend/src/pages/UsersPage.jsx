@@ -43,6 +43,7 @@ function uniqueUppercaseTeams(rows) {
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
+  const canEdit = currentUser?.role !== "ADMIN";
   const [users, setUsers] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -315,7 +316,7 @@ export default function UsersPage() {
                     </select>
                   )}
                 </th>
-                <th className="actions-heading" style={{ verticalAlign: "top" }}>Ações</th>
+                {canEdit && <th className="actions-heading" style={{ verticalAlign: "top" }}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -328,6 +329,7 @@ export default function UsersPage() {
                   <td>{roleLabel[item.role] || item.role}</td>
                   <td>{item.role === "VISITOR" ? (item.sector_name || "-") : String(item.team_name || item.sector_name || "-").toUpperCase()}</td>
                   <td>{item.is_on_vacation ? <span className="badge warning">Férias</span> : <span className={`badge ${item.is_active ? "success" : "neutral"}`}>{item.is_active ? "Ativo" : "Inativo"}</span>}</td>
+                  {canEdit && (
                   <td>
                     <div className="row-actions">
                       <button className="secondary" onClick={() => edit(item)}>Editar</button>
@@ -358,6 +360,7 @@ export default function UsersPage() {
                       </button>
                     </div>
                   </td>
+                  )}
                 </tr>
               ))}
               {!filteredItems.length && (
@@ -397,6 +400,7 @@ export default function UsersPage() {
           {renderUsersTable(visitorUsers, "Nenhum visitante cadastrado.")}
         </div>
       </div>
+      {canEdit && (
       <aside className="side-panel">
         <h2>{editing ? "Editar usuário" : "Novo usuário"}</h2>
         <form className="stack-form" onSubmit={submit}>
