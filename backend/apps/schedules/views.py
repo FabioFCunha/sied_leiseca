@@ -485,7 +485,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
             scoped = scoped.filter(search_filter)
         if params.get("pending_report") == "true":
-            scoped = scoped.filter(technical_reports__isnull=True).exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
+            scoped = scoped.filter(technical_reports__isnull=True, date__gte="2026-07-08").exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
         if params.get("order") == "latest":
             return (
                 scoped.distinct()
