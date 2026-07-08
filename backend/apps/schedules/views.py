@@ -1307,7 +1307,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         queryset = EducationReport.objects.select_related("agenda", "created_by").prefetch_related(
             "actions",
             "actions__agenda",
-        )
+        ).filter(agenda__date__gte="2026-07-08")
         if user.is_agent_role:
             scoped = queryset.none()
         elif user.is_admin_role:
