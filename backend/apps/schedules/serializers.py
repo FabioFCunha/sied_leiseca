@@ -1105,6 +1105,8 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
     time_3 = serializers.TimeField(required=False, allow_null=True)
     action_type = serializers.ChoiceField(
         choices=[
+            "Palestra",
+            "Ação de educação/conscientização",
             "Palestra Empresa",
             "Palestra Escola",
             "Palestra Virtual",
