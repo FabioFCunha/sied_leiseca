@@ -6,9 +6,8 @@ import soprinhoMascot from "../assets/soprinho-transparent.png";
 import leiSecaLogo from "../assets/logo lei seca preto.jpg.jpeg";
 
 const actionTypes = [
-  "Palestra Empresa",
-  "Palestra Escola",
-  "Ação educativa (Espaço interno)",
+  "Palestra",
+  "Ação de educação/conscientização",
 ];
 
 const ageRangeOptions = [
@@ -399,9 +398,9 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             </label>
             <div className="split">
               <div className="field-card" style={{ flex: 1 }}>
-                <strong>Empresa/Órgão ou Escola? <b>*</b></strong>
-                <div className="radio-list" role="radiogroup" aria-label="Tipo de entidade">
-                  {["Empresa/Órgão", "Escola"].map((option) => (
+                <strong>Tipo de solicitante: <b>*</b></strong>
+                <div className="radio-list" role="radiogroup" aria-label="Tipo de solicitante">
+                  {["Instituição de Ensino", "Empresa/Órgão", "Organização de evento"].map((option) => (
                     <label className="radio-option compact-radio option-tile" key={option}>
                       <input
                         type="radio"
