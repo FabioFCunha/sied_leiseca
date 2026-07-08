@@ -43,7 +43,7 @@ function uniqueUppercaseTeams(rows) {
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
-  const canEdit = currentUser?.role !== "ADMIN";
+  const canEdit = currentUser?.role !== "ADMIN" || Boolean(currentUser?.is_superuser);
   const [users, setUsers] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [teams, setTeams] = useState([]);
