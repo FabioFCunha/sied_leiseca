@@ -1,4 +1,4 @@
-import { Mail, Save, Trash2 } from "lucide-react";
+import { Mail, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
