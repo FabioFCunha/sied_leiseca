@@ -392,12 +392,16 @@ export default function UsersPage() {
           {form.role === "VISITOR" && (
             <label>
               Nome do setor
-              <input
-                placeholder="Digite o nome do setor"
+              <select
                 value={form.sector_name || ""}
                 onChange={(e) => setForm({ ...form, sector: "", sector_name: e.target.value })}
                 required
-              />
+              >
+                <option value="" disabled>Selecione o setor</option>
+                {sectors.map((s) => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
             </label>
           )}
           {operationalRoles.has(form.role) && (
