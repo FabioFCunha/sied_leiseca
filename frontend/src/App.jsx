@@ -19,12 +19,6 @@ import SatisfactionSurveyPage from "./pages/SatisfactionSurveyPage.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
 function HomeRoute() {
-  const { user } = useAuth();
-  if (user?.role === "VISITOR") {
-    const sector = user?.sector_name;
-    if (sector === "OLS/CooAdm") return <Navigate to="/estatisticas" replace />;
-    if (sector === "Subsecretaria") return <Navigate to="/dashboard" replace />;
-  }
   return <Navigate to="/calendario" replace />;
 }
 

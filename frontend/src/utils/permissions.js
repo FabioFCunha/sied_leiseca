@@ -25,7 +25,7 @@ export function canAccessRoute(user, allowedRoles = [], moduleName = null) {
       const allowedModules = ["DASHBOARD", "AGENDAS", "CALENDARIO", "ESCALA", "RELATORIOS", "ESTATISTICAS", "AVALIACOES"];
       if (allowedModules.includes(moduleName)) return true;
     }
-    if (sector === "OLS/CooAdm" && moduleName === "ESTATISTICAS") {
+    if (sector === "OLS/CooAdm" && ["ESTATISTICAS", "CALENDARIO"].includes(moduleName)) {
       return true;
     }
     if (sector === "ASCOM" && moduleName === "CALENDARIO") {
