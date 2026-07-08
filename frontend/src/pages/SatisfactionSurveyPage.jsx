@@ -8,7 +8,7 @@ import leiSecaLogo from "../assets/logo lei seca preto.jpg.jpeg";
 
 const fields = [
   ["audiovisual_resources", "Recursos áudio-visuais: apresentação (slides) e vídeos exibidos durante a palestra."],
-  ["speaker_knowledge", "Desenvoltura e conhecimento sobre o tema do(a) palestrante."],
+  ["speaker_knowledge", "Clareza, didática e domínio do tema por parte do(a) palestrante."],
   ["wheelchair_testimony", "Depoimento dos cadeirantes."],
   ["workshops", "Dinâmicas/oficinas realizadas."],
   ["support_material", "Material de apoio às atividades."],
