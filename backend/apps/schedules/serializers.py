@@ -401,9 +401,25 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
         removed_agent_ids = set(obj.removed_agents.values_list("id", flat=True))
         removed_support_ids = set(obj.removed_supports.values_list("id", flat=True))
 
-        chief_objs = Chief.objects.filter(team__name__iexact=obj.team.name, is_active=True, source_id__startswith="user:").exclude(id__in=removed_chief_ids).order_by("name")
-        agent_objs = Agent.objects.filter(team__name__iexact=obj.team.name, is_active=True, source_id__startswith="user:").exclude(id__in=removed_agent_ids).order_by("name")
-        support_objs = Support.objects.filter(team__name__iexact=obj.team.name, is_active=True, source_id__startswith="user:").exclude(id__in=removed_support_ids).order_by("name")
+        from apps.schedules.models import UserTeamTransfer
+        transfers = list(UserTeamTransfer.objects.order_by("effective_date"))
+
+        def get_historical_team_id(item):
+            if not item.source_id or not item.source_id.startswith("user:"):
+                return item.team_id
+            try:
+                user_id = int(item.source_id.split(":")[1])
+            except ValueError:
+                return item.team_id
+            
+            future_transfers = [t for t in transfers if t.user_id == user_id and t.effective_date > obj.date]
+            if future_transfers:
+                return future_transfers[0].old_team_id
+            return item.team_id
+
+        chief_objs = [c for c in Chief.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_chief_ids).select_related("team").order_by("name") if get_historical_team_id(c) == obj.team_id]
+        agent_objs = [a for a in Agent.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_agent_ids).select_related("team").order_by("name") if get_historical_team_id(a) == obj.team_id]
+        support_objs = [s for s in Support.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_support_ids).select_related("team").order_by("name") if get_historical_team_id(s) == obj.team_id]
 
         chiefs = [row(item, is_absent=item.id in absent_chief_ids) for item in chief_objs]
         agents = [row(item, is_absent=item.id in absent_agent_ids) for item in agent_objs]

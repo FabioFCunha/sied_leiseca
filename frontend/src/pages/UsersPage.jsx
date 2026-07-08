@@ -50,6 +50,7 @@ export default function UsersPage() {
   const [editing, setEditing] = useState(null);
   const [message, setMessage] = useState("");
   const [passwordLink, setPasswordLink] = useState("");
+  const [transferModal, setTransferModal] = useState({ open: false, user: null, newTeam: "", date: "" });
   const [opFilters, setOpFilters] = useState({ name: "", cpf: "", phone: "", email: "", role: "", team: "", status: "" });
 
   const load = () => api("/users/?page_size=1000").then((data) => setUsers(data.results || data));
@@ -196,6 +197,61 @@ export default function UsersPage() {
     }
   };
 
+  const renderTransferModal = () => {
+    if (!transferModal.open || !transferModal.user) return null;
+    return (
+      <div className="modal-overlay">
+        <div className="modal">
+          <div className="modal-header">
+            <h3>Transferir {transferModal.user.full_name || transferModal.user.email}</h3>
+            <button className="icon-button" onClick={() => setTransferModal({ open: false, user: null, newTeam: "", date: "" })}><X size={20} /></button>
+          </div>
+          <div className="modal-body">
+            <p style={{marginBottom: "10px", fontSize: "14px"}}>Selecione a nova equipe e a data de início. O histórico na equipe antiga será preservado para escalas anteriores à data.</p>
+            <label style={{display: "flex", flexDirection: "column", gap: "5px", marginBottom: "10px"}}>
+              Nova Equipe
+              <select value={transferModal.newTeam} onChange={e => setTransferModal({ ...transferModal, newTeam: e.target.value })}>
+                <option value="">Selecione...</option>
+                {teams.filter(t => String(t.id) !== String(transferModal.user.team_id)).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </label>
+            <label style={{display: "flex", flexDirection: "column", gap: "5px", marginBottom: "10px"}}>
+              A partir de qual data?
+              <input type="date" value={transferModal.date} onChange={e => setTransferModal({ ...transferModal, date: e.target.value })} />
+            </label>
+          </div>
+          <div className="modal-footer">
+            <button className="secondary" onClick={() => setTransferModal({ open: false, user: null, newTeam: "", date: "" })}>Cancelar</button>
+            <button 
+              className="primary" 
+              onClick={async () => {
+                if (!transferModal.newTeam || !transferModal.date) {
+                  setMessage("Preencha a nova equipe e a data.");
+                  return;
+                }
+                try {
+                  await api(`/users/${transferModal.user.id}/transfer/`, {
+                    method: "POST",
+                    body: JSON.stringify({ new_team: transferModal.newTeam, effective_date: transferModal.date })
+                  });
+                  setMessage("Transferência realizada com sucesso.");
+                  setTransferModal({ open: false, user: null, newTeam: "", date: "" });
+                  load();
+                } catch(err) {
+                  setMessage(err.message);
+                }
+              }}
+            >
+              Transferir
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderUsersTable = (items, emptyMessage, filters = null, setFilters = null) => {
     const filteredItems = items.filter((item) => {
       if (!filters) return true;
@@ -275,6 +331,11 @@ export default function UsersPage() {
                   <td>
                     <div className="row-actions">
                       <button className="secondary" onClick={() => edit(item)}>Editar</button>
+                      {operationalRoles.has(item.role) && (
+                        <button className="secondary" onClick={() => setTransferModal({ open: true, user: item, newTeam: "", date: "" })}>
+                          Transferir
+                        </button>
+                      )}
                       {operationalRoles.has(item.role) && (
                         <button className="secondary" onClick={() => {
                           if (item.is_on_vacation) {
@@ -453,6 +514,7 @@ export default function UsersPage() {
           <button><Save size={18} /> Salvar</button>
         </form>
       </aside>
+      {renderTransferModal()}
     </section>
   );
 }

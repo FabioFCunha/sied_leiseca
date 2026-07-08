@@ -38,6 +38,21 @@ class Team(NamedLookup):
     pass
 
 
+class UserTeamTransfer(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="team_transfers")
+    old_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name="transfers_out")
+    new_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name="transfers_in")
+    effective_date = models.DateField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="created_team_transfers")
+
+    class Meta:
+        ordering = ["-effective_date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.user} from {self.old_team} to {self.new_team} on {self.effective_date}"
+
+
 class Support(NamedLookup):
     cpf = models.CharField(max_length=14, unique=True, null=True, blank=True)
     team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name="supports")

@@ -222,6 +222,59 @@ class UserViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=True, methods=["post"], url_path="transfer")
+    def transfer(self, request, pk=None):
+        user = self.get_object()
+        new_team_id = request.data.get("new_team")
+        effective_date_str = request.data.get("effective_date")
+        
+        if not new_team_id or not effective_date_str:
+            return Response({"detail": "Equipe e data de efetivação são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        from apps.schedules.models import Team, UserTeamTransfer
+        from django.utils.dateparse import parse_date
+        
+        effective_date = parse_date(effective_date_str)
+        if not effective_date:
+            return Response({"detail": "Data efetiva inválida."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            new_team = Team.objects.get(id=new_team_id)
+        except Team.DoesNotExist:
+            return Response({"detail": "Nova equipe não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        old_team = user.team
+        if old_team == new_team:
+            return Response({"detail": "Usuário já pertence a esta equipe."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        with transaction.atomic():
+            UserTeamTransfer.objects.create(
+                user=user,
+                old_team=old_team,
+                new_team=new_team,
+                effective_date=effective_date,
+                created_by=request.user
+            )
+            
+            user.team = new_team
+            user.save(update_fields=["team"])
+            
+            from apps.schedules.models import Chief, Agent, Support
+            source_id = f"user:{user.id}"
+            Chief.objects.filter(source_id=source_id).update(team=new_team)
+            Agent.objects.filter(source_id=source_id).update(team=new_team)
+            Support.objects.filter(source_id=source_id).update(team=new_team)
+            
+            log_audit(
+                request,
+                AuditLog.Action.UPDATE,
+                "Usuarios",
+                f"Transferência de {user.full_name or user.email} da equipe '{old_team.name if old_team else 'Nenhuma'}' para '{new_team.name}' a partir de {effective_date.strftime('%d/%m/%Y')}.",
+                {"target_user_id": user.id, "old_team": old_team.id if old_team else None, "new_team": new_team.id}
+            )
+            
+        return Response({"detail": "Transferência realizada com sucesso."}, status=status.HTTP_200_OK)
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.id == request.user.id:
