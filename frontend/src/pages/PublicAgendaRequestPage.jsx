@@ -403,7 +403,59 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
           <p><strong><em>Sua solicitação será avaliada e confirmada posteriormente através do e-mail cadastrado.</em></strong></p>
         </div>
         <form className="stack-form" onSubmit={submit}>
-          
+          <div className="form-section">
+            <div className="split">
+              <div className="field-card" style={{ flex: 1 }}>
+                <strong>Tipo de solicitante: <b>*</b></strong>
+                <div className="radio-list" role="radiogroup" aria-label="Tipo de solicitante">
+                  {["Instituição de Ensino", "Empresa/Órgão", "Organização de evento", "Ação de Rua"].map((option) => (
+                    <label className="radio-option compact-radio option-tile" key={option}>
+                      <input
+                        type="radio"
+                        name="requester_entity_kind"
+                        checked={form.requester_entity_kind === option}
+                        onChange={() => {
+                          const isAcaoRua = option === "Ação de Rua";
+                          setForm((current) => ({
+                            ...current,
+                            requester_entity_kind: option,
+                            ...(isAcaoRua && internalRequest && user ? {
+                              external_responsible: user.full_name || "",
+                              external_email: user.email || "",
+                              external_responsible_phone: user.phone ? String(user.phone).replace(/\D/g, "") : "",
+                              institution_location: user.sector_name || user.sector?.name || "Operação Lei Seca RJ",
+                              requester_role: user.role || "Agente",
+                            } : {})
+                          }));
+                        }}
+                        required
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {form.requester_entity_kind !== "Ação de Rua" && (
+                <div className="field-card" style={{ flex: 1 }}>
+                  <strong>Público ou Privado? <b>*</b></strong>
+                  <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
+                    {["Público", "Privado"].map((option) => (
+                      <label className="radio-option compact-radio option-tile" key={option}>
+                        <input
+                          type="radio"
+                          name="requester_entity_nature"
+                          checked={form.requester_entity_nature === option}
+                          onChange={() => update("requester_entity_nature", option)}
+                          required
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="form-section">
             <h3>Dados da ação</h3>
@@ -554,57 +606,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               <span>Instituição/Organização <b>*</b></span>
               <input value={form.institution_location} onChange={(event) => update("institution_location", event.target.value)} required />
             </label>
-            <div className="split">
-              <div className="field-card" style={{ flex: 1 }}>
-                <strong>Tipo de solicitante: <b>*</b></strong>
-                <div className="radio-list" role="radiogroup" aria-label="Tipo de solicitante">
-                  {["Instituição de Ensino", "Empresa/Órgão", "Organização de evento", "Ação de Rua"].map((option) => (
-                    <label className="radio-option compact-radio option-tile" key={option}>
-                      <input
-                        type="radio"
-                        name="requester_entity_kind"
-                        checked={form.requester_entity_kind === option}
-                        onChange={() => {
-                          const isAcaoRua = option === "Ação de Rua";
-                          setForm((current) => ({
-                            ...current,
-                            requester_entity_kind: option,
-                            ...(isAcaoRua && internalRequest && user ? {
-                              external_responsible: user.full_name || "",
-                              external_email: user.email || "",
-                              external_responsible_phone: user.phone ? String(user.phone).replace(/\D/g, "") : "",
-                              institution_location: user.sector_name || user.sector?.name || "Operação Lei Seca RJ",
-                              requester_role: user.role || "Agente",
-                            } : {})
-                          }));
-                        }}
-                        required
-                      />
-                      <span>{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              {form.requester_entity_kind !== "Ação de Rua" && (
-                <div className="field-card" style={{ flex: 1 }}>
-                  <strong>Público ou Privado? <b>*</b></strong>
-                  <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
-                    {["Público", "Privado"].map((option) => (
-                      <label className="radio-option compact-radio option-tile" key={option}>
-                        <input
-                          type="radio"
-                          name="requester_entity_nature"
-                          checked={form.requester_entity_nature === option}
-                          onChange={() => update("requester_entity_nature", option)}
-                          required
-                        />
-                        <span>{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            
             <label className="field-label">
               <span>Cargo/Função do requisitante <b>*</b></span>
               <input value={form.requester_role} onChange={(event) => update("requester_role", event.target.value)} required />
