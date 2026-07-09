@@ -282,3 +282,52 @@ def send_accessibility_rejection_email(data):
     )
     email = build_email(subject, body, recipients)
     return send_email_safely(email, f"recusa de acessibilidade para {institution}")
+
+def send_report_confirmation_email(report):
+    agenda = report.agenda
+    if not agenda:
+        return False
+        
+    recipients = []
+    if agenda.chief_ref and agenda.chief_ref.email:
+        recipients.append(agenda.chief_ref.email)
+    elif agenda.responsible and agenda.responsible.email:
+        recipients.append(agenda.responsible.email)
+        
+    if not recipients:
+        return False
+
+    subject = f"Confirmação de Recebimento - Relatório Técnico #{agenda.id}"
+    operation_date_str = report.operation_date.strftime("%d/%m/%Y") if report.operation_date else "N/A"
+    body = (
+        f"Olá,\n\n"
+        f"Confirmamos o recebimento com sucesso do relatório técnico para a agenda '{agenda.title}' (Protocolo #{agenda.id}), preenchido pela equipe {report.team}.\n"
+        f"Agradecemos o envio. O relatório já está disponível no painel da plataforma para consulta.\n\n"
+        f"Data da operação: {operation_date_str}\n\n"
+        f"Atenciosamente,\n\n"
+        f"Sistema Agenda Lei Seca"
+    )
+    email = build_email(subject, body, recipients)
+    return send_email_safely(email, f"confirmacao de relatorio #{agenda.id}")
+
+def send_report_reminder_email(agenda):
+    recipients = []
+    if agenda.chief_ref and agenda.chief_ref.email:
+        recipients.append(agenda.chief_ref.email)
+    elif agenda.responsible and agenda.responsible.email:
+        recipients.append(agenda.responsible.email)
+        
+    if not recipients:
+        return False
+
+    subject = f"Lembrete: Preencha o Relatório Técnico - Protocolo #{agenda.id}"
+    operation_date_str = agenda.date.strftime("%d/%m/%Y") if agenda.date else "N/A"
+    body = (
+        f"Olá,\n\n"
+        f"Lembramos que a operação para a agenda '{agenda.title}' (Protocolo #{agenda.id}) ocorreu no dia de hoje ({operation_date_str}).\n"
+        f"Por favor, acesse o painel da plataforma e preencha o Relatório Técnico referente a esta operação.\n\n"
+        f"Atenciosamente,\n\n"
+        f"Sistema Agenda Lei Seca"
+    )
+    email = build_email(subject, body, recipients)
+    return send_email_safely(email, f"lembrete de relatorio #{agenda.id}")

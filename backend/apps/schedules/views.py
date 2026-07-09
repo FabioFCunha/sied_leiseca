@@ -55,6 +55,7 @@ from .emails import (
     send_agenda_available_dates_email,
     send_agenda_status_email,
     send_satisfaction_survey_email,
+    send_report_confirmation_email,
 )
 from .serializers import (
     AccessibilityBlocklistSerializer,
@@ -228,6 +229,11 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(date__lte=params["date_to"])
         if params.get("team"):
             queryset = queryset.filter(team_id=params["team"])
+            
+        user = self.request.user
+        if not user.is_admin_role and user.sector_id:
+            queryset = queryset.filter(team_id=user.sector_id)
+            
         return queryset.order_by("date", "team__name")
 
     def perform_create(self, serializer):
@@ -1372,12 +1378,19 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         with transaction.atomic():
-            self._validate_agenda_access(serializer.validated_data["agenda"])
+            agenda = serializer.validated_data.get("agenda")
+            team = serializer.validated_data.get("team")
+            if agenda and team and EducationReport.objects.filter(agenda=agenda, team=team).exists():
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError("Já existe um relatório técnico registrado para este protocolo com esta equipe.")
+
+            self._validate_agenda_access(agenda)
             report = serializer.save(created_by=self.request.user)
             SatisfactionSurvey.objects.filter(agenda=report.agenda, report__isnull=True).update(report=report)
             if report.status == EducationReport.ReportStatus.SUBMITTED:
                 self._register_accessibility_block(report)
                 transaction.on_commit(lambda: send_satisfaction_survey_email(report))
+                transaction.on_commit(lambda: send_report_confirmation_email(report))
 
     def perform_update(self, serializer):
         with transaction.atomic():
@@ -1389,6 +1402,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             if previous_status != EducationReport.ReportStatus.SUBMITTED and report.status == EducationReport.ReportStatus.SUBMITTED:
                 self._register_accessibility_block(report)
                 transaction.on_commit(lambda: send_satisfaction_survey_email(report))
+                transaction.on_commit(lambda: send_report_confirmation_email(report))
             elif report.status == EducationReport.ReportStatus.SUBMITTED:
                 self._register_accessibility_block(report)
 

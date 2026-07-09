@@ -231,7 +231,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
       }
       return;
     }
-    if (!form.age_ranges) {
+    if (!form.age_ranges && form.requester_entity_kind !== "Ação de Rua") {
       setMessage("Selecione pelo menos uma faixa etária do público.");
       return;
     }
@@ -267,7 +267,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
         actions_count: form.actions_count === "" ? null : Number(form.actions_count),
         time_2: null,
         time_3: null,
-        age_ranges: form.age_ranges,
+        age_ranges: form.age_ranges || "N/A",
         media_equipment: form.media_equipment.join(", "),
       };
       delete payload.requester_entity_kind;
@@ -415,7 +415,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               <div className="field-card" style={{ flex: 1 }}>
                 <strong>Tipo de solicitante: <b>*</b></strong>
                 <div className="radio-list" role="radiogroup" aria-label="Tipo de solicitante">
-                  {["Instituição de Ensino", "Empresa/Órgão", "Organização de evento"].map((option) => (
+                  {(internalRequest ? ["Instituição de Ensino", "Empresa/Órgão", "Organização de evento", "Ação de Rua"] : ["Instituição de Ensino", "Empresa/Órgão", "Organização de evento"]).map((option) => (
                     <label className="radio-option compact-radio option-tile" key={option}>
                       <input
                         type="radio"
@@ -429,23 +429,25 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                   ))}
                 </div>
               </div>
-              <div className="field-card" style={{ flex: 1 }}>
-                <strong>Público ou Privado? <b>*</b></strong>
-                <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
-                  {["Público", "Privado"].map((option) => (
-                    <label className="radio-option compact-radio option-tile" key={option}>
-                      <input
-                        type="radio"
-                        name="requester_entity_nature"
-                        checked={form.requester_entity_nature === option}
-                        onChange={() => update("requester_entity_nature", option)}
-                        required
-                      />
-                      <span>{option}</span>
-                    </label>
-                  ))}
+              {form.requester_entity_kind !== "Ação de Rua" && (
+                <div className="field-card" style={{ flex: 1 }}>
+                  <strong>Público ou Privado? <b>*</b></strong>
+                  <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
+                    {["Público", "Privado"].map((option) => (
+                      <label className="radio-option compact-radio option-tile" key={option}>
+                        <input
+                          type="radio"
+                          name="requester_entity_nature"
+                          checked={form.requester_entity_nature === option}
+                          onChange={() => update("requester_entity_nature", option)}
+                          required
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <label className="field-label">
               <span>Cargo/Função do requisitante <b>*</b></span>
@@ -490,24 +492,26 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             <div className="notice-card compact-notice">
               <strong>Período não superior a 4 (quatro) horas</strong>
             </div>
-            <div className="field-card">
-              <strong>Faixa etária do público <b>*</b></strong>
-              <p>(em caso de mais de uma faixa etária, preencher outro formulário)</p>
-              <div className="radio-list" role="radiogroup" aria-label="Faixa etária do público">
-                {ageRangeOptions.map((option) => (
-                  <label className="radio-option compact-radio option-tile" key={option}>
-                    <input
-                      type="radio"
-                      name="age_ranges"
-                      checked={form.age_ranges === option}
-                      onChange={() => update("age_ranges", option)}
-                      required
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
+            {form.requester_entity_kind !== "Ação de Rua" && (
+              <div className="field-card">
+                <strong>Faixa etária do público <b>*</b></strong>
+                <p>(em caso de mais de uma faixa etária, preencher outro formulário)</p>
+                <div className="radio-list" role="radiogroup" aria-label="Faixa etária do público">
+                  {ageRangeOptions.map((option) => (
+                    <label className="radio-option compact-radio option-tile" key={option}>
+                      <input
+                        type="radio"
+                        name="age_ranges"
+                        checked={form.age_ranges === option}
+                        onChange={() => update("age_ranges", option)}
+                        required
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             <div className="field-card">
               <strong>Número aproximado de participantes <b>*</b></strong>
               <div className="radio-list" role="radiogroup" aria-label="Número aproximado de participantes">

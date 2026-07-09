@@ -541,6 +541,7 @@ export default function UsersPage() {
           <button><Save size={18} /> Salvar</button>
         </form>
       </aside>
+      )}
       {renderTransferModal()}
     </section>
   );

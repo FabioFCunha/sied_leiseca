@@ -65,7 +65,9 @@ def upsert_user_lookup(model, user, role_label, extra_defaults=None):
         "name": user.full_name,
         "cpf": only_digits(user.cpf) or None,
         "role": role_label,
-        "is_active": user.is_active and not user.is_on_vacation,
+        "is_active": user.is_active,
+        "vacation_start": user.vacation_start,
+        "vacation_end": user.vacation_end,
     }
     if extra_defaults:
         defaults.update(extra_defaults)

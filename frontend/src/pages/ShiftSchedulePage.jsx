@@ -750,7 +750,12 @@ export default function ShiftSchedulePage() {
                     >
                       <option value="">+ Adicionar integrante...</option>
                       {(group === "chiefs" ? chiefs : group === "agents" ? agents : supports)
-                        .filter((allM) => !(detailRoster[group] || []).some((m) => String(m.id) === String(allM.id)))
+                        .filter((allM) => {
+                          if (allM.vacation_start && allM.vacation_end) {
+                            if (detailSchedule.date >= allM.vacation_start && detailSchedule.date <= allM.vacation_end) return false;
+                          }
+                          return !(detailRoster[group] || []).some((m) => String(m.id) === String(allM.id));
+                        })
                         .map((allM) => {
                           const teamObj = teams.find((t) => String(t.id) === String(allM.team));
                           return (

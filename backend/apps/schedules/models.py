@@ -21,6 +21,8 @@ class NamedLookup(models.Model):
     source_id = models.CharField(max_length=80, blank=True)
     name = models.CharField(max_length=180, unique=True)
     is_active = models.BooleanField(default=True)
+    vacation_start = models.DateField(null=True, blank=True)
+    vacation_end = models.DateField(null=True, blank=True)
 
     class Meta:
         abstract = True

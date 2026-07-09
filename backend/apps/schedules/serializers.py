@@ -96,7 +96,7 @@ class SupportSerializer(LookupSerializer):
 
     class Meta(LookupSerializer.Meta):
         model = Support
-        fields = ["id", "source_id", "name", "cpf", "team", "team_name", "role", "address", "is_active"]
+        fields = ["id", "source_id", "name", "cpf", "team", "team_name", "role", "address", "is_active", "vacation_start", "vacation_end"]
 
     def validate_name(self, value):
         return value.strip().upper()
@@ -107,7 +107,7 @@ class AgentSerializer(LookupSerializer):
 
     class Meta(LookupSerializer.Meta):
         model = Agent
-        fields = ["id", "source_id", "name", "cpf", "team", "team_name", "role", "address", "is_active"]
+        fields = ["id", "source_id", "name", "cpf", "team", "team_name", "role", "address", "is_active", "vacation_start", "vacation_end"]
 
 
 class ActionTypeSerializer(LookupSerializer):
@@ -160,7 +160,7 @@ class ChiefSerializer(LookupSerializer):
 
     class Meta(LookupSerializer.Meta):
         model = Chief
-        fields = ["id", "source_id", "name", "cpf", "team", "team_name", "role", "address", "phone", "is_active"]
+        fields = ["id", "source_id", "name", "cpf", "team", "team_name", "role", "address", "phone", "is_active", "vacation_start", "vacation_end"]
 
 
 def shift_swap_visibility_filter(user):
@@ -421,9 +421,14 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
                 return future_transfers[0].old_team_id
             return item.team_id
 
-        chief_objs = [c for c in Chief.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_chief_ids).select_related("team").order_by("name") if get_historical_team_id(c) == obj.team_id]
-        agent_objs = [a for a in Agent.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_agent_ids).select_related("team").order_by("name") if get_historical_team_id(a) == obj.team_id]
-        support_objs = [s for s in Support.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_support_ids).select_related("team").order_by("name") if get_historical_team_id(s) == obj.team_id]
+        def is_on_vacation(item):
+            if item.vacation_start and item.vacation_end:
+                return item.vacation_start <= obj.date <= item.vacation_end
+            return False
+
+        chief_objs = [c for c in Chief.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_chief_ids).select_related("team").order_by("name") if get_historical_team_id(c) == obj.team_id and not is_on_vacation(c)]
+        agent_objs = [a for a in Agent.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_agent_ids).select_related("team").order_by("name") if get_historical_team_id(a) == obj.team_id and not is_on_vacation(a)]
+        support_objs = [s for s in Support.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_support_ids).select_related("team").order_by("name") if get_historical_team_id(s) == obj.team_id and not is_on_vacation(s)]
 
         chiefs = [row(item, is_absent=item.id in absent_chief_ids) for item in chief_objs]
         agents = [row(item, is_absent=item.id in absent_agent_ids) for item in agent_objs]
