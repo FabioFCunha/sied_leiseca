@@ -30,7 +30,7 @@ def deploy():
         
         # Now run the docker commands
         print("Rebuilding frontend container on VPS...")
-        stdin, stdout, stderr = client.exec_command("cd /root/agenda-educacao && docker compose build sied_frontend && docker compose up -d")
+        stdin, stdout, stderr = client.exec_command("cd /root/agenda-educacao && docker compose build frontend && docker compose up -d")
         
         # We need to wait for it to finish and get output
         exit_status = stdout.channel.recv_exit_status()
