@@ -1158,14 +1158,7 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
             )
             if agenda_id:
                 qs = qs.exclude(id=agenda_id)
-            
-            if qs.count() >= 4 and str(date) != "2026-07-09":
-                suggested = get_next_available_dates(date)
-                suggested_str = ", ".join(d.strftime("%d/%m/%Y") for d in suggested)
-                raise serializers.ValidationError(
-                    f"Infelizmente já atingimos o limite de vagas para esta data. Sugerimos os dias úteis disponíveis a seguir: {suggested_str}."
-                )
-                
+
         return attrs
 
 
@@ -1190,14 +1183,7 @@ class PublicAgendaRequestRescheduleSerializer(serializers.Serializer):
             )
             if agenda_id:
                 qs = qs.exclude(id=agenda_id)
-                
-            if qs.count() >= 4 and str(date) != "2026-07-09":
-                suggested = get_next_available_dates(date)
-                suggested_str = ", ".join(d.strftime("%d/%m/%Y") for d in suggested)
-                raise serializers.ValidationError(
-                    f"Infelizmente já atingimos o limite de vagas para esta data. Sugerimos os dias úteis disponíveis a seguir: {suggested_str}."
-                )
-                
+
         return attrs
 
 
