@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Navigation, Users } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Navigation, Users, Package } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client.js";
 import Filters from "../components/Filters.jsx";
@@ -235,10 +235,21 @@ export default function CalendarPage() {
                 <p>{valueOrDash(selected.description)}</p>
               </>
             )}
-            <div className="calendar-detail-actions">
+            <div className="calendar-detail-actions" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <a className="secondary action-link" href={mapsUrl(selected)} target="_blank" rel="noreferrer">
                 <Navigation size={16} /> Abrir GPS
               </a>
+              {!isVisitor && selected.materials?.filter(m => m.kit_name || m.material_name || m.dynamic_name).length > 0 && (
+                <div style={{ background: '#fff3cd', border: '1px solid #ffe69c', borderRadius: '8px', padding: '12px 16px', flex: 1, minWidth: '220px' }}>
+                  <strong style={{ color: '#664d03', fontSize: '13px', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><Package size={16}/> Materiais para entrega</strong>
+                  <ul style={{ margin: 0, paddingLeft: '22px', color: '#664d03', fontSize: '14px', fontWeight: '600' }}>
+                    {selected.materials.map((m, i) => {
+                      const name = m.kit_name || m.material_name || m.dynamic_name;
+                      return name ? <li key={i} style={{ marginBottom: '4px' }}>{name} {m.quantity ? `(${m.quantity})` : ""}</li> : null;
+                    })}
+                  </ul>
+                </div>
+              )}
             </div>
             {isVisitor && (
               <div className="visitor-detail-sections">
@@ -278,17 +289,6 @@ export default function CalendarPage() {
               <dt>Endereço</dt><dd><MapPin size={15} /> {fullAddress(selected) || "-"}</dd>
               {!isVisitor && <><dt>Viatura</dt><dd>{selected.vehicle || "-"}</dd></>}
               <dt>Município</dt><dd>{selected.city || "-"}</dd>
-              <dt>Materiais</dt>
-              <dd>
-                {selected.materials?.filter(m => m.kit_name || m.material_name || m.dynamic_name).length > 0 ? (
-                  <ul style={{ paddingLeft: "16px", margin: 0 }}>
-                    {selected.materials.map((m, i) => {
-                      const name = m.kit_name || m.material_name || m.dynamic_name;
-                      return name ? <li key={i}>{name} {m.quantity ? `(${m.quantity})` : ""}</li> : null;
-                    })}
-                  </ul>
-                ) : "-"}
-              </dd>
             </dl>
             )}
             <button onClick={() => setSelected(null)}>Fechar</button>
