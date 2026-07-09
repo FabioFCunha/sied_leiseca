@@ -235,9 +235,11 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
       setMessage("Selecione pelo menos uma faixa etária do público.");
       return;
     }
-    if (!form.accessibility_access || !form.has_accessible_bathrooms) {
-      setMessage("Responda todas as perguntas sobre acessibilidade do local.");
-      return;
+    if (form.requester_entity_kind !== "Ação de Rua") {
+      if (!form.accessibility_access || !form.has_accessible_bathrooms) {
+        setMessage("Responda todas as perguntas sobre acessibilidade do local.");
+        return;
+      }
     }
     if (!form.image_authorization) {
       setMessage("Selecione uma opção de autorização de uso de imagem.");
@@ -252,6 +254,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
         form.address_number ? `nº ${form.address_number}` : "",
         form.address_complement,
       ].filter(Boolean).join(", ");
+      const isAcaoRua = form.requester_entity_kind === "Ação de Rua";
       const payload = {
         ...form,
         address: fullAddress,
@@ -263,12 +266,16 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             ? form.image_authorization_other
             : form.image_authorization,
         end_time: addOneHour(form.start_time),
-        quantity: form.quantity === "" ? null : Number(form.quantity),
+        quantity: isAcaoRua ? null : (form.quantity === "" ? null : Number(form.quantity)),
         actions_count: form.actions_count === "" ? null : Number(form.actions_count),
         time_2: null,
         time_3: null,
         age_ranges: form.age_ranges || "N/A",
         media_equipment: form.media_equipment.join(", "),
+        action_type: isAcaoRua ? "Ação de educação/conscientização" : form.action_type,
+        participant_range: isAcaoRua ? "N/A" : form.participant_range,
+        accessibility_access: isAcaoRua ? "N/A" : form.accessibility_access,
+        has_accessible_bathrooms: isAcaoRua ? "N/A" : form.has_accessible_bathrooms,
       };
       delete payload.requester_entity_kind;
       delete payload.requester_entity_nature;
@@ -457,26 +464,28 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
 
           <div className="form-section">
             <h3>Dados da ação</h3>
-            <div className="field-card selection-card">
-              <strong>MODALIDADE PRETENDIDA <b>*</b></strong>
-              <div className="radio-list" role="radiogroup" aria-label="Modalidade pretendida">
-                {actionTypes.map((option) => (
-                  <label className="radio-option option-tile" key={option}>
-                    <input
-                      type="radio"
-                      name="action_type"
-                      checked={form.action_type === option}
-                      onChange={() => update("action_type", option)}
-                      required
-                    />
-                    <span>{option}</span>
-                  </label>
-                ))}
+            {form.requester_entity_kind !== "Ação de Rua" && (
+              <div className="field-card selection-card">
+                <strong>MODALIDADE PRETENDIDA <b>*</b></strong>
+                <div className="radio-list" role="radiogroup" aria-label="Modalidade pretendida">
+                  {actionTypes.map((option) => (
+                    <label className="radio-option option-tile" key={option}>
+                      <input
+                        type="radio"
+                        name="action_type"
+                        checked={form.action_type === option}
+                        onChange={() => update("action_type", option)}
+                        required={form.requester_entity_kind !== "Ação de Rua"}
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             <div className="split">
               <label className="field-label" style={{ flex: 1 }}>
-                <span>DATA PRETENDIDA <b>*</b></span>
+                <span>{form.requester_entity_kind === "Ação de Rua" ? "DATA" : "DATA PRETENDIDA"} <b>*</b></span>
                 <input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} required style={{ borderColor: dateMessage ? "var(--red)" : "" }} />
                 {dateMessage && <small style={{ color: "var(--red)", marginTop: "4px", display: "block", fontSize: "11px", fontWeight: "600" }}>{dateMessage}</small>}
               </label>
@@ -512,27 +521,29 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 </div>
               </div>
             )}
-            <div className="field-card">
-              <strong>Número aproximado de participantes <b>*</b></strong>
-              <div className="radio-list" role="radiogroup" aria-label="Número aproximado de participantes">
-                {participantRangeOptions.map((option) => (
-                  <label className="radio-option compact-radio option-tile" key={option.label}>
-                    <input
-                      type="radio"
-                      name="participant_range"
-                      checked={form.participant_range === option.label}
-                      onChange={() => setForm((current) => ({
-                        ...current,
-                        participant_range: option.label,
-                        quantity: String(option.quantity),
-                      }))}
-                      required
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                ))}
+            {form.requester_entity_kind !== "Ação de Rua" && (
+              <div className="field-card">
+                <strong>Número aproximado de participantes <b>*</b></strong>
+                <div className="radio-list" role="radiogroup" aria-label="Número aproximado de participantes">
+                  {participantRangeOptions.map((option) => (
+                    <label className="radio-option compact-radio option-tile" key={option.label}>
+                      <input
+                        type="radio"
+                        name="participant_range"
+                        checked={form.participant_range === option.label}
+                        onChange={() => setForm((current) => ({
+                          ...current,
+                          participant_range: option.label,
+                          quantity: String(option.quantity),
+                        }))}
+                        required={form.requester_entity_kind !== "Ação de Rua"}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="form-section">
@@ -584,58 +595,60 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             </label>
           </div>
 
-          <div className="form-section">
-            <h3>Sobre o local</h3>
-            <div className="notice-card">
-              <p>Por contar com agentes cadeirantes, necessitamos que o local esteja apto a recebê-los.</p>
-              <p>
-                <b>A presença de itens de acessibilidade é condição essencial para a viabilidade técnica da palestra;</b>
-                {" "}a divergência entre as informações prestadas e a realidade do local poderá acarretar o
-                {" "}<b>cancelamento imediato do evento.</b>
-              </p>
-            </div>
-            <div className="field-card selection-card">
-              <div className="accessibility-question-list">
-                <div className="selection-group">
-                  <span>Possui rampas ou elevador de acesso ao local da apresentação da palestra? <b>*</b></span>
-                  <div className="radio-list" role="radiogroup" aria-label="Acesso por rampas ou elevador">
-                    {accessibilityAccessOptions.map((option) => (
-                      <label className="radio-option option-tile" key={option}>
-                        <input
-                          type="radio"
-                          name="accessibility_access"
-                          checked={form.accessibility_access === option}
-                          onChange={() => update("accessibility_access", option)}
-                          required
-                        />
-                        <span>{option}</span>
-                      </label>
-                    ))}
+          {form.requester_entity_kind !== "Ação de Rua" && (
+            <div className="form-section">
+              <h3>Sobre o local</h3>
+              <div className="notice-card">
+                <p>Por contar com agentes cadeirantes, necessitamos que o local esteja apto a recebê-los.</p>
+                <p>
+                  <b>A presença de itens de acessibilidade é condição essencial para a viabilidade técnica da palestra;</b>
+                  {" "}a divergência entre as informações prestadas e a realidade do local poderá acarretar o
+                  {" "}<b>cancelamento imediato do evento.</b>
+                </p>
+              </div>
+              <div className="field-card selection-card">
+                <div className="accessibility-question-list">
+                  <div className="selection-group">
+                    <span>Possui rampas ou elevador de acesso ao local da apresentação da palestra? <b>*</b></span>
+                    <div className="radio-list" role="radiogroup" aria-label="Acesso por rampas ou elevador">
+                      {accessibilityAccessOptions.map((option) => (
+                        <label className="radio-option option-tile" key={option}>
+                          <input
+                            type="radio"
+                            name="accessibility_access"
+                            checked={form.accessibility_access === option}
+                            onChange={() => update("accessibility_access", option)}
+                            required={form.requester_entity_kind !== "Ação de Rua"}
+                          />
+                          <span>{option}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="selection-group">
-                  <span>
-                    Possui banheiro adaptado para cadeirante? <b>*</b><br />
-                    <small>(Norma Técnica ABNT NBR 9050 - assento para cadeirante, barra de apoio, portas com vão superior a 80 cm, espaço para manobra da cadeira e diâmetro de pelo menos 1,5m)</small>
-                  </span>
-                  <div className="radio-list" role="radiogroup" aria-label="Banheiro adaptado para cadeirante?">
-                    {["Sim", "Não"].map((option) => (
-                      <label className="radio-option option-tile" key={option}>
-                        <input
-                          type="radio"
-                          name="has_accessible_bathrooms"
-                          checked={form.has_accessible_bathrooms === option}
-                          onChange={() => update("has_accessible_bathrooms", option)}
-                          required
-                        />
-                        <span>{option}</span>
-                      </label>
-                    ))}
+                  <div className="selection-group">
+                    <span>
+                      Possui banheiro adaptado para cadeirante? <b>*</b><br />
+                      <small>(Norma Técnica ABNT NBR 9050 - assento para cadeirante, barra de apoio, portas com vão superior a 80 cm, espaço para manobra da cadeira e diâmetro de pelo menos 1,5m)</small>
+                    </span>
+                    <div className="radio-list" role="radiogroup" aria-label="Banheiro adaptado para cadeirante?">
+                      {["Sim", "Não"].map((option) => (
+                        <label className="radio-option option-tile" key={option}>
+                          <input
+                            type="radio"
+                            name="has_accessible_bathrooms"
+                            checked={form.has_accessible_bathrooms === option}
+                            onChange={() => update("has_accessible_bathrooms", option)}
+                            required={form.requester_entity_kind !== "Ação de Rua"}
+                          />
+                          <span>{option}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="form-section">
             <h3>Recursos disponíveis</h3>
