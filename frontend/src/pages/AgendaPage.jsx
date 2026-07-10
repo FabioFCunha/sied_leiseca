@@ -514,11 +514,25 @@ export default function AgendaPage() {
   }, [lookups.chiefs, form.team_ref, selectedTeamName, selectedShift]);
 
   const allAgents = useMemo(() => {
-    if (selectedShift && selectedShift.members) {
-       return selectedShift.members.agents.filter(m => !m.is_absent);
+    let busyInOtherShifts = new Set();
+    let currentShiftAbsents = new Set();
+    if (scheduledShifts) {
+      scheduledShifts.forEach(shift => {
+        const isCurrentTeam = String(shift.team) === String(form.team_ref);
+        if (shift.members && shift.members.agents) {
+          shift.members.agents.forEach(a => {
+            if (a.is_absent && isCurrentTeam) currentShiftAbsents.add(String(a.id));
+            if (!a.is_absent && !isCurrentTeam) busyInOtherShifts.add(String(a.id));
+          });
+        }
+      });
     }
-    return lookups.agents.filter((agent) => !isSupportRole(agent));
-  }, [lookups.agents, selectedShift]);
+    return lookups.agents.filter(agent => {
+      if (isSupportRole(agent)) return false;
+      const idStr = String(agent.id);
+      return !busyInOtherShifts.has(idStr) && !currentShiftAbsents.has(idStr);
+    });
+  }, [lookups.agents, scheduledShifts, form.team_ref]);
 
   const teamAgents = useMemo(() => {
     if (selectedShift && selectedShift.members) {
@@ -535,11 +549,24 @@ export default function AgendaPage() {
   }, [lookups.supports, form.team_ref, selectedTeamName, selectedShift]);
 
   const supportOptions = useMemo(() => {
-    if (selectedShift && selectedShift.members) {
-       return selectedShift.members.supports.filter(m => !m.is_absent);
+    let busyInOtherShifts = new Set();
+    let currentShiftAbsents = new Set();
+    if (scheduledShifts) {
+      scheduledShifts.forEach(shift => {
+        const isCurrentTeam = String(shift.team) === String(form.team_ref);
+        if (shift.members && shift.members.supports) {
+          shift.members.supports.forEach(a => {
+            if (a.is_absent && isCurrentTeam) currentShiftAbsents.add(String(a.id));
+            if (!a.is_absent && !isCurrentTeam) busyInOtherShifts.add(String(a.id));
+          });
+        }
+      });
     }
-    return lookups.supports;
-  }, [lookups.supports, selectedShift]);
+    return lookups.supports.filter(support => {
+      const idStr = String(support.id);
+      return !busyInOtherShifts.has(idStr) && !currentShiftAbsents.has(idStr);
+    });
+  }, [lookups.supports, scheduledShifts, form.team_ref]);
 
   const selectedAgentIds = (form.agents_ref || []).map(String);
   const selectedAgents = selectedAgentIds
