@@ -424,7 +424,11 @@ export default function TechnicalReportsPage() {
           api(`/shift-schedules/${scheduleInfo.id}/`).then(detailSchedule => {
             setReportSchedule(detailSchedule);
             const formObj = {};
+            const staffChanges = [];
             memberRows(detailSchedule.members).forEach(m => {
+              if (m.is_extra) staffChanges.push(`Extra: ${m.name}`);
+              if (m.is_swap) staffChanges.push(`Troca: ${m.name} (no lugar de ${m.swap_for})`);
+              
               formObj[`${m.type}_${m.id}`] = {
                 is_absent: !!m.is_absent,
                 reason: m.absence_reason || "",
@@ -433,6 +437,13 @@ export default function TechnicalReportsPage() {
               };
             });
             setAttendanceForm(formObj);
+            
+            if (staffChanges.length > 0) {
+              setForm(current => ({
+                ...current,
+                changes_staff: staffChanges.join("\n")
+              }));
+            }
           }).catch(() => {
             setReportSchedule(null);
             setAttendanceForm({});
@@ -464,28 +475,18 @@ export default function TechnicalReportsPage() {
       agenda_location: agenda.institution_location || agenda.location,
       operation_date: agenda.date || current.operation_date,
       team: agenda.team_name || agenda.team_ref_name || agenda.sector_name || current.team,
-      education_pcd: current.education_pcd || "",
       education_agents: current.education_agents || details.agents,
-      changes_staff: current.changes_staff || details.notes,
+      changes_staff: current.changes_staff || "",
       approximate_public: current.approximate_public || details.audience,
       materials_removed: current.materials_removed || materialsFromAgenda(agenda),
       breathalyzers: current.breathalyzers || details.resources,
       cars: current.cars || joinValues([agenda.vehicle, agenda.vehicle_name]),
-      changes_general: current.changes_general || joinValues([
-        agenda.image_authorization ? `Autorização de imagem: ${agenda.image_authorization}` : "",
-        agenda.accessibility_access || agenda.has_ramps || agenda.has_elevators || agenda.has_accessible_bathrooms
-          ? agenda.accessibility_access
-            ? `Acessibilidade: acesso ${agenda.accessibility_access}, banheiros adaptados ${agenda.has_accessible_bathrooms || "-"}`
-            : `Acessibilidade: rampas ${agenda.has_ramps || "-"}, elevadores ${agenda.has_elevators || "-"}, banheiros adaptados ${agenda.has_accessible_bathrooms || "-"}`
-          : "",
-      ]),
       contact_received: current.contact_received || joinContactValues([
         agenda.external_responsible,
         agenda.external_responsible_phone,
         agenda.external_email,
       ], current.contact_received),
       occurrence_observation: current.occurrence_observation || agenda.notes || agenda.description || "",
-      general_observations: current.general_observations || "",
       actions: current.actions.map((action) => ({
         ...action,
         agenda: agenda.id,
@@ -773,10 +774,6 @@ export default function TechnicalReportsPage() {
               <textarea value={form.approximate_public || ""} onChange={(event) => update("approximate_public", event.target.value)} readOnly={requestFieldsReadOnly} />
             </label>
             <label className="field-label report-text-box">
-              <span>Agentes PCDs</span>
-              <textarea value={form.education_pcd || ""} onChange={(event) => update("education_pcd", event.target.value)} readOnly={requestFieldsReadOnly} />
-            </label>
-            <label className="field-label report-text-box">
               <span>Agentes de Educação</span>
               <textarea value={form.education_agents || ""} onChange={(event) => update("education_agents", event.target.value)} readOnly={requestFieldsReadOnly} />
             </label>
@@ -785,20 +782,12 @@ export default function TechnicalReportsPage() {
               <textarea value={form.changes_staff || ""} onChange={(event) => update("changes_staff", event.target.value)} readOnly={requestFieldsReadOnly} />
             </label>
             <label className="field-label report-text-box">
-              <span>Observações gerais do protocolo</span>
-              <textarea value={form.general_observations || ""} onChange={(event) => update("general_observations", event.target.value)} readOnly={requestFieldsReadOnly} />
-            </label>
-            <label className="field-label report-text-box">
               <span>Recursos, kits e materiais</span>
               <textarea value={form.breathalyzers || ""} onChange={(event) => update("breathalyzers", event.target.value)} readOnly={requestFieldsReadOnly} />
             </label>
             <label className="field-label report-text-box">
               <span>Viaturas</span>
               <textarea value={form.cars || ""} onChange={(event) => update("cars", event.target.value)} readOnly={requestFieldsReadOnly} />
-            </label>
-            <label className="field-label report-text-box">
-              <span>Complementos e alterações</span>
-              <textarea value={form.changes_general || ""} onChange={(event) => update("changes_general", event.target.value)} readOnly={requestFieldsReadOnly} />
             </label>
           </div>
 
