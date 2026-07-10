@@ -454,21 +454,19 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                   </div>
                 </div>
               ) : (
-                internalRequest && (
-                  <div className="field-card" style={{ flex: 1 }}>
-                    <label className="field-label" style={{ marginBottom: 0 }}>
-                      <strong>Nome do evento / Ação: <b>*</b></strong>
-                      <input
-                        type="text"
-                        value={form.institution_location || ""}
-                        onChange={(e) => update("institution_location", e.target.value)}
-                        placeholder="Ex: Operação na Praia de Copacabana"
-                        required
-                        style={{ marginTop: "0.5rem" }}
-                      />
-                    </label>
-                  </div>
-                )
+                <div className="field-card" style={{ flex: 1 }}>
+                  <label className="field-label" style={{ marginBottom: 0 }}>
+                    <strong>Nome do evento / Ação: <b>*</b></strong>
+                    <input
+                      type="text"
+                      value={form.institution_location || ""}
+                      onChange={(e) => update("institution_location", e.target.value)}
+                      placeholder="Ex: Operação na Praia de Copacabana"
+                      required
+                      style={{ marginTop: "0.5rem" }}
+                    />
+                  </label>
+                </div>
               )}
             </div>
           </div>
@@ -632,7 +630,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               <span>Telefone (com DDD) <b>*</b></span>
               <input value={form.external_responsible_phone} onChange={(event) => update("external_responsible_phone", event.target.value)} required />
             </label>
-            {!(internalRequest && form.requester_entity_kind === "Ação de Rua") && (
+            {form.requester_entity_kind !== "Ação de Rua" && (
               <label className="field-label">
                 <span>Instituição/Organização <b>*</b></span>
                 <input value={form.institution_location} onChange={(event) => update("institution_location", event.target.value)} required />
