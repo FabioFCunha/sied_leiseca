@@ -486,7 +486,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               </label>
               <label className="field-label" style={{ flex: 1 }}>
                 <span>HORÁRIO PRETENDIDO / Informar horário pretendido de início <b>*</b></span>
-                <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} max={isInternal ? undefined : "18:00"} required />
+                <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} max={internalRequest ? undefined : "18:00"} required />
               </label>
             </div>
           </div>
