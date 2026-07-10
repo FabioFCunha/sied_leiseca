@@ -649,22 +649,6 @@ class AgendaSerializer(serializers.ModelSerializer):
         if status == Agenda.Status.CANCELLED and not str(cancel_reason or "").strip():
             raise serializers.ValidationError("Informe o motivo do cancelamento.")
 
-        candidate = Agenda(
-            pk=getattr(instance, "pk", None),
-            date=date,
-            start_time=start_time,
-            end_time=end_time,
-            location=attrs.get("location", getattr(instance, "location", "")),
-            responsible=attrs.get("responsible", getattr(instance, "responsible", None)),
-        )
-        if date and start_time and end_time and candidate.responsible and candidate.location:
-            conflict = candidate.overlaps_queryset().select_related("responsible").order_by("start_time").first()
-            if conflict:
-                conflict_time = f"{conflict.start_time:%H:%M} às {conflict.end_time:%H:%M}"
-                conflict_label = conflict.location or conflict.institution_location or "local não informado"
-                raise serializers.ValidationError(
-                    f"Existe conflito de horário com o protocolo #{conflict.id}, das {conflict_time}, em {conflict_label}."
-                )
         return attrs
 
     def get_linked_requests_count(self, obj):
