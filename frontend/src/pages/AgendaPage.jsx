@@ -736,8 +736,8 @@ export default function AgendaPage() {
       const hasTeam = nextForm.team_ref || nextForm.team_name || nextForm.sector;
       const hasChief = nextForm.chief_ref || nextForm.chief_name;
       const hasAgents = (nextForm.agents_ref || []).length || nextForm.agents;
-      if (!hasSchedule || !hasResponsible || !hasLocation || !hasVehicle || !hasTeam || !hasChief || !hasAgents) {
-        setMessage("Para aprovar, informe data, horário, responsável, local, viatura, equipe, chefe e agentes.");
+      if (!hasSchedule || !hasResponsible || !hasLocation || !hasTeam || !hasChief || !hasAgents) {
+        setMessage("Para aprovar, informe data, horário, responsável, local, equipe, chefe e agentes.");
         return;
       }
     }
