@@ -269,14 +269,14 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             ? form.image_authorization_other
             : form.image_authorization,
         end_time: addOneHour(form.start_time),
-        quantity: isAcaoRua ? null : (form.quantity === "" ? null : Number(form.quantity)),
+        quantity: (isAcaoRua && !internalRequest) ? null : (form.quantity === "" ? null : Number(form.quantity)),
         actions_count: form.actions_count === "" ? null : Number(form.actions_count),
         time_2: null,
         time_3: null,
         age_ranges: isAcaoRua ? "" : form.age_ranges,
         media_equipment: form.media_equipment.join(", "),
         action_type: isAcaoRua ? "Ação de educação/conscientização" : form.action_type,
-        participant_range: isAcaoRua ? "" : form.participant_range,
+        participant_range: (isAcaoRua && !internalRequest) ? "" : form.participant_range,
         accessibility_access: isAcaoRua ? "" : form.accessibility_access,
         has_accessible_bathrooms: isAcaoRua ? "" : form.has_accessible_bathrooms,
       };
@@ -489,6 +489,29 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} max={internalRequest ? undefined : "18:00"} required />
               </label>
             </div>
+            {form.requester_entity_kind === "Ação de Rua" && internalRequest && (
+              <div className="field-card" style={{ marginTop: "16px" }}>
+                <strong>Número aproximado de pessoas (para relatório/estatística) <b>*</b></strong>
+                <div className="radio-list" role="radiogroup" aria-label="Número aproximado de participantes">
+                  {participantRangeOptions.map((option) => (
+                    <label className="radio-option compact-radio option-tile" key={option.label}>
+                      <input
+                        type="radio"
+                        name="participant_range"
+                        checked={form.participant_range === option.label}
+                        onChange={() => setForm((current) => ({
+                          ...current,
+                          participant_range: option.label,
+                          quantity: String(option.quantity),
+                        }))}
+                        required
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {form.requester_entity_kind !== "Ação de Rua" && (
