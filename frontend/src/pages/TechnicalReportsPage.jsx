@@ -477,6 +477,8 @@ export default function TechnicalReportsPage() {
         type_audience: action.type_audience || agenda.audience || "",
         start_time: action.start_time || agenda.start_time?.slice(0, 5) || "",
         final_hour: action.final_hour || agenda.end_time?.slice(0, 5) || "",
+        approach: action.approach || agenda.quantity || 0,
+        approached_actions: action.approached_actions || agenda.actions_count || 0,
         equipment_materials_removed: action.equipment_materials_removed || selectedMaterials.equipmentRemoved,
         equipment_materials_distributed: action.equipment_materials_distributed || selectedMaterials.equipmentDistributed,
         distribution_materials_removed: action.distribution_materials_removed || selectedMaterials.distributionRemoved,
@@ -792,7 +794,7 @@ export default function TechnicalReportsPage() {
                     {numberFields.map((field) => (
                       <label className="field-label" key={field}>
                         <span>{fieldLabels[field]}</span>
-                        <input type="number" min="0" value={action[field] === 0 ? "" : (action[field] ?? "")} onChange={(event) => updateAction(index, field, event.target.value)} required />
+                        <input type="number" value={action[field] ?? ""} className="read-only-field" readOnly title="Preenchido automaticamente a partir da solicitação" />
                       </label>
                     ))}
                     <label className="field-label">
