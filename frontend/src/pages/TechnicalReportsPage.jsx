@@ -229,34 +229,30 @@ function materialsByTypeFromAgenda(agenda) {
   const distributionRemoved = [];
   const distributionDistributed = [];
 
-  const addLines = (kitName, kitQuantity, matName, matQuantity) => {
-    if (kitName) {
-      equipmentRemoved.push(`${kitName}${kitQuantity ? ` - ${kitQuantity}` : ""}`);
-      equipmentDistributed.push(`${kitName} [   ]`);
+  const addEquipment = (name, quantity) => {
+    if (name) {
+      equipmentRemoved.push(`${name}${quantity ? ` - ${quantity}` : ""}`);
+      equipmentDistributed.push(`${name} [   ]`);
     }
-    if (matName) {
-      distributionRemoved.push(`${matName}${matQuantity ? ` - ${matQuantity}` : ""}`);
-      distributionDistributed.push(`${matName} [   ]`);
+  };
+
+  const addDistribution = (name, quantity) => {
+    if (name) {
+      distributionRemoved.push(`${name}${quantity ? ` - ${quantity}` : ""}`);
+      distributionDistributed.push(`${name} [   ]`);
     }
   };
 
   for (let index = 1; index <= 7; index += 1) {
-    addLines(
-      agenda[`kit_${index}`],
-      agenda[`kit_${index}_quantity`],
-      agenda[`material_${index}`],
-      null
-    );
+    addEquipment(agenda[`kit_${index}`], agenda[`kit_${index}_quantity`]);
+    addDistribution(agenda[`material_${index}`], null);
   }
 
   if (agenda.materials?.length) {
     agenda.materials.forEach((item) => {
-      addLines(
-        item.kit_name,
-        item.kit ? item.quantity : null,
-        item.material_name,
-        item.material ? item.quantity : null
-      );
+      addEquipment(item.dynamic_name, item.dynamic ? item.quantity : null);
+      addDistribution(item.kit_name, item.kit ? item.quantity : null);
+      addDistribution(item.material_name, item.material ? item.quantity : null);
     });
   }
 
