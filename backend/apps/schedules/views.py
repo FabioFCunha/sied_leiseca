@@ -721,7 +721,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "satisfaction_surveys",
             ).filter(date__gte="2026-07-09")
 
-        def apply_dashboard_filters(scoped):
+        def apply_dashboard_filters(scoped, ignore_status=False):
             params = request.query_params
             if params.get("date"):
                 scoped = scoped.filter(date=params["date"])
@@ -729,7 +729,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 scoped = scoped.filter(date__gte=params["date_from"])
             if params.get("date_to"):
                 scoped = scoped.filter(date__lte=params["date_to"])
-            if params.get("status"):
+            if not ignore_status and params.get("status"):
                 scoped = scoped.filter(status=params["status"])
             if params.get("origin"):
                 scoped = scoped.filter(origin=params["origin"])
@@ -918,8 +918,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return {"total": sum(totals.values()), "items": items}
 
         def action_team_queryset():
-            scoped = dashboard_base_queryset().filter(
-                status__in=[Agenda.Status.APPROVED, Agenda.Status.COMPLETED]
+            scoped = apply_dashboard_filters(unscoped_dashboard_queryset(), ignore_status=True).filter(
+                status=Agenda.Status.COMPLETED
             )
             return scoped
 
@@ -1045,13 +1045,15 @@ class AgendaViewSet(viewsets.ModelViewSet):
             {"label": label, "value": value}
             for label, value in by_municipality_counter.most_common(8)
         ]
+        realized_qs = apply_dashboard_filters(unscoped_dashboard_queryset(), ignore_status=True).filter(status=Agenda.Status.COMPLETED)
+        
         by_neighborhood_counter = Counter(
             normalize_name(
                 row.get("neighborhood_ref__name")
                 or row.get("neighborhood")
                 or "Sem bairro"
             )
-            for row in qs.values("neighborhood_ref__name", "neighborhood")
+            for row in realized_qs.values("neighborhood_ref__name", "neighborhood")
         )
         by_neighborhood = [
             {"label": label, "value": value}
