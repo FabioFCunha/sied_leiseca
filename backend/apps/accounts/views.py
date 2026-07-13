@@ -58,6 +58,12 @@ def delete_user_dependencies(user):
     EventReport.objects.filter(created_by=user).delete()
     EducationAction.objects.filter(agenda__in=agendas).delete()
     SatisfactionSurvey.objects.filter(agenda__in=agendas).delete()
+
+    from apps.schedules.models import Chief, Agent, Support
+    source_id = f"user:{user.id}"
+    Chief.objects.filter(source_id=source_id).update(is_active=False)
+    Agent.objects.filter(source_id=source_id).update(is_active=False)
+    Support.objects.filter(source_id=source_id).update(is_active=False)
     AgendaHistory.objects.filter(changed_by=user).delete()
     agendas.delete()
     
