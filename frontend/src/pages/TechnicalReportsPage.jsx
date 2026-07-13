@@ -428,11 +428,12 @@ export default function TechnicalReportsPage() {
               if (m.is_swap) staffChanges.push(`Troca: ${m.name} (no lugar de ${m.swap_for})`);
               
               formObj[`${m.type}_${m.id}`] = {
-                is_absent: !!m.is_absent,
+                is_absent: detailSchedule.attendance_reported ? !!m.is_absent : null,
                 reason: m.absence_reason || "",
                 attachment: null,
                 member: m
               };
+
             });
             setAttendanceForm(formObj);
             
@@ -905,14 +906,6 @@ export default function TechnicalReportsPage() {
             />
             <textarea placeholder="Dados e Observações" value={form.general_observations || ""} onChange={(event) => update("general_observations", event.target.value)} />
             <textarea placeholder="Observação de ocorrência" value={form.occurrence_observation || ""} onChange={(event) => update("occurrence_observation", event.target.value)} />
-            <div className="location-tools">
-              <input type="number" step="0.00000001" placeholder="Latitude" value={form.lat || ""} onChange={(event) => update("lat", event.target.value)} />
-              <input type="number" step="0.00000001" placeholder="Longitude" value={form.lng || ""} onChange={(event) => update("lng", event.target.value)} />
-              <button type="button" className="secondary" onClick={() => fillCoordinatesFromAgenda()} disabled={!selectedAgenda || isGeocoding}>
-                <MapPin size={18} /> {isGeocoding ? "Buscando" : "Obter pelo endereço"}
-              </button>
-            </div>
-            {locationMessage && <small className="field-hint">{locationMessage}</small>}
           </div>
 
           {message && <div className="alert">{message}</div>}
@@ -950,19 +943,19 @@ export default function TechnicalReportsPage() {
                             <input
                               type="radio"
                               name={`modal_status_${key}`}
-                              checked={!data.is_absent}
+                              checked={data.is_absent === false}
                               onChange={() => setAttendanceForm(prev => ({ ...prev, [key]: { ...prev[key], is_absent: false } }))}
                             />
-                            <span style={{ color: !data.is_absent ? "#15803d" : "inherit", fontWeight: !data.is_absent ? "bold" : "normal" }}>Presente</span>
+                            <span style={{ color: data.is_absent === false ? "#15803d" : "inherit", fontWeight: data.is_absent === false ? "bold" : "normal" }}>Presente</span>
                           </label>
                           <label style={{ display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
                             <input
                               type="radio"
                               name={`modal_status_${key}`}
-                              checked={data.is_absent}
+                              checked={data.is_absent === true}
                               onChange={() => setAttendanceForm(prev => ({ ...prev, [key]: { ...prev[key], is_absent: true } }))}
                             />
-                            <span style={{ color: data.is_absent ? "#b91c1c" : "inherit", fontWeight: data.is_absent ? "bold" : "normal" }}>Falta</span>
+                            <span style={{ color: data.is_absent === true ? "#b91c1c" : "inherit", fontWeight: data.is_absent === true ? "bold" : "normal" }}>Falta</span>
                           </label>
                         </div>
                       </div>
@@ -1000,12 +993,11 @@ export default function TechnicalReportsPage() {
               <button 
                 type="button"
                 className="primary" 
-                onClick={() => {
-
-                  setIsAttendanceModalOpen(false);
-                }}
+                onClick={() => setIsAttendanceModalOpen(false)}
+                disabled={Object.values(attendanceForm).some(d => d.is_absent === null)}
+                title={Object.values(attendanceForm).some(d => d.is_absent === null) ? "Selecione a frequência de todos os membros" : ""}
               >
-                Salvar Arquivos
+                Confirmar
               </button>
             </div>
           </article>
