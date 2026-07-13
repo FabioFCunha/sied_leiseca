@@ -16,7 +16,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
 _allowed = config("ALLOWED_HOSTS", default="localhost,127.0.0.1,sied-leiseca.online")
-ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip() and h.strip() != "*"]
+if _allowed.strip() == "*":
+    ALLOWED_HOSTS = ["sied-leiseca.online", "www.sied-leiseca.online", "localhost", "127.0.0.1", "backend"]
+else:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip()]
+
 RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
