@@ -512,6 +512,8 @@ export default function ShiftSchedulePage() {
       
       if (attendanceTarget.attendance_reported && !attendanceTarget.attendance_approved) {
         await api(`/shift-schedules/${attendanceTarget.id}/approve-attendance/`, { method: "POST" });
+      } else if (!attendanceTarget.attendance_reported) {
+        await api(`/shift-schedules/${attendanceTarget.id}/report-attendance/`, { method: "POST" });
       }
       
       await loadSchedules();
