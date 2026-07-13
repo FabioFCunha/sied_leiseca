@@ -1,4 +1,5 @@
 from datetime import date, time
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
@@ -116,6 +117,31 @@ class PublicAgendaRequestSerializerTests(TestCase):
         serializer = PublicAgendaRequestSerializer(data=data)
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class PublicCepLookupTests(APITestCase):
+    @patch("apps.schedules.views.urlopen")
+    def test_returns_address_data_from_public_cep_endpoint(self, mock_urlopen):
+        remote_response = MagicMock()
+        remote_response.read.return_value = (
+            b'{"cep":"22240-000","logradouro":"Rua das Laranjeiras","bairro":"Laranjeiras","localidade":"Rio de Janeiro","uf":"RJ"}'
+        )
+        mock_urlopen.return_value.__enter__.return_value = remote_response
+
+        response = self.client.get(reverse("public_cep_lookup"), {"cep": "22240000"}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["address"], "Rua das Laranjeiras")
+        self.assertEqual(response.data["neighborhood"], "Laranjeiras")
+        self.assertEqual(response.data["city"], "Rio de Janeiro")
+        self.assertEqual(response.data["state"], "RJ")
+
+    def test_rejects_invalid_cep_length(self):
+        response = self.client.get(reverse("public_cep_lookup"), {"cep": "123"}, follow=True)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("CEP", response.data["detail"])
 
 
 class EducationReportSerializerTests(APITestCase):

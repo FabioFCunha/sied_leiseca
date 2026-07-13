@@ -173,28 +173,24 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
   const lookupCep = async () => {
     const cep = form.cep.replace(/\D/g, "");
     if (cep.length !== 8) {
-      setCepMessage("Informe um CEP com 8 dígitos.");
+      setCepMessage("Informe um CEP com 8 digitos.");
       return;
     }
     setCepLoading(true);
     setCepMessage("");
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-      const data = await response.json();
-      if (data.erro) {
-        setCepMessage("CEP não encontrado.");
-        return;
-      }
+      const data = await api(`/public/cep/?cep=${cep}`, { redirectOnUnauthorized: false });
       setForm((current) => ({
         ...current,
-        address: data.logradouro || current.address,
-        neighborhood: data.bairro || current.neighborhood,
-        city: data.localidade || current.city,
-        state: data.uf || current.state,
+        address: data.address || current.address,
+        neighborhood: data.neighborhood || current.neighborhood,
+        city: data.city || current.city,
+        state: data.state || current.state,
+        complement: data.complement || current.complement,
       }));
-      setCepMessage("Endereço localizado. Complete o número e o complemento, se houver.");
-    } catch {
-      setCepMessage("Não foi possível buscar o CEP agora.");
+      setCepMessage("Endereco localizado. Complete o numero e o complemento, se houver.");
+    } catch (err) {
+      setCepMessage(err.message || "Nao foi possivel buscar o CEP agora.");
     } finally {
       setCepLoading(false);
     }

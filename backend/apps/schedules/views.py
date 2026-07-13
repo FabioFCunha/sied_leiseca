@@ -1,6 +1,9 @@
+import json
 import re
 from collections import Counter, defaultdict
 from datetime import date, timedelta
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 def normalize_name(name):
     if not name:
@@ -14,7 +17,7 @@ def normalize_name(name):
     return t
 
 
-from django.db import transaction
+from django.db import OperationalError, ProgrammingError, transaction
 from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, Value, When
 from django.db.models.functions import ExtractMonth, ExtractYear, TruncMonth
 from django.core import signing
@@ -1370,6 +1373,47 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         ("publicity_materials", "Materiais de divulgação"),
     ]
 
+    schema_error_message = (
+        "O banco de dados dos relatorios tecnicos esta desatualizado. "
+        "Execute `python manage.py migrate` no backend da VPS e tente novamente."
+    )
+
+    def _schema_error_response(self, exc):
+        message = str(exc).lower()
+        if "educationreport" in message or "schedules_educationreport" in message:
+            return response.Response({"detail": self.schema_error_message}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        raise exc
+
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except (OperationalError, ProgrammingError) as exc:
+            return self._schema_error_response(exc)
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            return super().retrieve(request, *args, **kwargs)
+        except (OperationalError, ProgrammingError) as exc:
+            return self._schema_error_response(exc)
+
+    def create(self, request, *args, **kwargs):
+        try:
+            return super().create(request, *args, **kwargs)
+        except (OperationalError, ProgrammingError) as exc:
+            return self._schema_error_response(exc)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            return super().update(request, *args, **kwargs)
+        except (OperationalError, ProgrammingError) as exc:
+            return self._schema_error_response(exc)
+
+    def partial_update(self, request, *args, **kwargs):
+        try:
+            return super().partial_update(request, *args, **kwargs)
+        except (OperationalError, ProgrammingError) as exc:
+            return self._schema_error_response(exc)
+
     def get_queryset(self):
         user = self.request.user
         queryset = EducationReport.objects.select_related("agenda", "created_by").prefetch_related(
@@ -1485,6 +1529,12 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=False, methods=["get"])
     def statistics(self, request):
+        try:
+            return self._statistics(request)
+        except (OperationalError, ProgrammingError) as exc:
+            return self._schema_error_response(exc)
+
+    def _statistics(self, request):
         allowed_visitors = ["OLS/CooAdm", "Subsecretaria"]
         is_allowed_visitor = request.user.role == User.Role.VISITOR and request.user.sector and request.user.sector.name in allowed_visitors
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR or is_allowed_visitor):
@@ -2271,6 +2321,43 @@ class AccessibilityBlocklistViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
             
         return queryset.order_by("-created_at")
+
+
+class PublicCepLookupView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "anon"
+
+    def get(self, request):
+        cep = re.sub(r"\D", "", request.query_params.get("cep", ""))
+        if len(cep) != 8:
+            return response.Response({"detail": "Informe um CEP com 8 digitos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        req = Request(
+            f"https://viacep.com.br/ws/{cep}/json/",
+            headers={"User-Agent": "agenda-educacao/1.0"},
+        )
+        try:
+            with urlopen(req, timeout=8) as remote_response:
+                payload = json.loads(remote_response.read().decode("utf-8"))
+        except HTTPError:
+            return response.Response({"detail": "Nao foi possivel consultar o CEP agora."}, status=status.HTTP_502_BAD_GATEWAY)
+        except URLError:
+            return response.Response({"detail": "Nao foi possivel consultar o CEP agora."}, status=status.HTTP_502_BAD_GATEWAY)
+
+        if payload.get("erro"):
+            return response.Response({"detail": "CEP nao encontrado."}, status=status.HTTP_404_NOT_FOUND)
+
+        return response.Response(
+            {
+                "cep": payload.get("cep", ""),
+                "address": payload.get("logradouro", ""),
+                "neighborhood": payload.get("bairro", ""),
+                "city": payload.get("localidade", ""),
+                "state": payload.get("uf", ""),
+                "complement": payload.get("complemento", ""),
+            }
+        )
 
 
 class PublicAgendaRequestView(APIView):
