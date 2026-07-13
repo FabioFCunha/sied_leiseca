@@ -14,6 +14,12 @@ from rest_framework.permissions import SAFE_METHODS, BasePermission, IsAuthentic
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.throttling import ScopedRateThrottle
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework.throttling import ScopedRateThrottle
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from config.email_delivery import send_email_message
 from config.email_signature import build_signed_email
@@ -68,6 +74,10 @@ class UserAccessPermission(BasePermission):
 class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
     permission_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
@@ -97,6 +107,10 @@ class CurrentUserView(APIView):
 
 class PasswordResetRequestView(APIView):
     permission_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_reset"
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_reset"
 
     def post(self, request):
         email = request.data.get("email")
@@ -129,7 +143,6 @@ class PasswordResetRequestView(APIView):
         return Response(
             {
                 "detail": "Se o e-mail existir, enviaremos instrucoes para recuperacao de senha.",
-                "password_setup_link": link if settings.DEBUG else None,
             },
             status=status.HTTP_200_OK,
         )
@@ -151,6 +164,10 @@ class SetPasswordView(APIView):
             return Response({"detail": "Link invalido."}, status=status.HTTP_400_BAD_REQUEST)
         if not default_token_generator.check_token(user, token):
             return Response({"detail": "Link expirado ou invalido."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            validate_password(password, user=user)
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(password)
         user.save(update_fields=["password"])
         log_audit(

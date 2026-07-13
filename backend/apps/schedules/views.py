@@ -15,6 +15,7 @@ from reportlab.pdfgen import canvas
 from rest_framework import decorators, parsers, response, status, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.audit import log_audit
@@ -2229,6 +2230,8 @@ class AccessibilityBlocklistViewSet(viewsets.ModelViewSet):
 
 class PublicAgendaRequestView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "anon"
 
     def get(self, request):
         date_str = request.query_params.get("date")
@@ -3309,6 +3312,14 @@ class GoogleFormsWebhookView(APIView):
         Recebe o payload via POST do Google Apps Script (onFormSubmit)
         O payload esperado é {"namedValues": {"Carimbo de data/hora": ["valor"], ...}}
         """
+        import logging as _logging
+        _wh_logger = _logging.getLogger(__name__)
+
+        webhook_secret = getattr(settings, "WEBHOOK_SECRET", "") or ""
+        incoming_secret = request.headers.get("X-Webhook-Secret", "")
+        if not webhook_secret or incoming_secret != webhook_secret:
+            return response.Response({"detail": "Nao autorizado."}, status=403)
+
         named_values = request.data.get("namedValues")
         
         # Fallback caso o script envie diretamente o objeto
@@ -3345,4 +3356,5 @@ class GoogleFormsWebhookView(APIView):
             result = cmd.import_row(row, index=0, admin=admin, sector=sector, dry_run=False)
             return response.Response({"status": "success", "result": result})
         except Exception as e:
-            return response.Response({"detail": str(e)}, status=500)
+            _wh_logger.exception("Erro ao processar webhook do Google Forms")
+            return response.Response({"detail": "Erro interno ao processar a solicitacao."}, status=500)

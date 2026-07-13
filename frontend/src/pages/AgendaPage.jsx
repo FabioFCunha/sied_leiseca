@@ -832,7 +832,9 @@ export default function AgendaPage() {
       }
       setMessage("Link da pesquisa gerado.");
       if (openLink) {
-        window.open(data.url, "_blank", "noreferrer");
+        if (data.url && /^https?:\/\//i.test(data.url)) {
+          window.open(data.url, "_blank", "noreferrer");
+        }
       }
       return data.url;
     } catch (err) {

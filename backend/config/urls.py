@@ -7,6 +7,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.views import AuditLogViewSet, CurrentUserView, LoginView, PasswordResetRequestView, SetPasswordView, UserViewSet
+from apps.accounts.privacy_views import PrivacyPolicyView, LGPDConsentView, MyDataView
 from apps.schedules.views import (
     AccessibilityBlocklistViewSet,
     ActionTypeViewSet,
@@ -78,6 +79,9 @@ urlpatterns = [
     path("api/public/satisfaction-survey/<str:token>/", SatisfactionSurveyPublicView.as_view(), name="satisfaction_survey_public"),
     path("api/internal/agenda-request/", InternalAgendaRequestView.as_view(), name="internal_agenda_request"),
     path("api/webhooks/google-forms/", GoogleFormsWebhookView.as_view(), name="google_forms_webhook"),
+    path("api/auth/privacy-policy/", PrivacyPolicyView.as_view(), name="privacy_policy"),
+    path("api/auth/lgpd-consent/", LGPDConsentView.as_view(), name="lgpd_consent"),
+    path("api/auth/my-data/", MyDataView.as_view(), name="my_data"),
     path("api/", include(router.urls)),
 ]
 

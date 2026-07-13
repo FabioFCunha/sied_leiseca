@@ -4,12 +4,19 @@ from pathlib import Path
 
 import dj_database_url
 from decouple import config
+from datetime import timedelta
+import os
+from pathlib import Path
+
+import dj_database_url
+from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config("SECRET_KEY", default="dev-secret-change-me")
-DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = [host.strip() for host in config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",") if host.strip()]
+SECRET_KEY = config("SECRET_KEY")
+DEBUG = config("DEBUG", default=False, cast=bool)
+_allowed = config("ALLOWED_HOSTS", default="localhost,127.0.0.1,sied-leiseca.online")
+ALLOWED_HOSTS = [h.strip() for h in _allowed.split(",") if h.strip() and h.strip() != "*"]
 RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
@@ -120,7 +127,6 @@ CORS_ALLOWED_ORIGINS = config(
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://localhost:51[0-9]{2}$",
     r"^http://127\.0\.0\.1:51[0-9]{2}$",
-    r"^http://\d{1,3}(\.\d{1,3}){3}:51[0-9]{2}$",
 ]
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173")
 
@@ -155,11 +161,23 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 50,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/minute",
+        "user": "120/minute",
+        "login": "5/minute",
+        "password_reset": "3/minute",
+    },
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
@@ -171,3 +189,18 @@ if os.environ.get('CACHE_URL'):
         }
     }
 
+
+# ── Security headers ────────────────────────────────────────────────
+if not DEBUG:
+    SECURE_SSL_REDIRECT = config("SECURE_SSL_REDIRECT", default=True, cast=bool)
+    SECURE_HSTS_SECONDS = 31_536_000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+SESSION_COOKIE_HTTPONLY = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"

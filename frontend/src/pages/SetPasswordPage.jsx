@@ -3,6 +3,17 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 
+const passwordRules = [
+  { test: (pw) => pw.length >= 8, label: "Mínimo de 8 caracteres" },
+  { test: (pw) => /[A-Z]/.test(pw), label: "Pelo menos uma letra maiúscula" },
+  { test: (pw) => /[a-z]/.test(pw), label: "Pelo menos uma letra minúscula" },
+  { test: (pw) => /[0-9]/.test(pw), label: "Pelo menos um número" },
+];
+
+function validatePassword(pw) {
+  return passwordRules.map((rule) => ({ ...rule, valid: rule.test(pw) }));
+}
+
 export default function SetPasswordPage() {
   const [params] = useSearchParams();
   const [password, setPassword] = useState("");
@@ -17,9 +28,16 @@ export default function SetPasswordPage() {
     token: params.get("token"),
   }), [params]);
 
+  const validation = validatePassword(password);
+  const allValid = validation.every((r) => r.valid);
+
   const submit = async (event) => {
     event.preventDefault();
     setMessage("");
+    if (!allValid) {
+      setMessage("A senha não atende a todos os requisitos.");
+      return;
+    }
     if (password !== confirm) {
       setMessage("As senhas não conferem.");
       return;
@@ -63,6 +81,15 @@ export default function SetPasswordPage() {
               </button>
             </span>
           </label>
+          {password.length > 0 && (
+            <ul style={{ listStyle: "none", padding: 0, margin: "4px 0 8px", fontSize: "13px" }}>
+              {validation.map((rule) => (
+                <li key={rule.label} style={{ color: rule.valid ? "var(--success, #16a34a)" : "var(--danger, #dc2626)", display: "flex", alignItems: "center", gap: "6px", lineHeight: "1.8" }}>
+                  <span>{rule.valid ? "✓" : "✗"}</span> {rule.label}
+                </li>
+              ))}
+            </ul>
+          )}
           <label>
             Confirmar senha
             <span className="input-icon">
@@ -79,8 +106,13 @@ export default function SetPasswordPage() {
               </button>
             </span>
           </label>
+          {confirm.length > 0 && password !== confirm && (
+            <div style={{ color: "var(--danger, #dc2626)", fontSize: "13px", margin: "4px 0 8px" }}>
+              ✗ As senhas não conferem.
+            </div>
+          )}
           {message && <div className="alert">{message}</div>}
-          <button disabled={loading}>{loading ? "Salvando..." : "Cadastrar senha"}</button>
+          <button disabled={loading || !allValid}>{loading ? "Salvando..." : "Cadastrar senha"}</button>
           <Link className="link-button" to="/login">Voltar ao login</Link>
         </form>
       </section>

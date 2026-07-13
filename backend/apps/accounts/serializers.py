@@ -177,6 +177,7 @@ class UserSerializer(serializers.ModelSerializer):
     sector_name = serializers.CharField(source="sector.name", read_only=True)
     occupation = serializers.CharField(source="role", read_only=True)
     password_setup_link = serializers.SerializerMethodField()
+    cpf = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -197,15 +198,23 @@ class UserSerializer(serializers.ModelSerializer):
             "is_on_vacation",
             "vacation_start",
             "vacation_end",
-            "is_superuser",
             "password",
             "password_setup_link",
         ]
-        read_only_fields = ["id", "is_superuser", "password_setup_link"]
+        read_only_fields = ["id", "password_setup_link"]
         extra_kwargs = {
             "full_name": {"required": False, "allow_blank": True},
             "cpf": {"required": False, "allow_blank": True},
         }
+
+    def get_cpf(self, obj):
+        raw = only_digits(obj.cpf)
+        if not raw:
+            return None
+        request = self.context.get("request")
+        if request and hasattr(request, "user") and (request.user.is_superuser or getattr(request.user, "is_admin_role", False)):
+            return raw
+        return f"***.***.{raw[-5:-2]}-{raw[-2:]}" if len(raw) >= 5 else raw
 
     def get_password_setup_link(self, obj):
         uid = urlsafe_base64_encode(force_bytes(obj.pk))

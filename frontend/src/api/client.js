@@ -1,5 +1,28 @@
-const API_URL = import.meta.env.VITE_API_URL || "https://sied-api-qcij.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 const DEFAULT_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 12000);
+
+let isRefreshing = false;
+let refreshQueue = [];
+
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem("refreshToken");
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${API_URL}/auth/token/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    localStorage.setItem("accessToken", data.access);
+    if (data.refresh) localStorage.setItem("refreshToken", data.refresh);
+    return data.access;
+  } catch {
+    return null;
+  }
+}
 
 export function getToken() {
   return localStorage.getItem("accessToken");
@@ -90,10 +113,31 @@ export async function api(path, options = {}) {
   const data = contentType.includes("application/json") ? await response.json() : await response.blob();
   if (!response.ok) {
     if (response.status === 401 && redirectOnUnauthorized) {
+      // Try token refresh before logging out
+      if (!isRefreshing) {
+        isRefreshing = true;
+        const newToken = await refreshAccessToken();
+        isRefreshing = false;
+
+        if (newToken) {
+          // Retry the original request with new token
+          const retryHeaders = { ...Object.fromEntries(headers.entries()), Authorization: `Bearer ${newToken}` };
+          const retryRes = await fetch(`${API_URL}${path}`, { ...fetchOptions, headers: retryHeaders, signal: fetchOptions.signal || controller?.signal });
+          if (retryRes.ok || retryRes.status !== 401) {
+            // Process the retry response same as success
+            const ct = retryRes.headers.get("content-type") || "";
+            if (retryRes.status === 204) return null;
+            return ct.includes("json") ? retryRes.json() : retryRes.text();
+          }
+        }
+      }
+
+      // Refresh failed - logout
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
       window.location.href = "/login";
+      throw new Error("Sessão expirada");
     }
     throw new Error(await formatResponseError(data, response.status));
   }
