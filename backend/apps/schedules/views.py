@@ -476,6 +476,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         scoped = self.get_scoped_queryset()
         params = self.request.query_params
+        user = self.request.user
 
         # Restrição para que relatórios só fiquem pendentes após as 18h do dia da ação
         if params.get("reportable") == "true":
