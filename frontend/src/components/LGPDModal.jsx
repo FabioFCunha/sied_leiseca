@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { Shield } from "lucide-react";
 
 export default function LGPDModal({ onConsent }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [policyText, setPolicyText] = useState("Carregando política de privacidade...");
   const [loading, setLoading] = useState(true);
   const [consenting, setConsenting] = useState(false);
@@ -28,9 +28,8 @@ export default function LGPDModal({ onConsent }) {
     try {
       const data = await api("/auth/lgpd-consent/", { method: "POST" });
       const updatedUser = { ...user, lgpd_consent_at: data.lgpd_consent_at };
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      // AuthContext usa o localStorage no recarregamento, mas onConsent fará a UI atualizar imediatamente
-      onConsent(updatedUser);
+      updateUser(updatedUser);
+      if (onConsent) onConsent(updatedUser);
     } catch (err) {
       setError(err.message || "Erro ao registrar consentimento.");
       setConsenting(false);
