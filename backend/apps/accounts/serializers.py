@@ -200,8 +200,9 @@ class UserSerializer(serializers.ModelSerializer):
             "vacation_end",
             "password",
             "password_setup_link",
+            "lgpd_consent_at",
         ]
-        read_only_fields = ["id", "password_setup_link"]
+        read_only_fields = ["id", "password_setup_link", "lgpd_consent_at"]
         extra_kwargs = {
             "full_name": {"required": False, "allow_blank": True},
             "cpf": {"required": False, "allow_blank": True},
