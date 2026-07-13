@@ -545,7 +545,10 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
             scoped = scoped.filter(search_filter)
         if params.get("pending_report") == "true":
-            scoped = scoped.filter(technical_reports__isnull=True, date__gte="2026-07-08").exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
+            if user.is_admin_role:
+                scoped = scoped.filter(technical_reports__isnull=True, date__gte="2026-07-01").exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
+            else:
+                scoped = scoped.filter(technical_reports__isnull=True, date__gte="2026-07-08").exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
         if params.get("order") == "latest":
             return (
                 scoped.distinct()
@@ -1372,7 +1375,11 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         queryset = EducationReport.objects.select_related("agenda", "created_by").prefetch_related(
             "actions",
             "actions__agenda",
-        ).filter(agenda__date__gte="2026-07-08")
+        )
+        if user.is_admin_role:
+            queryset = queryset.filter(agenda__date__gte="2026-07-01")
+        else:
+            queryset = queryset.filter(agenda__date__gte="2026-07-08")
         if user.is_agent_role:
             scoped = queryset.none()
         elif user.is_admin_role:
