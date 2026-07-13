@@ -80,13 +80,32 @@ class LoginView(TokenObtainPairView):
     permission_classes = []
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "login"
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "login"
 
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        email = request.data.get("email")
+        email = (request.data.get("email") or "").strip().lower()
+        if not email or not request.data.get("password"):
+            return Response(
+                {"detail": "Informe o e-mail e a senha."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         user = User.objects.filter(email__iexact=email).first()
+        if user and not user.is_active:
+            return Response(
+                {"detail": "Sua conta está desativada. Entre em contato com o administrador."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if user and not user.has_usable_password():
+            return Response(
+                {"detail": "Sua senha ainda não foi definida. Clique em 'Esqueci minha senha' para criar uma."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            response = super().post(request, *args, **kwargs)
+        except Exception:
+            return Response(
+                {"detail": "E-mail ou senha incorretos."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         if response.status_code == status.HTTP_200_OK and user:
             log_audit(
                 request,
