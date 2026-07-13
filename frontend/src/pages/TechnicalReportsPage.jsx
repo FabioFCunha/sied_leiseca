@@ -45,6 +45,7 @@ const empty = {
   education_agents: "",
   changes_staff: "",
   approximate_public: "",
+  request_details: "",
   street_action_details: [],
   accessibility_conditions_met: "",
   materials_removed: "",
@@ -314,9 +315,31 @@ function addressFromAgenda(agenda) {
   ].filter(Boolean).join(", ");
 }
 
-function normalizePayload(form) {
+
+function numericApproximatePublic(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const digits = String(value).replace(/\D/g, "");
+  return digits || "";
+}
+
+function buildRequestDetails(report, agenda) {
+  if (report?.request_details) return report.request_details;
+  return protocolDetails(agenda || report || {}).audience || "";
+}
+
+function hydrateForm(report, agenda) {
   return {
-    ...form,
+    ...report,
+    approximate_public: numericApproximatePublic(report?.approximate_public),
+    request_details: buildRequestDetails(report, agenda),
+    actions: report.actions?.length ? report.actions : [{ ...emptyAction, agenda: report.agenda }],
+  };
+}
+
+function normalizePayload(form) {
+  const { request_details, ...payloadForm } = form;
+  return {
+    ...payloadForm,
     source: "LOCAL",
     source_id: nullable(form.source_id),
     agenda: nullable(form.agenda),
@@ -476,7 +499,8 @@ export default function TechnicalReportsPage() {
       team: agenda.team_name || agenda.team_ref_name || agenda.sector_name || current.team,
       education_agents: current.education_agents || details.agents,
       changes_staff: current.changes_staff || "",
-      approximate_public: current.approximate_public || details.audience,
+      approximate_public: current.approximate_public || numericApproximatePublic(agenda.quantity),
+      request_details: current.request_details || details.audience,
       street_action_details: current.street_action_details?.length ? current.street_action_details : (agenda.street_action_details || []),
       materials_removed: current.materials_removed || materialsFromAgenda(agenda),
       breathalyzers: current.breathalyzers || details.resources,
@@ -648,11 +672,8 @@ export default function TechnicalReportsPage() {
         ? await api(`/education-reports/${editing}/`, { method: "PUT", body: JSON.stringify(payload) })
         : await api("/education-reports/", { method: "POST", body: JSON.stringify(payload) });
       setEditing(saved.id);
-      
-
-
-      setForm({ ...saved, actions: saved.actions.length ? saved.actions : [{ ...emptyAction, agenda: saved.agenda }] });
       const savedAgenda = agendas.find((agenda) => String(agenda.id) === String(saved.agenda));
+      setForm(hydrateForm(saved, savedAgenda));
       setProtocolSearch(savedAgenda?.service_order_number ? serviceOrderLabel(savedAgenda) : saved.agenda ? String(saved.agenda) : "");
       load();
     } catch (err) {
@@ -685,7 +706,7 @@ export default function TechnicalReportsPage() {
     setEditing(report.id);
     const reportAgenda = agendas.find((agenda) => String(agenda.id) === String(report.agenda));
     setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : report.agenda ? String(report.agenda) : "");
-    setForm({ ...report, actions: report.actions.length ? report.actions : [{ ...emptyAction, agenda: report.agenda }] });
+    setForm(hydrateForm(report, reportAgenda));
     setMessage("");
   };
 
@@ -776,9 +797,20 @@ export default function TechnicalReportsPage() {
 
           <div className="form-section">
             <h3>Efetivo e recursos</h3>
+            <label className="field-label">
+              <span>P?blico aproximado</span>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.approximate_public || ""}
+                onChange={(event) => update("approximate_public", event.target.value.replace(/\D/g, ""))}
+                inputMode="numeric"
+              />
+            </label>
             <label className="field-label report-text-box">
-              <span>Público aproximado e dados da solicitação</span>
-              <textarea value={form.approximate_public || ""} onChange={(event) => update("approximate_public", event.target.value)} readOnly={requestFieldsReadOnly} />
+              <span>Dados da solicita??o</span>
+              <textarea value={form.request_details || ""} readOnly />
             </label>
             <label className="field-label report-text-box">
               <span>Agentes de Educação</span>
