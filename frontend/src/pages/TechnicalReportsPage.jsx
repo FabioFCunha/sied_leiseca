@@ -658,6 +658,7 @@ export default function TechnicalReportsPage() {
     try {
       if (reportSchedule && Object.keys(attendanceForm).length > 0) {
         const promises = Object.entries(attendanceForm).map(([key, data]) => {
+          if (data.is_absent === null) return null;
           const [memberType, memberId] = key.split("_");
           if (data.is_absent) {
             const body = new FormData();
@@ -666,14 +667,15 @@ export default function TechnicalReportsPage() {
             body.append("reason", data.reason || "Falta");
             if (data.attachment) body.append("attachment", data.attachment);
             return api(`/shift-schedules/${reportSchedule.id}/absence/`, { method: "POST", body });
-          } else {
+          } else if (data.is_absent === false) {
             return api(`/shift-schedules/${reportSchedule.id}/absence/`, { 
               method: "DELETE", 
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ member_type: memberType, member_id: memberId })
             });
           }
-        });
+          return null;
+        }).filter(Boolean);
         await Promise.all(promises);
         
         if (status === "SUBMITTED") {
@@ -710,6 +712,10 @@ export default function TechnicalReportsPage() {
 
   const submitFinal = async () => {
     setMessage("");
+    if (reportSchedule && Object.values(attendanceForm).some((d) => d.is_absent === null)) {
+      setMessage("É obrigatório gerenciar a frequência de toda a equipe antes de enviar o relatório final.");
+      return;
+    }
     try {
       await saveReport("SUBMITTED");
       setMessage("Relatório enviado com sucesso.");
