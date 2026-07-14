@@ -58,6 +58,7 @@ from .models import (
     SatisfactionSurvey,
     SatisfactionSurveyModerationHistory,
     ShiftAbsence,
+    ReportStatusHistory,
     ShiftSchedule,
     ShiftSwapRequest,
     Support,
@@ -1593,8 +1594,24 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             return response.Response({"detail": "Apenas relatórios em rascunho ou devolvidos podem ser enviados para conferência."}, status=status.HTTP_400_BAD_REQUEST)
         
         # Validação obrigatória da conferência de frequência
-        from apps.schedules.models import ShiftSchedule
-        schedule = ShiftSchedule.objects.filter(date=report.operation_date, team=report.team).first()
+        from apps.schedules.models import ShiftSchedule, Team
+        
+        schedules_found = []
+        if report.agenda and report.agenda.team_ref_id:
+            schedules_found = list(ShiftSchedule.objects.filter(date=report.operation_date, team_id=report.agenda.team_ref_id))
+            
+        if not schedules_found and report.team:
+            team_obj = Team.objects.filter(name=report.team).first()
+            if team_obj:
+                schedules_found = list(ShiftSchedule.objects.filter(date=report.operation_date, team=team_obj))
+                
+        if len(schedules_found) != 1:
+            return response.Response(
+                {"detail": "Não foi possível localizar a escala vinculada a este relatório. Verifique a agenda e tente novamente."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        schedule = schedules_found[0]
         if schedule:
             expected_members = set()
             for c in schedule.team.chiefs.all(): expected_members.add(f"CHIEF_{c.id}")

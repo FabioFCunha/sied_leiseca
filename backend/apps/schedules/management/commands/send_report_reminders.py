@@ -17,7 +17,7 @@ class Command(BaseCommand):
             date=today,
             status__in=[Agenda.Status.APPROVED, Agenda.Status.COMPLETED]
         ).exclude(
-            technical_reports__status=EducationReport.ReportStatus.SUBMITTED
+            technical_reports__status=EducationReport.ReportStatus.APPROVED
         ).distinct()
 
         sent_count = 0

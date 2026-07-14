@@ -12,7 +12,7 @@ class Command(BaseCommand):
         from django.conf import settings
         json_path = os.path.join(settings.BASE_DIR, 'external_reports.json')
         # Update any previously imported reports that were left as DRAFT
-        updated = EducationReport.objects.filter(source_id__startswith="external:", status="DRAFT").update(status=EducationReport.ReportStatus.SUBMITTED)
+        updated = EducationReport.objects.filter(source_id__startswith="external:", status="DRAFT").update(status=EducationReport.ReportStatus.APPROVED)
         if updated:
             self.stdout.write(self.style.SUCCESS(f"Updated {updated} previously imported reports to SUBMITTED status."))
 
@@ -95,7 +95,7 @@ class Command(BaseCommand):
 
                 report = EducationReport.objects.create(
                     created_by=system_user,
-                    status=EducationReport.ReportStatus.SUBMITTED,
+                    status=EducationReport.ReportStatus.APPROVED,
                     agenda=agenda,
                     source_id=source_id,
                     team=team,

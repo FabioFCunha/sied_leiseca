@@ -593,3 +593,71 @@ class PublicAgendaRequestRejectionEmailTests(APITestCase):
         self.assertIn("maria@example.com", email.to)
         self.assertIn("Agradecemos o interesse em receber a palestra da Operação Lei Seca novamente", email.body)
         self.assertIn("Durante a análise técnica, após a última palestra no local indicado na solicitação", email.body)
+
+
+class EducationReportSubmitForReviewTests(APITestCase):
+    def setUp(self):
+        from apps.accounts.models import User
+        self.user = User.objects.create(email="test_submit@example.com", username="test_submit", role=User.Role.ADMIN)
+        self.user.set_password("pass")
+        self.user.save()
+        self.client.force_authenticate(user=self.user)
+        self.team, _ = Team.objects.get_or_create(name="CHARLIE")
+        self.team2, _ = Team.objects.get_or_create(name="ALFA")
+        from datetime import date, time
+        self.date = date(2026, 7, 14)
+        sector, _ = Sector.objects.get_or_create(name="Educação")
+        self.agenda1 = Agenda.objects.create(title="Test", date=self.date, start_time=time(10, 0), end_time=time(12, 0), created_by=self.user, responsible=self.user, sector=sector)
+        self.agenda2 = Agenda.objects.create(title="Test2", date=self.date, start_time=time(10, 0), end_time=time(12, 0), created_by=self.user, responsible=self.user, sector=sector, team_ref=self.team)
+        
+    def _populate_checked_members(self, schedule):
+        checked = {}
+        for c in schedule.team.chiefs.all(): checked[f"CHIEF_{c.id}"] = {"status": "present"}
+        for a in schedule.team.agents.all(): checked[f"AGENT_{a.id}"] = {"status": "present"}
+        for s in schedule.team.supports.all(): checked[f"SUPPORT_{s.id}"] = {"status": "present"}
+        schedule.checked_members = checked
+        schedule.save()
+        
+    def test_submit_report_finds_schedule_by_team_name(self):
+        schedule = ShiftSchedule.objects.create(date=self.date, team=self.team, created_by=self.user)
+        self._populate_checked_members(schedule)
+        report = EducationReport.objects.create(
+            operation_date=self.date,
+            agenda=self.agenda1,
+            team="CHARLIE",  
+            status=EducationReport.ReportStatus.DRAFT,
+            created_by=self.user
+        )
+        url = reverse("education-reports-submit-for-review", args=[report.pk])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        report.refresh_from_db()
+        self.assertEqual(report.status, EducationReport.ReportStatus.PENDING_REVIEW)
+        
+    def test_submit_report_finds_schedule_by_agenda_team_ref(self):
+        schedule = ShiftSchedule.objects.create(date=self.date, team=self.team, created_by=self.user)
+        self._populate_checked_members(schedule)
+        report = EducationReport.objects.create(
+            operation_date=self.date,
+            team="Qualquer Coisa",  
+            agenda=self.agenda2,
+            status=EducationReport.ReportStatus.DRAFT,
+            created_by=self.user
+        )
+        url = reverse("education-reports-submit-for-review", args=[report.pk])
+        response = self.client.post(url)
+        print("DEBUG 2:", response.data)
+        self.assertEqual(response.status_code, 200)
+        
+    def test_submit_report_no_schedule_returns_400(self):
+        report = EducationReport.objects.create(
+            operation_date=self.date,
+            team="BETA",  
+            agenda=self.agenda1,
+            status=EducationReport.ReportStatus.DRAFT,
+            created_by=self.user
+        )
+        url = reverse("education-reports-submit-for-review", args=[report.pk])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["detail"], "Não foi possível localizar a escala vinculada a este relatório. Verifique a agenda e tente novamente.")

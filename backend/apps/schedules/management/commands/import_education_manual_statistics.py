@@ -83,7 +83,7 @@ class Command(BaseCommand):
                     "operation_date": date(year, 4, 30) if year == 2026 else date(year, 12, 31),
                     "team": "Historico",
                     "management_name": "Balanco manual da Educacao",
-                    "status": EducationReport.ReportStatus.SUBMITTED,
+                    "status": EducationReport.ReportStatus.APPROVED,
                     "created_by": user,
                     "occurrence_observation": f"Numeros importados da planilha {path.name}.",
                 },
