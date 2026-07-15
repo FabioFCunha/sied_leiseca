@@ -1315,14 +1315,20 @@ class AgendaViewSet(viewsets.ModelViewSet):
 
         distributed_materials = distributed_materials_summary(qs)
         chief_reports = EducationReport.objects.filter(
-            agenda_id__in=qs.values("id"),
-            status=EducationReport.ReportStatus.APPROVED,
-        ).distinct()
+            agenda_id__in=qs.values("id")
+        ).exclude(status=EducationReport.ReportStatus.DRAFT).distinct()
         chief_actions = EducationAction.objects.filter(report_id__in=chief_reports.values("id"))
+        
+        approved_reports = chief_reports.filter(status=EducationReport.ReportStatus.APPROVED)
+        approved_actions = EducationAction.objects.filter(report_id__in=approved_reports.values("id"))
+        
         chief_reported_agendas = qs.filter(id__in=chief_reports.values("agenda_id")).distinct()
         chief_totals = chief_actions.aggregate(
             approaches=Sum("approach"),
             registered_actions=Count("id"),
+        )
+        approved_totals = approved_actions.aggregate(
+            approved_actions_count=Count("id"),
         )
         chief_report_totals = chief_reports.aggregate(
             reports_count=Count("id"),
@@ -1338,6 +1344,9 @@ class AgendaViewSet(viewsets.ModelViewSet):
         registered_actions = chief_totals["registered_actions"] or 0
         requested_actions = chief_request_totals["requested_actions"] or 0
         approaches = chief_totals["approaches"] or 0
+        approved_actions_count = approved_totals["approved_actions_count"] or 0
+        reports_waiting_approval = max(0, registered_actions - approved_actions_count)
+        
         chief_team_names = {
             team.strip().casefold()
             for team in chief_reports.values_list("team", flat=True)
@@ -1405,6 +1414,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "public_execution_rate": rate(reported_public, requested_public),
                 "requested_actions": requested_actions,
                 "registered_actions": registered_actions,
+                "reports_waiting_approval": reports_waiting_approval,
                 "actions_difference": registered_actions - requested_actions,
                 "actions_execution_rate": rate(registered_actions, requested_actions),
                 "reports_count": chief_reports_count,

@@ -33,10 +33,10 @@ const emptyFilters = {
 };
 
 const cardConfig = [
-  { key: "approved", label: "Aprovadas", icon: CheckCircle2, tone: "green", status: "APPROVED", color: "#00b894", gradient: "linear-gradient(135deg, #00b894, #009472)" },
-  { key: "pending", label: "Pendentes", icon: Clock3, tone: "amber", status: "PENDING", color: "#fdcb6e", gradient: "linear-gradient(135deg, #fdcb6e, #e1b12c)" },
-  { key: "cancelled", label: "Canceladas", icon: XCircle, tone: "red", status: "CANCELLED", color: "#d63031", gradient: "linear-gradient(135deg, #d63031, #b33939)" },
-  { key: "completed", label: "Concluídas", icon: CheckCheck, tone: "emerald", status: "COMPLETED", color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0762a8)" },
+  { key: "approved", label: "Aguardando OS", tooltip: "Solicitações aprovadas que ainda aguardam a geração da Ordem de Serviço", icon: CheckCircle2, tone: "green", status: "APPROVED", color: "#00b894", gradient: "linear-gradient(135deg, #00b894, #009472)" },
+  { key: "pending", label: "Aguardando análise", tooltip: "Solicitações ainda não avaliadas pelo Gestor ou Administrador", icon: Clock3, tone: "amber", status: "PENDING", color: "#fdcb6e", gradient: "linear-gradient(135deg, #fdcb6e, #e1b12c)" },
+  { key: "cancelled", label: "Recusadas/Canceladas", tooltip: "Solicitações recusadas ou canceladas no período selecionado", icon: XCircle, tone: "red", status: "CANCELLED", color: "#d63031", gradient: "linear-gradient(135deg, #d63031, #b33939)" },
+  { key: "completed", label: "Relatórios aprovados", tooltip: "Ações com relatório técnico conferido e aprovado", icon: CheckCheck, tone: "emerald", status: "COMPLETED", color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0762a8)" },
   { key: "upcoming", label: "Próximas agendas", icon: CalendarClock, tone: "violet", color: "#6c5ce7", gradient: "linear-gradient(135deg, #6c5ce7, #5345b5)" },
   { key: "today_total", label: "Agendas de hoje", icon: CalendarCheck, tone: "blue", color: "#74b9ff", gradient: "linear-gradient(135deg, #74b9ff, #5798d6)" },
   { key: "today_agents", label: "Agentes de hoje", icon: Users, tone: "cyan", color: "#00cec9", gradient: "linear-gradient(135deg, #00cec9, #00a4a1)" },
@@ -58,6 +58,7 @@ function DashboardCard({ active, config, data, onClick }) {
   const Icon = config.icon;
   return (
     <button
+      title={config.tooltip || config.label}
       onClick={onClick}
       type="button"
       style={{
@@ -105,6 +106,7 @@ const chiefComparisonConfig = [
   {
     key: "approaches",
     label: "Total de Abordagens",
+    tooltip: "Total de pessoas abordadas em todas as ações enviadas",
     icon: Users,
     reported: "approaches",
     color: "#0048d7",
@@ -113,14 +115,25 @@ const chiefComparisonConfig = [
   {
     key: "actions",
     label: "Ações Realizadas",
+    tooltip: "Ações executadas, independentemente da aprovação do relatório",
     icon: CalendarCheck,
     reported: "registered_actions",
     color: "#7c3aed",
     gradient: "linear-gradient(135deg, #7c3aed, #5b21b6)",
   },
   {
+    key: "waiting",
+    label: "Aguardando aprovação",
+    tooltip: "Ações realizadas cujos relatórios ainda não foram aprovados",
+    icon: Clock3,
+    reported: "reports_waiting_approval",
+    color: "#f59e0b",
+    gradient: "linear-gradient(135deg, #f59e0b, #b45309)",
+  },
+  {
     key: "avg-action",
     label: "Média por Ação",
+    tooltip: "Média de abordagens por ação realizada",
     icon: Activity,
     reported: "average_approaches_per_action",
     color: "#047857",
@@ -129,6 +142,7 @@ const chiefComparisonConfig = [
   {
     key: "avg-team",
     label: "Média por Equipe",
+    tooltip: "Média de abordagens dividida pelo número de equipes",
     icon: Shield,
     reported: "average_approaches_per_team",
     color: "#dc6b16",
@@ -153,7 +167,7 @@ function ChiefFillingsMetrics({ data = {} }) {
         {chiefComparisonConfig.map((item) => {
           const Icon = item.icon;
           return (
-            <div key={item.key} style={{
+            <div key={item.key} title={item.tooltip} style={{
               background: "var(--surface)", borderRadius: "16px", padding: "24px",
               border: "1px solid var(--line)",
               boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
