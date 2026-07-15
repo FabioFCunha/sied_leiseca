@@ -602,7 +602,7 @@ export default function ShiftSchedulePage() {
                     {(schedule.swap_requests || []).some((swap) => swap.status === "PENDING") && (
                       <b><AlertTriangle size={12} /> Troca</b>
                     )}
-                    {schedule.date <= toISO(new Date()) && (
+                    {schedule.date <= formatLocalISODate(new Date()) && (
                       schedule.attendance_approved ? (
                         <b style={{ background: "#dcfce7", color: "#15803d", marginLeft: "4px", gap: "2px" }} title="Frequência Aprovada">
                           <CheckCircle2 size={12} /> Freq. OK
