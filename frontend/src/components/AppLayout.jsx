@@ -177,7 +177,7 @@ export default function AppLayout() {
           <LogOut size={18} />
           Sair
         </button>
-        <div style={{ padding: "16px", marginTop: "auto", borderTop: "1px solid var(--pico-muted-border-color)", order: 4 }}>
+        <div style={{ order: 4, marginTop: "8px" }}>
           <NavLink to="/novidades" style={{ textDecoration: "none", color: "inherit", display: "block" }} onClick={() => setOpen(false)}>
             <div style={{ fontSize: "12px", color: "var(--pico-muted-color)" }}>
               <strong>SIED</strong><br/>
