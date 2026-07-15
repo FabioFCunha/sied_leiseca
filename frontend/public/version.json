@@ -1,0 +1,30 @@
+{
+    "version": "2.5.0",
+    "releaseDate": "15/07/2026",
+    "notes": [
+        "Correção do calendário mobile",
+        "Reabertura de solicitações canceladas",
+        "Correção da sincronização de equipes",
+        "Melhorias na aprovação das solicitações"
+    ],
+    "history": [
+        {
+            "version": "2.5.0",
+            "releaseDate": "15/07/2026",
+            "notes": [
+                "Correção do calendário mobile",
+                "Reabertura de solicitações canceladas",
+                "Correção da sincronização de equipes",
+                "Melhorias na aprovação das solicitações"
+            ]
+        },
+        {
+            "version": "2.4.9",
+            "releaseDate": "12/07/2026",
+            "notes": [
+                "Correção da frequência",
+                "Ajustes na conferência dos relatórios"
+            ]
+        }
+    ]
+}

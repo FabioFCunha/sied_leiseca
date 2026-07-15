@@ -5,6 +5,7 @@ import logoOperacaoLeiSeca from "../assets/operacao-lei-seca-logo.png";
 import { useAuth } from "../context/AuthContext.jsx";
 import { canAccessRoute, roleLabel } from "../utils/permissions.js";
 import { api } from "../api/client.js";
+import VersionChecker from "./VersionChecker.jsx";
 
 const items = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"], moduleName: "DASHBOARD" },
@@ -176,6 +177,15 @@ export default function AppLayout() {
           <LogOut size={18} />
           Sair
         </button>
+        <div style={{ padding: "16px", marginTop: "auto", borderTop: "1px solid var(--pico-muted-border-color)" }}>
+          <NavLink to="/novidades" style={{ textDecoration: "none", color: "inherit", display: "block" }} onClick={() => setOpen(false)}>
+            <div style={{ fontSize: "12px", color: "var(--pico-muted-color)" }}>
+              <strong>SIED</strong><br/>
+              Versão {__APP_VERSION_DATA__?.version}<br/>
+              Publicado em {__APP_VERSION_DATA__?.releaseDate}
+            </div>
+          </NavLink>
+        </div>
       </aside>
 
       <main className="content">
@@ -226,6 +236,7 @@ export default function AppLayout() {
           </div>
         </header>
         <Outlet />
+        <VersionChecker />
       </main>
     </div>
   );
