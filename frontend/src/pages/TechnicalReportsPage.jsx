@@ -1011,7 +1011,7 @@ export default function TechnicalReportsPage() {
                           <MaterialSummary value={dynRem || cats.dynamics.join("\n")} />
                         </div>
                         <div className="field-label report-text-box">
-                          <span>Dinâmica distribuída</span>
+                          <span>Dinâmica devolvida</span>
                           <MaterialQuantityEditor value={dynDist || cats.dynamics.join("\n")} onChange={handleDynDist} />
                         </div>
                       </div>
