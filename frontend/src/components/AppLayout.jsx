@@ -135,18 +135,27 @@ export default function AppLayout() {
             <span>Sistema Integrado da Educação</span>
           </div>
         </div>
-        <div className="brand">
-
-          <div className="brand-text">
-            <strong>SIED</strong>
-            <span>{user?.is_superuser ? "CRIADOR" : roleLabel[user?.role] || user?.role}</span>
+        <div className="brand" style={{ flexDirection: "column", alignItems: "flex-start", paddingBottom: "1rem", gap: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+            <div className="brand-text">
+              <strong>SIED</strong>
+              <span>{user?.is_superuser ? "CRIADOR" : roleLabel[user?.role] || user?.role}</span>
+            </div>
+            <button className="icon-button desktop-only" onClick={() => setCollapsed((value) => !value)} aria-label="Recolher menu">
+              <Menu size={18} />
+            </button>
+            <button className="icon-button mobile-only" onClick={() => setOpen(false)} aria-label="Fechar menu">
+              <X size={18} />
+            </button>
           </div>
-          <button className="icon-button desktop-only" onClick={() => setCollapsed((value) => !value)} aria-label="Recolher menu">
-            <Menu size={18} />
-          </button>
-          <button className="icon-button mobile-only" onClick={() => setOpen(false)} aria-label="Fechar menu">
-            <X size={18} />
-          </button>
+          {!collapsed && (
+            <NavLink to="/novidades" style={{ textDecoration: "none", color: "inherit", display: "block", marginLeft: "4px" }} onClick={() => setOpen(false)}>
+              <div style={{ fontSize: "11px", color: "var(--pico-muted-color)", lineHeight: "1.2" }}>
+                Versão {__APP_VERSION_DATA__?.version}<br/>
+                Publicado em {__APP_VERSION_DATA__?.releaseDate}
+              </div>
+            </NavLink>
+          )}
         </div>
         <nav>
           {visibleItems.map((item) => (
@@ -177,15 +186,6 @@ export default function AppLayout() {
           <LogOut size={18} />
           Sair
         </button>
-        <div style={{ order: 4, marginTop: "8px" }}>
-          <NavLink to="/novidades" style={{ textDecoration: "none", color: "inherit", display: "block" }} onClick={() => setOpen(false)}>
-            <div style={{ fontSize: "12px", color: "var(--pico-muted-color)" }}>
-              <strong>SIED</strong><br/>
-              Versão {__APP_VERSION_DATA__?.version}<br/>
-              Publicado em {__APP_VERSION_DATA__?.releaseDate}
-            </div>
-          </NavLink>
-        </div>
       </aside>
 
       <main className="content">

@@ -1096,21 +1096,18 @@ class AgendaViewSet(viewsets.ModelViewSet):
             comparison_qs = None
         comparison_label = f"vs {format_period(previous_start, previous_end)}"
 
-        aggs = qs.aggregate(
-            today_count=Count('id', filter=Q(date=today)),
-            pending=Count('id', filter=Q(status=Agenda.Status.PENDING)),
-            approved=Count('id', filter=Q(status=Agenda.Status.APPROVED)),
-            completed=Count('id', filter=Q(status=Agenda.Status.COMPLETED)),
-            cancelled=Count('id', filter=Q(status=Agenda.Status.CANCELLED)),
-            in_progress=Count('id', filter=Q(date=today, start_time__lte=now, end_time__gte=now) & ~Q(status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]))
-        )
-        today_count = aggs['today_count']
+        qs_base = apply_dashboard_filters(unscoped_dashboard_queryset(), ignore_status=True)
+
+        today_count = qs_base.filter(date=today).count()
         yesterday_count = base_qs.filter(date=yesterday).count()
-        pending = aggs['pending']
-        approved = aggs['approved']
-        completed = aggs['completed']
-        cancelled = aggs['cancelled']
-        in_progress = aggs['in_progress']
+        pending = qs_base.filter(status=Agenda.Status.PENDING, service_order_number__isnull=True).count()
+        approved = qs_base.filter(status=Agenda.Status.APPROVED, service_order_number__isnull=True).count()
+        cancelled = qs_base.filter(status=Agenda.Status.CANCELLED).count()
+        completed = qs_base.filter(
+            service_order_number__isnull=False,
+            technical_reports__status="APPROVED"
+        ).distinct().count()
+        in_progress = qs_base.filter(date=today, start_time__lte=now, end_time__gte=now).exclude(status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]).count()
         upcoming_qs = qs.filter(date__gte=today).order_by("date", "start_time")
         upcoming_count = upcoming_qs.count()
         today_agents = set()
@@ -1268,8 +1265,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
             )
         ]
 
-        status_total = max(total, 1)
-        completion_rate = round((approved / status_total) * 100, 1)
+        status_total = max(qs_base.count(), 1)
+        completion_rate = round((completed / status_total) * 100, 1)
         cancellation_rate = round((cancelled / status_total) * 100, 1)
         avg_per_user = round(total / max(qs.values("responsible_id").distinct().count(), 1), 1)
         calendar_start = today.replace(day=1)

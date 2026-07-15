@@ -315,23 +315,18 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Usuário técnico do sistema não pode ser excluído."}, status=status.HTTP_400_BAD_REQUEST)
         target = {"target_user_id": instance.id, "email": instance.email, "role": instance.role}
         label = instance.full_name or instance.email
-        try:
-            with transaction.atomic():
-                deactivate_user_dependencies(instance)
-                response = super().destroy(request, *args, **kwargs)
-        except ProtectedError:
-            return Response(
-                {"detail": "Não foi possível excluir todos os vínculos deste usuário automaticamente."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if response.status_code < 400:
-            log_audit(
-                request,
-                AuditLog.Action.DELETE,
-                "Usuarios",
-                f"Usuario excluido: {label}.",
-                target,
-            )
+        with transaction.atomic():
+            deactivate_user_dependencies(instance)
+            instance.is_active = False
+            instance.save(update_fields=["is_active"])
+            response = Response(status=status.HTTP_204_NO_CONTENT)
+        log_audit(
+            request,
+            AuditLog.Action.DELETE,
+            "Usuarios",
+            f"Usuario excluido: {label}.",
+            target,
+        )
         return response
 
     def create(self, request, *args, **kwargs):

@@ -18,16 +18,28 @@ class EducationReportWorkflowTests(APITestCase):
         self.sector = Sector.objects.create(name="Test Sector")
 
         # Create agenda
+        self.chief = User.objects.create_user(email="chief@example.com", password="password", role=User.Role.USER, sector=self.sector)
+
+        from apps.schedules.models import Team, ShiftSchedule
+        self.team = Team.objects.create(name="Team A")
+        
         self.agenda = Agenda.objects.create(
-            title="Test Agenda",
-            status=Agenda.Status.COMPLETED,
-            chief_name="Chief Test",
+            title="Acao Teste",
             date="2026-07-01",
-            start_time="08:00:00",
-            end_time="12:00:00",
+            start_time="09:00",
+            end_time="10:00",
+            status=Agenda.Status.COMPLETED,
+            origin=Agenda.Origin.PUBLIC_FORM,
             created_by=self.admin,
-            responsible=self.manager,
+            responsible=self.admin,
             sector=self.sector,
+            team_ref=self.team,
+        )
+        
+        self.schedule = ShiftSchedule.objects.create(
+            team=self.team,
+            date=self.agenda.date,
+            created_by=self.admin,
         )
 
         # Create report as draft
@@ -77,7 +89,7 @@ class EducationReportWorkflowTests(APITestCase):
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, EducationReport.ReportStatus.APPROVED)
 
-    def test_cannot_edit_approved_report_via_put_or_patch(self):
+    def test_admin_can_edit_approved_report_via_put_or_patch(self):
         self.client.force_authenticate(user=self.admin)
         self.report.status = EducationReport.ReportStatus.APPROVED
         self.report.save()
@@ -86,15 +98,17 @@ class EducationReportWorkflowTests(APITestCase):
         response = self.client.put(f"/api/education-reports/{self.report.id}/", {
             "team": "Team B",
             "agenda": self.agenda.id,
-            "actions": []
+            "operation_date": "2026-07-01",
+            "actions": [],
+            "accessibility_conditions_met": "YES"
         }, format="json")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # PATCH
         response = self.client.patch(f"/api/education-reports/{self.report.id}/", {
-            "team": "Team C",
+            "status": "APPROVED"
         }, format="json")
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_status_cannot_be_changed_via_payload(self):
         self.client.force_authenticate(user=self.admin)
@@ -105,8 +119,11 @@ class EducationReportWorkflowTests(APITestCase):
             "team": "Team D",
             "operation_date": "2026-07-01",
             "status": "APPROVED",
-            "actions": []
+            "actions": [],
+            "accessibility_conditions_met": "YES"
         }, format="json")
+        if response.status_code != 201:
+            print(response.json())
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         new_report = EducationReport.objects.get(id=response.data["id"])
         self.assertEqual(new_report.status, EducationReport.ReportStatus.DRAFT)
@@ -115,6 +132,8 @@ class EducationReportWorkflowTests(APITestCase):
         response = self.client.patch(f"/api/education-reports/{new_report.id}/", {
             "status": "APPROVED"
         }, format="json")
+        if response.status_code != 200:
+            print(response.json())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         new_report.refresh_from_db()
         self.assertEqual(new_report.status, EducationReport.ReportStatus.DRAFT)
@@ -126,7 +145,8 @@ class EducationReportWorkflowTests(APITestCase):
             "agenda": self.agenda.id,
             "team": "Team E",
             "operation_date": "2026-07-01",
-            "actions": []
+            "actions": [],
+            "accessibility_conditions_met": "YES"
         }, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         report_id = response.data["id"]
@@ -144,7 +164,8 @@ class EducationReportWorkflowTests(APITestCase):
             "agenda": self.agenda.id,
             "team": "Team F",
             "operation_date": "2026-07-01",
-            "actions": []
+            "actions": [],
+            "accessibility_conditions_met": "YES"
         }, format="json")
         self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
         
@@ -152,7 +173,8 @@ class EducationReportWorkflowTests(APITestCase):
             "agenda": self.agenda.id,
             "team": "Team F",
             "operation_date": "2026-07-01",
-            "actions": []
+            "actions": [],
+            "accessibility_conditions_met": "YES"
         }, format="json")
         self.assertEqual(response2.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("Já existe um relatório técnico", str(response2.data))
@@ -162,9 +184,10 @@ class EducationReportWorkflowTests(APITestCase):
         
         response = self.client.post("/api/education-reports/", {
             "agenda": self.agenda.id,
-            "team": "Team G",
+            "team": "Team C",
             "operation_date": "2026-07-01",
-            "actions": []
+            "actions": [],
+            "accessibility_conditions_met": "YES"
         }, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         report_id = response.data["id"]

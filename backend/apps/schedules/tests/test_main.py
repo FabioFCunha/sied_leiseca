@@ -525,7 +525,113 @@ class DashboardMetricsTests(APITestCase):
         self.assertEqual(metrics["teams_count"], 2)
         self.assertEqual(metrics["average_approaches_per_team"], 30.0)
 
+    def test_dashboard_indicators_are_independent_of_status_tab(self):
+        sector = Sector.objects.create(name="EDUCACAO")
+        manager = User.objects.create_user(
+            email="dash2@example.com",
+            password="password123",
+            full_name="Gestor Dashboard 2",
+            role=User.Role.MANAGER,
+            sector=sector,
+        )
 
+        def create_agenda(status, day, so_number=None):
+            agenda = Agenda.objects.create(
+                title=f"Agenda {status}",
+                description="Test",
+                date=date(2026, 7, day),
+                start_time=time(9, 0),
+                end_time=time(10, 0),
+                location="Local",
+                responsible=manager,
+                sector=sector,
+                created_by=manager,
+                origin=Agenda.Origin.PUBLIC_FORM,
+                status=status,
+                service_order_number=so_number,
+            )
+            if so_number is None and status == Agenda.Status.APPROVED:
+                Agenda.objects.filter(id=agenda.id).update(service_order_number=None)
+            return agenda
+
+        # 1 Approved sem OS
+        create_agenda(Agenda.Status.APPROVED, 15)
+        # 1 Pending
+        create_agenda(Agenda.Status.PENDING, 16)
+        # 1 Cancelled
+        create_agenda(Agenda.Status.CANCELLED, 17)
+        
+        from django.core.cache import cache
+        cache.clear()
+
+        self.client.force_authenticate(manager)
+        
+        # Testar com a aba PENDENTE selecionada (?status=PENDING)
+        response = self.client.get(
+            reverse("agendas-dashboard"),
+            {"date_from": "2026-07-01", "date_to": "2026-07-30", "status": "PENDING"},
+        )
+        self.assertEqual(response.status_code, 200)
+        cards = response.json()["cards"]
+        print("CARDS:", cards)
+        
+        # As outras contagens não devem zerar
+        self.assertEqual(cards["approved"]["value"], 1)
+        self.assertEqual(cards["pending"]["value"], 1)
+        self.assertEqual(cards["cancelled"]["value"], 1)
+
+    def test_dashboard_completed_counts_distinct_agendas(self):
+        sector = Sector.objects.create(name="EDUCACAO")
+        manager = User.objects.create_user(
+            email="dash3@example.com",
+            password="password123",
+            full_name="Gestor Dashboard 3",
+            role=User.Role.MANAGER,
+            sector=sector,
+        )
+        agenda = Agenda.objects.create(
+            title="Agenda Concluida Dupla",
+            description="Test",
+            date=date(2026, 7, 20),
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            location="Local",
+            responsible=manager,
+            sector=sector,
+            created_by=manager,
+            origin=Agenda.Origin.PUBLIC_FORM,
+            status=Agenda.Status.COMPLETED,
+            service_order_number=123,
+        )
+        # Criar dois relatórios aprovados para a mesma agenda
+        EducationReport.objects.create(
+            agenda=agenda,
+            operation_date=agenda.date,
+            team="Team A",
+            status=EducationReport.ReportStatus.APPROVED,
+            created_by=manager,
+        )
+        EducationReport.objects.create(
+            agenda=agenda,
+            operation_date=agenda.date,
+            team="Team B",
+            status=EducationReport.ReportStatus.APPROVED,
+            created_by=manager,
+        )
+
+        from django.core.cache import cache
+        cache.clear()
+
+        self.client.force_authenticate(manager)
+        response = self.client.get(
+            reverse("agendas-dashboard"),
+            {"date_from": "2026-07-01", "date_to": "2026-07-30"},
+        )
+        self.assertEqual(response.status_code, 200)
+        cards = response.json()["cards"]
+        
+        # Concluídas deve contar apenas a agenda 1 vez
+        self.assertEqual(cards["completed"]["value"], 1)
 class PublicAgendaRequestRejectionEmailTests(APITestCase):
     def test_sends_email_on_blocked_address_rejection(self):
         from django.core import mail

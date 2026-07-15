@@ -80,15 +80,17 @@ class UserDeleteTests(APITestCase):
 
         self.client.force_authenticate(admin)
         response = self.client.delete(reverse("users-detail", args=[user.id]))
-
+        if response.status_code != 204:
+            print(response.json())
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(User.objects.filter(id=user.id).exists())
-        self.assertFalse(Agenda.objects.filter(id=agenda.id).exists())
-        self.assertFalse(AgendaHistory.objects.exists())
-        self.assertFalse(EventReport.objects.exists())
-        self.assertFalse(EducationReport.objects.exists())
-        self.assertFalse(EducationAction.objects.exists())
-        self.assertFalse(SatisfactionSurvey.objects.exists())
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+        self.assertTrue(Agenda.objects.filter(id=agenda.id).exists())
+        self.assertTrue(AgendaHistory.objects.exists())
+        self.assertTrue(EventReport.objects.exists())
+        self.assertTrue(EducationReport.objects.exists())
+        self.assertTrue(EducationAction.objects.exists())
+        self.assertTrue(SatisfactionSurvey.objects.exists())
 
 
 class UserOperationalTeamTests(APITestCase):
