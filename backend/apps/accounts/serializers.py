@@ -50,12 +50,24 @@ def user_lookup_source_id(user):
     return f"{USER_LOOKUP_SOURCE_PREFIX}{user.id}"
 
 
-def deactivate_other_user_lookups(user, active_model=None):
+def get_safe_lookup_query(user):
     source_id = user_lookup_source_id(user)
+    cpf = only_digits(getattr(user, "cpf", ""))
+    
+    q = Q(source_id=source_id)
+    if cpf:
+        q |= Q(cpf=cpf)
+    if user.full_name:
+        # Usa nome apenas se o registro alvo não tiver CPF (para não conflitar com homônimos que já possuem outro CPF)
+        q |= Q(name__iexact=user.full_name, cpf__isnull=True) | Q(name__iexact=user.full_name, cpf="")
+    return q
+
+def deactivate_other_user_lookups(user, active_model=None):
+    q = get_safe_lookup_query(user)
     for model in USER_LOOKUP_MODELS:
         if active_model is not None and model is active_model:
             continue
-        model.objects.filter(source_id=source_id).update(is_active=False)
+        model.objects.filter(q).update(is_active=False)
 
 
 def upsert_user_lookup(model, user, role_label, extra_defaults=None):

@@ -43,29 +43,15 @@ def can_manage_users(user):
     return bool(user and user.is_authenticated and (user.is_superuser or user.is_admin_role))
 
 
-def delete_user_dependencies(user):
-    from apps.schedules.models import (
-        Agenda,
-        AgendaHistory,
-        EducationAction,
-        EducationReport,
-        EventReport,
-        SatisfactionSurvey,
-    )
-
-    agendas = Agenda.objects.filter(Q(created_by=user) | Q(responsible=user))
-    EducationReport.objects.filter(Q(created_by=user) | Q(agenda__in=agendas)).delete()
-    EventReport.objects.filter(created_by=user).delete()
-    EducationAction.objects.filter(agenda__in=agendas).delete()
-    SatisfactionSurvey.objects.filter(agenda__in=agendas).delete()
-
+def deactivate_user_dependencies(user):
     from apps.schedules.models import Chief, Agent, Support
-    source_id = f"user:{user.id}"
-    Chief.objects.filter(source_id=source_id).update(is_active=False)
-    Agent.objects.filter(source_id=source_id).update(is_active=False)
-    Support.objects.filter(source_id=source_id).update(is_active=False)
-    AgendaHistory.objects.filter(changed_by=user).delete()
-    agendas.delete()
+    from .serializers import get_safe_lookup_query
+    
+    q = get_safe_lookup_query(user)
+        
+    Chief.objects.filter(q).update(is_active=False)
+    Agent.objects.filter(q).update(is_active=False)
+    Support.objects.filter(q).update(is_active=False)
     
     from .serializers import deactivate_other_user_lookups
     deactivate_other_user_lookups(user)
@@ -286,8 +272,8 @@ class UserViewSet(viewsets.ModelViewSet):
             
         try:
             new_team = Team.objects.get(id=new_team_id)
-        except Team.DoesNotExist:
-            return Response({"detail": "Nova equipe não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
+        except (Team.DoesNotExist, ValueError):
+            return Response({"detail": "Nova equipe inválida ou não encontrada."}, status=status.HTTP_400_BAD_REQUEST)
             
         old_team = user.team
         if old_team == new_team:
@@ -331,7 +317,7 @@ class UserViewSet(viewsets.ModelViewSet):
         label = instance.full_name or instance.email
         try:
             with transaction.atomic():
-                delete_user_dependencies(instance)
+                deactivate_user_dependencies(instance)
                 response = super().destroy(request, *args, **kwargs)
         except ProtectedError:
             return Response(

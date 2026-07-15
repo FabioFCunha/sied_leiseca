@@ -249,6 +249,8 @@ export default function AgendaPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [historyAgenda, setHistoryAgenda] = useState(null);
   const [reviewStep, setReviewStep] = useState("summary");
+  const [isReopenModalOpen, setIsReopenModalOpen] = useState(false);
+  const [reopenReason, setReopenReason] = useState("");
   const [message, setMessage] = useState("");
   const [publicLinkMessage, setPublicLinkMessage] = useState("");
   const [availableDates, setAvailableDates] = useState([]);
@@ -555,10 +557,14 @@ export default function AgendaPage() {
     }
     return lookups.agents.filter(agent => {
       if (isSupportRole(agent)) return false;
+      
+      const isHistoric = (form.agents_ref || []).map(String).includes(String(agent.id));
+      if (!isHistoric && !belongsToTeam(agent, form.team_ref, selectedTeamName)) return false;
+      
       const idStr = String(agent.id);
       return !busyInOtherShifts.has(idStr) && !currentShiftAbsents.has(idStr);
     });
-  }, [lookups.agents, scheduledShifts, form.team_ref]);
+  }, [lookups.agents, scheduledShifts, form.team_ref, selectedTeamName, form.agents_ref]);
 
   const teamAgents = useMemo(() => {
     if (selectedShift && selectedShift.members) {
@@ -589,10 +595,13 @@ export default function AgendaPage() {
       });
     }
     return lookups.supports.filter(support => {
+      const isHistoric = String(support.id) === String(form.support_1_ref) || String(support.id) === String(form.support_2_ref);
+      if (!isHistoric && !belongsToTeam(support, form.team_ref, selectedTeamName)) return false;
+      
       const idStr = String(support.id);
       return !busyInOtherShifts.has(idStr) && !currentShiftAbsents.has(idStr);
     });
-  }, [lookups.supports, scheduledShifts, form.team_ref]);
+  }, [lookups.supports, scheduledShifts, form.team_ref, selectedTeamName, form.support_1_ref, form.support_2_ref]);
 
   const selectedAgentIds = (form.agents_ref || []).map(String);
   const selectedAgents = selectedAgentIds
@@ -790,6 +799,26 @@ export default function AgendaPage() {
         body: JSON.stringify({ status, cancel_reason: status === "CANCELLED" ? cancelReason : "" }),
       });
       setMessage(`Agenda ${status === "APPROVED" ? "aprovada" : "cancelada"} com sucesso.`);
+      loadAgendas();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  };
+
+  const handleReopen = async () => {
+    try {
+      const response = await api(`/agendas/${editing}/reopen/`, {
+        method: "POST",
+        body: JSON.stringify({ reason: reopenReason }),
+      });
+      setMessage("Solicitação reaberta com sucesso.");
+      setIsReopenModalOpen(false);
+      setReopenReason("");
+      
+      const newStatus = response.status || "PENDING";
+      setForm({ ...form, status: newStatus });
+      setAgendas(agendas.map(a => String(a.id) === String(editing) ? { ...a, status: newStatus } : a));
+      
       loadAgendas();
     } catch (err) {
       setMessage(err.message);
@@ -1132,6 +1161,11 @@ export default function AgendaPage() {
               <span><b>Recursos</b>{form.media_equipment || "-"}</span>
               <span className="full"><b>Autorização de imagem</b>{form.image_authorization || "-"}</span>
               {form.notes && <span className="full"><b>Observações</b>{form.notes}</span>}
+              {form.status === "CANCELLED" && (
+                <span className="full" style={{ color: "var(--pico-del-color)" }}>
+                  <b>Motivo do cancelamento</b>{form.cancel_reason || "-"}
+                </span>
+              )}
             </div>
             {canManageRequests && form.satisfaction_survey_token && (
               <div className="review-actions">
@@ -1150,21 +1184,29 @@ export default function AgendaPage() {
             {editing && reviewStep === "summary" && message && <div className="alert">{message}</div>}
             {editing && reviewStep === "summary" && canManageRequests && (
               <div className="review-actions">
-                <button type="button" className="approve-action" onClick={() => setReviewStep("schedule")}>
-                  <CheckCircle2 size={18} /> Aprovar
-                </button>
-                <button type="button" className="secondary" onClick={() => setReviewStep("form")}>
-                  <Edit size={18} /> Editar solicitação
-                </button>
-                <button type="button" className="danger" onClick={() => decideReview("CANCELLED")}>
-                  <XCircle size={18} /> Recusar
-                </button>
-                <button type="button" className="secondary" onClick={checkAvailableDates}>
-                  Verificar datas disponíveis
-                </button>
-                <a href="/calendario" target="_blank" rel="noreferrer" className="button secondary" style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "inherit" }}>
-                  Ver datas abertas
-                </a>
+                {form.status === "CANCELLED" ? (
+                  <button type="button" className="approve-action" onClick={() => setIsReopenModalOpen(true)}>
+                    Reabrir solicitação
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" className="approve-action" onClick={() => setReviewStep("schedule")}>
+                      <CheckCircle2 size={18} /> Aprovar
+                    </button>
+                    <button type="button" className="secondary" onClick={() => setReviewStep("form")}>
+                      <Edit size={18} /> Editar solicitação
+                    </button>
+                    <button type="button" className="danger" onClick={() => decideReview("CANCELLED")}>
+                      <XCircle size={18} /> Recusar
+                    </button>
+                    <button type="button" className="secondary" onClick={checkAvailableDates}>
+                      Verificar datas disponíveis
+                    </button>
+                    <a href="/calendario" target="_blank" rel="noreferrer" className="button secondary" style={{ display: "inline-flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "inherit" }}>
+                      Ver datas abertas
+                    </a>
+                  </>
+                )}
               </div>
             )}
             {editing && reviewStep === "suggest_dates" && (
@@ -1598,16 +1640,56 @@ export default function AgendaPage() {
               {(historyAgenda.history || []).length ? (
                 historyAgenda.history.map((item) => (
                   <div className="history-item" key={item.id}>
-                    <strong>{item.action}</strong>
+                    <strong>{item.action === "REOPENED" ? "REABERTURA" : item.action}</strong>
                     <span>{item.changed_by_name || "Sistema"} - {new Date(item.created_at).toLocaleString("pt-BR")}</span>
-                    {item.snapshot?.status && <small>Status: {statusLabel[item.snapshot.status] || item.snapshot.status}</small>}
-                    {item.snapshot?.cancel_reason && <small>Motivo: {item.snapshot.cancel_reason}</small>}
+                    {item.action === "REOPENED" ? (
+                      <>
+                        <small>Status anterior: {statusLabel[item.snapshot?.previous_status] || item.snapshot?.previous_status}</small>
+                        <small>Novo status: {statusLabel[item.snapshot?.new_status] || item.snapshot?.new_status}</small>
+                        {item.snapshot?.observation && <small>Observação: {item.snapshot.observation}</small>}
+                      </>
+                    ) : (
+                      <>
+                        {item.snapshot?.status && <small>Status: {statusLabel[item.snapshot.status] || item.snapshot.status}</small>}
+                        {item.snapshot?.cancel_reason && <small>Motivo: {item.snapshot.cancel_reason}</small>}
+                      </>
+                    )}
                   </div>
                 ))
               ) : (
                 <p>Nenhum histórico registrado.</p>
               )}
             </div>
+          </article>
+        </div>
+      )}
+
+      {isReopenModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsReopenModalOpen(false)}>
+          <article className="modal" onClick={(event) => event.stopPropagation()} style={{ maxWidth: "500px" }}>
+            <div className="modal-header">
+              <h2>Reabrir solicitação</h2>
+              <button type="button" className="icon-button" onClick={() => setIsReopenModalOpen(false)} aria-label="Fechar">×</button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); handleReopen(); }} className="stack-form" style={{ marginTop: "1rem" }}>
+              <label className="field-label">
+                <span>Observação (opcional)</span>
+                <textarea
+                  rows="3"
+                  value={reopenReason}
+                  onChange={(e) => setReopenReason(e.target.value)}
+                  placeholder="Informe o motivo da reabertura..."
+                ></textarea>
+              </label>
+              <div className="review-actions" style={{ justifyContent: "flex-end", marginTop: "1.5rem" }}>
+                <button type="button" className="secondary" onClick={() => setIsReopenModalOpen(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="approve-action">
+                  Reabrir solicitação
+                </button>
+              </div>
+            </form>
           </article>
         </div>
       )}

@@ -177,6 +177,14 @@ class ChiefViewSet(LookupViewSet):
 
     def get_queryset(self):
         queryset = Chief.objects.filter(is_active=True)
+        
+        team_id = self.request.query_params.get("team")
+        team_name = self.request.query_params.get("team_name")
+        if team_id:
+            queryset = queryset.filter(team_id=team_id)
+        elif team_name:
+            queryset = queryset.filter(team__name__iexact=team_name)
+            
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Chief.objects.all()
         return queryset.select_related("team").order_by("team__name", "name")
@@ -199,6 +207,14 @@ class AgentViewSet(LookupViewSet):
         if self.action in ["retrieve", "update", "partial_update", "destroy"] and self.request.user.is_admin_role:
             return Agent.objects.all().select_related("team").order_by("team__name", "name")
         queryset = Agent.objects.filter(is_active=True).exclude(role__icontains="APOIO")
+        
+        team_id = self.request.query_params.get("team")
+        team_name = self.request.query_params.get("team_name")
+        if team_id:
+            queryset = queryset.filter(team_id=team_id)
+        elif team_name:
+            queryset = queryset.filter(team__name__iexact=team_name)
+            
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Agent.objects.all()
         return queryset.select_related("team").order_by("team__name", "name")
@@ -211,6 +227,14 @@ class SupportViewSet(LookupViewSet):
         if self.action in ["retrieve", "update", "partial_update", "destroy"] and self.request.user.is_admin_role:
             return Support.objects.all().select_related("team").order_by("team__name", "name")
         queryset = Support.objects.filter(is_active=True)
+        
+        team_id = self.request.query_params.get("team")
+        team_name = self.request.query_params.get("team_name")
+        if team_id:
+            queryset = queryset.filter(team_id=team_id)
+        elif team_name:
+            queryset = queryset.filter(team__name__iexact=team_name)
+            
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Support.objects.all()
         return queryset.select_related("team").order_by("team__name", "name")
@@ -714,6 +738,47 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 {"detail": f"Esta solicita??o n?o pode ser exclu?da porque j? possui {joined} vinculado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+    @decorators.action(detail=True, methods=["post"], url_path="reopen")
+    def reopen(self, request, pk=None):
+        if not request.user.is_admin_role:
+            return response.Response({"detail": "Permissão negada."}, status=status.HTTP_403_FORBIDDEN)
+        
+        agenda = self.get_object()
+        if agenda.status != Agenda.Status.CANCELLED:
+            return response.Response({"detail": "A solicitação não está cancelada."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        reason = request.data.get("reason", "").strip()
+        previous_valid_status = Agenda.Status.PENDING
+        for hist in agenda.history.order_by("-created_at"):
+            hist_status = hist.snapshot.get("status")
+            if hist_status and hist_status != Agenda.Status.CANCELLED:
+                previous_valid_status = hist_status
+                break
+                
+        agenda.status = previous_valid_status
+        agenda.save(update_fields=["status"])
+        
+        snapshot = snapshot_for(agenda)
+        snapshot["previous_status"] = Agenda.Status.CANCELLED
+        snapshot["new_status"] = previous_valid_status
+        snapshot["observation"] = reason
+        
+        AgendaHistory.objects.create(
+            agenda=agenda,
+            changed_by=request.user,
+            action="REOPENED",
+            snapshot=snapshot,
+        )
+        
+        log_audit(
+            request,
+            AuditLog.Action.STATUS_CHANGE,
+            "Agendas",
+            f"Agenda reaberta: protocolo {agenda.id}. Observação: {reason}" if reason else f"Agenda reaberta: protocolo {agenda.id}.",
+            {"agenda_id": agenda.id, "title": agenda.title, "previous_status": Agenda.Status.CANCELLED, "status": previous_valid_status, "reopen_observation": reason},
+        )
+        return response.Response({"detail": "Solicitação reaberta com sucesso.", "status": previous_valid_status})
 
     @decorators.action(detail=True, methods=["post"], url_path="send-available-dates")
     def send_available_dates(self, request, pk=None):

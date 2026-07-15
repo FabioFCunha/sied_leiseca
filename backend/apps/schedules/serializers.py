@@ -687,6 +687,10 @@ class AgendaSerializer(serializers.ModelSerializer):
 
         status_field = attrs.get("status", getattr(instance, "status", None))
         cancel_reason = attrs.get("cancel_reason", getattr(instance, "cancel_reason", ""))
+        
+        if instance and instance.status == Agenda.Status.CANCELLED and status_field != Agenda.Status.CANCELLED:
+            raise serializers.ValidationError({"status": "Não é possível alterar o status de uma solicitação cancelada via edição normal. Utilize a ação de reabertura."})
+            
         if status_field == Agenda.Status.CANCELLED and not str(cancel_reason or "").strip():
             raise serializers.ValidationError({"cancel_reason": "Informe o motivo do cancelamento."})
 
