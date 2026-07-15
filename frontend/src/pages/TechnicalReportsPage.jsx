@@ -216,7 +216,7 @@ function MaterialQuantityEditor({ title, value, onChange }) {
   );
 }
 
-function materialsFromAgenda(agenda) {
+function materialsFromAgenda(agenda = {}) {
   const rows = [];
   for (let index = 1; index <= 7; index += 1) {
     const kit = agenda[`kit_${index}`];
@@ -240,6 +240,7 @@ function materialLine(name, quantity) {
 }
 
 function extractMaterialCategories(agenda) {
+  const safeAgenda = agenda || {};
   const dynamics = [];
   const supports = [];
   const kits = [];
@@ -249,12 +250,12 @@ function extractMaterialCategories(agenda) {
   };
 
   for (let index = 1; index <= 7; index += 1) {
-    add(kits, agenda[`kit_${index}`]);
-    add(supports, agenda[`material_${index}`]);
+    add(kits, safeAgenda[`kit_${index}`]);
+    add(supports, safeAgenda[`material_${index}`]);
   }
 
-  if (agenda.materials?.length) {
-    agenda.materials.forEach((item) => {
+  if (safeAgenda.materials?.length) {
+    safeAgenda.materials.forEach((item) => {
       add(dynamics, item.dynamic_name);
       add(kits, item.kit_name);
       add(supports, item.material_name);
@@ -981,7 +982,8 @@ export default function TechnicalReportsPage() {
                   <small>Bloco de preenchimento obrigatório pelo chefe. Se a resposta for não, a instituição ou solicitante entrará na lista de restrição para novas solicitações.</small>
                 </div>
                 {(() => {
-                  const cats = extractMaterialCategories(selectedAgenda);
+                  const safeAgenda = selectedAgenda || {};
+                  const cats = extractMaterialCategories(safeAgenda);
                   const allEqRem = parseMaterialRows(action.equipment_materials_removed || "");
                   const allEqDist = parseMaterialRows(action.equipment_materials_distributed || "");
                   
