@@ -1747,20 +1747,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             
         schedule = schedules_found[0]
         if schedule:
-            expected_members = set()
-            for c in schedule.team.chiefs.all(): expected_members.add(f"CHIEF_{c.id}")
-            for a in schedule.team.agents.all(): expected_members.add(f"AGENT_{a.id}")
-            for s in schedule.team.supports.all(): expected_members.add(f"SUPPORT_{s.id}")
-            
-            for c in schedule.extra_chiefs.all(): expected_members.add(f"CHIEF_{c.id}")
-            for a in schedule.extra_agents.all(): expected_members.add(f"AGENT_{a.id}")
-            for s in schedule.extra_supports.all(): expected_members.add(f"SUPPORT_{s.id}")
-            
-            for c in schedule.removed_chiefs.all(): expected_members.discard(f"CHIEF_{c.id}")
-            for a in schedule.removed_agents.all(): expected_members.discard(f"AGENT_{a.id}")
-            for s in schedule.removed_supports.all(): expected_members.discard(f"SUPPORT_{s.id}")
-            
-            for m in schedule.manual_inclusions.all(): expected_members.add(f"{m.member_type}_{m.member_id}")
+            from apps.schedules.services import get_expected_member_keys
+            expected_members = get_expected_member_keys(schedule)
             
             checked = set(schedule.checked_members.keys())
             if not expected_members.issubset(checked):
