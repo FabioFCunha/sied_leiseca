@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import User
 from apps.schedules.emails import approval_message, available_dates_message, message_for_status, rejection_message
 from apps.schedules.models import Agenda, Agent, Dynamic, EducationAction, EducationReport, Sector, ShiftSchedule, Team
-from apps.schedules.serializers import AgendaSerializer, EducationReportSerializer, PublicAgendaRequestSerializer
+from apps.schedules.serializers import AgendaSerializer, EducationReportSerializer, PublicAgendaRequestSerializer, PublicAgendaRequestRescheduleSerializer
 
 
 
@@ -103,6 +103,29 @@ class PublicAgendaRequestSerializerTests(TestCase):
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
+    def test_accepts_cross_midnight_public_request(self):
+        data = self.valid_data()
+        data.update({
+            "start_time": "17:00",
+            "end_time": "01:00",
+        })
+
+        serializer = PublicAgendaRequestSerializer(data=data)
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_rejects_equal_times_public_request(self):
+        data = self.valid_data()
+        data.update({
+            "start_time": "08:00",
+            "end_time": "08:00",
+        })
+
+        serializer = PublicAgendaRequestSerializer(data=data)
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("non_field_errors", serializer.errors)
+
     def test_rejects_multiple_age_ranges(self):
         data = self.valid_data()
         data["age_ranges"] = "05 - 10 anos (ensino fundamental - anos iniciais), 11 - 14 anos (ensino fundamental - anos finais)"
@@ -134,6 +157,35 @@ class PublicAgendaRequestSerializerTests(TestCase):
         serializer = PublicAgendaRequestSerializer(data=data)
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
+
+
+class PublicAgendaRequestRescheduleSerializerTests(TestCase):
+    def valid_data(self):
+        return {
+            "date": "2026-07-20",
+            "start_time": "10:00",
+            "end_time": "11:00",
+            "actions_count": 1,
+        }
+
+    def test_accepts_cross_midnight_reschedule(self):
+        serializer = PublicAgendaRequestRescheduleSerializer(data={
+            **self.valid_data(),
+            "start_time": "23:00",
+            "end_time": "04:00",
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_rejects_equal_times_reschedule(self):
+        serializer = PublicAgendaRequestRescheduleSerializer(data={
+            **self.valid_data(),
+            "start_time": "09:00",
+            "end_time": "09:00",
+        })
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("non_field_errors", serializer.errors)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

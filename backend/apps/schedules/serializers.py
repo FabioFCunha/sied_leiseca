@@ -552,17 +552,8 @@ class AgendaSerializer(serializers.ModelSerializer):
         
         is_street_action = (str(action_type_ref) == STREET_ACTION_ID) or (requester_entity_type == STREET_ACTION_ID)
 
-        if is_street_action and start_time:
-            from datetime import timedelta, datetime
-            # Recalculate end_time automatically to be start_time + 4 hours
-            dt = datetime.combine(datetime.today(), start_time) + timedelta(hours=4)
-            expected_end_time = dt.time()
-            if end_time != expected_end_time:
-                attrs["end_time"] = expected_end_time
-                end_time = expected_end_time
-        else:
-            if start_time and end_time and start_time == end_time:
-                raise serializers.ValidationError({"end_time": "A hora final não pode ser igual à hora inicial."})
+        if start_time and end_time and start_time == end_time:
+            raise serializers.ValidationError({"end_time": "A hora final não pode ser igual à hora inicial."})
 
         status_field = attrs.get("status", getattr(instance, "status", None))
         cancel_reason = attrs.get("cancel_reason", getattr(instance, "cancel_reason", ""))
@@ -1203,8 +1194,8 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
-        if attrs["start_time"] >= attrs["end_time"]:
-            raise serializers.ValidationError("A hora final deve ser maior que a hora inicial.")
+        if attrs["start_time"] == attrs["end_time"]:
+            raise serializers.ValidationError("A hora final não pode ser igual à hora inicial.")
             
         date = attrs.get("date")
         if date:
@@ -1228,8 +1219,8 @@ class PublicAgendaRequestRescheduleSerializer(serializers.Serializer):
     time_3 = serializers.TimeField(required=False, allow_null=True)
 
     def validate(self, attrs):
-        if attrs["start_time"] >= attrs["end_time"]:
-            raise serializers.ValidationError("A hora final deve ser maior que a hora inicial.")
+        if attrs["start_time"] == attrs["end_time"]:
+            raise serializers.ValidationError("A hora final não pode ser igual à hora inicial.")
             
         date = attrs.get("date")
         if date:

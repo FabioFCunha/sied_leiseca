@@ -977,6 +977,65 @@ export default function TechnicalReportsPage() {
             </label>
           </div>
 
+          {selectedAgenda && (selectedAgenda.action_type_ref === STREET_ACTION_ID || selectedAgenda.requester_entity_type === STREET_ACTION_ID) && (
+            <div className="form-section">
+              <h3>Detalhes da Ação de Rua</h3>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-soft)", marginBottom: "12px" }}>
+                Preencha os tipos de locais abordados e a respectiva estimativa de público.
+              </p>
+              <div className="street-action-list">
+                {(form.street_action_details || []).map((detail, idx) => (
+                  <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px", alignItems: "center" }}>
+                    <select
+                      style={{ flex: 1 }}
+                      value={detail.type}
+                      onChange={(e) => {
+                        const newDetails = [...(form.street_action_details || [])];
+                        newDetails[idx].type = e.target.value;
+                        update("street_action_details", newDetails);
+                      }}
+                      required
+                    >
+                      <option value="">Selecione o tipo</option>
+                      {streetActionTypeOptions.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    <input
+                      style={{ flex: 1 }}
+                      type="number"
+                      placeholder="Quantidade de público"
+                      value={detail.public}
+                      onChange={(e) => {
+                        const newDetails = [...(form.street_action_details || [])];
+                        newDetails[idx].public = e.target.value ? Number(e.target.value) : "";
+                        update("street_action_details", newDetails);
+                      }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="danger icon-only"
+                      onClick={() => {
+                        const newDetails = (form.street_action_details || []).filter((_, i) => i !== idx);
+                        update("street_action_details", newDetails);
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => update("street_action_details", [...(form.street_action_details || []), { type: "", public: "" }])}
+                >
+                  <Plus size={18} /> Adicionar Tipo de Ação
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="form-section chief-flow-section">
             <div className="chief-required-block chief-required-block-standalone">
               <h4>PREENCHIMENTO OBRIGATÓRIO</h4>
