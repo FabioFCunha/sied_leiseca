@@ -77,8 +77,14 @@ class ShiftSchedulePermission(BasePermission):
             else:
                 return False
         if view.__class__.__name__ == "ShiftScheduleViewSet":
-            if view.action in {"create", "update", "partial_update", "destroy"}:
+            if view.action in {"create", "update", "destroy"}:
                 return self._can_manage_shift_schedule(request.user)
+            if view.action == "partial_update":
+                if self._can_manage_shift_schedule(request.user):
+                    return True
+                if request.data and set(request.data.keys()) == {"checked_members"}:
+                    return request.user.role == User.Role.SUPERVISOR
+                return False
             if view.action == "absence":
                 return self._can_manage_shift_schedule(request.user) or request.user.role == User.Role.SUPERVISOR
         if view.action in {"approve", "reject", "destroy"}:
@@ -94,11 +100,15 @@ class ShiftSchedulePermission(BasePermission):
             else:
                 return False
         if view.__class__.__name__ == "ShiftScheduleViewSet":
-            if view.action in {"update", "partial_update", "destroy"}:
+            if view.action in {"update", "destroy"}:
                 return self._can_manage_shift_schedule(request.user)
-            if view.action == "absence":
+            if view.action in {"absence", "partial_update"}:
                 if self._can_manage_shift_schedule(request.user):
                     return True
+                
+                if view.action == "partial_update":
+                    if not request.data or set(request.data.keys()) != {"checked_members"}:
+                        return False
                 
                 if request.user.role != User.Role.SUPERVISOR:
                     self.message = "Somente o chefe escalado, Gestor ou Administrador pode gerenciar a frequência desta equipe."
