@@ -1552,7 +1552,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         ("beach", "Praia"),
         ("events", "Eventos"),
         ("shopping", "Shopping"),
-        ("social_actions", "Ação social"),
+        ("social_actions", "A\u00e7\u00e3o social"),
+        ("joint_inspections", "A\u00e7\u00e3o conjunta com a fiscaliza\u00e7\u00e3o"),
         ("other_actions", "Outros"),
         ("publicity_materials", "Materiais de divulgação"),
     ]
@@ -2235,8 +2236,9 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                     {"key": "beach", "label": "3.4 - PRAIA"},
                     {"key": "events", "label": "3.5 - EVENTO"},
                     {"key": "shopping", "label": "3.6 - SHOPPING"},
-                    {"key": "social_actions", "label": "3.7 - AÃƒâ€¡ÃƒÆ’O SOCIAL"},
-                    {"key": "other_actions", "label": "3.8 - OUTROS"},
+                    {"key": "social_actions", "label": "3.7 - A\u00c7\u00c3O SOCIAL"},
+                    {"key": "joint_inspections", "label": "3.8 - A\u00c7\u00c3O CONJUNTA COM A FISCALIZA\u00c7\u00c3O"},
+                    {"key": "other_actions", "label": "3.9 - OUTROS"},
                 ],
             },
             {

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { STREET_ACTION_TYPE_OPTIONS } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
 
 import { buildPreview, chiefFromReport, reportName } from "../utils/reportPreview.js";
@@ -74,16 +75,7 @@ const fieldLabels = {
   approached_actions: "Número de abordagens",
 };
 
-const streetActionTypeOptions = [
-  "Bares",
-  "Pedágio",
-  "Esportes",
-  "Praia",
-  "Eventos",
-  "Shopping",
-  "Ação Social",
-  "Outros",
-];
+const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
 
 function isStreetActionAgenda(agenda) {
   return String(agenda?.requester_entity_type || "").toLowerCase().includes("rua");

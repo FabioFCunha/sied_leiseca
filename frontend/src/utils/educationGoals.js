@@ -36,7 +36,8 @@ export const defaultGoalRows = [
       { key: "events", label: "3.5 - EVENTO", average: 127, target: 120 },
       { key: "shopping", label: "3.6 - SHOPPING", average: 15, target: 20 },
       { key: "social_actions", label: "3.7 - AÇÃO SOCIAL", average: 56, target: 50 },
-      { key: "other_actions", label: "3.8 - OUTROS", average: 675, target: 630 },
+      { key: "joint_inspections", label: "3.8 - AÇÃO CONJUNTA COM A FISCALIZAÇÃO", average: 0, target: 0 },
+      { key: "other_actions", label: "3.9 - OUTROS", average: 675, target: 630 },
     ],
   },
   {

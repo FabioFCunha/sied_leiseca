@@ -709,6 +709,7 @@ class EducationAction(models.Model):
     events = models.PositiveIntegerField(default=0)
     shopping = models.PositiveIntegerField(default=0)
     social_actions = models.PositiveIntegerField(default=0)
+    joint_inspections = models.PositiveIntegerField(default=0)
     other_actions = models.PositiveIntegerField(default=0)
     publicity_materials = models.PositiveIntegerField(default=0)
     horus_created_at = models.DateTimeField(null=True, blank=True)

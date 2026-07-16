@@ -175,7 +175,8 @@ export default function StatisticsPage() {
     { key: "events", label: "3.5 - Eventos", icon: BarChart3, color: "#ec4899" },
     { key: "shopping", label: "3.6 - Shopping", icon: TrendingUp, color: "#f97316" },
     { key: "social_actions", label: "3.7 - Ação Social", icon: CalendarDays, color: "#6366f1" },
-    { key: "other_actions", label: "3.8 - Outros", icon: Activity, color: "#64748b" },
+    { key: "joint_inspections", label: "3.8 - Ação conjunta com a fiscalização", icon: Activity, color: "#0f766e" },
+    { key: "other_actions", label: "3.9 - Outros", icon: Activity, color: "#64748b" },
     { key: "gibis", label: "3 - Revistinha Soprinho", icon: BarChart3, color: "#10b981" },
     { key: "publicity_materials", label: "4 - Materiais de Divulgação", icon: TrendingUp, color: "#8b5cf6" },
   ];

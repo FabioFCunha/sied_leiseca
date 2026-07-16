@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { api } from "../api/client.js";
 import { normalizeTime, addHoursToTime } from "../utils/date.js";
+import { STREET_ACTION_TYPE_OPTIONS } from "../utils/streetActionTypes.js";
 import soprinhoMascot from "../assets/soprinho-transparent.png";
 import leiSecaLogo from "../assets/logo lei seca preto.jpg.jpeg";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -13,16 +14,7 @@ const actionTypes = [
   "Ação de educação/conscientização",
 ];
 
-const streetActionTypes = [
-  "Bares",
-  "Pedágio",
-  "Esportes",
-  "Praia",
-  "Eventos",
-  "Shopping",
-  "Ação Social",
-  "Outros",
-];
+const streetActionTypes = STREET_ACTION_TYPE_OPTIONS;
 
 const ageRangeOptions = [
   "05 - 10 anos (ensino fundamental - anos iniciais)",

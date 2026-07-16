@@ -774,6 +774,9 @@ ACTION_COUNTER_FIELDS = {
     "eventos": "events",
     "shopping": "shopping",
     "acao social": "social_actions",
+    "ao social": "social_actions",
+    "acao conjunta com a fiscalizacao": "joint_inspections",
+    "ao conjunta com a fiscalizao": "joint_inspections",
     "outros": "other_actions",
 }
 
@@ -823,6 +826,7 @@ class EducationActionSerializer(serializers.ModelSerializer):
             "events",
             "shopping",
             "social_actions",
+            "joint_inspections",
             "other_actions",
             "publicity_materials",
             "horus_created_at",
@@ -880,6 +884,7 @@ class EducationActionSerializer(serializers.ModelSerializer):
             "events",
             "shopping",
             "social_actions",
+            "joint_inspections",
             "other_actions",
         ]
         for field in counter_fields:
@@ -1124,6 +1129,7 @@ STREET_ACTION_TYPE_CHOICES = [
     "Eventos",
     "Shopping",
     "A??o Social",
+    "A??o conjunta com a fiscaliza??o",
     "Outros",
 ]
 
@@ -1157,6 +1163,7 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
                 "Eventos",
                 "Shopping",
                 "Acao Social",
+                "Acao conjunta com a fiscalizacao",
                 "Outros",
             ]
         }

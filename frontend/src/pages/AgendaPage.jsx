@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import Filters from "../components/Filters.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { STREET_ACTION_TYPE_OPTIONS } from "../utils/streetActionTypes.js";
 import { formatDateBR, normalizeTime, addHoursToTime } from "../utils/date.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { statusClass, statusLabel } from "../utils/status.js";
@@ -1557,11 +1558,9 @@ export default function AgendaPage() {
                         required
                       >
                         <option value="">Selecione o tipo</option>
-                        <option value="Bar">Bar</option>
-                        <option value="Praça Esportiva">Praça Esportiva</option>
-                        <option value="Evento">Evento</option>
-                        <option value="Praia">Praia</option>
-                        <option value="Outros">Outros</option>
+                        {STREET_ACTION_TYPE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
                       </select>
                       <button
                         type="button"

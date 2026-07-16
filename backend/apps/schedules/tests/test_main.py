@@ -191,6 +191,35 @@ class EducationActionSerializerTests(TestCase):
         self.assertEqual(action.beach, 1)
         self.assertEqual(action.events, 0)
 
+    def test_action_serializer_maps_joint_inspection_counter(self):
+        serializer = EducationReportSerializer(data={
+            "agenda": Agenda.objects.create(
+                title="Acao conjunta",
+                description="Atividade educativa",
+                date="2026-07-22",
+                start_time="09:00",
+                end_time="10:00",
+                location="Escola",
+                responsible=User.objects.create_user(email="owner2@example.com", password="password123", full_name="Owner 2", role=User.Role.MANAGER, sector=Sector.objects.create(name="SETOR 2")),
+                sector=Sector.objects.get(name="SETOR 2"),
+                created_by=User.objects.get(email="owner2@example.com"),
+            ).id,
+            "operation_date": "2026-07-22",
+            "team": "Equipe",
+            "status": EducationReport.ReportStatus.DRAFT,
+            "actions": [{
+                "type_action": "Acao conjunta com a fiscalizacao",
+                "approached_actions": 10,
+            }],
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        report = serializer.save(created_by=User.objects.get(email="owner2@example.com"))
+        action = report.actions.get()
+        self.assertEqual(action.educational_actions, 1)
+        self.assertEqual(action.joint_inspections, 1)
+        self.assertEqual(action.other_actions, 0)
+
 
 class EducationReportSerializerTests(APITestCase):
     def test_accepts_long_resources_summary(self):
