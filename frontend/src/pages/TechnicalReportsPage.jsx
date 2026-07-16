@@ -727,8 +727,9 @@ export default function TechnicalReportsPage() {
     try {
       await saveReport("DRAFT");
       setMessage("Rascunho salvo com sucesso.");
+      load();
     } catch (err) {
-      setMessage(err.message);
+      setMessage(`⚠ Não foi possível salvar o rascunho\n\nMotivo:\n${err.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -738,7 +739,7 @@ export default function TechnicalReportsPage() {
     if (isSaving) return;
     setMessage("");
     if (reportSchedule && Object.values(attendanceForm).some((d) => d.is_absent === null)) {
-      setMessage("É obrigatório gerenciar a frequência de toda a equipe antes de enviar o relatório final.");
+      setMessage("⚠ Não foi possível enviar o relatório\n\nMotivo:\nÉ obrigatório gerenciar a frequência de toda a equipe antes de enviar o relatório final.");
       return;
     }
     setIsSaving(true);
@@ -748,7 +749,7 @@ export default function TechnicalReportsPage() {
       setMessage("Relatório enviado para conferência com sucesso.");
       load();
     } catch (err) {
-      setMessage(err.message);
+      setMessage(`⚠ Não foi possível enviar o relatório\n\nMotivo:\n${err.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -1074,7 +1075,7 @@ export default function TechnicalReportsPage() {
             <textarea placeholder="Observação de ocorrência" value={form.occurrence_observation || ""} onChange={(event) => update("occurrence_observation", event.target.value)} />
           </div>
 
-          {message && <div className="alert">{message}</div>}
+          {message && <div className="alert" style={{ whiteSpace: "pre-wrap" }}>{message}</div>}
           <div className="report-submit-actions">
             {!["PENDING_REVIEW", "APPROVED"].includes(form.status) && (
               <>

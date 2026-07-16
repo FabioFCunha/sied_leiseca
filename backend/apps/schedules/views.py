@@ -1,4 +1,7 @@
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 import re
 from collections import Counter, defaultdict
 from datetime import date, timedelta
@@ -1568,23 +1571,55 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         except (OperationalError, ProgrammingError) as exc:
             return self._schema_error_response(exc)
 
+    def _log_permission_denied(self, reason, message, agenda_id=None, report_id=None):
+        user = self.request.user
+        chief_name = user.full_name if user.role == User.Role.SUPERVISOR else "N/A"
+        log_msg = f"REPORT_PERMISSION_DENIED user={user.id} chief={chief_name} agenda={agenda_id or 'N/A'} report={report_id or 'N/A'} reason={reason}"
+        logger.warning(log_msg)
+        from rest_framework.exceptions import PermissionDenied
+        raise PermissionDenied(message)
+
     def create(self, request, *args, **kwargs):
         try:
             return super().create(request, *args, **kwargs)
         except (OperationalError, ProgrammingError) as exc:
             return self._schema_error_response(exc)
+        except Exception as exc:
+            from rest_framework.exceptions import APIException
+            from django.http import Http404
+            from rest_framework.exceptions import PermissionDenied
+            if isinstance(exc, (APIException, Http404, PermissionDenied)):
+                raise
+            logger.exception("Unexpected error in EducationReportViewSet.create")
+            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatório. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, *args, **kwargs):
         try:
             return super().update(request, *args, **kwargs)
         except (OperationalError, ProgrammingError) as exc:
             return self._schema_error_response(exc)
+        except Exception as exc:
+            from rest_framework.exceptions import APIException
+            from django.http import Http404
+            from rest_framework.exceptions import PermissionDenied
+            if isinstance(exc, (APIException, Http404, PermissionDenied)):
+                raise
+            logger.exception("Unexpected error in EducationReportViewSet.update")
+            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatório. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def partial_update(self, request, *args, **kwargs):
         try:
             return super().partial_update(request, *args, **kwargs)
         except (OperationalError, ProgrammingError) as exc:
             return self._schema_error_response(exc)
+        except Exception as exc:
+            from rest_framework.exceptions import APIException
+            from django.http import Http404
+            from rest_framework.exceptions import PermissionDenied
+            if isinstance(exc, (APIException, Http404, PermissionDenied)):
+                raise
+            logger.exception("Unexpected error in EducationReportViewSet.partial_update")
+            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatório. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_queryset(self):
         user = self.request.user
@@ -1654,9 +1689,11 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         with transaction.atomic():
-            if serializer.instance.status in [EducationReport.ReportStatus.PENDING_REVIEW, EducationReport.ReportStatus.APPROVED]:
-                if not self.request.user.is_admin_role:
-                    raise PermissionDenied("Você não pode editar um relatório que já foi enviado para conferência ou aprovado.")
+            if not self.request.user.is_admin_role:
+                if serializer.instance.status == EducationReport.ReportStatus.PENDING_REVIEW:
+                    self._log_permission_denied("REPORT_PENDING_REVIEW", "Este relatório já foi enviado para conferência e aguarda análise.", serializer.instance.agenda_id, serializer.instance.id)
+                elif serializer.instance.status == EducationReport.ReportStatus.APPROVED:
+                    self._log_permission_denied("REPORT_ALREADY_APPROVED", "Este relatório já foi aprovado e não pode mais ser alterado.", serializer.instance.agenda_id, serializer.instance.id)
 
             if "status" in serializer.validated_data:
                 del serializer.validated_data["status"]
@@ -1669,8 +1706,17 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"], url_path="submit-for-review")
     def submit_for_review(self, request, pk=None):
         report = self.get_object()
+        
+        if report.agenda:
+            self._validate_agenda_access(report.agenda)
+
         if report.status not in [EducationReport.ReportStatus.DRAFT, EducationReport.ReportStatus.RETURNED]:
-            return response.Response({"detail": "Apenas relatórios em rascunho ou devolvidos podem ser enviados para conferência."}, status=status.HTTP_400_BAD_REQUEST)
+            if report.status == EducationReport.ReportStatus.PENDING_REVIEW:
+                self._log_permission_denied("REPORT_PENDING_REVIEW", "Este relatório já foi enviado para conferência e aguarda análise.", report.agenda_id, report.id)
+            elif report.status == EducationReport.ReportStatus.APPROVED:
+                self._log_permission_denied("REPORT_ALREADY_APPROVED", "Este relatório já foi aprovado e não pode mais ser alterado.", report.agenda_id, report.id)
+            else:
+                self._log_permission_denied("AGENDA_STATUS_INVALID", "Esta agenda não permite mais alterações.", report.agenda_id, report.id)
         
         # Validação obrigatória da conferência de frequência
         from apps.schedules.models import ShiftSchedule, Team
@@ -1790,10 +1836,10 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         if user.is_admin_role:
             return
         if user.is_agent_role:
-            raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem preencher relatórios.")
+            self._log_permission_denied("USER_NOT_CHIEF", "Somente o chefe responsável pela escala pode preencher ou enviar este relatório.", agenda.pk)
         allowed = Agenda.objects.filter(pk=agenda.pk).filter(chief_agenda_filter(user)).exists()
         if not allowed:
-            raise PermissionDenied("Você só pode preencher relatórios dos protocolos em que é Chefe responsável.")
+            self._log_permission_denied("USER_NOT_LINKED_TO_TEAM", "Você não possui vínculo com esta equipe.", agenda.pk)
 
     def _register_accessibility_block(self, report):
         if report.accessibility_conditions_met != "NO" or not report.agenda_id:
