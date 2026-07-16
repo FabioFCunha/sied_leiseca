@@ -1,4 +1,4 @@
-import { Clipboard, MapPin, Plus, Save, Search, Trash2, Eye, X, Check } from "lucide-react";
+﻿import { Clipboard, MapPin, Plus, Save, Search, Trash2, Eye, X, Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
@@ -1087,24 +1087,7 @@ export default function TechnicalReportsPage() {
                           <span>Horário final</span>
                           <input value={action.final_hour || ""} onChange={(event) => updateAction(index, "final_hour", event.target.value)} readOnly={requestFieldsReadOnly} />
                         </label>
-                        {isStreetActionSelectedAgenda ? (
-                          shouldChooseStreetActionType ? (
-                            <label className={`field-label chief-action-select ${shouldHighlightChiefTypeAction(action, index) ? "chief-highlight-field" : ""}`.trim()}>
-                              <span>A??o Definida pelo Chefe</span>
-                              <select
-                                id={`select-type-action-${index}`}
-                                value={action.type_action || ""}
-                                onChange={(event) => updateAction(index, "type_action", event.target.value)}
-                                required
-                              >
-                                <option value="">Selecione</option>
-                                {predefinedStreetActionTypes.map((option) => (
-                                  <option key={option} value={option}>{option}</option>
-                                ))}
-                              </select>
-                            </label>
-                          ) : null
-                        ) : (
+                        {isStreetActionSelectedAgenda && shouldChooseStreetActionType ? (
                           <label className={`field-label chief-action-select ${shouldHighlightChiefTypeAction(action, index) ? "chief-highlight-field" : ""}`.trim()}>
                             <span>A??o Definida pelo Chefe</span>
                             <select
@@ -1114,15 +1097,12 @@ export default function TechnicalReportsPage() {
                               required
                             >
                               <option value="">Selecione</option>
-                              {streetActionTypeOptions.map((option) => (
+                              {predefinedStreetActionTypes.map((option) => (
                                 <option key={option} value={option}>{option}</option>
                               ))}
-                              {action.type_action && !streetActionTypeOptions.includes(action.type_action) && (
-                                <option value={action.type_action}>{action.type_action}</option>
-                              )}
                             </select>
                           </label>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   ))}
