@@ -269,7 +269,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         role = attrs.get("role", getattr(self.instance, "role", User.Role.USER))
-        if role in {User.Role.USER, User.Role.SUPPORT, User.Role.SUPERVISOR}:
+        if role in {User.Role.USER, User.Role.SUPPORT}:
             team = attrs.get("team") if "team" in attrs else getattr(self.instance, "team", None) if self.instance else None
             if not team:
                 raise serializers.ValidationError({"team": "Este campo é obrigatório para usuários operacionais."})

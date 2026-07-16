@@ -1,0 +1,79 @@
+databases:
+  - name: sied-db
+    databaseName: agenda_educacao
+    user: agenda_educacao
+    plan: free
+
+services:
+  - type: web
+    name: sied-api
+    runtime: python
+    rootDir: backend
+    buildCommand: ./build.sh
+    startCommand: python manage.py migrate && python manage.py bootstrap_admin && python manage.py sync_operational_data --sync-version 2026-06-19-1 && python manage.py sync_user_lookups && if [ -n "$PUBLIC_REQUESTS_CSV_URL" ]; then python manage.py import_google_sheet_requests --url "$PUBLIC_REQUESTS_CSV_URL" --clear-existing; fi && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --threads 2 --timeout 60 --keep-alive 5 --max-requests 1000 --max-requests-jitter 50
+    healthCheckPath: /healthz/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sied-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://sied.onrender.com
+      - key: FRONTEND_URL
+        value: https://sied.onrender.com
+      - key: PUBLIC_REQUESTS_CSV_URL
+        sync: false
+      - key: EMAIL_PROVIDER
+        value: smtp
+      - key: RESEND_API_KEY
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        value: admin@agenda.local
+      - key: DJANGO_SUPERUSER_PASSWORD
+        value: Admin@12345
+      - key: DJANGO_SUPERUSER_FULL_NAME
+        value: Admin Agenda
+      - key: EMAIL_BACKEND
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        sync: false
+      - key: EMAIL_USE_SSL
+        sync: false
+      - key: EMAIL_TIMEOUT
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: AGENDA_REPLY_TO_EMAIL
+        sync: false
+
+  - type: web
+    name: sied
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://sied-api-qcij.onrender.com/api
+      - key: VITE_API_TIMEOUT_MS
+        value: "90000"
