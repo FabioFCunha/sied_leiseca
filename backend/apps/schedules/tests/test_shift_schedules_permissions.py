@@ -4,7 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 from apps.accounts.models import User
-from apps.schedules.models import ShiftSchedule, Team, Agent, Chief, Agenda, Sector
+from apps.schedules.models import ShiftSchedule, Team, Agent, Chief, Support, Agenda, Sector
 
 class ShiftSchedulePermissionsTest(TestCase):
     def setUp(self):
@@ -99,6 +99,34 @@ class ShiftSchedulePermissionsTest(TestCase):
         self.assertEqual(len(res.data['results']), 1)
         self.assertEqual(res.data['results'][0]['team_name'], "BRAVO")
 
+
+
+
+    def test_support_list_hides_user_bound_record_when_linked_user_is_inactive(self):
+        support_team, _ = Team.objects.get_or_create(name="INDIA")
+        inactive_user = User.objects.create_user(
+            email="apoio.inativo@test.com",
+            password="pwd",
+            role=User.Role.SUPPORT,
+            full_name="Ronaldo de Almeida Rodrigues",
+            cpf="98765432100",
+            is_active=False,
+        )
+        Support.objects.create(
+            name="Ronaldo de Almeida Rodrigues",
+            cpf="98765432100",
+            team=support_team,
+            role="APOIO",
+            is_active=True,
+            source_id=f"user:{inactive_user.id}",
+        )
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(reverse("supports-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        rows = response.data["results"] if "results" in response.data else response.data
+        self.assertNotIn("Ronaldo de Almeida Rodrigues", [row["name"] for row in rows])
 
 class ShiftScheduleDeleteSyncTests(APITestCase):
     def setUp(self):

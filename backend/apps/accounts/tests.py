@@ -16,6 +16,7 @@ from apps.schedules.models import (
     EventReport,
     SatisfactionSurvey,
     Agent,
+    Support,
     Sector,
     Team,
 )
@@ -135,6 +136,35 @@ class UserOperationalTeamTests(APITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("team", response.data)
+
+
+
+
+    def test_delete_support_lookup_deactivates_linked_user(self):
+        support_team, _ = Team.objects.get_or_create(name="HOTEL")
+        support_user = User.objects.create_user(
+            email="apoio@example.com",
+            password="password123",
+            full_name="Ronaldo de Almeida Rodrigues",
+            cpf="12345678901",
+            role=User.Role.SUPPORT,
+            is_active=True,
+        )
+        support = Support.objects.create(
+            name="Ronaldo de Almeida Rodrigues",
+            cpf="12345678901",
+            role="APOIO",
+            team=support_team,
+            is_active=True,
+            source_id=f"user:{support_user.id}",
+        )
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.delete(reverse("supports-detail", args=[support.id]))
+
+        self.assertEqual(response.status_code, 204)
+        support_user.refresh_from_db()
+        self.assertFalse(support_user.is_active)
 
 
 class UserPasswordLinkTests(APITestCase):

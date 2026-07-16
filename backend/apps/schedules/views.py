@@ -150,6 +150,26 @@ def chief_agenda_filter(user, prefix=""):
         
     return query
 
+
+def filter_active_user_bound_lookups(queryset):
+    active_source_ids = [f"user:{user_id}" for user_id in User.objects.filter(is_active=True).values_list("id", flat=True)]
+    return queryset.filter(
+        Q(source_id__isnull=True)
+        | Q(source_id="")
+        | ~Q(source_id__startswith="user:")
+        | Q(source_id__in=active_source_ids)
+    )
+
+
+def deactivate_linked_users_for_lookup(instance, role):
+    cpf = "".join(char for char in str(instance.cpf or "") if char.isdigit())
+    linked_users = User.objects.filter(role=role)
+    if cpf:
+        linked_users = linked_users.filter(Q(cpf=cpf) | Q(full_name__iexact=instance.name))
+    else:
+        linked_users = linked_users.filter(full_name__iexact=instance.name)
+    linked_users.update(is_active=False)
+
 class SectorViewSet(viewsets.ModelViewSet):
     serializer_class = SectorSerializer
     permission_classes = [IsAuthenticated, AdminOrReadSectorPermission]
@@ -190,16 +210,12 @@ class ChiefViewSet(LookupViewSet):
             
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Chief.objects.all()
+        else:
+            queryset = filter_active_user_bound_lookups(queryset)
         return queryset.select_related("team").order_by("team__name", "name")
 
     def perform_destroy(self, instance):
-        cpf = "".join(char for char in str(instance.cpf or "") if char.isdigit())
-        linked_users = User.objects.filter(role=User.Role.SUPERVISOR)
-        if cpf:
-            linked_users = linked_users.filter(Q(cpf=cpf) | Q(full_name__iexact=instance.name))
-        else:
-            linked_users = linked_users.filter(full_name__iexact=instance.name)
-        linked_users.update(is_active=False)
+        deactivate_linked_users_for_lookup(instance, User.Role.SUPERVISOR)
         super().perform_destroy(instance)
 
 
@@ -220,7 +236,13 @@ class AgentViewSet(LookupViewSet):
             
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Agent.objects.all()
+        else:
+            queryset = filter_active_user_bound_lookups(queryset)
         return queryset.select_related("team").order_by("team__name", "name")
+
+    def perform_destroy(self, instance):
+        deactivate_linked_users_for_lookup(instance, User.Role.USER)
+        super().perform_destroy(instance)
 
 
 class SupportViewSet(LookupViewSet):
@@ -240,7 +262,13 @@ class SupportViewSet(LookupViewSet):
             
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Support.objects.all()
+        else:
+            queryset = filter_active_user_bound_lookups(queryset)
         return queryset.select_related("team").order_by("team__name", "name")
+
+    def perform_destroy(self, instance):
+        deactivate_linked_users_for_lookup(instance, User.Role.SUPPORT)
+        super().perform_destroy(instance)
 
 
 class ShiftScheduleViewSet(viewsets.ModelViewSet):
