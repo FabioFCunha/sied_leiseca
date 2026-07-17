@@ -167,6 +167,34 @@ class UserOperationalTeamTests(APITestCase):
         self.assertFalse(support_user.is_active)
 
 
+    def test_support_list_rebuilds_missing_lookup_from_active_support_user_sector(self):
+        support_team, _ = Team.objects.get_or_create(name="HOTEL")
+        support_sector, _ = Sector.objects.get_or_create(name="HOTEL")
+        support_user = User.objects.create_user(
+            email="ronaldo.hotel@example.com",
+            password="password123",
+            full_name="Ronaldo Ferreira Lima",
+            cpf="01229890742",
+            role=User.Role.SUPPORT,
+            sector=support_sector,
+            is_active=True,
+        )
+
+        self.assertFalse(Support.objects.filter(source_id=f"user:{support_user.id}").exists())
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(reverse("supports-list"))
+
+        self.assertEqual(response.status_code, 200)
+        rows = response.data["results"] if "results" in response.data else response.data
+        self.assertTrue(any(row["source_id"] == f"user:{support_user.id}" and row["team_name"] == "HOTEL" for row in rows))
+
+        lookup = Support.objects.get(source_id=f"user:{support_user.id}")
+        self.assertTrue(lookup.is_active)
+        self.assertEqual(lookup.team, support_team)
+        self.assertEqual(lookup.role, "APOIO")
+
+
 class UserPasswordLinkTests(APITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(

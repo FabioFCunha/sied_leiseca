@@ -39,6 +39,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.audit import log_audit
 from apps.accounts.models import AuditLog, User
+from apps.accounts.serializers import sync_active_users_for_role
 
 from .models import (
     ActionType,
@@ -249,6 +250,8 @@ class SupportViewSet(LookupViewSet):
     serializer_class = SupportSerializer
 
     def get_queryset(self):
+        if self.action == "list":
+            sync_active_users_for_role(User.Role.SUPPORT)
         if self.action in ["retrieve", "update", "partial_update", "destroy"] and self.request.user.is_admin_role:
             return Support.objects.all().select_related("team").order_by("team__name", "name")
         queryset = Support.objects.filter(is_active=True)
