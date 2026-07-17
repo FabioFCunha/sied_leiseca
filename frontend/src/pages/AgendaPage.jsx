@@ -7,6 +7,7 @@ import { STREET_ACTION_TYPE_OPTIONS } from "../utils/streetActionTypes.js";
 import { formatDateBR, normalizeTime, addHoursToTime } from "../utils/date.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { statusClass, statusLabel } from "../utils/status.js";
+import { buildActiveOperationalUserOptions, filterDesignatedCandidates, setSelectedUserChecked } from "./agendaDesignatedUsers.js";
 
 const emptyForm = {
   service_order_number: "",
@@ -348,9 +349,15 @@ export default function AgendaPage() {
 
   const responsibleOptions = useMemo(() => (users.length ? users : [user]).filter(Boolean), [users, user]);
   const activeUserOptions = useMemo(
-    () => (users.length ? users : [user]).filter((option) => option && option.is_active).sort((left, right) => (left.full_name || "").localeCompare(right.full_name || "")),
-    [users, user],
+    () => buildActiveOperationalUserOptions({
+      users: users.length ? users : [user],
+      chiefs: (lookups.chiefs || []).map((item) => ({ ...item, role: "SUPERVISOR" })),
+      agents: (lookups.agents || []).map((item) => ({ ...item, role: "USER" })),
+      supports: (lookups.supports || []).map((item) => ({ ...item, role: "SUPPORT" })),
+    }),
+    [users, user, lookups.chiefs, lookups.agents, lookups.supports],
   );
+
 
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
@@ -383,13 +390,13 @@ export default function AgendaPage() {
         const hasOperationalData = Boolean(
           current.team_ref || current.team_name || current.chief_ref || current.chief_name || current.team_phone || (current.agents_ref || []).length || current.agents || current.support_1_ref || current.support_1 || current.support_2_ref || current.support_2,
         );
-        if (hasOperationalData && !window.confirm("Ao mudar para Participantes selecionados, a composi??o da equipe operacional ser? removida. Deseja continuar?")) {
+        if (hasOperationalData && !window.confirm("Ao mudar para Participantes selecionados, a composição da equipe operacional será removida. Deseja continuar?")) {
           return current;
         }
         return { ...current, service_order_mode: nextMode, ...clearOperationalComposition() };
       }
 
-      if ((current.designated_users || []).length && !window.confirm("Ao voltar para Equipe operacional, os participantes selecionados ser?o removidos. Deseja continuar?")) {
+      if ((current.designated_users || []).length && !window.confirm("Ao voltar para Equipe operacional, os participantes selecionados serão removidos. Deseja continuar?")) {
         return current;
       }
       return { ...current, service_order_mode: nextMode, ...clearDesignatedParticipants() };
@@ -661,13 +668,9 @@ export default function AgendaPage() {
   const availableAgents = allAgents.filter((agent) => !selectedAgentIds.includes(String(agent.id)));
   const selectedDesignatedIds = (form.designated_users || []).map(String);
   const selectedDesignatedUsers = selectedDesignatedIds
-    .map((id) => activeUserOptions.find((option) => String(option.id) === id) || users.find((option) => String(option.id) === id))
+    .map((id) => activeUserOptions.find((option) => String(option.id) === id))
     .filter(Boolean);
-  const designatedCandidates = activeUserOptions.filter((option) => {
-    const search = designatedSearch.trim().toLowerCase();
-    if (!search) return true;
-    return [option.full_name, option.role, option.sector_name].filter(Boolean).some((value) => String(value).toLowerCase().includes(search));
-  });
+  const designatedCandidates = filterDesignatedCandidates(activeUserOptions, designatedSearch);
 
   const setAgentSelection = (ids) => {
     const names = lookups.agents
@@ -691,15 +694,11 @@ export default function AgendaPage() {
     setAgentSelection(selectedAgentIds.filter((id) => id !== String(value)));
   };
 
-  const toggleDesignatedUser = (value) => {
-    const id = String(value);
-    setForm((current) => {
-      const currentIds = (current.designated_users || []).map(String);
-      const nextIds = currentIds.includes(id)
-        ? currentIds.filter((item) => item !== id)
-        : [...currentIds, id];
-      return { ...current, designated_users: nextIds };
-    });
+  const toggleDesignatedUser = (value, checked) => {
+    setForm((current) => ({
+      ...current,
+      designated_users: setSelectedUserChecked(current.designated_users || [], value, checked),
+    }));
   };
 
   const removeDesignatedUser = (value) => {
@@ -1421,7 +1420,7 @@ export default function AgendaPage() {
                   </label>
                   <div className="compact-grid">
                     <label className="field-label">
-                      <span>Modo da Ordem de Servi?o</span>
+                      <span>Modo da Ordem de Serviço</span>
                       <select value={form.service_order_mode || "TEAM"} onChange={(e) => handleServiceOrderModeChange(e.target.value)}>
                         <option value="TEAM">Equipe operacional</option>
                         <option value="DESIGNATED">Participantes selecionados</option>
@@ -1499,7 +1498,7 @@ export default function AgendaPage() {
                             )) : <div className="empty-selection">Nenhum agente escalado.</div>}
                           </div>
                           <select value="" onChange={(e) => addAgent(e.target.value)} disabled={!availableAgents.length}>
-                            <option value="">{availableAgents.length ? "Adicionar outro agente" : "Sem agentes dispon?veis para adicionar"}</option>
+                            <option value="">{availableAgents.length ? "Adicionar outro agente" : "Sem agentes disponíveis para adicionar"}</option>
                             {availableAgents.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
                           </select>
                         </div>
@@ -1524,14 +1523,14 @@ export default function AgendaPage() {
                   ) : (
                     <div className="field-label" style={{ gap: "12px" }}>
                       <span>Participantes selecionados</span>
-                      <input value={designatedSearch} onChange={(e) => setDesignatedSearch(e.target.value)} placeholder="Buscar por nome, fun??o ou equipe" />
+                      <input value={designatedSearch} onChange={(e) => setDesignatedSearch(e.target.value)} placeholder="Buscar por nome, CPF/ID ou equipe" />
                       <div className="alert" style={{ margin: 0 }}>Selecionados: {selectedDesignatedUsers.length}</div>
                       <div className="agent-select-list">
                         {selectedDesignatedUsers.length ? selectedDesignatedUsers.map((member) => (
                           <div className="agent-select-row" key={member.id}>
                             <div>
                               <strong>{member.full_name}</strong>
-                              <div style={{ fontSize: "12px", color: "var(--text-soft)" }}>{[member.role, member.sector_name].filter(Boolean).join(" - ")}</div>
+                              <div style={{ fontSize: "12px", color: "var(--text-soft)" }}>{[member.role_label || member.role, member.team_name || member.sector_name].filter(Boolean).join(" - ")}</div>
                             </div>
                             <button type="button" className="icon-soft danger" onClick={() => removeDesignatedUser(member.id)} aria-label={`Remover ${member.full_name}`}>
                               <XCircle size={16} />
@@ -1546,12 +1545,12 @@ export default function AgendaPage() {
                             <label className="checkbox" key={member.id} style={{ justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(11, 37, 89, 0.08)" }}>
                               <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                                 <span>{member.full_name}</span>
-                                <span style={{ fontSize: "12px", color: "var(--text-soft)" }}>{[member.role, member.sector_name].filter(Boolean).join(" - ")}</span>
+                                <span style={{ fontSize: "12px", color: "var(--text-soft)" }}>{[member.role_label || member.role, member.team_name || member.sector_name].filter(Boolean).join(" - ")}</span>
                               </div>
-                              <input type="checkbox" checked={checked} onChange={() => toggleDesignatedUser(member.id)} />
+                              <input type="checkbox" checked={checked} onChange={(event) => toggleDesignatedUser(member.id, event.target.checked)} />
                             </label>
                           );
-                        }) : <div className="empty-selection">Nenhum usu?rio ativo encontrado.</div>}
+                        }) : <div className="empty-selection">Nenhum usuário operacional ativo encontrado.</div>}
                       </div>
                     </div>
                   )}

@@ -4,6 +4,26 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 from apps.accounts.models import User
 
 
+def team_agenda_filter(user, prefix=""):
+    if not (user.sector_id and user.sector and user.sector.name):
+        return Q(pk__in=[])
+    return Q(**{f"{prefix}team_ref__name__iexact": user.sector.name}) | Q(**{f"{prefix}team_name__iexact": user.sector.name})
+
+
+def supervisor_agenda_filter(user, prefix=""):
+    query = Q(**{f"{prefix}responsible": user}) | Q(**{f"{prefix}designated_users": user})
+    source_id = f"user:{user.id}"
+    query |= Q(**{f"{prefix}chief_ref__source_id": source_id})
+    cpf = "".join(char for char in str(user.cpf or "") if char.isdigit())
+    if cpf and len(cpf) == 11:
+        formatted_cpf = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+        query |= Q(**{f"{prefix}chief_ref__cpf": cpf}) | Q(**{f"{prefix}chief_ref__cpf": formatted_cpf})
+    elif cpf:
+        query |= Q(**{f"{prefix}chief_ref__cpf": cpf})
+    query |= team_agenda_filter(user, prefix)
+    return query
+
+
 def agent_agenda_filter(user):
     query = Q(created_by=user) | Q(responsible=user) | Q(designated_users=user)
     cpf = "".join(char for char in str(user.cpf or "") if char.isdigit())
@@ -11,9 +31,28 @@ def agent_agenda_filter(user):
         query |= Q(agents_ref__cpf=cpf)
     if user.full_name:
         query |= Q(agents_ref__name__iexact=user.full_name) | Q(agents__icontains=user.full_name)
-    if user.sector_id and user.sector and user.sector.name:
-        query |= Q(team_ref__name__iexact=user.sector.name) | Q(team_name__iexact=user.sector.name)
+    query |= team_agenda_filter(user)
     return query
+
+
+def supervisor_can_read_agenda(user, agenda):
+    if agenda.created_by_id == user.id or agenda.responsible_id == user.id:
+        return True
+    if agenda.designated_users.filter(id=user.id).exists():
+        return True
+    source_id = f"user:{user.id}"
+    if agenda.chief_ref and agenda.chief_ref.source_id == source_id:
+        return True
+    cpf = "".join(char for char in str(user.cpf or "") if char.isdigit())
+    chief_cpf = "".join(char for char in str(getattr(agenda.chief_ref, "cpf", "") or "") if char.isdigit())
+    if cpf and chief_cpf and cpf == chief_cpf:
+        return True
+    if user.sector_id and user.sector and user.sector.name:
+        sector_name = user.sector.name.casefold()
+        team_ref_name = agenda.team_ref.name.casefold() if agenda.team_ref else ""
+        if sector_name in {team_ref_name, (agenda.team_name or "").casefold()}:
+            return True
+    return False
 
 
 def user_can_read_agenda(user, agenda):
@@ -52,7 +91,7 @@ class AgendaPermission(BasePermission):
             return True
         if request.method in SAFE_METHODS:
             if user.role == User.Role.SUPERVISOR:
-                return obj.sector_id == user.sector_id or obj.designated_users.filter(id=user.id).exists()
+                return supervisor_can_read_agenda(user, obj)
             return user_can_read_agenda(user, obj)
         return False
 
@@ -107,19 +146,19 @@ class ShiftSchedulePermission(BasePermission):
             if view.action in {"absence", "partial_update"}:
                 if self._can_manage_shift_schedule(request.user):
                     return True
-                
+
                 if view.action == "partial_update":
                     if not request.data or set(request.data.keys()) != {"checked_members"}:
                         return False
-                
+
                 if request.user.role != User.Role.SUPERVISOR:
                     self.message = "Somente o chefe escalado, Gestor ou Administrador pode gerenciar a frequência desta equipe."
                     return False
-                    
+
                 user_id_str = f"user:{request.user.id}"
                 cpf = "".join(c for c in (request.user.cpf or "") if c.isdigit())
                 formatted_cpf = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}" if len(cpf) == 11 else cpf
-                
+
                 def match_chief(chief):
                     if chief.source_id == user_id_str: return True
                     if cpf and chief.cpf and (chief.cpf == cpf or chief.cpf == formatted_cpf): return True
@@ -128,13 +167,13 @@ class ShiftSchedulePermission(BasePermission):
                 if obj.team:
                     removed_ids = set(obj.removed_chiefs.values_list("id", flat=True))
                     for chief in obj.team.chiefs.all():
-                        if chief.id not in removed_ids and match_chief(chief): 
+                        if chief.id not in removed_ids and match_chief(chief):
                             return True
-                
+
                 for chief in obj.extra_chiefs.all():
-                    if match_chief(chief): 
+                    if match_chief(chief):
                         return True
-                    
+
                 self.message = "Somente o chefe escalado, Gestor ou Administrador pode gerenciar a frequência desta equipe."
                 return False
         if view.action in {"approve", "reject", "destroy"}:

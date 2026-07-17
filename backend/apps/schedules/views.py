@@ -69,7 +69,7 @@ from .models import (
     Team,
     Vehicle,
 )
-from .permissions import AdminOrReadSectorPermission, AgendaPermission, ShiftSchedulePermission, agent_agenda_filter
+from .permissions import AdminOrReadSectorPermission, AgendaPermission, ShiftSchedulePermission, agent_agenda_filter, supervisor_agenda_filter
 from .emails import (
     PUBLIC_REQUEST_SALT,
     available_dates_message,
@@ -654,14 +654,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
         elif user.role in [User.Role.VISITOR, User.Role.ALMOXARIFADO]:
             return queryset
         elif user.role == User.Role.SUPERVISOR:
-            designated_filter = Q(designated_users=user)
-            if self.request.query_params.get("reportable") == "true":
-                return queryset.filter(chief_agenda_filter(user) | designated_filter).distinct()
-            return queryset.filter(
-                Q(sector_id=user.sector_id)
-                | chief_agenda_filter(user)
-                | designated_filter
-            ).distinct()
+            supervisor_filter = supervisor_agenda_filter(user)
+            return queryset.filter(supervisor_filter).distinct()
         return queryset.filter(agent_agenda_filter(user)).distinct()
 
     def get_queryset(self):
