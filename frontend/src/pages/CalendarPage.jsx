@@ -253,6 +253,7 @@ export default function CalendarPage() {
                   <dt>Equipe de serviço</dt><dd><Users size={15} /> {serviceTeamLabel(selected)}</dd>
                   <dt>Chefe</dt><dd>{selected.chief_name || selected.chief_ref_name || "-"}</dd>
                   <dt>Agentes</dt><dd>{selected.agents || "-"}</dd>
+                  <dt>Apoio</dt><dd>{supportTeamLabel(selected)}</dd>
                   <dt>Responsável</dt><dd>{selected.responsible_name}</dd>
                 </>
               )}
