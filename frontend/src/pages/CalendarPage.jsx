@@ -14,6 +14,11 @@ function fullAddress(agenda) {
   return [agenda.address, agenda.neighborhood, agenda.city, agenda.state].filter(Boolean).map(cleanText).join(", ");
 }
 
+function supportTeamLabel(agenda) {
+  const supports = [agenda.support_1, agenda.support_2].map(cleanText).filter(Boolean);
+  return supports.length ? supports.join(" - ") : "-";
+}
+
 function mapsUrl(agenda) {
   const query = fullAddress(agenda) || agenda.location || agenda.institution_location;
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
