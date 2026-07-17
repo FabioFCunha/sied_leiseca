@@ -128,6 +128,68 @@ class ShiftSchedulePermissionsTest(TestCase):
         rows = response.data["results"] if "results" in response.data else response.data
         self.assertNotIn("Ronaldo de Almeida Rodrigues", [row["name"] for row in rows])
 
+class SupportListSyncResilienceTests(APITestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.admin = User.objects.create_user(
+            email="admin-supports@test.com",
+            password="pwd",
+            role=User.Role.ADMIN,
+            full_name="Admin Supports",
+        )
+        self.team, _ = Team.objects.get_or_create(name="HOTEL")
+
+    def test_supports_list_ignores_sync_conflict_and_returns_200(self):
+        suffix = "500001"
+        conflict_user = User.objects.create_user(
+            email=f"support-conflict-{suffix}@test.com",
+            password="pwd",
+            role=User.Role.SUPPORT,
+            full_name=f"Apoio Conflito {suffix}",
+            cpf=f"91{suffix}001",
+            is_active=True,
+        )
+        Support.objects.create(
+            name=f"Nome CPF {suffix}",
+            cpf=f"91{suffix}001",
+            team=self.team,
+            role="APOIO",
+            is_active=True,
+        )
+        Support.objects.create(
+            name=f"Apoio Conflito {suffix}",
+            cpf=f"93{suffix}003",
+            team=self.team,
+            role="APOIO",
+            is_active=True,
+        )
+        healthy_user = User.objects.create_user(
+            email="support-healthy@test.com",
+            password="pwd",
+            role=User.Role.SUPPORT,
+            full_name="Apoio Saudavel",
+            cpf="94999999999",
+            is_active=True,
+        )
+        Support.objects.create(
+            name="Apoio Saudavel",
+            cpf="94999999999",
+            team=self.team,
+            role="APOIO",
+            is_active=True,
+            source_id=f"user:{healthy_user.id}",
+        )
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.get(reverse("supports-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        rows = response.data["results"] if "results" in response.data else response.data
+        names = [row["name"] for row in rows]
+        self.assertIn("Apoio Saudavel", names)
+        self.assertIn("Apoio Conflito 500001", names)
+        self.assertIn("Nome CPF 500001", names)
+
 class ShiftScheduleDeleteSyncTests(APITestCase):
     def setUp(self):
         self.team, _ = Team.objects.get_or_create(name="HOTEL")

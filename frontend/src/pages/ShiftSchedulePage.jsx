@@ -229,21 +229,52 @@ export default function ShiftSchedulePage() {
   };
 
   useEffect(() => {
-    Promise.all([
+    Promise.allSettled([
       loadAll("/teams/"),
       loadAll("/chiefs/"),
       loadAll("/agents/"),
       loadAll("/supports/"),
-    ]).then(([teamRows, chiefRows, agentRows, supportRows]) => {
+    ]).then(([teamsResult, chiefsResult, agentsResult, supportsResult]) => {
       const fromUsers = (row) => String(row.source_id || "").startsWith("user:");
-      setTeams(uniqueUppercaseTeams(teamRows));
-      setChiefs(chiefRows.filter(fromUsers));
-      setAgents(agentRows.filter(fromUsers));
-      setSupports(supportRows.filter(fromUsers));
-      setLoadError("");
-    }).catch((err) => {
-      console.error("Erro ao carregar dados auxiliares:", err);
-      setLoadError("Erro de comunicação ao carregar equipes e efetivo. Tente recarregar a página.");
+
+      if (teamsResult.status === "fulfilled") {
+        setTeams(uniqueUppercaseTeams(teamsResult.value));
+      } else {
+        console.error("Erro ao carregar equipes:", teamsResult.reason);
+        setTeams([]);
+      }
+
+      if (chiefsResult.status === "fulfilled") {
+        setChiefs(chiefsResult.value.filter(fromUsers));
+      } else {
+        console.error("Erro ao carregar chefes:", chiefsResult.reason);
+        setChiefs([]);
+      }
+
+      if (agentsResult.status === "fulfilled") {
+        setAgents(agentsResult.value.filter(fromUsers));
+      } else {
+        console.error("Erro ao carregar agentes:", agentsResult.reason);
+        setAgents([]);
+      }
+
+      if (supportsResult.status === "fulfilled") {
+        setSupports(supportsResult.value.filter(fromUsers));
+      } else {
+        console.error("Erro ao carregar apoios:", supportsResult.reason);
+        setSupports([]);
+      }
+
+      const criticalFailure =
+        teamsResult.status === "rejected" ||
+        chiefsResult.status === "rejected" ||
+        agentsResult.status === "rejected";
+
+      setLoadError(
+        criticalFailure
+          ? "Erro de comunica??o ao carregar equipes e efetivo. Tente recarregar a p?gina."
+          : ""
+      );
     });
   }, []);
 

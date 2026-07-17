@@ -6,9 +6,14 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+import logging
+
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 
 from apps.schedules.models import Agent, Chief, Sector, Support, Team
+
+logger = logging.getLogger(__name__)
 
 
 def only_digits(value):
@@ -175,7 +180,16 @@ def sync_user_lookup(user, team=None, clear_team=False):
 def sync_active_users_for_role(role):
     users = User.objects.filter(is_active=True, role=role).select_related("sector")
     for user in users:
-        sync_user_lookup(user)
+        try:
+            with transaction.atomic():
+                sync_user_lookup(user)
+        except IntegrityError:
+            logger.exception(
+                "Falha ao sincronizar lookup operacional para o usu?rio %s (%s) na fun??o %s.",
+                user.id,
+                user.email,
+                role,
+            )
 
 
 def sync_all_user_lookups():
