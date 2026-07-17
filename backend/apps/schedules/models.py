@@ -275,6 +275,10 @@ class Agenda(models.Model):
         CANCELLED = "CANCELLED", "Cancelada"
         COMPLETED = "COMPLETED", "Concluída"
 
+    class ServiceOrderMode(models.TextChoices):
+        TEAM = "TEAM", "Equipe operacional"
+        DESIGNATED = "DESIGNATED", "Participantes selecionados"
+
     class Origin(models.TextChoices):
         INTERNAL = "INTERNAL", "Interna"
         PUBLIC_FORM = "PUBLIC_FORM", "Formulario publico"
@@ -301,6 +305,17 @@ class Agenda(models.Model):
     location = models.CharField(max_length=180)
     vehicle = models.CharField(max_length=120, blank=True)
     vehicle_ref = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True)
+    service_order_mode = models.CharField(
+        max_length=20,
+        choices=ServiceOrderMode.choices,
+        default=ServiceOrderMode.TEAM,
+        db_index=True,
+    )
+    designated_users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="designated_service_orders",
+    )
     team_name = models.CharField(max_length=160, blank=True)
     team_ref = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True)
     chief_name = models.CharField(max_length=160, blank=True)

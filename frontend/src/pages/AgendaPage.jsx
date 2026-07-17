@@ -20,6 +20,8 @@ const emptyForm = {
   vehicle_ref: "",
   vehicle_2_ref: "",
   vehicle_3_ref: "",
+  service_order_mode: "TEAM",
+  designated_users: [],
   team_name: "",
   team_ref: "",
   chief_name: "",
@@ -258,6 +260,7 @@ export default function AgendaPage() {
   const [availableDatesLoading, setAvailableDatesLoading] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [scheduledShifts, setScheduledShifts] = useState(null);
+  const [designatedSearch, setDesignatedSearch] = useState("");
   const { user } = useAuth();
 
   const hasMaxAccess = user?.role === "ADMIN" || user?.role === "MANAGER";
@@ -344,8 +347,55 @@ export default function AgendaPage() {
   };
 
   const responsibleOptions = useMemo(() => (users.length ? users : [user]).filter(Boolean), [users, user]);
+  const activeUserOptions = useMemo(
+    () => (users.length ? users : [user]).filter((option) => option && option.is_active).sort((left, right) => (left.full_name || "").localeCompare(right.full_name || "")),
+    [users, user],
+  );
+
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+
+  const clearOperationalComposition = () => ({
+    team_ref: "",
+    team_name: "",
+    chief_ref: "",
+    chief_name: "",
+    team_phone: "",
+    agents_ref: [],
+    agents: "",
+    support_1_ref: "",
+    support_1: "",
+    support_2_ref: "",
+    support_2: "",
+  });
+
+  const clearDesignatedParticipants = () => ({ designated_users: [] });
+
+  const handleServiceOrderModeChange = (value) => {
+    const nextMode = value || "TEAM";
+    setMessage("");
+    setForm((current) => {
+      if (nextMode === current.service_order_mode) {
+        return current;
+      }
+
+      if (nextMode === "DESIGNATED") {
+        const hasOperationalData = Boolean(
+          current.team_ref || current.team_name || current.chief_ref || current.chief_name || current.team_phone || (current.agents_ref || []).length || current.agents || current.support_1_ref || current.support_1 || current.support_2_ref || current.support_2,
+        );
+        if (hasOperationalData && !window.confirm("Ao mudar para Participantes selecionados, a composi??o da equipe operacional ser? removida. Deseja continuar?")) {
+          return current;
+        }
+        return { ...current, service_order_mode: nextMode, ...clearOperationalComposition() };
+      }
+
+      if ((current.designated_users || []).length && !window.confirm("Ao voltar para Equipe operacional, os participantes selecionados ser?o removidos. Deseja continuar?")) {
+        return current;
+      }
+      return { ...current, service_order_mode: nextMode, ...clearDesignatedParticipants() };
+    });
+  };
+
 
   const updateTime = (field, value) => {
     setForm((current) => {
@@ -609,6 +659,15 @@ export default function AgendaPage() {
     .map((id) => lookups.agents.find((agent) => String(agent.id) === id))
     .filter(Boolean);
   const availableAgents = allAgents.filter((agent) => !selectedAgentIds.includes(String(agent.id)));
+  const selectedDesignatedIds = (form.designated_users || []).map(String);
+  const selectedDesignatedUsers = selectedDesignatedIds
+    .map((id) => activeUserOptions.find((option) => String(option.id) === id) || users.find((option) => String(option.id) === id))
+    .filter(Boolean);
+  const designatedCandidates = activeUserOptions.filter((option) => {
+    const search = designatedSearch.trim().toLowerCase();
+    if (!search) return true;
+    return [option.full_name, option.role, option.sector_name].filter(Boolean).some((value) => String(value).toLowerCase().includes(search));
+  });
 
   const setAgentSelection = (ids) => {
     const names = lookups.agents
@@ -630,6 +689,25 @@ export default function AgendaPage() {
 
   const removeAgent = (value) => {
     setAgentSelection(selectedAgentIds.filter((id) => id !== String(value)));
+  };
+
+  const toggleDesignatedUser = (value) => {
+    const id = String(value);
+    setForm((current) => {
+      const currentIds = (current.designated_users || []).map(String);
+      const nextIds = currentIds.includes(id)
+        ? currentIds.filter((item) => item !== id)
+        : [...currentIds, id];
+      return { ...current, designated_users: nextIds };
+    });
+  };
+
+  const removeDesignatedUser = (value) => {
+    const id = String(value);
+    setForm((current) => ({
+      ...current,
+      designated_users: (current.designated_users || []).map(String).filter((item) => item !== id),
+    }));
   };
 
   const handleTeamChange = (value) => {
@@ -717,11 +795,14 @@ export default function AgendaPage() {
 
   const edit = (agenda) => {
     setEditing(agenda.id);
+    setDesignatedSearch("");
     setIsModalOpen(true);
     let newForm = agendaFields.reduce((values, field) => {
       const value = field === "materials" ? normalizeMaterialRows(agenda.materials) : agenda[field] ?? "";
       values[field] = field === "responsible"
         ? (user?.id || value)
+        : field === "service_order_mode" ? (value || "TEAM")
+        : field === "designated_users" ? (Array.isArray(value) ? value.map(String) : [])
         : field.endsWith("_time") && value ? value.slice(0, 5) : value;
       return values;
     }, { responsible: user?.id || "" });
@@ -765,6 +846,7 @@ export default function AgendaPage() {
   const openNew = () => {
     if (!canManageRequests) return;
     setEditing(null);
+    setDesignatedSearch("");
     setForm({ ...emptyForm, responsible: user?.id || "" });
     setReviewStep("form");
     setMessage("");
@@ -783,12 +865,14 @@ export default function AgendaPage() {
     }
     setMessage("");
     if (status === "APPROVED") {
+      const isDesignatedMode = (agenda.service_order_mode || "TEAM") === "DESIGNATED";
       const hasTeam = agenda.team_ref || agenda.team_name || agenda.sector;
       const hasChief = agenda.chief_ref || agenda.chief_name;
       const hasAgents = (agenda.agents_ref || []).length || agenda.agents;
-      if (!hasTeam || !hasChief || !hasAgents) {
+      const hasDesignatedUsers = (agenda.designated_users || []).length;
+      if ((!isDesignatedMode && (!hasTeam || !hasChief || !hasAgents)) || (isDesignatedMode && !hasDesignatedUsers)) {
         reviewAndSchedule(agenda);
-        setMessage("Antes de aprovar, informe equipe, chefe e agentes escalados.");
+        setMessage(isDesignatedMode ? "Antes de aprovar, selecione ao menos um participante." : "Antes de aprovar, informe equipe, chefe e agentes escalados.");
         return;
       }
     }
@@ -1337,24 +1421,11 @@ export default function AgendaPage() {
                   </label>
                   <div className="compact-grid">
                     <label className="field-label">
-                      <span>Equipe</span>
-                      <select value={form.team_ref || ""} onChange={(e) => handleTeamChange(e.target.value)} required>
-                        <option value="">Selecione a equipe</option>
-                        {availableTeams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                      <span>Modo da Ordem de Servi?o</span>
+                      <select value={form.service_order_mode || "TEAM"} onChange={(e) => handleServiceOrderModeChange(e.target.value)}>
+                        <option value="TEAM">Equipe operacional</option>
+                        <option value="DESIGNATED">Participantes selecionados</option>
                       </select>
-                    </label>
-                    <label className="field-label">
-                      <span>Chefe</span>
-                      <select value={form.chief_ref || ""} onChange={(e) => selectLookup("chief_ref", "chief_name", lookups.chiefs, e.target.value, (selected) => ({ team_phone: selected?.phone || form.team_phone }))} required>
-                        <option value="">Selecione o chefe</option>
-                        {teamChiefs.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
-                      </select>
-                    </label>
-                  </div>
-                  <div className="compact-grid">
-                    <label className="field-label">
-                      <span>Telefone do chefe</span>
-                      <input value={form.team_phone} onChange={(e) => update("team_phone", e.target.value)} placeholder="Telefone" />
                     </label>
                     <label className="field-label">
                       <span>Viatura</span>
@@ -1380,51 +1451,110 @@ export default function AgendaPage() {
                       </select>
                     </label>
                   </div>
-                  <label className="field-label">
-                    <span>Agentes escalados</span>
-                    <div className="agent-picker">
+                  {(form.service_order_mode || "TEAM") === "TEAM" ? (
+                    <>
+                      <div className="compact-grid">
+                        <label className="field-label">
+                          <span>Equipe</span>
+                          <select value={form.team_ref || ""} onChange={(e) => handleTeamChange(e.target.value)} required>
+                            <option value="">Selecione a equipe</option>
+                            {availableTeams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                          </select>
+                        </label>
+                        <label className="field-label">
+                          <span>Chefe</span>
+                          <select value={form.chief_ref || ""} onChange={(e) => selectLookup("chief_ref", "chief_name", lookups.chiefs, e.target.value, (selected) => ({ team_phone: selected?.phone || form.team_phone }))} required>
+                            <option value="">Selecione o chefe</option>
+                            {teamChiefs.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
+                          </select>
+                        </label>
+                      </div>
+                      <div className="compact-grid">
+                        <label className="field-label">
+                          <span>Telefone do chefe</span>
+                          <input value={form.team_phone} onChange={(e) => update("team_phone", e.target.value)} placeholder="Telefone" />
+                        </label>
+                      </div>
+                      <label className="field-label">
+                        <span>Agentes escalados</span>
+                        <div className="agent-picker">
+                          <div className="agent-select-list">
+                            {selectedAgents.length ? selectedAgents.map((item) => (
+                              <div className="agent-select-row" key={item.id}>
+                                <select value={item.id} onChange={(e) => replaceAgent(item.id, e.target.value)}>
+                                  {allAgents.map((agent) => (
+                                    <option
+                                      disabled={selectedAgentIds.includes(String(agent.id)) && String(agent.id) !== String(item.id)}
+                                      key={agent.id}
+                                      value={agent.id}
+                                    >
+                                      {staffLabel(agent)}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button type="button" className="icon-soft danger" onClick={() => removeAgent(item.id)} aria-label={`Remover ${item.name}`}>
+                                  <XCircle size={16} />
+                                </button>
+                              </div>
+                            )) : <div className="empty-selection">Nenhum agente escalado.</div>}
+                          </div>
+                          <select value="" onChange={(e) => addAgent(e.target.value)} disabled={!availableAgents.length}>
+                            <option value="">{availableAgents.length ? "Adicionar outro agente" : "Sem agentes dispon?veis para adicionar"}</option>
+                            {availableAgents.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
+                          </select>
+                        </div>
+                      </label>
+                      <div className="compact-grid">
+                        <label className="field-label">
+                          <span>Apoio 1</span>
+                          <select value={form.support_1_ref || ""} onChange={(e) => selectLookup("support_1_ref", "support_1", lookups.supports, e.target.value)}>
+                            <option value="">Sem Apoio</option>
+                            {supportOptions.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
+                          </select>
+                        </label>
+                        <label className="field-label">
+                          <span>Apoio 2</span>
+                          <select value={form.support_2_ref || ""} onChange={(e) => selectLookup("support_2_ref", "support_2", lookups.supports, e.target.value)}>
+                            <option value="">Sem Apoio</option>
+                            {supportOptions.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
+                          </select>
+                        </label>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="field-label" style={{ gap: "12px" }}>
+                      <span>Participantes selecionados</span>
+                      <input value={designatedSearch} onChange={(e) => setDesignatedSearch(e.target.value)} placeholder="Buscar por nome, fun??o ou equipe" />
+                      <div className="alert" style={{ margin: 0 }}>Selecionados: {selectedDesignatedUsers.length}</div>
                       <div className="agent-select-list">
-                        {selectedAgents.length ? selectedAgents.map((item) => (
-                          <div className="agent-select-row" key={item.id}>
-                            <select value={item.id} onChange={(e) => replaceAgent(item.id, e.target.value)}>
-                              {allAgents.map((agent) => (
-                                <option
-                                  disabled={selectedAgentIds.includes(String(agent.id)) && String(agent.id) !== String(item.id)}
-                                  key={agent.id}
-                                  value={agent.id}
-                                >
-                                  {staffLabel(agent)}
-                                </option>
-                              ))}
-                            </select>
-                            <button type="button" className="icon-soft danger" onClick={() => removeAgent(item.id)} aria-label={`Remover ${item.name}`}>
+                        {selectedDesignatedUsers.length ? selectedDesignatedUsers.map((member) => (
+                          <div className="agent-select-row" key={member.id}>
+                            <div>
+                              <strong>{member.full_name}</strong>
+                              <div style={{ fontSize: "12px", color: "var(--text-soft)" }}>{[member.role, member.sector_name].filter(Boolean).join(" - ")}</div>
+                            </div>
+                            <button type="button" className="icon-soft danger" onClick={() => removeDesignatedUser(member.id)} aria-label={`Remover ${member.full_name}`}>
                               <XCircle size={16} />
                             </button>
                           </div>
-                        )) : <div className="empty-selection">Nenhum agente escalado.</div>}
+                        )) : <div className="empty-selection">Nenhum participante selecionado.</div>}
                       </div>
-                      <select value="" onChange={(e) => addAgent(e.target.value)} disabled={!availableAgents.length}>
-                        <option value="">{availableAgents.length ? "Adicionar outro agente" : "Sem agentes disponíveis para adicionar"}</option>
-                        {availableAgents.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
-                      </select>
+                      <div className="material-checklist-list" style={{ maxHeight: "220px" }}>
+                        {designatedCandidates.length ? designatedCandidates.map((member) => {
+                          const checked = selectedDesignatedIds.includes(String(member.id));
+                          return (
+                            <label className="checkbox" key={member.id} style={{ justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(11, 37, 89, 0.08)" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                <span>{member.full_name}</span>
+                                <span style={{ fontSize: "12px", color: "var(--text-soft)" }}>{[member.role, member.sector_name].filter(Boolean).join(" - ")}</span>
+                              </div>
+                              <input type="checkbox" checked={checked} onChange={() => toggleDesignatedUser(member.id)} />
+                            </label>
+                          );
+                        }) : <div className="empty-selection">Nenhum usu?rio ativo encontrado.</div>}
+                      </div>
                     </div>
-                  </label>
-                  <div className="compact-grid">
-                    <label className="field-label">
-                      <span>Apoio 1</span>
-                      <select value={form.support_1_ref || ""} onChange={(e) => selectLookup("support_1_ref", "support_1", lookups.supports, e.target.value)}>
-                        <option value="">Sem Apoio</option>
-                        {supportOptions.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
-                      </select>
-                    </label>
-                    <label className="field-label">
-                      <span>Apoio 2</span>
-                      <select value={form.support_2_ref || ""} onChange={(e) => selectLookup("support_2_ref", "support_2", lookups.supports, e.target.value)}>
-                        <option value="">Sem Apoio</option>
-                        {supportOptions.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
-                      </select>
-                    </label>
-                  </div>
+                  )}
                   <div className="material-selection-grid">
                     {renderMaterialChecklist("Dinâmica", "dynamic", lookups.dynamics || [])}
                     {renderMaterialChecklist("Material para distribuição", "kit", lookups.kits || [])}

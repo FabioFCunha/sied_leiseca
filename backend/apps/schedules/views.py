@@ -647,19 +647,22 @@ class AgendaViewSet(viewsets.ModelViewSet):
         queryset = Agenda.objects.select_related("responsible", "sector", "created_by").prefetch_related(
             "history",
             "satisfaction_surveys",
+            "designated_users",
         ).annotate(linked_requests_count_annotated=Count('linked_requests', distinct=True))
         if user.is_admin_role:
             return queryset
         elif user.role in [User.Role.VISITOR, User.Role.ALMOXARIFADO]:
             return queryset
         elif user.role == User.Role.SUPERVISOR:
+            designated_filter = Q(designated_users=user)
             if self.request.query_params.get("reportable") == "true":
-                return queryset.filter(chief_agenda_filter(user))
+                return queryset.filter(chief_agenda_filter(user) | designated_filter).distinct()
             return queryset.filter(
                 Q(sector_id=user.sector_id)
                 | chief_agenda_filter(user)
-            )
-        return queryset.filter(agent_agenda_filter(user))
+                | designated_filter
+            ).distinct()
+        return queryset.filter(agent_agenda_filter(user)).distinct()
 
     def get_queryset(self):
         scoped = self.get_scoped_queryset()
@@ -1807,23 +1810,36 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         schedules_found = []
         if report.agenda and report.agenda.team_ref_id:
             schedules_found = list(ShiftSchedule.objects.filter(date=report.operation_date, team_id=report.agenda.team_ref_id))
-            
+
         if not schedules_found and report.team:
             team_obj = Team.objects.filter(name=report.team).first()
             if team_obj:
                 schedules_found = list(ShiftSchedule.objects.filter(date=report.operation_date, team=team_obj))
-                
-        if len(schedules_found) != 1:
-            return response.Response(
-                {"detail": "Não foi possível localizar a escala vinculada a este relatório. Verifique a agenda e tente novamente."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        schedule = schedules_found[0]
-        if schedule:
-            from apps.schedules.services import get_expected_member_keys
-            expected_members = get_expected_member_keys(schedule)
-            
+
+        service_order_mode = getattr(report.agenda, "service_order_mode", Agenda.ServiceOrderMode.TEAM) if report.agenda else Agenda.ServiceOrderMode.TEAM
+        from apps.schedules.services import get_expected_attendance_member_keys
+
+        if service_order_mode == Agenda.ServiceOrderMode.DESIGNATED:
+            if len(schedules_found) > 1:
+                return response.Response(
+                    {"detail": "Foram encontradas múltiplas escalas para esta data. Revise a agenda antes de enviar o relatório."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            schedule = schedules_found[0] if schedules_found else None
+            if schedule:
+                expected_members = get_expected_attendance_member_keys(report.agenda, schedule)
+                checked = set(schedule.checked_members.keys())
+                if not expected_members.issubset(checked):
+                    return response.Response({"detail": "Confira a frequência de todos os participantes selecionados antes de enviar o relatório."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            if len(schedules_found) != 1:
+                return response.Response(
+                    {"detail": "Não foi possível localizar a escala vinculada a este relatório. Verifique a agenda e tente novamente."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            schedule = schedules_found[0]
+            expected_members = get_expected_attendance_member_keys(report.agenda, schedule)
             checked = set(schedule.checked_members.keys())
             if not expected_members.issubset(checked):
                 return response.Response({"detail": "Confira a frequência de todos os integrantes antes de enviar o relatório."}, status=status.HTTP_400_BAD_REQUEST)

@@ -5,7 +5,7 @@ from apps.accounts.models import User
 
 
 def agent_agenda_filter(user):
-    query = Q(created_by=user) | Q(responsible=user)
+    query = Q(created_by=user) | Q(responsible=user) | Q(designated_users=user)
     cpf = "".join(char for char in str(user.cpf or "") if char.isdigit())
     if cpf:
         query |= Q(agents_ref__cpf=cpf)
@@ -18,6 +18,8 @@ def agent_agenda_filter(user):
 
 def user_can_read_agenda(user, agenda):
     if agenda.created_by_id == user.id or agenda.responsible_id == user.id:
+        return True
+    if agenda.designated_users.filter(id=user.id).exists():
         return True
     cpf = "".join(char for char in str(user.cpf or "") if char.isdigit())
     if cpf and agenda.agents_ref.filter(cpf=cpf).exists():
@@ -50,7 +52,7 @@ class AgendaPermission(BasePermission):
             return True
         if request.method in SAFE_METHODS:
             if user.role == User.Role.SUPERVISOR:
-                return obj.sector_id == user.sector_id
+                return obj.sector_id == user.sector_id or obj.designated_users.filter(id=user.id).exists()
             return user_can_read_agenda(user, obj)
         return False
 

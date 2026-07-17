@@ -1,3 +1,6 @@
+from apps.accounts.models import User
+from django.db.models import Q
+
 def get_effective_members(obj):
     from apps.schedules.models import Chief, Agent, Support, ShiftAbsence, ShiftSwapRequest
     
@@ -141,3 +144,56 @@ def get_expected_member_keys(schedule):
     for s in members_data.get("supports", []):
         expected_members.add(f"SUPPORT_{s['id']}")
     return expected_members
+
+
+def _attendance_digits(value):
+    return "".join(char for char in str(value or "") if char.isdigit())
+
+
+def _find_lookup_for_user(model, user):
+    source_id = f"user:{user.id}"
+    lookup = model.objects.filter(source_id=source_id, is_active=True).select_related("team").first()
+    if lookup:
+        return lookup
+    cpf = _attendance_digits(getattr(user, "cpf", ""))
+    if cpf:
+        formatted = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}" if len(cpf) == 11 else cpf
+        lookup = model.objects.filter(Q(cpf=cpf) | Q(cpf=formatted), is_active=True).select_related("team").first()
+        if lookup:
+            return lookup
+    full_name = str(getattr(user, "full_name", "") or "").strip()
+    if full_name:
+        return model.objects.filter(name__iexact=full_name, is_active=True).select_related("team").first()
+    return None
+
+
+def member_key_from_user(user):
+    from apps.schedules.models import Chief, Agent, Support
+
+    candidates = []
+    if getattr(user, "role", "") == User.Role.SUPERVISOR:
+        candidates = [(Chief, "CHIEF"), (Agent, "AGENT"), (Support, "SUPPORT")]
+    elif getattr(user, "role", "") == User.Role.SUPPORT:
+        candidates = [(Support, "SUPPORT"), (Agent, "AGENT"), (Chief, "CHIEF")]
+    else:
+        candidates = [(Agent, "AGENT"), (Support, "SUPPORT"), (Chief, "CHIEF")]
+
+    for model, prefix in candidates:
+        lookup = _find_lookup_for_user(model, user)
+        if lookup:
+            return f"{prefix}_{lookup.id}"
+    return None
+
+
+def get_expected_attendance_member_keys(agenda, shift_schedule=None):
+    mode = getattr(agenda, "service_order_mode", None) or getattr(agenda.ServiceOrderMode, "TEAM", "TEAM")
+    if mode == getattr(agenda.ServiceOrderMode, "DESIGNATED", "DESIGNATED"):
+        expected = set()
+        for user in agenda.designated_users.filter(is_active=True):
+            key = member_key_from_user(user)
+            if key:
+                expected.add(key)
+        return expected
+    if shift_schedule is None:
+        return set()
+    return get_expected_member_keys(shift_schedule)

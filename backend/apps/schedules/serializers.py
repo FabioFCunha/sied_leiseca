@@ -3,6 +3,8 @@ from django.db.models import Q
 import re
 import unicodedata
 
+from apps.accounts.models import User
+
 from .models import (
     ActionType,
     Agent,
@@ -427,6 +429,8 @@ class AgendaSerializer(serializers.ModelSerializer):
     satisfaction_rating = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
     delete_block_reason = serializers.SerializerMethodField()
+    designated_users = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), many=True, required=False)
+    designated_users_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Agenda
@@ -451,6 +455,9 @@ class AgendaSerializer(serializers.ModelSerializer):
             "vehicle",
             "vehicle_ref",
             "vehicle_name",
+            "service_order_mode",
+            "designated_users",
+            "designated_users_details",
             "team_name",
             "team_ref",
             "team_ref_name",
@@ -538,31 +545,85 @@ class AgendaSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         instance = self.instance
-        date = attrs.get("date", getattr(instance, "date", None))
         start_time = attrs.get("start_time", getattr(instance, "start_time", None))
         end_time = attrs.get("end_time", getattr(instance, "end_time", None))
 
         STREET_ACTION_ID = "6"
-        
         action_type_ref = getattr(instance, "action_type_ref_id", None)
         if "action_type_ref" in attrs:
             action_type_ref = getattr(attrs["action_type_ref"], "id", None) if attrs["action_type_ref"] else None
-            
         requester_entity_type = str(attrs.get("requester_entity_type", getattr(instance, "requester_entity_type", "")))
-        
         is_street_action = (str(action_type_ref) == STREET_ACTION_ID) or (requester_entity_type == STREET_ACTION_ID)
 
         if start_time and end_time and start_time == end_time:
-            raise serializers.ValidationError({"end_time": "A hora final não pode ser igual à hora inicial."})
+            raise serializers.ValidationError({"end_time": "A hora final n?o pode ser igual ? hora inicial."})
 
         status_field = attrs.get("status", getattr(instance, "status", None))
         cancel_reason = attrs.get("cancel_reason", getattr(instance, "cancel_reason", ""))
-        
+
         if instance and instance.status == Agenda.Status.CANCELLED and status_field != Agenda.Status.CANCELLED:
-            raise serializers.ValidationError({"status": "Não é possível alterar o status de uma solicitação cancelada via edição normal. Utilize a ação de reabertura."})
-            
+            raise serializers.ValidationError({"status": "N?o ? poss?vel alterar o status de uma solicita??o cancelada via edi??o normal. Utilize a a??o de reabertura."})
+
         if status_field == Agenda.Status.CANCELLED and not str(cancel_reason or "").strip():
             raise serializers.ValidationError({"cancel_reason": "Informe o motivo do cancelamento."})
+
+        service_order_mode = attrs.get(
+            "service_order_mode",
+            getattr(instance, "service_order_mode", Agenda.ServiceOrderMode.TEAM),
+        ) or Agenda.ServiceOrderMode.TEAM
+
+        designated_users_present = "designated_users" in attrs
+        if designated_users_present:
+            designated_users = list(attrs.get("designated_users") or [])
+        elif instance:
+            designated_users = list(instance.designated_users.all())
+        else:
+            designated_users = []
+
+        inactive_designated = [member.full_name for member in designated_users if not member.is_active]
+        if inactive_designated:
+            raise serializers.ValidationError({
+                "designated_users": f"Selecione apenas usu?rios ativos. Inativos: {', '.join(inactive_designated)}.",
+            })
+
+        current_team_ref = attrs.get("team_ref", getattr(instance, "team_ref", None))
+        current_team_name = attrs.get("team_name", getattr(instance, "team_name", ""))
+        current_chief_ref = attrs.get("chief_ref", getattr(instance, "chief_ref", None))
+        current_chief_name = attrs.get("chief_name", getattr(instance, "chief_name", ""))
+        current_team_phone = attrs.get("team_phone", getattr(instance, "team_phone", ""))
+        current_support_1_ref = attrs.get("support_1_ref", getattr(instance, "support_1_ref", None))
+        current_support_1 = attrs.get("support_1", getattr(instance, "support_1", ""))
+        current_support_2_ref = attrs.get("support_2_ref", getattr(instance, "support_2_ref", None))
+        current_support_2 = attrs.get("support_2", getattr(instance, "support_2", ""))
+        current_agents_ref = list(attrs.get("agents_ref", [])) if "agents_ref" in attrs else list(instance.agents_ref.all()) if instance else []
+        current_agents = attrs.get("agents", getattr(instance, "agents", ""))
+
+        has_operational_team_data = any([
+            current_team_ref,
+            str(current_team_name or "").strip(),
+            current_chief_ref,
+            str(current_chief_name or "").strip(),
+            str(current_team_phone or "").strip(),
+            current_support_1_ref,
+            str(current_support_1 or "").strip(),
+            current_support_2_ref,
+            str(current_support_2 or "").strip(),
+            bool(current_agents_ref),
+            str(current_agents or "").strip(),
+        ])
+
+        if service_order_mode == Agenda.ServiceOrderMode.DESIGNATED:
+            if not designated_users:
+                raise serializers.ValidationError({"designated_users": "Selecione ao menos um participante para a Ordem de Servi?o."})
+            if has_operational_team_data:
+                raise serializers.ValidationError({
+                    "service_order_mode": "Para usar participantes selecionados, remova a composi??o da equipe operacional antes de salvar.",
+                })
+        else:
+            if designated_users:
+                raise serializers.ValidationError({
+                    "designated_users": "Limpe os participantes selecionados para voltar ao modo de equipe operacional.",
+                })
 
         return attrs
 
@@ -594,6 +655,20 @@ class AgendaSerializer(serializers.ModelSerializer):
     def get_can_delete(self, obj):
         return not bool(self.get_delete_block_reason(obj))
 
+    def get_designated_users_details(self, obj):
+        from apps.accounts.serializers import team_for_user
+
+        details = []
+        for member in obj.designated_users.filter(is_active=True).order_by("full_name"):
+            team = team_for_user(member)
+            details.append({
+                "id": member.id,
+                "full_name": member.full_name,
+                "role": member.get_role_display() if hasattr(member, "get_role_display") else member.role,
+                "team_name": team.name if team else "",
+            })
+        return details
+
     def get_delete_block_reason(self, obj):
         blockers = []
         if obj.technical_reports.exists():
@@ -614,13 +689,19 @@ class AgendaSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         materials_data = validated_data.pop("materials", [])
+        designated_users = validated_data.pop("designated_users", [])
         agenda = super().create(validated_data)
+        if designated_users:
+            agenda.designated_users.set(designated_users)
         self._save_materials(agenda, materials_data)
         return agenda
 
     def update(self, instance, validated_data):
         materials_data = validated_data.pop("materials", None)
+        designated_users = validated_data.pop("designated_users", None)
         agenda = super().update(instance, validated_data)
+        if designated_users is not None:
+            agenda.designated_users.set(designated_users)
         if materials_data is not None:
             agenda.materials.all().delete()
             self._save_materials(agenda, materials_data)
@@ -660,6 +741,8 @@ class AgendaSerializer(serializers.ModelSerializer):
                 "created_by",
                 "created_by_name",
                 "history",
+                "designated_users",
+                "designated_users_details",
             ]
             for field in hidden_fields:
                 if field in data:
