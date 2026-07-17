@@ -1,51 +1,62 @@
-{
-    "version": "2.5.2",
-    "releaseDate": "16/07/2026",
-    "notes": [
-        "Novo destaque visual nos campos preenchidos pelo chefe no Relatório Técnico.",
-        "Frequência da equipe ganhou mais evidência para facilitar o preenchimento.",
-        "Ação Definida pelo Chefe agora vem preenchida pela Ordem de Serviço e só pede atenção quando houver alteração.",
-        "Correção de textos e acentuação na tela do Relatório Técnico.",
-        "Remoção do campo Tipo de público da interface do Relatório Técnico."
-    ],
-    "history": [
-        {
-            "version": "2.5.2",
-            "releaseDate": "16/07/2026",
-            "notes": [
-                "Novo destaque visual nos campos preenchidos pelo chefe no Relatório Técnico.",
-                "Frequência da equipe ganhou mais evidência para facilitar o preenchimento.",
-                "Ação Definida pelo Chefe agora vem preenchida pela Ordem de Serviço e só pede atenção quando houver alteração.",
-                "Correção de textos e acentuação na tela do Relatório Técnico.",
-                "Remoção do campo Tipo de público da interface do Relatório Técnico."
-            ]
-        },
-        {
-            "version": "2.5.1",
-            "releaseDate": "16/07/2026",
-            "notes": [
-                "Novas Ações Definidas pelo Chefe no Relatório Técnico.",
-                "Validação inteligente e foco automático em campos pendentes no Relatório.",
-                "Correção: Perfil Chefe não exige mais equipe obrigatória no cadastro."
-            ]
-        },
-        {
-            "version": "2.5.0",
-            "releaseDate": "15/07/2026",
-            "notes": [
-                "Correção do calendário mobile.",
-                "Reabertura de solicitações canceladas.",
-                "Correção da sincronização de equipes.",
-                "Melhorias na aprovação das solicitações."
-            ]
-        },
-        {
-            "version": "2.4.9",
-            "releaseDate": "12/07/2026",
-            "notes": [
-                "Correção da frequência.",
-                "Ajustes na conferência dos relatórios."
-            ]
-        }
-    ]
+﻿{
+    "version":  "2.5.3",
+    "releaseDate":  "17/07/2026",
+    "notes":  [
+                  "Calendário: modal do evento agora exibe também os integrantes de apoio da equipe.",
+                  "Relatório Técnico: revisão final de textos, acentuação e orientações visuais para preenchimento pelo chefe.",
+                  "Frequência da equipe ganhou mais destaque para facilitar o lançamento e a conferência.",
+                  "Ação Definida pelo Chefe permanece alinhada com a Ordem de Serviço e só exige ajuste quando houver mudança na execução.",
+                  "Aviso de atualização liberado para orientar os usuários a recarregarem o sistema e receberem as melhorias mais recentes."
+              ],
+    "history":  [
+                    {
+                        "version":  "2.5.3",
+                        "releaseDate":  "17/07/2026",
+                        "notes":  [
+                                      "Calendário: modal do evento agora exibe também os integrantes de apoio da equipe.",
+                                      "Relatório Técnico: revisão final de textos, acentuação e orientações visuais para preenchimento pelo chefe.",
+                                      "Frequência da equipe ganhou mais destaque para facilitar o lançamento e a conferência.",
+                                      "Ação Definida pelo Chefe permanece alinhada com a Ordem de Serviço e só exige ajuste quando houver mudança na execução.",
+                                      "Aviso de atualização liberado para orientar os usuários a recarregarem o sistema e receberem as melhorias mais recentes."
+                                  ]
+                    },
+                    {
+                        "version":  "2.5.2",
+                        "releaseDate":  "16/07/2026",
+                        "notes":  [
+                                      "Novo destaque visual nos campos preenchidos pelo chefe no Relatório Técnico.",
+                                      "Frequência da equipe ganhou mais evidência para facilitar o preenchimento.",
+                                      "Ação Definida pelo Chefe agora vem preenchida pela Ordem de Serviço e só pede atenção quando houver alteração.",
+                                      "Correção de textos e acentuação na tela do Relatório Técnico.",
+                                      "Remoção do campo Tipo de público da interface do Relatório Técnico."
+                                  ]
+                    },
+                    {
+                        "version":  "2.5.1",
+                        "releaseDate":  "16/07/2026",
+                        "notes":  [
+                                      "Novas Ações Definidas pelo Chefe no Relatório Técnico.",
+                                      "Validação inteligente e foco automático em campos pendentes no Relatório.",
+                                      "Correção: Perfil Chefe não exige mais equipe obrigatória no cadastro."
+                                  ]
+                    },
+                    {
+                        "version":  "2.5.0",
+                        "releaseDate":  "15/07/2026",
+                        "notes":  [
+                                      "Correção do calendário mobile.",
+                                      "Reabertura de solicitações canceladas.",
+                                      "Correção da sincronização de equipes.",
+                                      "Melhorias na aprovação das solicitações."
+                                  ]
+                    },
+                    {
+                        "version":  "2.4.9",
+                        "releaseDate":  "12/07/2026",
+                        "notes":  [
+                                      "Correção da frequência.",
+                                      "Ajustes na conferência dos relatórios."
+                                  ]
+                    }
+                ]
 }
