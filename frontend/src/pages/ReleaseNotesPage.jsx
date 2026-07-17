@@ -1,5 +1,5 @@
 export default function ReleaseNotesPage() {
-  const versionData = window.__APP_VERSION_DATA__ || { history: [] };
+  const versionData = typeof __APP_VERSION_DATA__ !== "undefined" ? __APP_VERSION_DATA__ : { history: [] };
   const history = versionData.history || [];
 
   return (
