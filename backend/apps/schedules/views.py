@@ -1852,6 +1852,19 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 changed_by=request.user
             )
 
+            # Marcar frequência como reportada no ShiftSchedule
+            if schedule and not schedule.attendance_reported:
+                schedule.attendance_reported = True
+                schedule.attendance_reported_at = timezone.now()
+                schedule.attendance_approved = False
+                schedule.attendance_approved_at = None
+                schedule.save(update_fields=[
+                    "attendance_reported",
+                    "attendance_reported_at",
+                    "attendance_approved",
+                    "attendance_approved_at",
+                ])
+
         return response.Response({"detail": "Enviado para conferência."})
 
     @decorators.action(detail=True, methods=["post"])
