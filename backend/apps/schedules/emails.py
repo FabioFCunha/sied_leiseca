@@ -289,8 +289,8 @@ def send_report_confirmation_email(report):
         return False
         
     recipients = []
-    if agenda.chief_ref and agenda.chief_ref.email:
-        recipients.append(agenda.chief_ref.email)
+    if agenda.chief_ref and getattr(agenda.chief_ref, 'email', None):
+        recipients.append(getattr(agenda.chief_ref, 'email'))
     elif agenda.responsible and agenda.responsible.email:
         recipients.append(agenda.responsible.email)
         
@@ -312,8 +312,8 @@ def send_report_confirmation_email(report):
 
 def send_report_reminder_email(agenda):
     recipients = []
-    if agenda.chief_ref and agenda.chief_ref.email:
-        recipients.append(agenda.chief_ref.email)
+    if agenda.chief_ref and getattr(agenda.chief_ref, 'email', None):
+        recipients.append(getattr(agenda.chief_ref, 'email'))
     elif agenda.responsible and agenda.responsible.email:
         recipients.append(agenda.responsible.email)
         

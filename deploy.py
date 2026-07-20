@@ -11,7 +11,8 @@ def deploy():
         ("frontend/src/pages/TechnicalReportsPage.jsx", "/root/agenda-educacao/frontend/src/pages/TechnicalReportsPage.jsx"),
         ("frontend/src/pages/UsersPage.jsx", "/root/agenda-educacao/frontend/src/pages/UsersPage.jsx"),
         ("backend/apps/schedules/views.py", "/root/agenda-educacao/backend/apps/schedules/views.py"),
-        ("backend/apps/schedules/serializers.py", "/root/agenda-educacao/backend/apps/schedules/serializers.py")
+        ("backend/apps/schedules/serializers.py", "/root/agenda-educacao/backend/apps/schedules/serializers.py"),
+        ("backend/apps/schedules/emails.py", "/root/agenda-educacao/backend/apps/schedules/emails.py")
     ]
     
     print("Connecting to VPS...")
