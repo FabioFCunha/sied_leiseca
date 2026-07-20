@@ -1175,10 +1175,10 @@ export default function TechnicalReportsPage() {
                               required
                             >
                               <option value="">Selecione</option>
-                              {predefinedStreetActionTypes.map((option) => (
+                              {streetActionTypeOptions.map((option) => (
                                 <option key={option} value={option}>{option}</option>
                               ))}
-                              {action.type_action && !predefinedStreetActionTypes.includes(action.type_action) && (
+                              {action.type_action && !streetActionTypeOptions.includes(action.type_action) && (
                                 <option value={action.type_action}>{action.type_action}</option>
                               )}
                             </select>
