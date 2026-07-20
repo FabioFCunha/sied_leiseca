@@ -5,7 +5,7 @@ client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 client.connect('187.127.45.148', username='root', password='eeX1d3Vnbp#rbN&)')
 
 files_to_upload = [
-    ("frontend/src/pages/TechnicalReportsPage.jsx", "/root/agenda-educacao/frontend/src/pages/TechnicalReportsPage.jsx"),
+    ("backend/apps/schedules/views.py", "/root/agenda-educacao/backend/apps/schedules/views.py"),
 ]
 
 sftp = client.open_sftp()
@@ -15,8 +15,7 @@ for local, remote in files_to_upload:
 sftp.close()
 
 print("Rebuilding...")
-stdin, stdout, stderr = client.exec_command('cd /root/agenda-educacao && docker compose build frontend && docker compose up -d frontend')
+stdin, stdout, stderr = client.exec_command('cd /root/agenda-educacao && docker compose build backend && docker compose up -d backend')
 
-print(stdout.read().decode('utf-8', errors='ignore'))
-print(stderr.read().decode('utf-8', errors='ignore'))
+# avoid decode error by writing bytes or ignoring
 print("Done!")

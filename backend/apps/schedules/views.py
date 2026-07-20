@@ -337,10 +337,19 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             
             if chief_ids:
                 q_filter |= Q(extra_chiefs__in=chief_ids)
+                chief_team_ids = Chief.objects.filter(id__in=chief_ids, team__isnull=False).values_list('team_id', flat=True)
+                if chief_team_ids:
+                    q_filter |= Q(team_id__in=chief_team_ids)
             if agent_ids:
                 q_filter |= Q(extra_agents__in=agent_ids)
+                agent_team_ids = Agent.objects.filter(id__in=agent_ids, team__isnull=False).values_list('team_id', flat=True)
+                if agent_team_ids:
+                    q_filter |= Q(team_id__in=agent_team_ids)
             if support_ids:
                 q_filter |= Q(extra_supports__in=support_ids)
+                support_team_ids = Support.objects.filter(id__in=support_ids, team__isnull=False).values_list('team_id', flat=True)
+                if support_team_ids:
+                    q_filter |= Q(team_id__in=support_team_ids)
                 
             if not q_filter:
                 return queryset.none()
