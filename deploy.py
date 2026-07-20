@@ -9,7 +9,8 @@ def deploy():
     
     files_to_upload = [
         ("frontend/src/pages/TechnicalReportsPage.jsx", "/root/agenda-educacao/frontend/src/pages/TechnicalReportsPage.jsx"),
-        ("frontend/src/pages/UsersPage.jsx", "/root/agenda-educacao/frontend/src/pages/UsersPage.jsx")
+        ("frontend/src/pages/UsersPage.jsx", "/root/agenda-educacao/frontend/src/pages/UsersPage.jsx"),
+        ("backend/apps/schedules/views.py", "/root/agenda-educacao/backend/apps/schedules/views.py")
     ]
     
     print("Connecting to VPS...")
@@ -27,8 +28,8 @@ def deploy():
         print("Upload complete!")
         
         # Now run the docker commands
-        print("Rebuilding frontend container on VPS...")
-        stdin, stdout, stderr = client.exec_command("cd /root/agenda-educacao && docker compose build frontend && docker compose up -d")
+        print("Rebuilding containers on VPS...")
+        stdin, stdout, stderr = client.exec_command("cd /root/agenda-educacao && docker compose build frontend backend && docker compose up -d")
         
         # We need to wait for it to finish and get output
         exit_status = stdout.channel.recv_exit_status()
