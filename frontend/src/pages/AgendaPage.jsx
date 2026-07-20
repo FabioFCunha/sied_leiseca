@@ -332,18 +332,18 @@ export default function AgendaPage() {
     ]).then((results) => {
       const [vehicles, teams, chiefs, agents, supports, actionTypes, municipalities, regions, neighborhoods, kits, materials, dynamics] = results;
       setLookups({
-        vehicles: unwrapLookup(vehicles),
-        teams: unwrapLookup(teams),
-        chiefs: unwrapLookup(chiefs),
-        agents: unwrapLookup(agents),
-        supports: unwrapLookup(supports),
-        actionTypes: unwrapLookup(actionTypes),
-        municipalities: unwrapLookup(municipalities),
-        regions: unwrapLookup(regions),
-        neighborhoods: unwrapLookup(neighborhoods),
-        kits: unwrapLookup(kits),
-        materials: unwrapLookup(materials),
-        dynamics: unwrapLookup(dynamics),
+        vehicles: unwrapLookup(vehicles).filter(i => i.is_active !== false),
+        teams: unwrapLookup(teams).filter(i => i.is_active !== false),
+        chiefs: unwrapLookup(chiefs).filter(i => i.is_active !== false),
+        agents: unwrapLookup(agents).filter(i => i.is_active !== false),
+        supports: unwrapLookup(supports).filter(i => i.is_active !== false),
+        actionTypes: unwrapLookup(actionTypes).filter(i => i.is_active !== false),
+        municipalities: unwrapLookup(municipalities).filter(i => i.is_active !== false),
+        regions: unwrapLookup(regions).filter(i => i.is_active !== false),
+        neighborhoods: unwrapLookup(neighborhoods).filter(i => i.is_active !== false),
+        kits: unwrapLookup(kits).filter(i => i.is_active !== false),
+        materials: unwrapLookup(materials).filter(i => i.is_active !== false),
+        dynamics: unwrapLookup(dynamics).filter(i => i.is_active !== false),
       });
     });
   }, [user]);
