@@ -10,7 +10,8 @@ def deploy():
     files_to_upload = [
         ("frontend/src/pages/TechnicalReportsPage.jsx", "/root/agenda-educacao/frontend/src/pages/TechnicalReportsPage.jsx"),
         ("frontend/src/pages/UsersPage.jsx", "/root/agenda-educacao/frontend/src/pages/UsersPage.jsx"),
-        ("backend/apps/schedules/views.py", "/root/agenda-educacao/backend/apps/schedules/views.py")
+        ("backend/apps/schedules/views.py", "/root/agenda-educacao/backend/apps/schedules/views.py"),
+        ("backend/apps/schedules/serializers.py", "/root/agenda-educacao/backend/apps/schedules/serializers.py")
     ]
     
     print("Connecting to VPS...")
@@ -33,8 +34,8 @@ def deploy():
         
         # We need to wait for it to finish and get output
         exit_status = stdout.channel.recv_exit_status()
-        print("STDOUT:", stdout.read().decode())
-        print("STDERR:", stderr.read().decode())
+        print("STDOUT:", stdout.read().decode('utf-8', errors='replace'))
+        print("STDERR:", stderr.read().decode('utf-8', errors='replace'))
         
         client.close()
         print(f"Deployment finished with status {exit_status}")

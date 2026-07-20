@@ -1121,6 +1121,7 @@ class EducationReportSerializer(serializers.ModelSerializer):
                 continue
             action_data = action_data.copy()
             action_data.pop("id", None)
+            action_data.pop("source_id", None)
             EducationAction.objects.create(report=report, **action_data)
 
 
