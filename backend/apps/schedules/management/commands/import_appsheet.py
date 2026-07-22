@@ -111,7 +111,8 @@ class Command(BaseCommand):
                     status = Agenda.Status.COMPLETED
 
                 # Title
-                title = f"AppSheet - {institution_location or location or 'Sem Título'}"
+                title_suffix = institution_location or location or team_name or action_type or "Sem Título"
+                title = f"AppSheet - {title_suffix}"
                 if len(title) > 175:
                     title = title[:175] + "..."
 
