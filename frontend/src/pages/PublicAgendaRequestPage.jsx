@@ -353,6 +353,10 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 <input value={form.external_email} readOnly />
               </label>
               <label className="field-label">
+                <span>Telefone</span>
+                <input value={form.external_responsible_phone} readOnly />
+              </label>
+              <label className="field-label">
                 <span>Instituicao/Organizacao</span>
                 <input value={form.institution_location} readOnly />
               </label>

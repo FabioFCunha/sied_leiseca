@@ -987,6 +987,7 @@ class EducationReportSerializer(serializers.ModelSerializer):
     agenda_title = serializers.CharField(source="agenda.title", read_only=True)
     agenda_date = serializers.DateField(source="agenda.date", read_only=True)
     agenda_location = serializers.CharField(source="agenda.institution_location", read_only=True)
+    agenda_phone = serializers.CharField(source="agenda.external_responsible_phone", read_only=True)
     created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
     actions = EducationActionSerializer(many=True, required=False)
     actions_count = serializers.SerializerMethodField()
@@ -1002,6 +1003,7 @@ class EducationReportSerializer(serializers.ModelSerializer):
             "agenda_title",
             "agenda_date",
             "agenda_location",
+            "agenda_phone",
             "operation_date",
             "team",
             "management_id",

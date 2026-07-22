@@ -1407,6 +1407,11 @@ export default function AgendaPage() {
               >
                 <div className="form-section">
                   <h3>Ordem de serviço</h3>
+                  {form.external_responsible_phone && (
+                    <div className="alert" style={{ marginBottom: "16px", background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text)" }}>
+                      <strong>Telefone do solicitante:</strong> {form.external_responsible_phone}
+                    </div>
+                  )}
                   {(!agendas.find((a) => String(a.id) === String(editing))?.description) && (
                     <label className="field-label" style={{ marginBottom: "16px" }}>
                       <span style={{ color: "var(--color-danger)", fontWeight: "bold" }}>Descrição ausente (Preenchimento obrigatório)</span>

@@ -869,6 +869,48 @@ export default function TechnicalReportsPage() {
       setIsSaving(false);
     }
   };
+  const submitRectify = async () => {
+    if (isSaving) return;
+    setMessage("");
+    const missingFields = [];
+
+    if (!form.operation_date) missingFields.push({ name: "Data da Operação", id: "input-operation-date" });
+    if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
+
+    getValidatableActions(form.actions).forEach(({ action, index }) => {
+      if (!action.type_action) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+    });
+
+    if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
+
+    if (reportSchedule && Object.values(attendanceForm).some((d) => d.is_absent === null)) {
+      missingFields.push({ name: "Frequência da Equipe", id: "attendance-block" });
+    }
+
+    if (missingFields.length > 0) {
+      setMessage(`⚠️ Não foi possível salvar o relatório\n\nMotivo:\nExistem campos obrigatórios não preenchidos:\n${missingFields.map(f => `- ${f.name}`).join('\n')}`);
+      
+      const firstMissingId = missingFields[0].id;
+      const el = document.getElementById(firstMissingId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus();
+        el.classList.add("highlight-error");
+        setTimeout(() => el.classList.remove("highlight-error"), 3000);
+      }
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await saveReport(form.status);
+      setMessage("Relatório retificado com sucesso.");
+      load();
+    } catch (err) {
+      setMessage(`⚠️ Não foi possível retificar o relatório\n\nMotivo:\n${err.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const edit = async (report) => {
     if (isEditingLoading) return;
@@ -1258,11 +1300,13 @@ export default function TechnicalReportsPage() {
 
           {message && <div className="alert" style={{ whiteSpace: "pre-wrap" }}>{message}</div>}
           <div className="report-submit-actions">
-            {!["PENDING_REVIEW", "APPROVED"].includes(form.status) && (
+            {!["PENDING_REVIEW", "APPROVED"].includes(form.status) ? (
               <>
                 <button type="submit" formNoValidate className="secondary" disabled={isSaving}><Save size={18} /> Salvar rascunho</button>
                 <button type="button" onClick={submitFinal} disabled={isSaving}><Save size={18} /> Enviar para conferência</button>
               </>
+            ) : (
+              <button type="button" className="primary" disabled={isSaving} onClick={submitRectify}><Edit3 size={18} /> Retificar relatório</button>
             )}
           </div>
         </form>

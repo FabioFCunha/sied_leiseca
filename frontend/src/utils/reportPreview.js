@@ -49,6 +49,7 @@ export function buildPreview(report) {
     `Data: ${report.operation_date ? formatDateBR(report.operation_date) : "não informada"}\n` +
     `Equipe: ${report.team || "não informada"}\n` +
     `Chefe responsável: ${selectedChief || "não informado"}\n` +
+    `Telefone do solicitante: ${report.agenda_phone || "não informado"}\n` +
     "\n" +
     `EFETIVO E ESTRUTURA\n` +
     `Agentes de educação: ${report.education_agents || "não informado"}\n` +
@@ -65,18 +66,31 @@ export function buildPreview(report) {
     `Dados e Observações: ${report.general_observations || "não informado"}\n` +
     `Observação de ocorrência: ${report.occurrence_observation || "não informado"}\n` +
     `Coordenadas: ${report.lat || "-"}, ${report.lng || "-"}` +
-    (report.satisfaction_survey ? (
-      `\n\n========================================\n` +
-      `PESQUISA DE SATISFAÇÃO (Respondida em: ${report.satisfaction_survey.answered_at ? formatDateBR(report.satisfaction_survey.answered_at.split("T")[0]) : "-"} ${report.satisfaction_survey.answered_at ? report.satisfaction_survey.answered_at.split("T")[1].slice(0, 5) : ""})\n` +
+    (report.satisfaction_survey ? (() => {
+      const survey = report.satisfaction_survey;
+      const scores = [
+        Number(survey.overall_rating),
+        Number(survey.punctuality),
+        Number(survey.team_enthusiasm),
+        Number(survey.speaker_knowledge),
+        Number(survey.workshops),
+        Number(survey.audiovisual_resources),
+        Number(survey.support_material)
+      ].filter(val => !isNaN(val) && val > 0);
+      const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : "Não avaliado";
+      
+      return `\n\n========================================\n` +
+      `PESQUISA DE SATISFAÇÃO (Respondida em: ${survey.answered_at ? formatDateBR(survey.answered_at.split("T")[0]) : "-"} ${survey.answered_at ? survey.answered_at.split("T")[1].slice(0, 5) : ""})\n` +
       `========================================\n` +
-      `Avaliação geral: ${report.satisfaction_survey.overall_rating ? `${report.satisfaction_survey.overall_rating}/5` : "Não avaliado"}\n` +
-      `Pontualidade da equipe: ${report.satisfaction_survey.punctuality ? `${report.satisfaction_survey.punctuality}/5` : "Não avaliado"}\n` +
-      `Entusiasmo e dinamismo: ${report.satisfaction_survey.team_enthusiasm ? `${report.satisfaction_survey.team_enthusiasm}/5` : "Não avaliado"}\n` +
-      `Domínio do palestrante: ${report.satisfaction_survey.speaker_knowledge ? `${report.satisfaction_survey.speaker_knowledge}/5` : "Não avaliado"}\n` +
-      `Oficinas / Dinâmicas: ${report.satisfaction_survey.workshops ? `${report.satisfaction_survey.workshops}/5` : "Não avaliado"}\n` +
-      `Recursos audiovisuais: ${report.satisfaction_survey.audiovisual_resources ? `${report.satisfaction_survey.audiovisual_resources}/5` : "Não avaliado"}\n` +
-      `Material de apoio: ${report.satisfaction_survey.support_material ? `${report.satisfaction_survey.support_material}/5` : "Não avaliado"}\n` +
-      `Sugestões / Comentários:\n"${report.satisfaction_survey.suggestion || "Nenhum comentário enviado."}"`
-    ) : "")
+      `Média de satisfação: ${avg === "Não avaliado" ? avg : `${avg}/5`}\n` +
+      `Avaliação geral: ${survey.overall_rating ? `${survey.overall_rating}/5` : "Não avaliado"}\n` +
+      `Pontualidade da equipe: ${survey.punctuality ? `${survey.punctuality}/5` : "Não avaliado"}\n` +
+      `Entusiasmo e dinamismo: ${survey.team_enthusiasm ? `${survey.team_enthusiasm}/5` : "Não avaliado"}\n` +
+      `Domínio do palestrante: ${survey.speaker_knowledge ? `${survey.speaker_knowledge}/5` : "Não avaliado"}\n` +
+      `Oficinas / Dinâmicas: ${survey.workshops ? `${survey.workshops}/5` : "Não avaliado"}\n` +
+      `Recursos audiovisuais: ${survey.audiovisual_resources ? `${survey.audiovisual_resources}/5` : "Não avaliado"}\n` +
+      `Material de apoio: ${survey.support_material ? `${survey.support_material}/5` : "Não avaliado"}\n` +
+      `Sugestões / Comentários:\n"${survey.suggestion || "Nenhum comentário enviado."}"`;
+    })() : "")
   );
 }
