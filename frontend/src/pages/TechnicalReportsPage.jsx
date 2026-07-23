@@ -971,14 +971,17 @@ export default function TechnicalReportsPage() {
       const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(report.agenda));
       let reportAgenda = reportAgendaLocal;
 
-      const needsFetch = report.agenda && !reportAgendaLocal && (
-        !report.street_action_details?.length ||
-        !report.request_details
-      );
+      const needsFetch = report.agenda && !reportAgendaLocal;
 
       if (needsFetch) {
         try {
           reportAgenda = await api(`/agendas/${report.agenda}/`);
+          setAgendas((current) => {
+            if (!current.some((a) => String(a.id) === String(reportAgenda.id))) {
+              return [...current, reportAgenda];
+            }
+            return current;
+          });
         } catch (err) {
           setMessage(`⚠ Não foi possível carregar os dados da agenda vinculada (Protocolo #${report.agenda}). O formulário não pôde ser aberto.`);
           setIsEditingLoading(false);
