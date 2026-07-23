@@ -1289,6 +1289,9 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
                 "Acao Social",
                 "Acao conjunta com a fiscalizacao",
                 "Outros",
+                "Praças Esportivas",
+                "Shopping/Centro Comerciais",
+                "Praças/Parques Públicos",
             ]
         }
         if normalized not in allowed:
