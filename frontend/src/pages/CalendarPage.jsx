@@ -231,6 +231,7 @@ export default function CalendarPage() {
                     <DetailItem label="Público">{valueOrDash(selected.audience)}</DetailItem>
                     <DetailItem label="Faixa etária">{valueOrDash(selected.age_ranges)}</DetailItem>
                     <DetailItem label="Tipo de solicitante">{valueOrDash(selected.requester_entity_type)}</DetailItem>
+                    <DetailItem label="Telefone do solicitante">{valueOrDash(selected.external_responsible_phone)}</DetailItem>
                   </div>
                 </section>
                 <section>
@@ -255,6 +256,7 @@ export default function CalendarPage() {
                   <dt>Agentes</dt><dd>{selected.agents || "-"}</dd>
                   <dt>Apoio</dt><dd>{supportTeamLabel(selected)}</dd>
                   <dt>Responsável</dt><dd>{selected.responsible_name}</dd>
+                  <dt>Telefone do solicitante</dt><dd>{valueOrDash(selected.external_responsible_phone)}</dd>
                 </>
               )}
               <dt>Local</dt><dd>{selected.institution_location || selected.location}</dd>
