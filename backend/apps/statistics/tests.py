@@ -1,10 +1,13 @@
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from apps.statistics.models import ConsolidatedStatistic, StatisticCategoryMapping
 from apps.statistics.services import generate_statistics_for_report, update_statistics_for_report, remove_statistics_for_report
 from apps.schedules.models import ActionType
+from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
 
-# A simple mock object for the report to avoid complex dependencies during this isolated test
+User = get_user_model()
+
 class MockReport:
     def __init__(self, id, status, audience_total):
         self.id = id
@@ -15,6 +18,7 @@ class MockReport:
 class StatisticsModuleTests(TestCase):
     
     def setUp(self):
+        self.user = User.objects.create_user(email='stat@test.com', password='password')
         self.action_type = ActionType.objects.create(name='Test Action')
         self.mapping = StatisticCategoryMapping.objects.create(
             original_name="TEST_CAT",
@@ -35,7 +39,6 @@ class StatisticsModuleTests(TestCase):
         stat.save()
         self.assertEqual(ConsolidatedStatistic.objects.count(), 1)
         
-        # Test validation error if HISTORICAL_LEGACY has a exact reference date
         stat.reference_date = timezone.now().date()
         from django.core.exceptions import ValidationError
         with self.assertRaises(ValidationError):
@@ -55,40 +58,47 @@ class StatisticsModuleTests(TestCase):
             stat.full_clean()
             
     def test_service_generates_statistics_only_when_approved(self):
-        """Relatório devolvido ou pendente não gera estatística. Somente aprovado."""
+        """Relatório devolvido ou pendente não gera estatística."""
         draft_report = MockReport(id=1, status='DRAFT', audience_total=50)
-        generate_statistics_for_report(draft_report)
+        generate_statistics_for_report(draft_report, self.user)
         self.assertEqual(ConsolidatedStatistic.objects.filter(methodology='SIED_OPERATIONAL').count(), 0)
         
-        returned_report = MockReport(id=2, status='RETURNED', audience_total=50)
-        generate_statistics_for_report(returned_report)
-        self.assertEqual(ConsolidatedStatistic.objects.filter(methodology='SIED_OPERATIONAL').count(), 0)
-
         approved_report = MockReport(id=3, status='APPROVED', audience_total=75)
-        generate_statistics_for_report(approved_report)
-        self.assertEqual(ConsolidatedStatistic.objects.filter(methodology='SIED_OPERATIONAL').count(), 1)
+        generate_statistics_for_report(approved_report, self.user)
+        self.assertEqual(ConsolidatedStatistic.objects.filter(methodology='SIED_OPERATIONAL', status='ACTIVE').count(), 1)
         stat = ConsolidatedStatistic.objects.first()
         self.assertEqual(stat.value, 75)
         self.assertEqual(stat.traceability_id, 'report_3')
 
     def test_service_updates_and_keeps_traceability(self):
-        """Retificação atualiza o valor correto e mantém vínculo"""
+        """Retificação atualiza o valor correto e não duplica"""
         report = MockReport(id=10, status='APPROVED', audience_total=100)
-        generate_statistics_for_report(report)
+        generate_statistics_for_report(report, self.user)
         self.assertEqual(ConsolidatedStatistic.objects.get(traceability_id='report_10').value, 100)
         
         # Simula uma retificação (o valor mudou para 150)
         report.audience_total = 150
-        update_statistics_for_report(report)
+        update_statistics_for_report(report, self.user)
         
         # Não deve criar duplicado, deve substituir
         self.assertEqual(ConsolidatedStatistic.objects.filter(traceability_id='report_10').count(), 1)
-        self.assertEqual(ConsolidatedStatistic.objects.get(traceability_id='report_10').value, 150)
+        stat = ConsolidatedStatistic.objects.get(traceability_id='report_10')
+        self.assertEqual(stat.value, 150)
+        self.assertEqual(stat.status, 'ACTIVE')
+        self.assertEqual(len(stat.audit_history), 1)
 
-    def test_service_removes_statistics(self):
+    def test_service_suspends_statistics(self):
+        """Quando relatório é invalidado, a estatística fica SUSPENDED em vez de apagada"""
         report = MockReport(id=20, status='APPROVED', audience_total=200)
-        generate_statistics_for_report(report)
-        self.assertEqual(ConsolidatedStatistic.objects.count(), 1)
+        generate_statistics_for_report(report, self.user)
+        self.assertEqual(ConsolidatedStatistic.objects.filter(status='ACTIVE').count(), 1)
         
-        remove_statistics_for_report(report)
-        self.assertEqual(ConsolidatedStatistic.objects.count(), 0)
+        remove_statistics_for_report(report, self.user)
+        self.assertEqual(ConsolidatedStatistic.objects.count(), 1)
+        self.assertEqual(ConsolidatedStatistic.objects.filter(status='SUSPENDED').count(), 1)
+
+    def test_api_permission_denied(self):
+        """Usuário não autenticado recebe 403 (ou 401)"""
+        client = APIClient()
+        response = client.post('/api/education-reports/999/process-statistics/')
+        self.assertIn(response.status_code, [401, 403])

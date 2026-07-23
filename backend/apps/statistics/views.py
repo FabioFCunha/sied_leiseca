@@ -13,18 +13,22 @@ def parse_date(date_str):
     except ValueError:
         return None
 
+from django.conf import settings
+
 def get_hybrid_queryset(date_from, date_to):
     """
     Returns a queryset respecting the hybrid date boundaries.
     Before 2026-07-09 -> Only HISTORICAL_LEGACY
     After 2026-07-09 -> Only SIED_OPERATIONAL
+    Only ACTIVE stats are returned.
     """
-    qs = ConsolidatedStatistic.objects.all()
+    qs = ConsolidatedStatistic.objects.filter(status='ACTIVE')
     
     if not date_from or not date_to:
         return qs.none()
         
-    cutoff_date = date(2026, 7, 9)
+    cutoff_str = getattr(settings, 'STATISTICS_CUTOFF_DATE', '2026-07-09')
+    cutoff_date = parse_date(cutoff_str) or date(2026, 7, 9)
     
     if date_to < cutoff_date:
         return qs.filter(
@@ -51,6 +55,7 @@ def get_hybrid_queryset(date_from, date_to):
             reference_date__lte=date_to
         )
     )
+
 
 def build_category_key(indicator, action, entity):
     cat_name = action or entity or "Geral"
@@ -166,7 +171,7 @@ class StatisticsHistoricalSeriesView(APIView):
     # permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        qs = ConsolidatedStatistic.objects.all().order_by('reference_year')
+        qs = ConsolidatedStatistic.objects.filter(status='ACTIVE').order_by('reference_year')
         
         series = qs.values(
             'reference_year', 

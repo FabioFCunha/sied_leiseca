@@ -32,7 +32,7 @@ from openpyxl import Workbook
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from rest_framework import decorators, parsers, response, status, viewsets
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -1727,6 +1727,34 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 raise
             logger.exception("Unexpected error in EducationReportViewSet.update")
             return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatório. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], url_path='process-statistics')
+    def process_statistics(self, request, pk=None):
+        from apps.statistics.services import generate_statistics_for_report
+        from django.utils import timezone
+        
+        if not request.user.has_perm('statistics.add_consolidatedstatistic'):
+            return response.Response({'error': 'Você não tem permissão para processar estatísticas oficiais.'}, status=status.HTTP_403_FORBIDDEN)
+            
+        report = self.get_object()
+        
+        if report.status != 'APPROVED':
+            return response.Response({'error': 'Apenas relatórios aprovados podem ser validados para a estatística oficial.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if report.statistics_processed:
+            # Re-processamento permitido se houver correção (lógica idempotente no services.py)
+            pass
+            
+        try:
+            generate_statistics_for_report(report, processed_by=request.user)
+            report.statistics_processed = True
+            report.statistics_processed_at = timezone.now()
+            report.statistics_processed_by = request.user
+            report.save(update_fields=['statistics_processed', 'statistics_processed_at', 'statistics_processed_by'])
+            return response.Response({'message': 'Estatística processada e validada com sucesso.'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception("Error processing statistics")
+            return response.Response({'error': 'Erro ao processar estatística. Consulte os logs para mais detalhes.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def partial_update(self, request, *args, **kwargs):
         try:

@@ -598,6 +598,18 @@ class EducationReport(models.Model):
     equipment_materials_distributed = models.TextField(blank=True)
     distribution_materials_removed = models.TextField(blank=True)
     distribution_materials_distributed = models.TextField(blank=True)
+
+    # Controle de Estatísticas Oficiais
+    statistics_processed = models.BooleanField(default=False)
+    statistics_processed_at = models.DateTimeField(null=True, blank=True)
+    statistics_processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="processed_statistics_reports"
+    )
+
     breathalyzers = models.TextField(blank=True)
     cars = models.CharField(max_length=220, blank=True)
     changes_general = models.TextField(blank=True)

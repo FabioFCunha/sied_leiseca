@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from apps.schedules.models import ActionType
 
 class StatisticCategoryMapping(models.Model):
@@ -43,6 +44,12 @@ class ConsolidatedStatistic(models.Model):
         ('SIED_OPERATIONAL', 'Operacional SIED (a partir de 09/07/2026)'),
     ]
 
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Ativo'),
+        ('SUSPENDED', 'Suspenso'),
+        ('CANCELLED', 'Cancelado'),
+    ]
+
     # Dimensão de Tempo
     reference_date = models.DateField(null=True, blank=True, help_text="Obrigatório para SIED_OPERATIONAL")
     reference_year = models.IntegerField(db_index=True)
@@ -60,7 +67,12 @@ class ConsolidatedStatistic(models.Model):
     methodology = models.CharField(max_length=30, choices=METHODOLOGY_CHOICES, db_index=True)
     traceability_id = models.CharField(max_length=100, db_index=True, help_text="Ex: 'legacy_2015_bares' ou 'report_5501'")
     
-    # Auditoria
+    # Auditoria e Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE', db_index=True)
+    processed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    audit_history = models.JSONField(default=list, blank=True, help_text="Log de alterações de valores históricos")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -68,9 +80,15 @@ class ConsolidatedStatistic(models.Model):
         verbose_name = "Estatística Consolidada"
         verbose_name_plural = "Estatísticas Consolidadas"
         ordering = ['-reference_year', '-reference_month']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['traceability_id', 'indicator_type', 'category_action_type', 'category_entity_type'],
+                name='unique_statistic_row'
+            )
+        ]
 
     def __str__(self):
-        return f"{self.get_methodology_display()} | {self.reference_year} | {self.traceability_id} = {self.value}"
+        return f"{self.get_methodology_display()} | {self.reference_year} | {self.traceability_id} = {self.value} ({self.status})"
 
     def clean(self):
         super().clean()
