@@ -416,7 +416,7 @@ export default function TechnicalReportsPage() {
     () => agendas.find((agenda) => String(agenda.id) === String(form.agenda)),
     [agendas, form.agenda]
   );
-  const isStreetActionSelectedAgenda = Boolean(selectedAgenda && (selectedAgenda.action_type_ref === STREET_ACTION_ID || selectedAgenda.requester_entity_type === STREET_ACTION_ID));
+  const isStreetActionSelectedAgenda = Boolean(selectedAgenda && (String(selectedAgenda.action_type_ref) === STREET_ACTION_ID || String(selectedAgenda.requester_entity_type) === STREET_ACTION_ID));
   const predefinedStreetActionTypes = useMemo(
     () => [...new Set((form.street_action_details || []).map((detail) => String(detail?.type || "").trim()).filter(Boolean))],
     [form.street_action_details]
@@ -586,7 +586,7 @@ export default function TechnicalReportsPage() {
         ...currentAction,
         agenda: agenda.id,
         source_id: isUserCreated ? "" : (currentAction.source_id || `agenda_action:${agenda.id}`),
-        place_action: currentAction.place_action || ((agenda.action_type_ref === STREET_ACTION_ID || agenda.requester_entity_type === STREET_ACTION_ID) ? "" : (agenda.institution_location || agenda.location || "")),
+        place_action: currentAction.place_action || ((String(agenda.action_type_ref) === STREET_ACTION_ID || String(agenda.requester_entity_type) === STREET_ACTION_ID) ? "" : (agenda.institution_location || agenda.location || "")),
         institution_name: currentAction.institution_name || agenda.institution_location || "",
         type_action: currentAction.type_action || agenda.action_type || agenda.action_type_ref_name || "",
         type_audience: currentAction.type_audience || agenda.audience || "",
@@ -624,7 +624,7 @@ export default function TechnicalReportsPage() {
       occurrence_observation: current.occurrence_observation || agenda.notes || agenda.description || "",
       actions: (() => {
         const meaningfulCurrentActions = getValidatableActions(current.actions).map(({ action }) => action);
-        if (agenda.action_type_ref === STREET_ACTION_ID || agenda.requester_entity_type === STREET_ACTION_ID) {
+        if (String(agenda.action_type_ref) === STREET_ACTION_ID || String(agenda.requester_entity_type) === STREET_ACTION_ID) {
           return meaningfulCurrentActions.length
             ? meaningfulCurrentActions.map((action) => buildAgendaAction(action))
             : [buildAgendaAction({ place_action: "" })];
