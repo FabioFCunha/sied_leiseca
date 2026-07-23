@@ -84,6 +84,7 @@ urlpatterns = [
     path("api/auth/privacy-policy/", PrivacyPolicyView.as_view(), name="privacy_policy"),
     path("api/auth/lgpd-consent/", LGPDConsentView.as_view(), name="lgpd_consent"),
     path("api/auth/my-data/", MyDataView.as_view(), name="my_data"),
+    path("api/statistics/", include("apps.statistics.urls")),
     path("api/", include(router.urls)),
 ]
 

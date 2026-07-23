@@ -43,19 +43,6 @@ def can_manage_users(user):
     return bool(user and user.is_authenticated and (user.is_superuser or user.is_admin_role))
 
 
-def deactivate_user_dependencies(user):
-    from apps.schedules.models import Chief, Agent, Support
-    from .serializers import get_safe_lookup_query
-    
-    q = get_safe_lookup_query(user)
-        
-    Chief.objects.filter(q).update(is_active=False)
-    Agent.objects.filter(q).update(is_active=False)
-    Support.objects.filter(q).update(is_active=False)
-    
-    from .serializers import deactivate_other_user_lookups
-    deactivate_other_user_lookups(user)
-
 
 
 class UserAccessPermission(BasePermission):
@@ -315,11 +302,9 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Usuário técnico do sistema não pode ser excluído."}, status=status.HTTP_400_BAD_REQUEST)
         target = {"target_user_id": instance.id, "email": instance.email, "role": instance.role}
         label = instance.full_name or instance.email
-        with transaction.atomic():
-            deactivate_user_dependencies(instance)
-            instance.is_active = False
-            instance.save(update_fields=["is_active"])
-            response = Response(status=status.HTTP_204_NO_CONTENT)
+        from apps.accounts.services import deactivate_user
+        deactivate_user(instance)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
         log_audit(
             request,
             AuditLog.Action.DELETE,

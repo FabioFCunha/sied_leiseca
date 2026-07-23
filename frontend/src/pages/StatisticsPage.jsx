@@ -8,7 +8,31 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString("pt-BR");
 }
 
-function VariationBadge({ value }) {
+function VariationBadge({ value, status }) {
+  if (status === "NEW_DATA") {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+        background: "rgba(4, 120, 87, 0.1)", color: "#047857"
+      }}>
+        Novo
+      </span>
+    );
+  }
+  
+  if (status === "NO_CHANGE" || value === null) {
+    return (
+      <span style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+        background: "rgba(82, 96, 109, 0.1)", color: "#52606d"
+      }}>
+        <Minus size={14} /> 0.0%
+      </span>
+    );
+  }
+
   const pct = Number(value || 0);
   const isUp = pct > 0;
   const isDown = pct < 0;
@@ -62,7 +86,6 @@ function KpiCard({ icon: Icon, label, value, subtitle, color = "var(--primary)" 
   );
 }
 
-/* Section wrapper for charts */
 function ChartSection({ icon: Icon, title, subtitle, gradient = "linear-gradient(135deg, #0048d7, #003299)", children }) {
   return (
     <div style={{
@@ -100,28 +123,11 @@ function getDefaultFilters() {
   };
 }
 
-function getMonthRange(dateStr) {
-  const d = new Date(dateStr + "T00:00:00");
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const first = new Date(y, m, 1);
-  const last = new Date(y, m + 1, 0);
-  return {
-    from: formatLocalISODate(first),
-    to: formatLocalISODate(last),
-  };
-}
-
-function shiftYear(dateStr, delta) {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setFullYear(d.getFullYear() + delta);
-  return formatLocalISODate(d);
-}
-
 export default function StatisticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [annualData, setAnnualData] = useState(null);
+  const [comparisonData, setComparisonData] = useState(null);
+  const [historicalData, setHistoricalData] = useState([]);
 
   const [filters, setFilters] = useState(getDefaultFilters);
   const [pendingFilters, setPendingFilters] = useState(getDefaultFilters);
@@ -133,8 +139,6 @@ export default function StatisticsPage() {
   const prevDateFrom = `${prevYear}-01-01`;
   const prevDateTo = `${prevYear}-12-31`;
 
-
-
   const elapsedMonths = useMemo(() => {
     const from = new Date(filters.date_from + "T00:00:00");
     const to = new Date(filters.date_to + "T00:00:00");
@@ -145,71 +149,95 @@ export default function StatisticsPage() {
     setLoading(true);
     setError("");
 
-    const curFilter = `date_from=${filters.date_from}&date_to=${filters.date_to}`;
-    const prevFilter = `date_from=${prevDateFrom}&date_to=${prevDateTo}`;
+    const params = `date_from=${filters.date_from}&date_to=${filters.date_to}&prev_date_from=${prevDateFrom}&prev_date_to=${prevDateTo}`;
+    
     Promise.all([
-      api(`/education-reports/statistics/?${curFilter}`),
-      api(`/education-reports/statistics/?${prevFilter}`),
+      api(`/statistics/comparison/?${params}`),
+      api(`/statistics/historical-series/`),
     ])
-      .then(([curStats, prevStats]) => {
-        setAnnualData({ current: curStats, previous: prevStats });
+      .then(([comp, hist]) => {
+        setComparisonData(comp);
+        setHistoricalData(hist);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [filters]);
 
+  // Map Backend Category Keys to Frontend Labels
   const comparisonFields = [
-    { key: "approached_actions", label: "Total de abordagens", icon: Activity, color: "#0048d7" },
-    { key: "approached_lectures", label: "1.1 - Abordados em palestras", icon: BarChart3, color: "#7c3aed" },
-    { key: "approached_actions", label: "1.2 - Abordados em ações", icon: TrendingUp, color: "#047857" },
-    { key: "lectures", label: "2 - Palestras realizadas", icon: CalendarDays, color: "#0ea5e9" },
-    { key: "schools", label: "2.1 - Escolas", icon: Activity, color: "#f59e0b" },
-    { key: "universities", label: "2.2 - Universidades", icon: BarChart3, color: "#ec4899" },
-    { key: "companies", label: "2.3 - Empresas", icon: TrendingUp, color: "#8b5cf6" },
-    { key: "distributed_certificates", label: "2.4 - Certificados entregues", icon: CalendarDays, color: "#14b8a6" },
-    { key: "educational_actions", label: "3 - Ações", icon: Activity, color: "#f43f5e" },
-    { key: "bars", label: "3.1 - Bares", icon: BarChart3, color: "#eab308" },
-    { key: "tolls", label: "3.2 - Pedágio", icon: TrendingUp, color: "#a855f7" },
-    { key: "sports", label: "3.3 - Esportes", icon: CalendarDays, color: "#3b82f6" },
-    { key: "beach", label: "3.4 - Praia", icon: Activity, color: "#22c55e" },
-    { key: "events", label: "3.5 - Eventos", icon: BarChart3, color: "#ec4899" },
-    { key: "shopping", label: "3.6 - Shopping/Centro Comercial", icon: TrendingUp, color: "#f97316" },
-    { key: "parks", label: "3.7 - Praças/Parques públicos", icon: CalendarDays, color: "#22c55e" },
-    { key: "tourist_spots", label: "3.8 - Pontos turísticos", icon: Activity, color: "#facc15" },
-    { key: "social_actions", label: "3.9 - Ação Social", icon: CalendarDays, color: "#6366f1" },
-    { key: "joint_inspections", label: "3.10 - Ação conjunta com a fiscalização", icon: Activity, color: "#0f766e" },
-    { key: "other_actions", label: "3.11 - Outros", icon: Activity, color: "#64748b" },
-    { key: "gibis", label: "3 - Revistinha Soprinho", icon: BarChart3, color: "#10b981" },
-    { key: "publicity_materials", label: "4 - Materiais de Divulgação", icon: TrendingUp, color: "#8b5cf6" },
+    { key: "AUDIENCE - Geral", label: "Total de abordagens", icon: Activity, color: "#0048d7" },
+    { key: "AUDIENCE - PALESTRAS", label: "1.1 - Abordados em palestras", icon: BarChart3, color: "#7c3aed" },
+    { key: "AUDIENCE - ACOES", label: "1.2 - Abordados em ações", icon: TrendingUp, color: "#047857" },
+    { key: "ACTION - Geral", label: "2 - Ações Educativas (Total Geral)", icon: CalendarDays, color: "#0ea5e9" },
+    { key: "ACTION - Escola", label: "2.1 - Escolas", icon: Activity, color: "#f59e0b" },
+    { key: "ACTION - Universidade", label: "2.2 - Universidades", icon: BarChart3, color: "#ec4899" },
+    { key: "ACTION - Empresa", label: "2.3 - Empresas", icon: TrendingUp, color: "#8b5cf6" },
+    { key: "MATERIAL - Certificados", label: "2.4 - Certificados entregues", icon: CalendarDays, color: "#14b8a6" },
+    { key: "ACTION - Bares", label: "3.1 - Bares", icon: BarChart3, color: "#eab308" },
+    { key: "ACTION - Pedágio", label: "3.2 - Pedágio", icon: TrendingUp, color: "#a855f7" },
+    { key: "ACTION - Praças Esportivas", label: "3.3 - Esportes", icon: CalendarDays, color: "#3b82f6" },
+    { key: "ACTION - Praia", label: "3.4 - Praia", icon: Activity, color: "#22c55e" },
+    { key: "ACTION - Eventos", label: "3.5 - Eventos", icon: BarChart3, color: "#ec4899" },
+    { key: "ACTION - Shopping", label: "3.6 - Shopping/Centro Comercial", icon: TrendingUp, color: "#f97316" },
+    { key: "ACTION - Ação Social", label: "3.7 - Ação Social", icon: CalendarDays, color: "#6366f1" },
+    { key: "ACTION - Outros", label: "3.8 - Outros", icon: Activity, color: "#64748b" },
+    { key: "MATERIAL - Soprinho", label: "Revistinha Soprinho", icon: BarChart3, color: "#10b981" },
+    { key: "MATERIAL - Geral", label: "4 - Materiais de Divulgação", icon: TrendingUp, color: "#8b5cf6" },
   ];
 
-  function extractTotals(stats) {
-    if (!stats?.totals) return {};
-    return Object.fromEntries(stats.totals.map(item => [item.key, Number(item.value || 0)]));
-  }
-
   const table1Data = useMemo(() => {
-    const curTotals = extractTotals(annualData?.current);
-    const prevTotals = extractTotals(annualData?.previous);
-
+    if (!comparisonData) return [];
+    
     return comparisonFields.map(field => {
-      const current = curTotals[field.key] || 0;
-      const previous = prevTotals[field.key] || 0;
+      const current = comparisonData.current_period[field.key] || 0;
+      const previous = comparisonData.previous_period[field.key] || 0;
+      const diffData = comparisonData.variations[field.key] || { variation: 0, status: "NO_CHANGE" };
       const difference = current - previous;
-      const pct = previous > 0 ? (difference / previous) * 100 : (current > 0 ? 100 : 0);
       const projection = Math.round((current / elapsedMonths) * 12);
-      return { ...field, current, previous, difference, percentage: pct, projection };
+      
+      return { 
+        ...field, 
+        current, 
+        previous, 
+        difference, 
+        percentage: diffData.variation,
+        status: diffData.status,
+        projection 
+      };
     });
-  }, [annualData, elapsedMonths]);
+  }, [comparisonData, elapsedMonths]);
 
+  // Aggregate Historical Series grouped by Year for Table 3
+  const table3Data = useMemo(() => {
+    if (!historicalData) return [];
+    
+    const years = [...new Set(historicalData.map(d => d.year))].sort((a,b) => a - b);
+    
+    return years.map(y => {
+      const yearData = historicalData.filter(d => d.year === y);
+      
+      const getVal = (catName) => yearData.filter(d => d.category === catName).reduce((sum, item) => sum + item.value, 0);
+      
+      // Totals
+      const totalAbordagens = getVal("AUDIENCE - Geral") + getVal("AUDIENCE - PALESTRAS") + getVal("AUDIENCE - ACOES");
+      const palestrasAudi = getVal("AUDIENCE - PALESTRAS");
+      const acoesAudi = getVal("AUDIENCE - ACOES");
+      
+      const acoesEduc = yearData.filter(d => d.indicator === "ACTION").reduce((sum, item) => sum + item.value, 0);
+      
+      // Approximation for "Palestras Realizadas" in historical data (this wasn't explicitly isolated from other action types if not mapped, but let's map what we have)
+      const palestrasRealizadas = getVal("ACTION - Escola") + getVal("ACTION - Universidade") + getVal("ACTION - Empresa");
 
-  const periodTotals = extractTotals(annualData?.current);
-
-  /* Chart data from API breakdown fields */
-  const entityTypeData = annualData?.current?.by_entity_type || [];
-  const modalityData = annualData?.current?.by_modality || [];
-  const ageRangeData = annualData?.current?.by_age_range || [];
-
+      return {
+        year: y,
+        approach: totalAbordagens,
+        approached_lectures: palestrasAudi,
+        approached_actions: acoesAudi,
+        lectures: palestrasRealizadas,
+        educational_actions: acoesEduc
+      };
+    });
+  }, [historicalData]);
 
 
   const applyFilters = () => setFilters({ ...pendingFilters });
@@ -257,11 +285,11 @@ export default function StatisticsPage() {
           borderRadius: "50%", background: "rgba(255,255,255,0.03)"
         }} />
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
-          Painel de Gestão
+          Painel de Gestão (Nova API)
         </span>
-        <h1 style={{ margin: "8px 0 6px", fontSize: 28, fontWeight: 800, color: "#fff" }}>Estatísticas</h1>
+        <h1 style={{ margin: "8px 0 6px", fontSize: 28, fontWeight: 800, color: "#fff" }}>Estatísticas Oficiais SIED</h1>
         <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.65)", maxWidth: 500 }}>
-          Indicadores consolidados de abordagens a partir dos relatórios técnicos.
+          Indicadores consolidados (Histórico + Relatórios Operacionais).
         </p>
       </div>
 
@@ -303,23 +331,32 @@ export default function StatisticsPage() {
         <div className="alert">Não foi possível carregar as estatísticas: {error}</div>
       ) : (
         <>
-          {/* KPI Cards */}
+          {/* KPI Cards (Macro Indicators) */}
           <div style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
-            {comparisonFields.map((field, index) => (
               <KpiCard
-                key={`${field.key}-${index}`}
-                icon={field.icon}
-                label={field.label}
-                value={formatNumber(periodTotals[field.key] || 0)}
+                icon={Activity}
+                label="Público Alcançado"
+                value={formatNumber(comparisonData?.macro_current?.AUDIENCE)}
                 subtitle={formatPeriod(filters.date_from, filters.date_to)}
-                color={field.color}
+                color="#0048d7"
               />
-            ))}
+              <KpiCard
+                icon={CalendarDays}
+                label="Ações Educativas"
+                value={formatNumber(comparisonData?.macro_current?.ACTION)}
+                subtitle={formatPeriod(filters.date_from, filters.date_to)}
+                color="#047857"
+              />
+              <KpiCard
+                icon={BarChart3}
+                label="Materiais de Divulgação"
+                value={formatNumber(comparisonData?.macro_current?.MATERIAL)}
+                subtitle={formatPeriod(filters.date_from, filters.date_to)}
+                color="#7c3aed"
+              />
           </div>
 
-          {/* ═══════════ TABLES SECTION (no topo) ═══════════ */}
-
-          {/* Tabela 1: Comparativo Anual */}
+          {/* Tabela 1: Comparativo Anual Detalhado */}
           <div style={{
             background: "var(--surface)", borderRadius: 16,
             border: "1px solid var(--line)",
@@ -336,7 +373,7 @@ export default function StatisticsPage() {
                   <BarChart3 size={16} />
                 </div>
                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--text)" }}>
-                  Comparativo Anual — {currentYear} vs {prevYear}
+                  Comparativo Detalhado — {currentYear} vs {prevYear}
                 </h2>
               </div>
               <p style={{ margin: 0, fontSize: 13, color: "var(--text-soft)" }}>
@@ -347,7 +384,7 @@ export default function StatisticsPage() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
-                    <th style={tableHeaderStyle}>Indicador</th>
+                    <th style={tableHeaderStyle}>Indicador / Categoria</th>
                     <th style={{ ...tableHeaderStyle, textAlign: "right" }}>{prevYear} (Período)</th>
                     <th style={{ ...tableHeaderStyle, textAlign: "right" }}>{currentYear} (Período)</th>
                     <th style={{ ...tableHeaderStyle, textAlign: "right" }}>Diferença</th>
@@ -373,7 +410,7 @@ export default function StatisticsPage() {
                         {row.difference >= 0 ? "+" : ""}{formatNumber(row.difference)}
                       </td>
                       <td style={{ ...cellStyle, textAlign: "center" }}>
-                        <VariationBadge value={row.percentage} />
+                        <VariationBadge value={row.percentage} status={row.status} />
                       </td>
                       <td style={{ ...cellNumStyle, fontSize: 15 }}>
                         <span style={{
@@ -409,11 +446,11 @@ export default function StatisticsPage() {
                   <BarChart3 size={16} />
                 </div>
                 <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--text)" }}>
-                  Histórico de Abordagens e Ações Educativas
+                  Série Histórica
                 </h2>
               </div>
               <p style={{ margin: 0, fontSize: 13, color: "var(--text-soft)" }}>
-                Série histórica com totais anuais desde 2011.
+                Série histórica com totais anuais agregados (Banco de Dados Otimizado).
               </p>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -421,15 +458,14 @@ export default function StatisticsPage() {
                 <thead>
                   <tr>
                     <th style={{ ...tableHeaderStyle, background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Ano</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Total de Abordagens</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Abordados Palestras</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Abordados Ações</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Palestras Realizadas</th>
+                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Público Total</th>
+                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Público (Palestras)</th>
+                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Público (Ações)</th>
                     <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Ações Educativas</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(annualData?.current?.historical_totals || []).map((row, i) => (
+                  {table3Data.map((row, i) => (
                     <tr key={row.year} style={{ background: i % 2 === 0 ? "var(--surface)" : "var(--surface-2)", transition: "background 0.15s" }}
                       onMouseEnter={e => e.currentTarget.style.background = "rgba(124, 58, 237, 0.04)"}
                       onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "var(--surface)" : "var(--surface-2)"}
@@ -438,130 +474,12 @@ export default function StatisticsPage() {
                       <td style={cellNumStyle}>{formatNumber(row.approach)}</td>
                       <td style={cellNumStyle}>{formatNumber(row.approached_lectures)}</td>
                       <td style={cellNumStyle}>{formatNumber(row.approached_actions)}</td>
-                      <td style={cellNumStyle}>{formatNumber(row.lectures)}</td>
                       <td style={cellNumStyle}>{formatNumber(row.educational_actions)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
-
-          {/* ═══════════ CHARTS SECTION ═══════════ */}
-
-          {/* Row 1: Empresa/Órgão vs Escola (Donut) + Público vs Privado (Donut) */}
-          <div className="stats-charts-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
-            <ChartSection
-              icon={PieChart}
-              title="Empresa/Órgão ou Escola"
-              subtitle="Distribuição dos relatórios por tipo de entidade solicitante"
-              gradient="linear-gradient(135deg, #0048d7, #003299)"
-            >
-              <DonutChart
-                data={entityTypeData.map(d => {
-                  const labelStr = d.label || "";
-                  const isEscola = labelStr.toLowerCase().includes("escola");
-                  const isEmpresa = labelStr.toLowerCase().includes("empresa") || labelStr.toLowerCase().includes("órgão");
-                  return {
-                    label: isEscola ? "Escola" : isEmpresa ? "Empresa/Órgão" : (d.label || "Sem informação"),
-                    value: d.value,
-                    color: isEscola ? "#7c3aed" : isEmpresa ? "#0048d7" : "#64748b",
-                  };
-                })}
-                size={200}
-                thickness={26}
-              />
-            </ChartSection>
-
-            <ChartSection
-              icon={PieChart}
-              title="Público ou Privado"
-              subtitle="Distribuição dos relatórios por natureza da entidade"
-              gradient="linear-gradient(135deg, #047857, #059669)"
-            >
-              <DonutChart
-                data={entityTypeData.map(d => {
-                  const labelStr = d.label || "";
-                  const isPublico = labelStr.toLowerCase().includes("público");
-                  const isPrivado = labelStr.toLowerCase().includes("privado");
-                  return {
-                    label: d.label || "Sem informação",
-                    value: d.value,
-                    color: isPublico ? "#047857" : isPrivado ? "#dc6b16" : "#64748b",
-                  };
-                })}
-                size={200}
-                thickness={26}
-              />
-            </ChartSection>
-          </div>
-
-          {/* Row 2: Modalidade Pretendida (Horizontal Bars) + Faixa Etária (Horizontal Bars) */}
-          <div className="stats-charts-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
-            <ChartSection
-              icon={BarChart3}
-              title="Modalidade Pretendida"
-              subtitle="Quantidade de relatórios por modalidade de ação"
-              gradient="linear-gradient(135deg, #7c3aed, #5b21b6)"
-            >
-              <HorizontalBarChart
-                data={modalityData.map((d, i) => {
-                  const colors = ["#0048d7", "#7c3aed", "#047857", "#dc6b16", "#0891b2"];
-                  return { label: d.label, value: d.value, color: colors[i % colors.length] };
-                })}
-                height={32}
-              />
-            </ChartSection>
-
-            <ChartSection
-              icon={Activity}
-              title="Faixa Etária do Público"
-              subtitle="Distribuição dos relatórios por faixa etária atendida"
-              gradient="linear-gradient(135deg, #dc6b16, #ea580c)"
-            >
-              <HorizontalBarChart
-                data={ageRangeData.map((d, i) => {
-                  const colors = ["#0891b2", "#0048d7", "#7c3aed", "#047857", "#dc6b16"];
-                  return { label: d.label, value: d.value, color: colors[i % colors.length] };
-                })}
-                height={32}
-              />
-            </ChartSection>
-          </div>
-
-          {/* Row 3: Modalidade (Donut) + Faixa Etária (Donut) */}
-          <div className="stats-charts-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
-            <ChartSection
-              icon={PieChart}
-              title="Composição por Modalidade"
-              subtitle="Proporção percentual de cada modalidade pretendida"
-              gradient="linear-gradient(135deg, #0891b2, #0e7490)"
-            >
-              <DonutChart
-                data={modalityData.map((d, i) => {
-                  const colors = ["#0048d7", "#7c3aed", "#047857", "#dc6b16", "#0891b2"];
-                  return { label: d.label, value: d.value, color: colors[i % colors.length] };
-                })}
-                size={200}
-                thickness={26}
-              />
-            </ChartSection>
-
-            <ChartSection
-              icon={PieChart}
-              title="Composição por Faixa Etária"
-              subtitle="Proporção percentual de cada faixa etária atendida"
-              gradient="linear-gradient(135deg, #6366f1, #4f46e5)"
-            >
-              <DonutChart
-                data={ageRangeData.map((d, i) => {
-                  const colors = ["#0891b2", "#0048d7", "#7c3aed", "#047857", "#dc6b16"];
-                  return { label: d.label, value: d.value, color: colors[i % colors.length] };
-                })}
-                size={200}
-                thickness={26}
-              />
-            </ChartSection>
           </div>
         </>
       )}

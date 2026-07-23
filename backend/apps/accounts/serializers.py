@@ -105,7 +105,7 @@ def find_bound_conflict(model, cpf, name, excluding_source_id, excluding_id=None
     if excluding_id:
         q_base &= ~Q(id=excluding_id)
 
-    # 1. Conflito por CPF com outro usuário
+    # 1. Conflito por CPF com outro usuário (Somente o CPF bloqueia - Cenário C)
     if cpf_digits:
         conflict = model.objects.filter(
             q_base & Q(cpf=cpf_digits)
@@ -113,24 +113,23 @@ def find_bound_conflict(model, cpf, name, excluding_source_id, excluding_id=None
         if conflict:
             return conflict, "CPF vinculado a outro usuário"
 
-    # 2. Conflito por Nome
+    # 2. Coincidência por Nome (Cenário D - Não bloqueia, apenas alerta)
     if name:
         # Vinculado a outro usuário
-        conflict = model.objects.filter(
+        conflict_name = model.objects.filter(
             q_base & Q(name__iexact=name)
-        ).exclude(source_id=excluding_source_id).exclude(source_id="").exclude(source_id__isnull=True).first()
-        if conflict:
-            return conflict, "nome vinculado a outro usuário"
-
-        # Ambiguidade (múltiplos registros legados com o mesmo nome)
-        legacy_count = model.objects.filter(
-            q_base & Q(name__iexact=name) & (Q(source_id="") | Q(source_id__isnull=True))
-        ).count()
-        if legacy_count > 1:
-            first_legacy = model.objects.filter(
-                q_base & Q(name__iexact=name) & (Q(source_id="") | Q(source_id__isnull=True))
-            ).first()
-            return first_legacy, "nome ambíguo (múltiplos registros legados)"
+        ).exclude(source_id=excluding_source_id).first()
+        
+        if conflict_name:
+            logger.warning(
+                "SYNC_WARNING_DUPLICATE_NAME",
+                extra={
+                    "nome": name,
+                    "cpf_existente": getattr(conflict_name, "cpf", ""),
+                    "lookup_id": conflict_name.id,
+                    "model": model.__name__,
+                },
+            )
 
     return None, None
 
@@ -142,7 +141,7 @@ def safe_save_lookup(lookup, *, user, model_name):
         return lookup
     except IntegrityError:
         logger.exception(
-            "Falha ao sincronizar lookup operacional devido a erro de integridade inesperado",
+            "Falha ao sincronizar lookup operacional devido a erro de integridade",
             extra={
                 "user_id": user.id,
                 "email": user.email,
@@ -150,7 +149,9 @@ def safe_save_lookup(lookup, *, user, model_name):
                 "lookup_id": getattr(lookup, "id", None),
             },
         )
-        return None
+        raise serializers.ValidationError(
+            {"full_name": f"O nome exato '{lookup.name}' já está registrado. O banco de dados exige nomes únicos para o histórico de escalas. Por favor, adicione um diferencial (ex: sobrenome adicional)."}
+        )
 
 
 def upsert_user_lookup(model, user, role_label, extra_defaults=None):
@@ -189,17 +190,9 @@ def upsert_user_lookup(model, user, role_label, extra_defaults=None):
                 excluding_source_id=expected_source_id,
             )
             if conflict:
-                logger.warning(
-                    "Lookup operacional não sincronizado por conflito (%s)",
-                    reason,
-                    extra={
-                        "user_id": user.id,
-                        "conflicting_lookup_id": conflict.id,
-                        "conflicting_source_id": conflict.source_id,
-                        "model": model.__name__,
-                    },
+                raise serializers.ValidationError(
+                    {"cpf": f"Não foi possível sincronizar o perfil operacional. O CPF informado já se encontra vinculado a outro usuário ativo no sistema."}
                 )
-                return None
 
             # Sem conflitos, criamos um novo
             lookup = model()
@@ -214,17 +207,9 @@ def upsert_user_lookup(model, user, role_label, extra_defaults=None):
             excluding_id=lookup.id,
         )
         if conflict:
-            logger.warning(
-                "Lookup operacional existente não atualizado por conflito com outro registro (%s)",
-                reason,
-                extra={
-                    "user_id": user.id,
-                    "conflicting_lookup_id": conflict.id,
-                    "conflicting_source_id": conflict.source_id,
-                    "model": model.__name__,
-                },
+            raise serializers.ValidationError(
+                {"cpf": f"Não foi possível sincronizar o perfil operacional. O CPF informado já se encontra vinculado a outro usuário ativo no sistema."}
             )
-            return None
 
         # 2. Verificamos se há um registro legado (sem vínculo) com o novo CPF/nome
         legacy_candidate = find_unlinked_legacy_candidate(
@@ -337,20 +322,25 @@ def sync_active_users_for_role(role):
         try:
             with transaction.atomic():
                 sync_user_lookup(user)
-        except IntegrityError:
+        except Exception as e:
             logger.exception(
-                "Falha ao sincronizar lookup operacional para o usu?rio %s (%s) na fun??o %s.",
+                "Falha ao sincronizar lookup operacional para o usuário %s (%s) na função %s: %s",
                 user.id,
                 user.email,
                 role,
+                str(e),
             )
 
 
 def sync_all_user_lookups():
     total = 0
     for user in User.objects.exclude(role__in=[User.Role.ADMIN, User.Role.MANAGER, User.Role.VISITOR]):
-        sync_user_lookup(user)
-        total += 1
+        try:
+            with transaction.atomic():
+                sync_user_lookup(user)
+                total += 1
+        except Exception as e:
+            logger.exception("Falha ao sincronizar lookup operacional geral para o usuario %s: %s", user.id, str(e))
     return total
 
 
