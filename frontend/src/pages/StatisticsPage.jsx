@@ -159,7 +159,7 @@ export default function StatisticsPage() {
   }, [filters]);
 
   const comparisonFields = [
-    { key: "approach", label: "Total de abordagens", icon: Activity, color: "#0048d7" },
+    { key: "approached_actions", label: "Total de abordagens", icon: Activity, color: "#0048d7" },
     { key: "approached_lectures", label: "1.1 - Abordados em palestras", icon: BarChart3, color: "#7c3aed" },
     { key: "approached_actions", label: "1.2 - Abordados em ações", icon: TrendingUp, color: "#047857" },
     { key: "lectures", label: "2 - Palestras realizadas", icon: CalendarDays, color: "#0ea5e9" },
@@ -305,9 +305,9 @@ export default function StatisticsPage() {
         <>
           {/* KPI Cards */}
           <div style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
-            {comparisonFields.map(field => (
+            {comparisonFields.map((field, index) => (
               <KpiCard
-                key={field.key}
+                key={`${field.key}-${index}`}
                 icon={field.icon}
                 label={field.label}
                 value={formatNumber(periodTotals[field.key] || 0)}
