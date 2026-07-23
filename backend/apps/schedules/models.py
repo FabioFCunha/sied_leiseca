@@ -316,6 +316,11 @@ class Agenda(models.Model):
         blank=True,
         related_name="designated_service_orders",
     )
+    absent_designated_users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="absent_designated_service_orders",
+    )
     team_name = models.CharField(max_length=160, blank=True)
     team_ref = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True)
     chief_name = models.CharField(max_length=160, blank=True)

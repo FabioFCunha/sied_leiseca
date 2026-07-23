@@ -432,6 +432,7 @@ class AgendaSerializer(serializers.ModelSerializer):
     can_delete = serializers.SerializerMethodField()
     delete_block_reason = serializers.SerializerMethodField()
     designated_users = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), many=True, required=False)
+    absent_designated_users = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), many=True, required=False)
     designated_users_details = serializers.SerializerMethodField()
 
     class Meta:
@@ -459,6 +460,7 @@ class AgendaSerializer(serializers.ModelSerializer):
             "vehicle_name",
             "service_order_mode",
             "designated_users",
+            "absent_designated_users",
             "designated_users_details",
             "team_name",
             "team_ref",

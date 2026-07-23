@@ -648,6 +648,36 @@ class MaterialViewSet(LookupViewSet):
 
 
 class AgendaViewSet(viewsets.ModelViewSet):
+    @decorators.action(detail=True, methods=["post", "delete"], url_path="designated-absence")
+    def designated_absence(self, request, pk=None):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        agenda = self.get_object()
+        
+        user_id = request.data.get("user_id")
+        if not user_id:
+            return response.Response({"detail": "Informe o ID do participante."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return response.Response({"detail": "Informe um ID de participante válido."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        user = User.objects.filter(id=user_id, is_active=True).first()
+        if not user:
+            return response.Response({"detail": "Participante não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            
+        if not agenda.designated_users.filter(id=user_id).exists():
+            return response.Response({"detail": "Participante não está designado para esta Ordem de Serviço."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        with transaction.atomic():
+            if request.method == "DELETE":
+                agenda.absent_designated_users.remove(user)
+            else:
+                agenda.absent_designated_users.add(user)
+                
+        serializer = self.get_serializer(agenda)
+        return response.Response(serializer.data)
     serializer_class = AgendaSerializer
     permission_classes = [IsAuthenticated, AgendaPermission]
 
