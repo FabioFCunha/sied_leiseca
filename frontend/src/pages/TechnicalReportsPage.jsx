@@ -515,8 +515,31 @@ export default function TechnicalReportsPage() {
     return detailSchedule;
   };
 
+  const buildDesignatedAttendanceForm = () => {
+    if (!selectedAgenda || selectedAgenda.service_order_mode !== "DESIGNATED") return;
+    const formObj = {};
+    const absentIds = selectedAgenda.absent_designated_users || [];
+    const isChecked = !!form.id;
+    (selectedAgenda.designated_users_details || []).forEach(user => {
+      const memberKey = `DESIGNATED_${user.id}`;
+      const isAbsent = absentIds.includes(user.id);
+      formObj[memberKey] = {
+        is_absent: isChecked ? isAbsent : null,
+        reason: "",
+        attachment: null,
+        member: {
+          id: user.id,
+          name: user.full_name || user.first_name || user.username || "Participante",
+          typeLabel: "Participante Individual"
+        }
+      };
+    });
+    setAttendanceForm(formObj);
+  };
+
   useEffect(() => {
-    if (form.operation_date && form.team) {
+    const isDesignated = selectedAgenda?.service_order_mode === "DESIGNATED";
+    if (form.operation_date && form.team && !isDesignated) {
       api(`/shift-schedules/?date=${form.operation_date}`).then(res => {
         const schedules = res.results || res;
         const scheduleInfo = schedules.find(s =>
@@ -540,9 +563,13 @@ export default function TechnicalReportsPage() {
       });
     } else {
       setReportSchedule(null);
-      setAttendanceForm({});
+      if (isDesignated) {
+        buildDesignatedAttendanceForm();
+      } else {
+        setAttendanceForm({});
+      }
     }
-  }, [form.operation_date, form.team, selectedAgenda]);
+  }, [form.operation_date, form.team, selectedAgenda, form.id]);
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
 
@@ -717,7 +744,8 @@ export default function TechnicalReportsPage() {
   };
 
   const saveAttendance = async ({ closeModal = true, markReported = false, successMessage = "Frequência salva com sucesso." } = {}) => {
-    if (!reportSchedule || Object.keys(attendanceForm).length === 0) return;
+    const isDesignated = selectedAgenda?.service_order_mode === "DESIGNATED";
+    if ((!reportSchedule && !isDesignated) || Object.keys(attendanceForm).length === 0) return;
     if (isSavingAttendance) return;
     if (Object.values(attendanceForm).some((data) => data.is_absent === null)) {
       throw new Error("Selecione a frequência de todos os integrantes antes de confirmar.");
@@ -727,40 +755,61 @@ export default function TechnicalReportsPage() {
     try {
       const promises = Object.entries(attendanceForm).map(([key, data]) => {
         const [memberType, memberId] = key.split("_");
-        if (data.is_absent) {
-          const body = new FormData();
-          body.append("member_type", memberType);
-          body.append("member_id", memberId);
-          body.append("reason", data.reason || "Falta");
-          if (data.attachment) body.append("attachment", data.attachment);
-          return api(`/shift-schedules/${reportSchedule.id}/absence/`, { method: "POST", body });
+        if (isDesignated) {
+          if (data.is_absent) {
+            return api(`/agendas/${selectedAgenda.id}/designated-absence/`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ user_id: memberId })
+            });
+          } else {
+            return api(`/agendas/${selectedAgenda.id}/designated-absence/`, {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ user_id: memberId })
+            });
+          }
+        } else {
+          if (data.is_absent) {
+            const body = new FormData();
+            body.append("member_type", memberType);
+            body.append("member_id", memberId);
+            body.append("reason", data.reason || "Falta");
+            if (data.attachment) body.append("attachment", data.attachment);
+            return api(`/shift-schedules/${reportSchedule.id}/absence/`, { method: "POST", body });
+          }
+          return api(`/shift-schedules/${reportSchedule.id}/absence/`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ member_type: memberType, member_id: memberId }),
+          });
         }
-        return api(`/shift-schedules/${reportSchedule.id}/absence/`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ member_type: memberType, member_id: memberId }),
-        });
       });
       await Promise.all(promises);
 
-      const checkedMembersData = {};
-      Object.entries(attendanceForm).forEach(([key, data]) => {
-        if (data.is_absent !== null) checkedMembersData[key] = true;
-      });
+      if (!isDesignated) {
+        const checkedMembersData = {};
+        Object.entries(attendanceForm).forEach(([key, data]) => {
+          if (data.is_absent !== null) checkedMembersData[key] = true;
+        });
 
-      await api(`/shift-schedules/${reportSchedule.id}/`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          checked_members: checkedMembersData,
-        }),
-      });
+        await api(`/shift-schedules/${reportSchedule.id}/`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            checked_members: checkedMembersData,
+          }),
+        });
 
-      if (markReported) {
-        await api(`/shift-schedules/${reportSchedule.id}/report-attendance/`, { method: "POST" });
+        if (markReported) {
+          await api(`/shift-schedules/${reportSchedule.id}/report-attendance/`, { method: "POST" });
+        }
+        await loadScheduleAttendance(reportSchedule.id);
+      } else {
+        const updatedAgenda = await api(`/agendas/${selectedAgenda.id}/`);
+        applyAgenda(updatedAgenda);
       }
 
-      await loadScheduleAttendance(reportSchedule.id);
       if (closeModal) setIsAttendanceModalOpen(false);
       if (successMessage) setMessage(successMessage);
     } finally {
@@ -770,7 +819,8 @@ export default function TechnicalReportsPage() {
 
   const saveReport = async (status) => {
     try {
-      if (reportSchedule && Object.keys(attendanceForm).length > 0) {
+      const isDesignated = selectedAgenda?.service_order_mode === "DESIGNATED";
+      if ((reportSchedule || isDesignated) && Object.keys(attendanceForm).length > 0) {
         await saveAttendance({
           closeModal: false,
           markReported: status === "SUBMITTED",
@@ -840,7 +890,8 @@ export default function TechnicalReportsPage() {
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
 
-    if (reportSchedule && Object.values(attendanceForm).some((d) => d.is_absent === null)) {
+    const isDesignated = selectedAgenda?.service_order_mode === "DESIGNATED";
+    if ((reportSchedule || isDesignated) && Object.values(attendanceForm).some((d) => d.is_absent === null)) {
       missingFields.push({ name: "Frequência da Equipe", id: "attendance-block" }); // assume attendance has this id or similar, I will add it
     }
 
@@ -883,7 +934,8 @@ export default function TechnicalReportsPage() {
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
 
-    if (reportSchedule && Object.values(attendanceForm).some((d) => d.is_absent === null)) {
+    const isDesignated = selectedAgenda?.service_order_mode === "DESIGNATED";
+    if ((reportSchedule || isDesignated) && Object.values(attendanceForm).some((d) => d.is_absent === null)) {
       missingFields.push({ name: "Frequência da Equipe", id: "attendance-block" });
     }
 
@@ -1265,11 +1317,11 @@ export default function TechnicalReportsPage() {
             </div>
           </div>
 
-          {reportSchedule && (
+          {(reportSchedule || selectedAgenda?.service_order_mode === "DESIGNATED") && (
             <div className="form-section attendance-highlight-section">
-              <h3>Frequência da Equipe</h3>
+              <h3>Frequência {reportSchedule ? "da Equipe" : "dos Participantes"}</h3>
               <p style={{ fontSize: "0.85rem", color: "var(--text-soft)", marginBottom: "12px" }}>
-                Gerencie as presenças e faltas do efetivo lançado na escala para este evento.
+                Gerencie as presenças e faltas do efetivo lançado para este evento.
               </p>
               <button
                 id="attendance-block"
@@ -1319,14 +1371,14 @@ export default function TechnicalReportsPage() {
             <header className="modal-header attendance-modal-header">
               <h2 style={{ display: "flex", alignItems: "center", gap: "10px", margin: 0 }}>
                 <Clipboard size={20} />
-                Gerenciar Frequência - {reportSchedule?.team}
+                Gerenciar Frequência - {reportSchedule ? reportSchedule.team : "Participantes Individuais"}
               </h2>
               <button className="icon-btn" type="button" onClick={() => setIsAttendanceModalOpen(false)}>
                 <X size={20} />
               </button>
             </header>
             <div className="modal-body attendance-modal-body">
-              {reportSchedule && (
+              {(reportSchedule || selectedAgenda?.service_order_mode === "DESIGNATED") && (
                 <div className="attendance-manager-list attendance-modal-list">
                   {Object.entries(attendanceForm).map(([key, data]) => (
                     <div key={key} className="attendance-member-card">
