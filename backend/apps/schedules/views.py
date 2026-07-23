@@ -2027,11 +2027,16 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         if cached_data:
             return response.Response(cached_data)
 
-        reports = self.get_queryset()
-        actions = EducationAction.objects.filter(report_id__in=reports.values("id"))
         params = request.query_params
+        reports = self.get_queryset()
+        if not params.get("status"):
+            reports = reports.filter(status=EducationReport.ReportStatus.APPROVED)
+
+        actions = EducationAction.objects.filter(report_id__in=reports.values("id"))
 
         yearly_reports = self._statistics_yearly_queryset()
+        if not params.get("status"):
+            yearly_reports = yearly_reports.filter(status=EducationReport.ReportStatus.APPROVED)
         reference_date = timezone.localdate()
         if params.get("date_to"):
             try:
@@ -2193,6 +2198,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(source=params["source"])
             if params.get("status"):
                 qs = qs.filter(status=params["status"])
+            else:
+                qs = qs.filter(status=EducationReport.ReportStatus.APPROVED)
             if params.get("q"):
                 term = params["q"].strip()
                 search_filter = (
