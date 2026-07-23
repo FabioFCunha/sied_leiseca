@@ -1462,8 +1462,8 @@ export default function AgendaPage() {
                     <input value={form.institution_location || ""} onChange={(e) => update("institution_location", e.target.value)} placeholder="Instituição/local" />
                   </label>
                   <label className="field-label">
-                    <span>Local para checagem de conflito</span>
-                    <input value={form.location || ""} onChange={(e) => update("location", e.target.value)} placeholder="Local" required />
+                    <span>Endereço do Local</span>
+                    <input value={form.address || ""} onChange={(e) => update("address", e.target.value)} placeholder="Endereço completo" required />
                   </label>
                   <div className="compact-grid">
                     <label className="field-label">
