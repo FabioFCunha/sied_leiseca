@@ -965,16 +965,26 @@ export default function AgendaPage() {
     setMessage("");
     const nextForm = { ...form, status };
     if (status === "APPROVED") {
+      const isDesignatedMode = (nextForm.service_order_mode || "TEAM") === "DESIGNATED";
       const hasSchedule = nextForm.date && nextForm.start_time && nextForm.end_time;
       const hasResponsible = nextForm.responsible;
       const hasLocation = nextForm.location;
       const hasVehicle = nextForm.vehicle_ref || nextForm.vehicle;
-      const hasTeam = nextForm.team_ref || nextForm.team_name || nextForm.sector;
-      const hasChief = nextForm.chief_ref || nextForm.chief_name;
-      const hasAgents = (nextForm.agents_ref || []).length || nextForm.agents;
-      if (!hasSchedule || !hasResponsible || !hasLocation || !hasTeam || !hasChief || !hasAgents) {
-        setMessage("Para aprovar, informe data, horário, responsável, local, equipe, chefe e agentes.");
-        return;
+      
+      if (isDesignatedMode) {
+        const hasDesignatedUsers = (nextForm.designated_users || []).length;
+        if (!hasSchedule || !hasResponsible || !hasLocation || !hasDesignatedUsers) {
+          setMessage("Para aprovar, informe data, horário, responsável, local e a pessoa selecionada.");
+          return;
+        }
+      } else {
+        const hasTeam = nextForm.team_ref || nextForm.team_name || nextForm.sector;
+        const hasChief = nextForm.chief_ref || nextForm.chief_name;
+        const hasAgents = (nextForm.agents_ref || []).length || nextForm.agents;
+        if (!hasSchedule || !hasResponsible || !hasLocation || !hasTeam || !hasChief || !hasAgents) {
+          setMessage("Para aprovar, informe data, horário, responsável, local, equipe, chefe e agentes.");
+          return;
+        }
       }
     }
     if (status === "CANCELLED") {
