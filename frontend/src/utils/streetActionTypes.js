@@ -1,13 +1,10 @@
 export const STREET_ACTION_TYPE_OPTIONS = [
   "Bares",
   "Pedágio",
-  "Esportes",
+  "Praças Esportivas",
   "Praia",
   "Eventos",
-  "Shopping/Centro Comercial",
-  "Praças/Parques públicos",
+  "Shopping/Centro Comerciais",
+  "Praças/Parques Públicos",
   "Pontos turísticos",
-  "Ação Social",
-  "Ação conjunta com a fiscalização",
-  "Outros",
 ];
