@@ -8,6 +8,7 @@ from django.db.models.functions import Coalesce
 
 from apps.schedules.models import EducationAction, EducationReport
 from apps.statistics.models import ConsolidatedStatistic
+from apps.statistics.historical_baseline import HISTORICAL_BASELINE
 from apps.statistics.services import aggregate_official_rows, aggregate_official_statistics
 from apps.statistics.views import get_hybrid_queryset
 
@@ -20,6 +21,8 @@ STREET_KEYS = (
     'ACTION - Praças/Parques Públicos', 'ACTION - Pontos turísticos',
     'ACTION - Fiscalização',
 )
+DIMENSION_FILTERS = ('municipality', 'team', 'institution', 'entity', 'action_type')
+
 CATEGORY_LABELS = {
     'ACTION - Escola': 'Escolas', 'ACTION - Universidade': 'Universidades',
     'ACTION - Empresa': 'Empresas', 'ACTION - Bares': 'Bares',
@@ -78,8 +81,7 @@ def _operational_reports(date_from, date_to, filters):
 
 def filtered_statistics(date_from, date_to, filters):
     qs = get_hybrid_queryset(date_from, date_to)
-    dimension_filters = ('municipality', 'team', 'institution', 'entity', 'action_type')
-    if any(filters.get(key) for key in dimension_filters):
+    if _has_dimension_filters(filters):
         trace_ids = [f'report_{pk}' for pk in _operational_reports(date_from, date_to, filters).values_list('pk', flat=True)]
         qs = qs.filter(methodology='SIED_OPERATIONAL', traceability_id__in=trace_ids)
     return qs
@@ -96,15 +98,35 @@ def _grouped_statistics(queryset, field):
     return grouped
 
 
+def _has_dimension_filters(filters):
+    return any(filters.get(key) for key in DIMENSION_FILTERS)
+
+
+def _add_totals(base, addition):
+    values = dict(base)
+    for key, value in addition.items():
+        values[key] = float(values.get(key, 0) or 0) + float(value or 0)
+    return values
+
+
 def _annual_series(filters):
     current_year = date.today().year
     grouped = _grouped_statistics(
-        filtered_statistics(date(2011, 1, 1), date(current_year, 12, 31), filters),
+        filtered_statistics(date(2011, 1, 1), date(current_year, 12, 31), filters).filter(methodology='SIED_OPERATIONAL'),
         'reference_year',
     )
+    years = set(grouped)
+    if not _has_dimension_filters(filters):
+        years.update(HISTORICAL_BASELINE)
     return [
-        {'year': year, 'values': derived_totals(aggregate_official_rows(rows))}
-        for year, rows in grouped.items()
+        {
+            'year': year,
+            'values': derived_totals(_add_totals(
+                {} if _has_dimension_filters(filters) else HISTORICAL_BASELINE.get(year, {}),
+                aggregate_official_rows(grouped.get(year, [])),
+            )),
+        }
+        for year in sorted(year for year in years if year)
     ]
 
 

@@ -1,6 +1,7 @@
 from datetime import date
 from types import SimpleNamespace
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.schedules.models import ActionType
@@ -11,6 +12,7 @@ from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardV
 
 class OfficialStatisticsTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.action = ActionType.objects.get(name='A\u00e7\u00e3o')
         self.lecture = ActionType.objects.get(name='Palestra')
 
@@ -104,6 +106,21 @@ class OfficialStatisticsTests(TestCase):
         self.assertIn('monthly', response.data)
         self.assertIn('categories', response.data)
         self.assertIn('heatmap', response.data)
+
+    @override_settings(STATISTICS_CUTOFF_DATE='2026-07-09')
+    def test_dashboard_annual_series_includes_spreadsheet_history(self):
+        self.stat('AUDIENCE', 100, reference_date=date(2026, 7, 10), trace='sied')
+        request = APIRequestFactory().get('/statistics/dashboard/', {
+            'date_from': '2026-07-09', 'date_to': '2026-07-24',
+        })
+        force_authenticate(request, user=self.user)
+        response = StatisticsDashboardView.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        annual = {row['year']: row['values'] for row in response.data['annual']}
+        self.assertEqual(annual[2011]['AUDIENCE - Geral'], 766996)
+        self.assertEqual(annual[2025]['ACTION - Geral'], 1541)
+        self.assertEqual(annual[2026]['AUDIENCE - Geral'], 84803)
+
     def test_generate_is_idempotent_and_uses_action_materials(self):
         agenda = SimpleNamespace(action_type_ref=self.action, action_type='', requester_entity_type='7')
         action = SimpleNamespace(agenda=agenda, type_action='A\u00e7\u00e3o', distribution_materials_distributed='Certificados | 2\nRevistinha | 3')
