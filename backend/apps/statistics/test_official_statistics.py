@@ -109,6 +109,21 @@ class OfficialStatisticsTests(TestCase):
         self.assertIn('heatmap', response.data)
 
     @override_settings(STATISTICS_CUTOFF_DATE='2026-07-09')
+    def test_dashboard_visual_monthly_distributes_2026_historical_average_without_changing_official_monthly(self):
+        request = APIRequestFactory().get('/statistics/dashboard/', {
+            'date_from': '2026-01-01', 'date_to': '2026-07-24',
+        })
+        force_authenticate(request, user=self.user)
+
+        response = StatisticsDashboardView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        official_january = response.data['monthly'][0]['values']
+        visual_january = response.data['visual_monthly'][0]['values']
+        self.assertEqual(official_january.get('ACTION - Geral', 0), 0)
+        self.assertAlmostEqual(visual_january['ACTION - Geral'], 502 / 6)
+        self.assertAlmostEqual(visual_january['AUDIENCE - Geral'], 84703 / 6)
+
     def test_dashboard_annual_series_includes_spreadsheet_history(self):
         self.stat('AUDIENCE', 100, reference_date=date(2026, 7, 10), trace='sied')
         request = APIRequestFactory().get('/statistics/dashboard/', {

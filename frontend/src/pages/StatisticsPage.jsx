@@ -27,8 +27,8 @@ const SERIES = [
 ];
 const KPI_DEFS = [
   ["AUDIENCE - Geral", "Público alcançado", Users, COLORS[0]],
-  ["EXPECTED_PUBLIC", "P?blico previsto nas solicita??es", Users, COLORS[9]],
-  ["REPORTS_WITHOUT_PUBLIC", "Relat?rios sem p?blico informado", BarChart3, COLORS[10]],
+  ["EXPECTED_PUBLIC", "Público previsto nas solicitações", Users, COLORS[9]],
+  ["REPORTS_WITHOUT_PUBLIC", "Relatórios sem público informado", BarChart3, COLORS[10]],
   ["ACTION - Geral", "Ações educativas", CalendarDays, COLORS[2]],
   ["LECTURES - Geral", "Palestras", Presentation, COLORS[1]],
   ["STREET_ACTIONS - Geral", "Ações de rua", Activity, COLORS[3]],
@@ -136,19 +136,20 @@ export default function StatisticsPage() {
 
   const annual = useMemo(() => (data?.annual || []).map(row => ({ year: row.year, ...row.values, ...Object.fromEntries(SERIES.map(([alias,, key]) => [alias, Number(row.values[key] || 0)])) })), [data]);
   const monthly = useMemo(() => (data?.monthly || []).map(row => ({ month: MONTHS[row.month - 1], ...row.values, audience: Number(row.values["AUDIENCE - Geral"] || 0), lectures: Number(row.values["LECTURES - Geral"] || 0), street: Number(row.values["STREET_ACTIONS - Geral"] || 0) })), [data]);
+  const visualMonthly = useMemo(() => (data?.visual_monthly || data?.monthly || []).map(row => ({ month: MONTHS[row.month - 1], ...row.values, audience: Number(row.values["AUDIENCE - Geral"] || 0), lectures: Number(row.values["LECTURES - Geral"] || 0), street: Number(row.values["STREET_ACTIONS - Geral"] || 0) })), [data]);
   const categoryData = useMemo(() => (data?.categories || []).map((row, index) => ({ ...row, value: Number(row.value || 0), audience: Number(row.audience || 0), color: COLORS[index % COLORS.length] })).sort((a, b) => b.value - a.value), [data]);
   const totalActions = Number(data?.summary?.["ACTION - Geral"] || 0);
   const latestYears = annual.slice(-5);
   const projection = useMemo(() => {
     const selectedMonth = new Date(filters.date_to + "T12:00:00").getMonth();
-    const realizedTotal = monthly.slice(0, selectedMonth + 1).reduce((sum, row) => sum + Number(row.audience || 0), 0);
+    const realizedTotal = visualMonthly.slice(0, selectedMonth + 1).reduce((sum, row) => sum + Number(row.audience || 0), 0);
     const monthlyPace = realizedTotal / Math.max(selectedMonth + 1, 1);
     let cumulative = 0;
-    return monthly.map((row, index) => {
+    return visualMonthly.map((row, index) => {
       if (index <= selectedMonth) cumulative += Number(row.audience || 0);
       return { ...row, realized: index <= selectedMonth ? cumulative : null, projection: Math.round(monthlyPace * (index + 1)) };
     });
-  }, [monthly, filters.date_to]);
+  }, [visualMonthly, filters.date_to]);
 
   const reset = () => { const base = { date_from: `${now.getFullYear()}-01-01`, date_to: iso(now), municipality: "", team: "", action_type: "", entity: "", institution: "" }; setPending(base); setFilters(base); };
   const exportExcel = () => {
@@ -186,7 +187,7 @@ export default function StatisticsPage() {
 
       <Section icon={TrendingUp} title="Série histórica institucional" subtitle="Ative ou desative os indicadores para comparar a evolução anual."><div className="stats-series-switches">{SERIES.map(([alias, label,, color]) => <label key={alias}><input type="checkbox" checked={activeSeries[alias]} onChange={() => setActiveSeries(v => ({ ...v, [alias]: !v[alias] }))}/><i style={{ background: color }}/>{label}</label>)}</div><div className="stats-chart-xl">{annual.length ? <ResponsiveContainer><LineChart data={annual} margin={{ top: 15, right: 25, bottom: 5, left: 10 }}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="year"/><YAxis tickFormatter={number}/><Tooltip formatter={number}/><Legend/>{SERIES.map(([alias, label,, color]) => activeSeries[alias] && <Line key={alias} type="monotone" dataKey={alias} name={label} stroke={color} strokeWidth={3} dot={{ r: 3 }} connectNulls/>)}</LineChart></ResponsiveContainer> : <Empty>Importe a série histórica oficial para visualizar 2011–2026.</Empty>}</div></Section>
 
-      <div className="stats-two-columns"><Section icon={CalendarDays} title="Evolução mensal" subtitle="Janeiro a dezembro no período selecionado." actions={<div className="stats-segmented"><button className={seriesMode === "quantity" ? "active" : ""} onClick={() => setSeriesMode("quantity")}>Quantidade</button><button className={seriesMode === "audience" ? "active" : ""} onClick={() => setSeriesMode("audience")}>Público</button></div>}><div className="stats-chart"><ResponsiveContainer><LineChart data={monthly}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="month"/><YAxis tickFormatter={number}/><Tooltip formatter={number}/>{seriesMode === "audience" ? <Line type="monotone" dataKey="audience" name="Público" stroke={COLORS[0]} strokeWidth={3}/> : <><Line type="monotone" dataKey="lectures" name="Palestras" stroke={COLORS[1]} strokeWidth={3}/><Line type="monotone" dataKey="street" name="Ações de rua" stroke={COLORS[2]} strokeWidth={3}/></>}</LineChart></ResponsiveContainer></div></Section><Section icon={Activity} title="Palestras × ações de rua" subtitle="Comparativo mensal por modalidade."><div className="stats-chart"><ResponsiveContainer><BarChart data={monthly}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="month"/><YAxis/><Tooltip formatter={number}/><Legend/><Bar dataKey="lectures" name="Palestras" fill={COLORS[1]} radius={[5,5,0,0]}/><Bar dataKey="street" name="Ações de rua" fill={COLORS[2]} radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div></Section></div>
+      <div className="stats-two-columns"><Section icon={CalendarDays} title="Evolução mensal" subtitle="Janeiro a dezembro no período selecionado." actions={<div className="stats-segmented"><button className={seriesMode === "quantity" ? "active" : ""} onClick={() => setSeriesMode("quantity")}>Quantidade</button><button className={seriesMode === "audience" ? "active" : ""} onClick={() => setSeriesMode("audience")}>Público</button></div>}><div className="stats-chart"><ResponsiveContainer><LineChart data={visualMonthly}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="month"/><YAxis tickFormatter={number}/><Tooltip formatter={number}/>{seriesMode === "audience" ? <Line type="monotone" dataKey="audience" name="Público" stroke={COLORS[0]} strokeWidth={3}/> : <><Line type="monotone" dataKey="lectures" name="Palestras" stroke={COLORS[1]} strokeWidth={3}/><Line type="monotone" dataKey="street" name="Ações de rua" stroke={COLORS[2]} strokeWidth={3}/></>}</LineChart></ResponsiveContainer></div></Section><Section icon={Activity} title="Palestras × ações de rua" subtitle="Comparativo mensal por modalidade."><div className="stats-chart"><ResponsiveContainer><BarChart data={visualMonthly}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="month"/><YAxis/><Tooltip formatter={number}/><Legend/><Bar dataKey="lectures" name="Palestras" fill={COLORS[1]} radius={[5,5,0,0]}/><Bar dataKey="street" name="Ações de rua" fill={COLORS[2]} radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div></Section></div>
 
       <div className="stats-two-columns"><Section icon={Activity} title="Distribuição das ações" subtitle="Participação percentual por categoria."><div className="stats-chart"><ResponsiveContainer><PieChart><Pie data={categoryData} dataKey="value" nameKey="label" innerRadius="52%" outerRadius="78%" paddingAngle={2} onClick={entry => setDrilldown(entry)}>{categoryData.map((entry, index) => <Cell key={entry.key} fill={COLORS[index % COLORS.length]}/>)}</Pie><Tooltip formatter={number}/><Legend layout="vertical" verticalAlign="middle" align="right"/></PieChart></ResponsiveContainer></div></Section><Section icon={Users} title="Público e volume por categoria" subtitle="Ranking operacional das categorias selecionadas."><div className="stats-chart"><ResponsiveContainer><BarChart data={categoryData.slice(0, 10)} layout="vertical" margin={{ left: 30 }}><CartesianGrid strokeDasharray="3 3"/><XAxis type="number"/><YAxis dataKey="label" type="category" width={125}/><Tooltip formatter={number}/><Bar dataKey="audience" name="Público" radius={[0,6,6,0]} onClick={entry => setDrilldown(entry)}>{categoryData.map((entry, index) => <Cell key={entry.key} fill={COLORS[index % COLORS.length]}/>)}</Bar></BarChart></ResponsiveContainer></div></Section></div>
 

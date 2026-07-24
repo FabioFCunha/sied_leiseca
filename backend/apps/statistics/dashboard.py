@@ -187,6 +187,24 @@ def _monthly_series(year, filters):
         {'month': month, 'values': derived_totals(aggregate_official_rows(grouped.get(month, [])))}
         for month in range(1, 13)
     ]
+
+
+
+def _visual_monthly_series(year, filters):
+    rows = _monthly_series(year, filters)
+    if _has_dimension_filters(filters) or year not in HISTORICAL_BASELINE:
+        return rows
+    monthly_baseline = {
+        key: float(value or 0) / 6
+        for key, value in HISTORICAL_BASELINE.get(year, {}).items()
+    }
+    visual_rows = []
+    for row in rows:
+        values = dict(row['values'])
+        if row['month'] <= 6:
+            values = derived_totals(_add_totals(values, monthly_baseline))
+        visual_rows.append({'month': row['month'], 'values': values})
+    return visual_rows
 def _category_audience(date_from, date_to, filters):
     reports = _operational_reports(date_from, date_to, filters)
     actions = EducationAction.objects.filter(report__in=reports).select_related('agenda', 'report', 'agenda__action_type_ref')
@@ -268,6 +286,7 @@ def dashboard_payload(date_from, date_to, filters):
     comparisons = {key: variation(current.get(key, 0), previous.get(key, 0)) for key in keys}
     annual = _annual_series(filters)
     monthly = _monthly_series(date_to.year, filters)
+    visual_monthly = _visual_monthly_series(date_to.year, filters)
     category_audience = _category_audience(date_from, date_to, filters)
     categories = [
         {
@@ -283,7 +302,7 @@ def dashboard_payload(date_from, date_to, filters):
     payload = {
         'period': {'from': date_from, 'to': date_to, 'previous_from': previous_from, 'previous_to': previous_to},
         'summary': current, 'previous': previous, 'comparisons': comparisons,
-        'annual': annual, 'monthly': monthly, 'categories': categories,
+        'annual': annual, 'monthly': monthly, 'visual_monthly': visual_monthly, 'categories': categories,
         **rankings,
         'metadata': {'historical_dimensions': False, 'operational_dimensions_from': '2026-07-09'},
     }
