@@ -19,7 +19,7 @@ STREET_KEYS = (
     'ACTION - Praia', 'ACTION - Eventos', 'ACTION - Shopping',
     'ACTION - Ação Social', 'ACTION - Outros',
     'ACTION - Praças/Parques Públicos', 'ACTION - Pontos turísticos',
-    'ACTION - Fiscalização',
+    'ACTION - Ação conjunta com a fiscalização',
 )
 DIMENSION_FILTERS = ('municipality', 'team', 'institution', 'entity', 'action_type')
 
@@ -32,7 +32,7 @@ CATEGORY_LABELS = {
     'ACTION - Ação Social': 'Ação Social', 'ACTION - Outros': 'Outros',
     'ACTION - Praças/Parques Públicos': 'Praças/Parques Públicos',
     'ACTION - Pontos turísticos': 'Pontos turísticos',
-    'ACTION - Fiscalização': 'Fiscalização',
+    'ACTION - Ação conjunta com a fiscalização': 'Ação conjunta com a fiscalização',
 }
 
 
@@ -157,7 +157,7 @@ def _category_audience(date_from, date_to, filters):
         elif 'evento' in entity or entity == '5': key = 'ACTION - Eventos'
         elif 'shopping' in entity or entity == '12': key = 'ACTION - Shopping'
         elif 'turíst' in entity or 'turist' in entity or entity == '13': key = 'ACTION - Pontos turísticos'
-        elif 'fiscaliza' in entity or entity == '14': key = 'ACTION - Fiscalização'
+        elif 'fiscaliza' in entity or entity == '14': key = 'ACTION - Ação conjunta com a fiscalização'
         elif 'social' in entity or entity == '15': key = 'ACTION - Ação Social'
         elif 'praça' in entity or 'praca' in entity or 'parque' in entity or entity == '11': key = 'ACTION - Praças/Parques Públicos'
         else: key = 'ACTION - Outros'

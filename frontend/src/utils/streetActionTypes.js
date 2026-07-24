@@ -7,4 +7,5 @@ export const STREET_ACTION_TYPE_OPTIONS = [
   "Shopping/Centro Comerciais",
   "Praças/Parques Públicos",
   "Pontos turísticos",
+  "Ação conjunta com a fiscalização",
 ];

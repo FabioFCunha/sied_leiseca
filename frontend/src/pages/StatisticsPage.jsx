@@ -55,7 +55,7 @@ const HISTORICAL_ROWS = [
   ["ACTION - Outros", "3.8 - Outros"],
   ["ACTION - Praças/Parques Públicos", "3.9 - Praças/Parques Públicos"],
   ["ACTION - Pontos turísticos", "3.10 - Pontos turísticos"],
-  ["ACTION - Fiscalização", "3.11 - Fiscalização"],
+  ["ACTION - Ação conjunta com a fiscalização", "3.11 - Ação conjunta com a fiscalização"],
   ["MATERIAL - Geral", "4 - Materiais de divulgação"],
   ["MATERIAL - Soprinho", "Revistinha Soprinho"],
 ];

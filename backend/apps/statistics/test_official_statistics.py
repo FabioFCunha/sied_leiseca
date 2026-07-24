@@ -52,7 +52,7 @@ class OfficialStatisticsTests(TestCase):
         totals = aggregate_official_statistics(ConsolidatedStatistic.objects.all())
         self.assertEqual(totals['ACTION - Pra\u00e7as/Parques P\u00fablicos'], 2)
         self.assertEqual(totals['ACTION - Pontos tur\u00edsticos'], 3)
-        self.assertEqual(totals['ACTION - Fiscaliza\u00e7\u00e3o'], 4)
+        self.assertEqual(totals['ACTION - A\u00e7\u00e3o conjunta com a fiscaliza\u00e7\u00e3o'], 4)
     def test_legacy_action_total_is_rebuilt_from_details_once(self):
         self.stat('ACTION', 2, entity='Escola', methodology='HISTORICAL_LEGACY')
         self.stat('ACTION', 3, entity='Bares', methodology='HISTORICAL_LEGACY')
