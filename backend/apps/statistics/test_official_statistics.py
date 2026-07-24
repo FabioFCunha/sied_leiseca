@@ -388,6 +388,20 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(categories['ACTION - Bares']['audience'], 200)
         self.assertEqual([row['team'] for row in response.data['teams']], ['GOLF'])
 
+    def test_dashboard_municipalities_exclude_zero_rows(self):
+        self.create_processed_street_report(team='GOLF', label='Bares', public=200)
+        request = APIRequestFactory().get('/statistics/dashboard/', {
+            'date_from': '2026-07-01', 'date_to': '2026-07-31',
+        })
+        force_authenticate(request, user=self.user)
+
+        response = StatisticsDashboardView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['municipalities'])
+        for row in response.data['municipalities']:
+            self.assertTrue(row['actions'] > 0 or row['audience'] > 0)
+
     def test_dashboard_filter_teams_only_include_alfa_to_hotel(self):
         self.create_processed_street_report(team='GOLF', label='Bares', public=200)
         self.create_processed_street_report(team='Historico', label='Eventos', public=50)

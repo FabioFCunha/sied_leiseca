@@ -249,7 +249,12 @@ def _category_audience(date_from, date_to, filters):
     return result
 def _rankings(date_from, date_to, filters):
     reports = _operational_reports(date_from, date_to, filters)
-    municipalities = list(reports.values('agenda__city').annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0)).order_by('-actions')[:15])
+    municipalities = list(
+        reports.values('agenda__city')
+        .annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0))
+        .filter(Q(actions__gt=0) | Q(audience__gt=0))
+        .order_by('-actions')[:15]
+    )
     teams = list(
         reports.filter(team__in=OFFICIAL_TEAMS)
         .values('team')

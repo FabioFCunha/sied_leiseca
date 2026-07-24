@@ -22,18 +22,15 @@ const SERIES = [
   ["streetAudience", "Público em ações", "AUDIENCE - ACOES", COLORS[2]],
   ["actions", "Total de ações", "ACTION - Geral", COLORS[3]],
   ["materials", "Materiais", "MATERIAL - Geral", COLORS[4]],
-  ["certificates", "Certificados", "MATERIAL - Certificados", COLORS[5]],
   ["comics", "Revistinhas", "MATERIAL - Soprinho", COLORS[6]],
 ];
 const KPI_DEFS = [
   ["AUDIENCE - Geral", "Público alcançado", Users, COLORS[0]],
-  ["EXPECTED_PUBLIC", "Público previsto nas solicitações", Users, COLORS[9]],
   ["REPORTS_WITHOUT_PUBLIC", "Relatórios sem público informado", BarChart3, COLORS[10]],
   ["ACTION - Geral", "Ações educativas", CalendarDays, COLORS[2]],
   ["LECTURES - Geral", "Palestras", Presentation, COLORS[1]],
   ["STREET_ACTIONS - Geral", "Ações de rua", Activity, COLORS[3]],
   ["MATERIAL - Geral", "Materiais distribuídos", BookOpen, COLORS[4]],
-  ["MATERIAL - Certificados", "Certificados entregues", Award, COLORS[5]],
   ["MATERIAL - Soprinho", "Revistinhas distribuídas", BookOpen, COLORS[6]],
   ["AVERAGE_AUDIENCE", "Média de público por ação", BarChart3, COLORS[8]],
 ];
@@ -45,7 +42,6 @@ const HISTORICAL_ROWS = [
   ["ACTION - Escola", "2.1 - Escolas"],
   ["ACTION - Universidade", "2.2 - Universidades"],
   ["ACTION - Empresa", "2.3 - Empresas"],
-  ["MATERIAL - Certificados", "2.4 - Certificados entregues"],
   ["STREET_ACTIONS - Geral", "3 - Ações de rua"],
   ["ACTION - Bares", "3.1 - Bares"],
   ["ACTION - Pedágio", "3.2 - Pedágio"],
@@ -104,9 +100,26 @@ function MetricCard({ definition, summary, previous, comparison, sparkline, tota
 }
 
 function Heatmap({ rows }) {
-  if (!rows?.length) return <Empty />;
-  const max = Math.max(...rows.map(row => Number(row.actions || 0)), 1);
-  return <div className="stats-heatmap">{rows.map(row => <div key={row.operation_date} className="stats-heat-cell" style={{ opacity: .18 + .82 * Number(row.actions || 0) / max }} title={`${row.operation_date}: ${number(row.actions)} ações · público ${number(row.audience)}`}><span>{new Date(`${row.operation_date}T12:00:00`).getDate()}</span></div>)}</div>;
+  const activeRows = (rows || []).filter(row => Number(row.actions || 0) > 0 || Number(row.audience || 0) > 0);
+  if (!activeRows.length) return <Empty />;
+  const max = Math.max(...activeRows.map(row => Number(row.actions || 0)), 1);
+  return (
+    <div className="stats-heat-list">
+      {activeRows.map(row => {
+        const date = new Date(`${row.operation_date}T12:00:00`);
+        const intensity = Number(row.actions || 0) / max;
+        return (
+          <div key={row.operation_date} className="stats-heat-row">
+            <span className="stats-heat-day">{date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+            <span className="stats-heat-weekday">{date.toLocaleDateString("pt-BR", { weekday: "short" })}</span>
+            <div className="stats-heat-bar"><i style={{ width: `${Math.max(8, intensity * 100)}%` }} /></div>
+            <strong>{number(row.actions)} ações</strong>
+            <small>{number(row.audience)} público</small>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function Ranking({ rows, nameKey }) {
