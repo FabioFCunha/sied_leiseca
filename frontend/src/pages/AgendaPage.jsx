@@ -628,7 +628,7 @@ export default function AgendaPage() {
 
   const allAgents = useMemo(() => {
     if (isEditingApprovedServiceOrder) {
-      return lookups.agents.filter((agent) => belongsToTeam(agent, form.team_ref, selectedTeamName) && !isSupportRole(agent));
+      return lookups.agents.filter((agent) => !isSupportRole(agent));
     }
 
     let busyInOtherShifts = new Set();
