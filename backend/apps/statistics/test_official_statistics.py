@@ -147,6 +147,17 @@ class OfficialStatisticsTests(TestCase):
             type_action='Acao de Rua',
             institution_name='Acao externa',
             distribution_materials_distributed='',
+            bars=1 if label == 'Bares' else 0,
+            tolls=1 if label == 'Pedagio' else 0,
+            sports=1 if label == 'Pracas Esportivas' else 0,
+            beach=1 if label == 'Praia' else 0,
+            events=1 if label == 'Eventos' else 0,
+            shopping=1 if label == 'Shopping/Centro Comerciais' else 0,
+            parks=1 if label == 'Pracas/Parques Publicos' else 0,
+            tourist_spots=1 if label == 'Pontos turisticos' else 0,
+            social_actions=0,
+            joint_inspections=1 if label == 'Acao conjunta com a fiscalizacao' else 0,
+            other_actions=0,
         )
         return SimpleNamespace(
             id=report_id,
@@ -162,6 +173,41 @@ class OfficialStatisticsTests(TestCase):
             statistics_processed_by=None,
             save=lambda **kwargs: None,
         )
+
+    def test_street_action_counter_classifies_bares_when_details_are_empty(self):
+        agenda = SimpleNamespace(
+            action_type_ref=SimpleNamespace(name='Acao de Rua'),
+            action_type='',
+            requester_entity_type='6',
+            institution_location='Acao externa',
+            street_action_details=[],
+        )
+        action = SimpleNamespace(
+            agenda=agenda,
+            type_action='Acao de Rua',
+            institution_name='Acao externa',
+            distribution_materials_distributed='',
+            bars=1,
+        )
+        report = SimpleNamespace(
+            id=1015,
+            status='APPROVED',
+            operation_date=date(2026, 7, 24),
+            created_at=None,
+            approximate_public=200,
+            street_action_details=[],
+            distribution_materials_distributed='',
+            actions=SimpleNamespace(all=lambda: [action]),
+            statistics_processed=False,
+            statistics_processed_at=None,
+            statistics_processed_by=None,
+            save=lambda **kwargs: None,
+        )
+        generate_statistics_for_report(report)
+        totals = aggregate_official_statistics(ConsolidatedStatistic.objects.filter(traceability_id='report_1015', status='ACTIVE'))
+        self.assertEqual(totals['ACTION - Bares'], 1)
+        self.assertEqual(totals['ACTION - Outros'], 0)
+        self.assertEqual(totals['AUDIENCE - ACOES'], 200)
 
     def test_all_current_street_action_details_feed_official_categories(self):
         cases = [
@@ -212,12 +258,17 @@ class OfficialStatisticsTests(TestCase):
             statistics_processed=True,
             created_by=self.user,
         )
+        counter_values = {
+            'Bares': {'bars': 1},
+            'Eventos': {'events': 1},
+        }.get(label, {})
         EducationAction.objects.create(
             report=report,
             agenda=agenda,
             type_action='Acao de Rua',
             institution_name='Local externo',
             approach=0,
+            **counter_values,
         )
         generate_statistics_for_report(report)
         return report

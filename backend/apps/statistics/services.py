@@ -91,6 +91,35 @@ def _street_entity_from_details(*sources):
             return 'OUTROS'
     return ''
 
+
+STREET_ACTION_COUNTER_ENTITIES = (
+    ('bars', 'BARES'),
+    ('tolls', 'PEDAGIO'),
+    ('sports', 'ESPORTES'),
+    ('beach', 'PRAIA'),
+    ('events', 'EVENTOS'),
+    ('shopping', 'SHOPPING'),
+    ('parks', 'PRACAS'),
+    ('tourist_spots', 'PONTOS TURISTICOS'),
+    ('social_actions', 'ACAO SOCIAL'),
+    ('joint_inspections', 'FISCALIZACAO'),
+    ('other_actions', 'OUTROS'),
+)
+
+
+def _positive_counter(value):
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _street_entity_from_action_counters(action):
+    for field, entity in STREET_ACTION_COUNTER_ENTITIES:
+        if _positive_counter(getattr(action, field, 0)) > 0:
+            return entity
+    return ''
+
 def aggregate_official_rows(rows):
     totals = defaultdict(float)
     for row in rows:
@@ -280,7 +309,7 @@ def generate_statistics_for_report(report, processed_by=None):
             getattr(action, 'street_action_details', None),
             getattr(report, 'street_action_details', None),
             getattr(agenda, 'street_action_details', None),
-        )
+        ) or _street_entity_from_action_counters(action)
         entity_name_lower = (street_entity or entity_type_ref).lower()
         institution_name_lower = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').lower()
         is_school_context = (

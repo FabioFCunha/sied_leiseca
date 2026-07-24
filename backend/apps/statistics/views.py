@@ -177,7 +177,7 @@ class StatisticsDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from apps.statistics.dashboard import OFFICIAL_TEAMS, dashboard_payload
+        from apps.statistics.dashboard import dashboard_payload
         today = date.today()
         date_from = parse_date(request.query_params.get('date_from')) or date(today.year, 1, 1)
         date_to = parse_date(request.query_params.get('date_to')) or today
@@ -215,7 +215,7 @@ class StatisticsDashboardCsvView(APIView):
     def get(self, request):
         import csv
         from django.http import HttpResponse
-        from apps.statistics.dashboard import OFFICIAL_TEAMS, dashboard_payload
+        from apps.statistics.dashboard import dashboard_payload
         today = date.today()
         date_from = parse_date(request.query_params.get('date_from')) or date(today.year, 1, 1)
         date_to = parse_date(request.query_params.get('date_to')) or today

@@ -9,7 +9,7 @@ from django.db.models.functions import Coalesce
 from apps.schedules.models import EducationAction, EducationReport
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
-from apps.statistics.services import _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
+from apps.statistics.services import _street_entity_from_action_counters, _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
 from apps.statistics.views import get_hybrid_queryset
 
 
@@ -147,11 +147,13 @@ def _category_audience(date_from, date_to, filters):
     for action in actions:
         agenda = action.agenda
         report = action.report
+        if not agenda or not report:
+            continue
         street_entity = _street_entity_from_details(
             getattr(action, 'street_action_details', None),
             getattr(report, 'street_action_details', None),
             getattr(agenda, 'street_action_details', None),
-        )
+        ) or _street_entity_from_action_counters(action)
         entity = str(street_entity or agenda.requester_entity_type or '').casefold()
         action_name = str((agenda.action_type_ref.name if agenda.action_type_ref else '') or action.type_action or '').casefold()
         institution_name = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').casefold()
