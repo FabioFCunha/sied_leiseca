@@ -9,7 +9,6 @@ export function hasFilledValue(value) {
 
 export function isActionMeaningful(action) {
   if (!action || typeof action !== "object") return false;
-  if (action.__userCreated === true) return true;
   return [
     action.type_action,
     action.place_action,

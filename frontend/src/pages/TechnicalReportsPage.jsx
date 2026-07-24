@@ -1527,9 +1527,15 @@ export default function TechnicalReportsPage() {
                         <button className="secondary icon-button" onClick={() => { setReportsPreviewModal(r); }} title="Visualizar">
                           <Eye size={16} />
                         </button>
-                        <button className="secondary icon-button" onClick={() => edit(r)} title="Editar" disabled={isEditingLoading}>
-                          <Clipboard size={16} />
-                        </button>
+                        {["DRAFT", "RETURNED"].includes(r.status) ? (
+                          <button className="secondary" onClick={() => edit(r)} title="Corrigir relatório" disabled={isEditingLoading}>
+                            <Edit3 size={16} /> Corrigir
+                          </button>
+                        ) : (
+                          <button className="secondary icon-button" onClick={() => edit(r)} title="Editar" disabled={isEditingLoading}>
+                            <Clipboard size={16} />
+                          </button>
+                        )}
                         {isAdmin && r.status === "PENDING_REVIEW" && (
                           <>
                             <button className="primary icon-button" onClick={() => approveReport(r.id)} title="Aprovar" disabled={isApproving}>
