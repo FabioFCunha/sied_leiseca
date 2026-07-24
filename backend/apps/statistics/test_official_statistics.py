@@ -8,7 +8,7 @@ from apps.schedules.models import ActionType, Agenda, EducationAction, Education
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import _parse_materials, aggregate_official_statistics, generate_statistics_for_report
 from apps.statistics.dashboard import _category_audience
-from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardView, get_hybrid_queryset
+from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardFiltersView, StatisticsDashboardView, get_hybrid_queryset
 
 
 class OfficialStatisticsTests(TestCase):
@@ -186,28 +186,28 @@ class OfficialStatisticsTests(TestCase):
                 self.assertEqual(totals['ACTION - Outros'], 0)
                 self.assertEqual(totals['AUDIENCE - ACOES'], 80)
 
-    def test_category_audience_uses_report_approach_number_when_action_approach_is_zero(self):
+    def create_processed_street_report(self, *, team, label='Bares', public=200):
         sector, _ = Sector.objects.get_or_create(name='Educacao')
         agenda = Agenda.objects.create(
-            title='Acao de Rua - Bares',
+            title=f'Acao de Rua - {label}',
             description='Acao externa',
             date=date(2026, 7, 24),
             start_time='09:00',
             end_time='13:00',
-            location='Bar Modelo',
+            location='Local externo',
             created_by=self.user,
             responsible=self.user,
             sector=sector,
             action_type_ref=self.action,
             requester_entity_type='Acao de Rua',
-            street_action_details=['Bares'],
+            street_action_details=[label],
         )
         report = EducationReport.objects.create(
             agenda=agenda,
             operation_date=date(2026, 7, 24),
-            team='GOLF',
-            approximate_public=200,
-            street_action_details=['Bares'],
+            team=team,
+            approximate_public=public,
+            street_action_details=[label],
             status=EducationReport.ReportStatus.APPROVED,
             statistics_processed=True,
             created_by=self.user,
@@ -216,14 +216,46 @@ class OfficialStatisticsTests(TestCase):
             report=report,
             agenda=agenda,
             type_action='Acao de Rua',
-            institution_name='Bar Modelo',
+            institution_name='Local externo',
             approach=0,
         )
+        generate_statistics_for_report(report)
+        return report
+
+    def test_category_audience_uses_report_approach_number_when_action_approach_is_zero(self):
+        self.create_processed_street_report(team='GOLF', label='Bares', public=200)
 
         audience = _category_audience(date(2026, 7, 1), date(2026, 7, 31), {})
 
         self.assertEqual(audience['ACTION - Bares'], 200)
         self.assertEqual(audience['ACTION - Outros'], 0)
+
+    def test_dashboard_categories_include_audience_and_only_official_teams(self):
+        self.create_processed_street_report(team='GOLF', label='Bares', public=200)
+        self.create_processed_street_report(team='Historico', label='Eventos', public=50)
+        request = APIRequestFactory().get('/statistics/dashboard/', {
+            'date_from': '2026-07-01', 'date_to': '2026-07-31',
+        })
+        force_authenticate(request, user=self.user)
+
+        response = StatisticsDashboardView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        categories = {row['key']: row for row in response.data['categories']}
+        self.assertEqual(categories['ACTION - Bares']['value'], 1)
+        self.assertEqual(categories['ACTION - Bares']['audience'], 200)
+        self.assertEqual([row['team'] for row in response.data['teams']], ['GOLF'])
+
+    def test_dashboard_filter_teams_only_include_alfa_to_hotel(self):
+        self.create_processed_street_report(team='GOLF', label='Bares', public=200)
+        self.create_processed_street_report(team='Historico', label='Eventos', public=50)
+        request = APIRequestFactory().get('/statistics/dashboard/filters/')
+        force_authenticate(request, user=self.user)
+
+        response = StatisticsDashboardFiltersView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['teams'], ['GOLF'])
 
     def test_escolinha_nota_10_is_classified_as_school(self):
         agenda = SimpleNamespace(action_type_ref=SimpleNamespace(name='Escolinha Nota 10'), action_type='', requester_entity_type='6', institution_location='Escola Municipal Pio X')

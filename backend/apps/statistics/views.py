@@ -177,7 +177,7 @@ class StatisticsDashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from apps.statistics.dashboard import dashboard_payload
+        from apps.statistics.dashboard import OFFICIAL_TEAMS, dashboard_payload
         today = date.today()
         date_from = parse_date(request.query_params.get('date_from')) or date(today.year, 1, 1)
         date_to = parse_date(request.query_params.get('date_to')) or today
@@ -195,13 +195,14 @@ class StatisticsDashboardFiltersView(APIView):
 
     def get(self, request):
         from apps.schedules.models import EducationReport
+        from apps.statistics.dashboard import OFFICIAL_TEAMS
         reports = EducationReport.objects.filter(
             status=EducationReport.ReportStatus.APPROVED,
             statistics_processed=True,
         )
         return Response({
             'municipalities': list(reports.exclude(agenda__city='').values_list('agenda__city', flat=True).distinct().order_by('agenda__city')),
-            'teams': list(reports.exclude(team='').values_list('team', flat=True).distinct().order_by('team')),
+            'teams': list(reports.filter(team__in=OFFICIAL_TEAMS).values_list('team', flat=True).distinct().order_by('team')),
             'entities': list(reports.exclude(agenda__requester_entity_type='').values_list('agenda__requester_entity_type', flat=True).distinct().order_by('agenda__requester_entity_type')),
             'institutions': list(reports.exclude(actions__institution_name='').values_list('actions__institution_name', flat=True).distinct().order_by('actions__institution_name')[:500]),
             'action_types': list(reports.exclude(actions__type_action='').values_list('actions__type_action', flat=True).distinct().order_by('actions__type_action')),
@@ -214,7 +215,7 @@ class StatisticsDashboardCsvView(APIView):
     def get(self, request):
         import csv
         from django.http import HttpResponse
-        from apps.statistics.dashboard import dashboard_payload
+        from apps.statistics.dashboard import OFFICIAL_TEAMS, dashboard_payload
         today = date.today()
         date_from = parse_date(request.query_params.get('date_from')) or date(today.year, 1, 1)
         date_to = parse_date(request.query_params.get('date_to')) or today

@@ -22,6 +22,7 @@ STREET_KEYS = (
     'ACTION - Ação conjunta com a fiscalização',
 )
 DIMENSION_FILTERS = ('municipality', 'team', 'institution', 'entity', 'action_type')
+OFFICIAL_TEAMS = ('ALFA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOX', 'GOLF', 'HOTEL')
 
 CATEGORY_LABELS = {
     'ACTION - Escola': 'Escolas', 'ACTION - Universidade': 'Universidades',
@@ -182,7 +183,12 @@ def _category_audience(date_from, date_to, filters):
 def _rankings(date_from, date_to, filters):
     reports = _operational_reports(date_from, date_to, filters)
     municipalities = list(reports.values('agenda__city').annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0)).order_by('-actions')[:15])
-    teams = list(reports.values('team').annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0)).order_by('-actions')[:15])
+    teams = list(
+        reports.filter(team__in=OFFICIAL_TEAMS)
+        .values('team')
+        .annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0))
+        .order_by('-actions')[:8]
+    )
     for row in municipalities + teams:
         row['average'] = round(float(row['audience'] or 0) / row['actions'], 2) if row['actions'] else 0
     heatmap = list(reports.values('operation_date').annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0)).order_by('operation_date'))
@@ -209,8 +215,15 @@ def dashboard_payload(date_from, date_to, filters):
     comparisons = {key: variation(current.get(key, 0), previous.get(key, 0)) for key in keys}
     annual = _annual_series(filters)
     monthly = _monthly_series(date_to.year, filters)
+    category_audience = _category_audience(date_from, date_to, filters)
     categories = [
-        {'key': key, 'label': CATEGORY_LABELS[key], 'value': current.get(key, 0), 'previous': previous.get(key, 0)}
+        {
+            'key': key,
+            'label': CATEGORY_LABELS[key],
+            'value': current.get(key, 0),
+            'previous': previous.get(key, 0),
+            'audience': category_audience.get(key, 0),
+        }
         for key in (*LECTURE_KEYS, *STREET_KEYS)
     ]
     rankings = _rankings(date_from, date_to, filters)
