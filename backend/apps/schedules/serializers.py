@@ -1481,6 +1481,6 @@ class SatisfactionSurveySerializer(serializers.ModelSerializer):
             "overall_rating",
         ]:
             value = attrs.get(field)
-            if value is None or value < 1 or value > 5:
-                raise serializers.ValidationError({field: "Informe uma nota de 1 a 5."})
+            if value is None or value < 1 or value > 10:
+                raise serializers.ValidationError({field: "Informe uma nota de 1 a 10."})
         return attrs

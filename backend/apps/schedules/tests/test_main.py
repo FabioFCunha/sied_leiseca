@@ -7,9 +7,57 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.models import User
 from apps.schedules.emails import approval_message, available_dates_message, message_for_status, rejection_message
-from apps.schedules.models import Agenda, Agent, Dynamic, EducationAction, EducationReport, Sector, ShiftSchedule, Team
-from apps.schedules.serializers import AgendaSerializer, EducationReportSerializer, PublicAgendaRequestSerializer, PublicAgendaRequestRescheduleSerializer
+from apps.schedules.models import Agenda, Agent, Dynamic, EducationAction, EducationReport, SatisfactionSurvey, Sector, ShiftSchedule, Team
+from apps.schedules.serializers import AgendaSerializer, EducationReportSerializer, PublicAgendaRequestSerializer, PublicAgendaRequestRescheduleSerializer, SatisfactionSurveySerializer
 
+
+
+
+
+class SatisfactionSurveySerializerTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="survey-admin@example.com",
+            password="pass",
+            full_name="Gestor Pesquisa",
+            role=User.Role.MANAGER,
+        )
+        self.sector, _ = Sector.objects.get_or_create(name="Educacao")
+        self.agenda = Agenda.objects.create(
+            title="Pesquisa de satisfacao",
+            description="Palestra educativa",
+            date=date(2026, 7, 24),
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            location="Escola Municipal",
+            created_by=self.user,
+            responsible=self.user,
+            sector=self.sector,
+        )
+        self.survey = SatisfactionSurvey.objects.create(agenda=self.agenda, token="survey-token")
+
+    def rating_payload(self, value):
+        return {
+            "audiovisual_resources": value,
+            "speaker_knowledge": value,
+            "wheelchair_testimony": value,
+            "workshops": value,
+            "support_material": value,
+            "punctuality": value,
+            "team_enthusiasm": value,
+            "overall_rating": value,
+        }
+
+    def test_accepts_public_scale_from_one_to_ten(self):
+        serializer = SatisfactionSurveySerializer(self.survey, data=self.rating_payload(10), partial=True)
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+    def test_rejects_rating_above_public_scale(self):
+        serializer = SatisfactionSurveySerializer(self.survey, data=self.rating_payload(11), partial=True)
+
+        self.assertFalse(serializer.is_valid())
+        self.assertEqual(serializer.errors["audiovisual_resources"][0], "Informe uma nota de 1 a 10.")
 
 
 @override_settings(FRONTEND_URL="https://agenda.example.com")
