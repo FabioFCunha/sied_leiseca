@@ -885,7 +885,7 @@ export default function TechnicalReportsPage() {
     if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
-      if (!action.type_action) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (isStreetAction && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -929,7 +929,7 @@ export default function TechnicalReportsPage() {
     if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
-      if (!action.type_action) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (isStreetAction && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
