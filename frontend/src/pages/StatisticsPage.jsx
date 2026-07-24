@@ -27,6 +27,8 @@ const SERIES = [
 ];
 const KPI_DEFS = [
   ["AUDIENCE - Geral", "Público alcançado", Users, COLORS[0]],
+  ["EXPECTED_PUBLIC", "P?blico previsto nas solicita??es", Users, COLORS[9]],
+  ["REPORTS_WITHOUT_PUBLIC", "Relat?rios sem p?blico informado", BarChart3, COLORS[10]],
   ["ACTION - Geral", "Ações educativas", CalendarDays, COLORS[2]],
   ["LECTURES - Geral", "Palestras", Presentation, COLORS[1]],
   ["STREET_ACTIONS - Geral", "Ações de rua", Activity, COLORS[3]],

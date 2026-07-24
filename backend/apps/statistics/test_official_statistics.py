@@ -281,6 +281,82 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(audience['ACTION - Bares'], 200)
         self.assertEqual(audience['ACTION - Outros'], 0)
 
+    def test_dashboard_additional_cards_do_not_change_reached_public(self):
+        sector, _ = Sector.objects.get_or_create(name='Educacao')
+        agenda = Agenda.objects.create(
+            title='Solicitacao com publico previsto',
+            description='Demanda recebida',
+            date=date(2026, 7, 20),
+            start_time='09:00',
+            end_time='10:00',
+            location='Escola Modelo',
+            created_by=self.user,
+            responsible=self.user,
+            sector=sector,
+            origin=Agenda.Origin.PUBLIC_FORM,
+            audience='150',
+            participant_range='30 a 50',
+        )
+        report = EducationReport.objects.create(
+            agenda=agenda,
+            operation_date=date(2026, 7, 20),
+            team='GOLF',
+            approximate_public=80,
+            status=EducationReport.ReportStatus.APPROVED,
+            statistics_processed=True,
+            created_by=self.user,
+        )
+        generate_statistics_for_report(report)
+        request = APIRequestFactory().get('/statistics/dashboard/', {
+            'date_from': '2026-07-01', 'date_to': '2026-07-31',
+        })
+        force_authenticate(request, user=self.user)
+
+        response = StatisticsDashboardView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['summary']['AUDIENCE - Geral'], 80)
+        self.assertEqual(response.data['summary']['EXPECTED_PUBLIC'], 150)
+        self.assertEqual(response.data['summary']['REPORTS_WITHOUT_PUBLIC'], 0)
+
+    def test_expected_public_uses_participant_range_and_reports_without_public(self):
+        sector, _ = Sector.objects.get_or_create(name='Educacao')
+        agenda = Agenda.objects.create(
+            title='Solicitacao com faixa',
+            description='Demanda recebida',
+            date=date(2026, 7, 21),
+            start_time='09:00',
+            end_time='10:00',
+            location='Empresa Modelo',
+            created_by=self.user,
+            responsible=self.user,
+            sector=sector,
+            origin=Agenda.Origin.INTERNAL,
+            audience='',
+            participant_range='51 a 100',
+        )
+        report = EducationReport.objects.create(
+            agenda=agenda,
+            operation_date=date(2026, 7, 21),
+            team='GOLF',
+            approximate_public=0,
+            status=EducationReport.ReportStatus.APPROVED,
+            statistics_processed=True,
+            created_by=self.user,
+        )
+        generate_statistics_for_report(report)
+        request = APIRequestFactory().get('/statistics/dashboard/', {
+            'date_from': '2026-07-01', 'date_to': '2026-07-31',
+        })
+        force_authenticate(request, user=self.user)
+
+        response = StatisticsDashboardView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['summary']['AUDIENCE - Geral'], 0)
+        self.assertEqual(response.data['summary']['EXPECTED_PUBLIC'], 100)
+        self.assertEqual(response.data['summary']['REPORTS_WITHOUT_PUBLIC'], 1)
+
     def test_dashboard_categories_include_audience_and_only_official_teams(self):
         self.create_processed_street_report(team='GOLF', label='Bares', public=200)
         self.create_processed_street_report(team='Historico', label='Eventos', public=50)

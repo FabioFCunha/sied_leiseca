@@ -3,10 +3,10 @@ import hashlib
 from datetime import date, timedelta
 
 from django.core.cache import cache
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 
-from apps.schedules.models import EducationAction, EducationReport
+from apps.schedules.models import Agenda, EducationAction, EducationReport
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
 from apps.statistics.services import _street_entity_from_action_counters, _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
@@ -59,6 +59,53 @@ def variation(current, previous):
         return {'absolute': current, 'percentage': None if current else 0, 'status': 'NEW' if current else 'STABLE'}
     percentage = ((current - previous) / previous) * 100
     return {'absolute': current - previous, 'percentage': round(percentage, 2), 'status': 'UP' if percentage > 0 else 'DOWN' if percentage < 0 else 'STABLE'}
+
+
+def _parse_expected_public_value(*values):
+    import re
+    for value in values:
+        if value is None:
+            continue
+        text = str(value).strip()
+        if not text:
+            continue
+        if text.isdigit():
+            return int(text)
+        numbers = [int(match) for match in re.findall(r'\d+', text)]
+        if numbers:
+            return max(numbers)
+    return 0
+
+
+def _expected_public_queryset(date_from, date_to, filters):
+    qs = Agenda.objects.filter(date__range=(date_from, date_to)).exclude(status=Agenda.Status.CANCELLED)
+    qs = qs.filter(Q(origin=Agenda.Origin.PUBLIC_FORM) | ~Q(audience='') | Q(participant_range__isnull=False)).exclude(
+        Q(audience='') & (Q(participant_range='') | Q(participant_range__isnull=True))
+    )
+    if filters.get('municipality'):
+        qs = qs.filter(city__iexact=filters['municipality'])
+    if filters.get('team'):
+        qs = qs.filter(team_name__iexact=filters['team'])
+    if filters.get('institution'):
+        qs = qs.filter(institution_location__icontains=filters['institution'])
+    if filters.get('entity'):
+        qs = qs.filter(requester_entity_type__iexact=filters['entity'])
+    if filters.get('action_type'):
+        qs = qs.filter(action_type__icontains=filters['action_type'])
+    return qs
+
+
+def _expected_public_total(date_from, date_to, filters):
+    return sum(
+        _parse_expected_public_value(agenda.audience, agenda.participant_range)
+        for agenda in _expected_public_queryset(date_from, date_to, filters).only('audience', 'participant_range')
+    )
+
+
+def _reports_without_public_total(date_from, date_to, filters):
+    return _operational_reports(date_from, date_to, filters).filter(
+        Q(approximate_public__isnull=True) | Q(approximate_public=0)
+    ).count()
 
 
 def _operational_reports(date_from, date_to, filters):
@@ -204,6 +251,8 @@ def dashboard_payload(date_from, date_to, filters):
     if cached is not None:
         return cached
     current = derived_totals(aggregate_official_statistics(filtered_statistics(date_from, date_to, filters)))
+    current['EXPECTED_PUBLIC'] = _expected_public_total(date_from, date_to, filters)
+    current['REPORTS_WITHOUT_PUBLIC'] = _reports_without_public_total(date_from, date_to, filters)
     try:
         previous_from = date_from.replace(year=date_from.year - 1)
     except ValueError:
@@ -213,6 +262,8 @@ def dashboard_payload(date_from, date_to, filters):
     except ValueError:
         previous_to = date(date_to.year - 1, 2, 28)
     previous = derived_totals(aggregate_official_statistics(filtered_statistics(previous_from, previous_to, filters)))
+    previous['EXPECTED_PUBLIC'] = _expected_public_total(previous_from, previous_to, filters)
+    previous['REPORTS_WITHOUT_PUBLIC'] = _reports_without_public_total(previous_from, previous_to, filters)
     keys = set(current) | set(previous)
     comparisons = {key: variation(current.get(key, 0), previous.get(key, 0)) for key in keys}
     annual = _annual_series(filters)
