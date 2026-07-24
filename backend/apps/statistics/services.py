@@ -227,6 +227,15 @@ def generate_statistics_for_report(report, processed_by=None):
 
         entity_type_ref = str(agenda.requester_entity_type)
         entity_name_lower = entity_type_ref.lower()
+        institution_name_lower = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').lower()
+        is_school_context = (
+            'escolinha' in action_name
+            or 'escola nota 10' in action_name
+            or 'nota 10' in action_name
+            or 'escola' in institution_name_lower
+            or 'col?gio' in institution_name_lower
+            or 'colegio' in institution_name_lower
+        )
         
         # Mapping rules based on ID Horus OR exact text from new SIED fields
         # Text from SIED Frontend form: "Instituição de Ensino Público", "Empresa/Órgão Privado", etc.
@@ -245,7 +254,9 @@ def generate_statistics_for_report(report, processed_by=None):
                 
         elif is_acao:
             acoes_total += 1
-            if entity_type_ref == '7' or 'bar' in entity_name_lower or 'bares' in entity_name_lower:
+            if entity_type_ref == '2' or is_school_context or 'escola' in entity_name_lower or ('ensino' in entity_name_lower and not 'universidade' in entity_name_lower):
+                add_metric('ACTION', 1, action_type='ACAO', entity_type='ESCOLA')
+            elif entity_type_ref == '7' or 'bar' in entity_name_lower or 'bares' in entity_name_lower:
                 add_metric('ACTION', 1, action_type='ACAO', entity_type='BARES')
             elif entity_type_ref == '10' or 'pedágio' in entity_name_lower or 'pedagio' in entity_name_lower:
                 add_metric('ACTION', 1, action_type='ACAO', entity_type='PEDAGIO')

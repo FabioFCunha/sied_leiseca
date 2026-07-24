@@ -142,14 +142,25 @@ def _monthly_series(year, filters):
 def _category_audience(date_from, date_to, filters):
     reports = _operational_reports(date_from, date_to, filters)
     rows = EducationAction.objects.filter(report__in=reports).values(
-        'agenda__requester_entity_type', 'agenda__action_type_ref__name', 'type_action'
+        'agenda__requester_entity_type', 'agenda__action_type_ref__name',
+        'type_action', 'institution_name',
     ).annotate(audience=Coalesce(Sum('approach'), 0))
     result = {key: 0 for key in (*LECTURE_KEYS, *STREET_KEYS)}
     for row in rows:
         entity = str(row['agenda__requester_entity_type'] or '').casefold()
         action_name = str(row['agenda__action_type_ref__name'] or row['type_action'] or '').casefold()
+        institution_name = str(row.get('institution_name') or '').casefold()
+        is_school_context = (
+            'escolinha' in action_name
+            or 'escola nota 10' in action_name
+            or 'nota 10' in action_name
+            or 'escola' in institution_name
+            or 'col?gio' in institution_name
+            or 'colegio' in institution_name
+        )
         if 'palestra' in action_name:
             key = 'ACTION - Universidade' if ('universidade' in entity or 'faculdade' in entity or entity == '1') else 'ACTION - Empresa' if ('empresa' in entity or 'órgão' in entity or 'orgao' in entity or entity == '4') else 'ACTION - Escola'
+        elif 'escola' in entity or ('ensino' in entity and 'universidade' not in entity) or is_school_context: key = 'ACTION - Escola'
         elif 'bar' in entity or entity == '7': key = 'ACTION - Bares'
         elif 'pedágio' in entity or 'pedagio' in entity or entity == '10': key = 'ACTION - Pedágio'
         elif 'esporte' in entity or entity == '9': key = 'ACTION - Praças Esportivas'

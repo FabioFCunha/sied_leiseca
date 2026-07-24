@@ -1959,6 +1959,9 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 new_status=report.status,
                 changed_by=request.user
             )
+
+            from apps.statistics.services import generate_statistics_for_report
+            generate_statistics_for_report(report, processed_by=request.user)
         
         self._register_accessibility_block(report)
         transaction.on_commit(lambda: send_satisfaction_survey_email(report))

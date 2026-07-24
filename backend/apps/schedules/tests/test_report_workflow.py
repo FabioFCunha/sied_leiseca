@@ -88,6 +88,7 @@ class EducationReportWorkflowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.report.refresh_from_db()
         self.assertEqual(self.report.status, EducationReport.ReportStatus.APPROVED)
+        self.assertTrue(self.report.statistics_processed)
 
     def test_approve_already_approved_report_returns_400(self):
         self.client.force_authenticate(user=self.manager)

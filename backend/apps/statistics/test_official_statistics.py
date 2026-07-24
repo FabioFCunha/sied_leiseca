@@ -133,6 +133,15 @@ class OfficialStatisticsTests(TestCase):
         materials = ConsolidatedStatistic.objects.get(traceability_id='report_999', indicator_type='MATERIAL', category_action_type__isnull=True, category_entity_type__isnull=True)
         self.assertEqual(materials.value, 5)
 
+    def test_escolinha_nota_10_is_classified_as_school(self):
+        agenda = SimpleNamespace(action_type_ref=SimpleNamespace(name='Escolinha Nota 10'), action_type='', requester_entity_type='6', institution_location='Escola Municipal Pio X')
+        action = SimpleNamespace(agenda=agenda, type_action='Escolinha Nota 10', institution_name='Escola Municipal Pio X', distribution_materials_distributed='')
+        report = SimpleNamespace(id=1001, status='APPROVED', operation_date=date(2026, 7, 10), created_at=None, approximate_public=1, distribution_materials_distributed='', actions=SimpleNamespace(all=lambda: [action]), statistics_processed=False, statistics_processed_at=None, statistics_processed_by=None, save=lambda **kwargs: None)
+        generate_statistics_for_report(report)
+        totals = aggregate_official_statistics(ConsolidatedStatistic.objects.filter(traceability_id='report_1001', status='ACTIVE'))
+        self.assertEqual(totals['ACTION - Escola'], 1)
+        self.assertEqual(totals['ACTION - Outros'], 0)
+
     def test_missing_canonical_action_type_has_clear_error(self):
         self.action.delete()
         agenda = SimpleNamespace(action_type_ref=SimpleNamespace(name='A\u00e7\u00e3o'), action_type='', requester_entity_type='7')
