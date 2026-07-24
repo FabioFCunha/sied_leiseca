@@ -954,6 +954,9 @@ class EducationActionSerializer(serializers.ModelSerializer):
             if not name or not quantity_match:
                 continue
 
+            if int(quantity_match.group(0)) == 0:
+                continue
+
             if not Kit.objects.filter(name__iexact=name).exists():
                 raise serializers.ValidationError(
                     f"O material '{name}' não pertence à categoria Material para Distribuição."

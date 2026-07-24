@@ -44,6 +44,11 @@ class MaterialsValidationTest(TestCase):
         val_none = self.serializer.validate_distribution_materials_distributed(None)
         self.assertEqual(val_none, None)
 
+    def test_distribution_materials_zero_quantity_is_accepted(self):
+        # material não cadastrado mas com quantidade zero é aceito (pois não foi distribuído)
+        val = self.serializer.validate_distribution_materials_distributed("Certificado não oficial | 0")
+        self.assertEqual(val, "Certificado não oficial | 0")
+
     def test_quantity_is_saved_exactly_as_informed(self):
         # quantidade distribuída é salva exatamente como informada
         val = self.serializer.validate_distribution_materials_distributed("Kit com 7 Revistinhas | 123")

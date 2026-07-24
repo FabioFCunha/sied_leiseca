@@ -14,6 +14,9 @@ class MockReport:
         self.status = status
         self.audience_total = audience_total
         self.created_at = timezone.now()
+        
+    def save(self, *args, **kwargs):
+        pass
 
 class StatisticsModuleTests(TestCase):
     
