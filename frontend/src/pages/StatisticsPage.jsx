@@ -1,7 +1,7 @@
 import { TrendingUp, TrendingDown, Minus, BarChart3, CalendarDays, Activity, Filter, PieChart } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
-import { DonutChart, HorizontalBarChart } from "../components/Charts.jsx";
+import { GroupedBarChart } from "../components/Charts.jsx";
 import { formatLocalISODate } from "../utils/date.js";
 
 function formatNumber(value) {
@@ -114,6 +114,53 @@ function ChartSection({ icon: Icon, title, subtitle, gradient = "linear-gradient
   );
 }
 
+
+function HistoricalLineChart({ rows }) {
+  const width = 920;
+  const height = 320;
+  const padding = { left: 58, right: 28, top: 30, bottom: 42 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const maxValue = Math.max(...rows.flatMap(row => [row.lectures, row.actions]), 1);
+  const point = (value, index) => ({
+    x: padding.left + (index * plotWidth) / Math.max(rows.length - 1, 1),
+    y: padding.top + plotHeight - (value / maxValue) * plotHeight,
+  });
+  const lecturePoints = rows.map((row, index) => point(row.lectures, index));
+  const actionPoints = rows.map((row, index) => point(row.actions, index));
+  const path = points => points.map(({ x, y }) => `${x},${y}`).join(" ");
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Série anual de palestras e ações" style={{ width: "100%", minWidth: 720, display: "block" }}>
+        {[0, 0.25, 0.5, 0.75, 1].map(step => {
+          const y = padding.top + plotHeight - step * plotHeight;
+          return (
+            <g key={step}>
+              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="var(--line)" />
+              <text x={padding.left - 10} y={y + 4} textAnchor="end" fill="var(--text-soft)" fontSize="11">
+                {formatNumber(Math.round(maxValue * step))}
+              </text>
+            </g>
+          );
+        })}
+        <polyline points={path(lecturePoints)} fill="none" stroke="#7c3aed" strokeWidth="3" strokeLinejoin="round" />
+        <polyline points={path(actionPoints)} fill="none" stroke="#047857" strokeWidth="3" strokeLinejoin="round" />
+        {rows.map((row, index) => (
+          <g key={row.year}>
+            <circle cx={lecturePoints[index].x} cy={lecturePoints[index].y} r="4" fill="#7c3aed"><title>{`${row.year} · Palestras: ${formatNumber(row.lectures)}`}</title></circle>
+            <circle cx={actionPoints[index].x} cy={actionPoints[index].y} r="4" fill="#047857"><title>{`${row.year} · Ações: ${formatNumber(row.actions)}`}</title></circle>
+            <text x={lecturePoints[index].x} y={height - 15} textAnchor="middle" fill="var(--text-soft)" fontSize="11">{row.year}</text>
+          </g>
+        ))}
+      </svg>
+      <div style={{ display: "flex", justifyContent: "center", gap: 24, flexWrap: "wrap" }}>
+        <span style={{ color: "var(--text)", fontSize: 13 }}><strong style={{ color: "#7c3aed" }}>●</strong> Palestras</span>
+        <span style={{ color: "var(--text)", fontSize: 13 }}><strong style={{ color: "#047857" }}>●</strong> Ações</span>
+      </div>
+    </div>
+  );
+}
 function getDefaultFilters() {
   const today = new Date();
   const year = today.getFullYear();
@@ -128,6 +175,7 @@ export default function StatisticsPage() {
   const [error, setError] = useState("");
   const [comparisonData, setComparisonData] = useState(null);
   const [historicalData, setHistoricalData] = useState([]);
+  const [streetCompareYear, setStreetCompareYear] = useState(2025);
 
   const [filters, setFilters] = useState(getDefaultFilters);
   const [pendingFilters, setPendingFilters] = useState(getDefaultFilters);
@@ -272,6 +320,18 @@ export default function StatisticsPage() {
       return { year, values };
     });
   }, [historicalData]);
+  const historyPlotData = table3Data.map(row => ({
+    year: row.year,
+    lectures: row.values["LECTURES - Geral"] || 0,
+    actions: row.values["STREET_ACTIONS - Geral"] || 0,
+  }));
+  const historicalYears = table3Data.map(row => row.year);
+  const latestHistoricalRow = table3Data.at(-1);
+  const comparedHistoricalRow = table3Data.find(row => row.year === Number(streetCompareYear)) || table3Data.at(-2);
+  const streetChartFields = historicalFields.filter(field => field.key.startsWith("ACTION - ") && !lectureCategoryKeys.includes(field.key));
+  const streetChartLabels = streetChartFields.map(field => field.label.replace(/^3\.\d+\s*-\s*/, ""));
+  const streetPreviousValues = streetChartFields.map(field => comparedHistoricalRow?.values[field.key] || 0);
+  const streetCurrentValues = streetChartFields.map(field => latestHistoricalRow?.values[field.key] || 0);
   const applyFilters = () => setFilters({ ...pendingFilters });
   const clearFilters = () => {
     const defaults = getDefaultFilters();
@@ -388,6 +448,46 @@ export default function StatisticsPage() {
               />
           </div>
 
+          <ChartSection
+            icon={TrendingUp}
+            title="Ação e palestra ao longo da série histórica"
+            subtitle="Totais anuais oficiais; o ano corrente combina a base histórica e os relatórios aprovados no SIED."
+            gradient="linear-gradient(135deg, #7c3aed, #047857)"
+          >
+            <HistoricalLineChart rows={historyPlotData} />
+          </ChartSection>
+
+          <ChartSection
+            icon={Activity}
+            title="Comparativo das ações de rua"
+            subtitle="Categorias registradas na Solicitação Interna, incluindo as opções do novo processo."
+            gradient="linear-gradient(135deg, #047857, #0048d7)"
+          >
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
+                Comparar com
+                <select
+                  value={streetCompareYear}
+                  onChange={event => setStreetCompareYear(Number(event.target.value))}
+                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--text)" }}
+                >
+                  {historicalYears.filter(year => year !== latestHistoricalRow?.year).map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <GroupedBarChart
+              labels={streetChartLabels}
+              series1={streetPreviousValues}
+              series2={streetCurrentValues}
+              series1Name={String(comparedHistoricalRow?.year || streetCompareYear)}
+              series2Name={String(latestHistoricalRow?.year || currentYear)}
+              color1="#7c3aed"
+              color2="#047857"
+              height={390}
+            />
+          </ChartSection>
           {/* Tabela 1: Comparativo Anual Detalhado */}
           <div style={{
             background: "var(--surface)", borderRadius: 16,
