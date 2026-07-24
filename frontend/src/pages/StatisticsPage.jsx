@@ -1,7 +1,7 @@
 import { TrendingUp, TrendingDown, Minus, BarChart3, CalendarDays, Activity, Filter, PieChart } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
-import { GroupedBarChart } from "../components/Charts.jsx";
+
 import { formatLocalISODate } from "../utils/date.js";
 
 function formatNumber(value) {
@@ -115,6 +115,37 @@ function ChartSection({ icon: Icon, title, subtitle, gradient = "linear-gradient
 }
 
 
+
+function StreetComparisonChart({ labels, previousValues, currentValues, previousYear, currentYear }) {
+  const maxValue = Math.max(...previousValues, ...currentValues, 1);
+  return (
+    <div style={{ display: "grid", gap: 14 }}>
+      {labels.map((label, index) => {
+        const previous = previousValues[index] || 0;
+        const current = currentValues[index] || 0;
+        const variation = previous ? ((current - previous) / previous) * 100 : null;
+        return (
+          <div key={label} style={{ display: "grid", gridTemplateColumns: "150px minmax(180px, 1fr) 86px", gap: 12, alignItems: "center" }}>
+            <strong style={{ fontSize: 12, color: "var(--text)", textAlign: "right" }}>{label}</strong>
+            <div style={{ display: "grid", gap: 5 }}>
+              <div style={{ height: 10, borderRadius: 8, background: "var(--surface-2)", overflow: "hidden" }}>
+                <div style={{ width: `${(previous / maxValue) * 100}%`, height: "100%", background: "#7c3aed", borderRadius: 8 }} />
+              </div>
+              <div style={{ height: 10, borderRadius: 8, background: "var(--surface-2)", overflow: "hidden" }}>
+                <div style={{ width: `${(current / maxValue) * 100}%`, height: "100%", background: "#047857", borderRadius: 8 }} />
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-soft)", lineHeight: 1.45 }}>
+              <div><span style={{ color: "#7c3aed" }}>●</span> {previousYear}: <strong>{formatNumber(previous)}</strong></div>
+              <div><span style={{ color: "#047857" }}>●</span> {currentYear}: <strong>{formatNumber(current)}</strong></div>
+              <div>{variation === null ? (current ? "Novo" : "0,0%") : `${variation >= 0 ? "+" : ""}${variation.toFixed(1)}%`}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 function HistoricalLineChart({ rows }) {
   const width = 920;
   const height = 320;
@@ -332,6 +363,11 @@ export default function StatisticsPage() {
   const streetChartLabels = streetChartFields.map(field => field.label.replace(/^3\.\d+\s*-\s*/, ""));
   const streetPreviousValues = streetChartFields.map(field => comparedHistoricalRow?.values[field.key] || 0);
   const streetCurrentValues = streetChartFields.map(field => latestHistoricalRow?.values[field.key] || 0);
+  const currentPeriod = comparisonData?.current_period || {};
+  const currentLectures = lectureCategoryKeys.reduce((sum, key) => sum + Number(currentPeriod[key] || 0), 0);
+  const categorizedCurrentActions = streetActionCategoryKeys.reduce((sum, key) => sum + Number(currentPeriod[key] || 0), 0);
+  const currentEducationalActions = Number(currentPeriod["ACTION - Geral"] || 0);
+  const currentStreetActions = Math.max(currentEducationalActions - currentLectures, categorizedCurrentActions, 0);
   const applyFilters = () => setFilters({ ...pendingFilters });
   const clearFilters = () => {
     const defaults = getDefaultFilters();
@@ -423,31 +459,12 @@ export default function StatisticsPage() {
         <div className="alert">Não foi possível carregar as estatísticas: {error}</div>
       ) : (
         <>
-          {/* KPI Cards (Macro Indicators) */}
+          {/* Indicadores centrais do visual aprovado */}
           <div style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
-              <KpiCard
-                icon={Activity}
-                label="Público Alcançado"
-                value={formatNumber(comparisonData?.macro_current?.AUDIENCE)}
-                subtitle={formatPeriod(filters.date_from, filters.date_to)}
-                color="#0048d7"
-              />
-              <KpiCard
-                icon={CalendarDays}
-                label="Ações Educativas"
-                value={formatNumber(comparisonData?.macro_current?.ACTION)}
-                subtitle={formatPeriod(filters.date_from, filters.date_to)}
-                color="#047857"
-              />
-              <KpiCard
-                icon={BarChart3}
-                label="Materiais de Divulgação"
-                value={formatNumber(comparisonData?.macro_current?.MATERIAL)}
-                subtitle={formatPeriod(filters.date_from, filters.date_to)}
-                color="#7c3aed"
-              />
+            <KpiCard icon={BarChart3} label="Palestras" value={formatNumber(currentLectures)} subtitle={formatPeriod(filters.date_from, filters.date_to)} color="#7c3aed" />
+            <KpiCard icon={TrendingUp} label="Ações" value={formatNumber(currentStreetActions)} subtitle={formatPeriod(filters.date_from, filters.date_to)} color="#047857" />
+            <KpiCard icon={CalendarDays} label="Ações educativas" value={formatNumber(currentEducationalActions)} subtitle="Palestras + ações" color="#0048d7" />
           </div>
-
           <ChartSection
             icon={TrendingUp}
             title="Ação e palestra ao longo da série histórica"
@@ -477,90 +494,33 @@ export default function StatisticsPage() {
                 </select>
               </label>
             </div>
-            <GroupedBarChart
-              labels={streetChartLabels}
-              series1={streetPreviousValues}
-              series2={streetCurrentValues}
-              series1Name={String(comparedHistoricalRow?.year || streetCompareYear)}
-              series2Name={String(latestHistoricalRow?.year || currentYear)}
-              color1="#7c3aed"
-              color2="#047857"
-              height={390}
-            />
-          </ChartSection>
-          {/* Tabela 1: Comparativo Anual Detalhado */}
-          <div style={{
-            background: "var(--surface)", borderRadius: 16,
-            border: "1px solid var(--line)",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
-            overflow: "hidden", marginBottom: 32
-          }}>
-            <div style={{ padding: "24px 28px 16px", borderBottom: "1px solid var(--line)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 8, display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  background: "linear-gradient(135deg, #0048d7, #003299)", color: "#fff"
-                }}>
-                  <BarChart3 size={16} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 28, alignItems: "start" }}>
+              <StreetComparisonChart
+                labels={streetChartLabels}
+                previousValues={streetPreviousValues}
+                currentValues={streetCurrentValues}
+                previousYear={comparedHistoricalRow?.year || streetCompareYear}
+                currentYear={latestHistoricalRow?.year || currentYear}
+              />
+              <div>
+                <h3 style={{ margin: "0 0 12px", color: "var(--text)" }}>Opções atuais na Solicitação Interna</h3>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead><tr><th style={tableHeaderStyle}>Tipo</th><th style={{ ...tableHeaderStyle, textAlign: "right" }}>{comparedHistoricalRow?.year}</th><th style={{ ...tableHeaderStyle, textAlign: "right" }}>{latestHistoricalRow?.year}</th></tr></thead>
+                    <tbody>
+                      {streetChartFields.map((field, index) => (
+                        <tr key={field.key} style={{ background: index % 2 ? "var(--surface-2)" : "var(--surface)" }}>
+                          <td style={cellStyle}>{streetChartLabels[index]}</td>
+                          <td style={cellNumStyle}>{formatNumber(streetPreviousValues[index])}</td>
+                          <td style={cellNumStyle}>{formatNumber(streetCurrentValues[index])}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--text)" }}>
-                  Comparativo Detalhado — {currentYear} vs {prevYear}
-                </h2>
               </div>
-              <p style={{ margin: 0, fontSize: 13, color: "var(--text-soft)" }}>
-                Período: <strong>{refDateTo.toLocaleDateString("pt-BR")}</strong> comparado com o ano todo de <strong>{prevYear}</strong>
-              </p>
             </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={tableHeaderStyle}>Indicador / Categoria</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right" }}>{prevYear} (Período)</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right" }}>{currentYear} (Período)</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right" }}>Diferença</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "center" }}>Variação</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right" }}>Projeção {currentYear}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {table1Data.map((row, i) => (
-                    <tr key={row.key} style={{ background: i % 2 === 0 ? "var(--surface)" : "var(--surface-2)", transition: "background 0.15s" }}
-                      onMouseEnter={e => e.currentTarget.style.background = "rgba(0, 72, 215, 0.04)"}
-                      onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "var(--surface)" : "var(--surface-2)"}
-                    >
-                      <td style={{ ...cellStyle, fontWeight: 700 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ width: 4, height: 24, borderRadius: 2, background: row.color, flexShrink: 0 }} />
-                          {row.label}
-                        </div>
-                      </td>
-                      <td style={cellNumStyle}>{formatNumber(row.previous)}</td>
-                      <td style={{ ...cellNumStyle, color: "var(--primary)" }}>{formatNumber(row.current)}</td>
-                      <td style={{ ...cellNumStyle, color: row.difference >= 0 ? "#047857" : "#dc2626" }}>
-                        {row.difference >= 0 ? "+" : ""}{formatNumber(row.difference)}
-                      </td>
-                      <td style={{ ...cellStyle, textAlign: "center" }}>
-                        <VariationBadge value={row.percentage} status={row.status} />
-                      </td>
-                      <td style={{ ...cellNumStyle, fontSize: 15 }}>
-                        <span style={{
-                          background: "rgba(0, 72, 215, 0.08)", padding: "4px 12px",
-                          borderRadius: 8, color: "var(--primary)"
-                        }}>
-                          {formatNumber(row.projection)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-
-
+          </ChartSection>
           {/* Tabela 3: Histórico Anual */}
           <div style={{
             background: "var(--surface)", borderRadius: 16,
