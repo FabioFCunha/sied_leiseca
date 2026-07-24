@@ -41,6 +41,56 @@ def _normalized_statistic_name(value):
     text = text.encode('ascii', 'ignore').decode('ascii').upper()
     return re.sub(r'[^A-Z0-9]+', ' ', text).strip()
 
+
+
+def _street_detail_labels(*sources):
+    labels = []
+    for source in sources:
+        if isinstance(source, dict):
+            values = source.values()
+        elif isinstance(source, list):
+            values = source
+        else:
+            continue
+        for item in values:
+            if isinstance(item, dict):
+                value = next((item.get(key) for key in ('type', 'label', 'name', 'action_type', 'street_action_type') if item.get(key)), '')
+            else:
+                value = item
+            if value:
+                labels.append(str(value))
+    return labels
+
+
+def _street_entity_from_details(*sources):
+    for label in _street_detail_labels(*sources):
+        normalized = _normalized_statistic_name(label)
+        if normalized in ENTITY_KEYS:
+            return normalized
+        if 'BAR' in normalized:
+            return 'BARES'
+        if 'PEDAGIO' in normalized:
+            return 'PEDAGIO'
+        if 'ESPORTE' in normalized or 'PRACAS ESPORTIVAS' in normalized:
+            return 'ESPORTES'
+        if 'PRAIA' in normalized:
+            return 'PRAIA'
+        if 'EVENTO' in normalized:
+            return 'EVENTOS'
+        if 'SHOPPING' in normalized:
+            return 'SHOPPING'
+        if 'FISCALIZA' in normalized:
+            return 'FISCALIZACAO'
+        if 'SOCIAL' in normalized:
+            return 'ACAO SOCIAL'
+        if 'TURIST' in normalized:
+            return 'PONTOS TURISTICOS'
+        if 'PRACA' in normalized or 'PARQUE' in normalized:
+            return 'PRACAS'
+        if 'OUTRO' in normalized:
+            return 'OUTROS'
+    return ''
+
 def aggregate_official_rows(rows):
     totals = defaultdict(float)
     for row in rows:
@@ -226,7 +276,12 @@ def generate_statistics_for_report(report, processed_by=None):
             is_acao = True # default se não conseguir classificar
 
         entity_type_ref = str(agenda.requester_entity_type)
-        entity_name_lower = entity_type_ref.lower()
+        street_entity = _street_entity_from_details(
+            getattr(action, 'street_action_details', None),
+            getattr(report, 'street_action_details', None),
+            getattr(agenda, 'street_action_details', None),
+        )
+        entity_name_lower = (street_entity or entity_type_ref).lower()
         institution_name_lower = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').lower()
         is_school_context = (
             'escolinha' in action_name
@@ -260,7 +315,7 @@ def generate_statistics_for_report(report, processed_by=None):
                 add_metric('ACTION', 1, action_type='ACAO', entity_type='BARES')
             elif entity_type_ref == '10' or 'pedágio' in entity_name_lower or 'pedagio' in entity_name_lower:
                 add_metric('ACTION', 1, action_type='ACAO', entity_type='PEDAGIO')
-            elif entity_type_ref == '9' or 'esporte' in entity_name_lower or 'esportes' in entity_name_lower:
+            elif entity_type_ref == '9' or 'esport' in entity_name_lower:
                 add_metric('ACTION', 1, action_type='ACAO', entity_type='ESPORTES')
             elif entity_type_ref == '8' or 'praia' in entity_name_lower or 'litoral' in entity_name_lower:
                 add_metric('ACTION', 1, action_type='ACAO', entity_type='PRAIA')

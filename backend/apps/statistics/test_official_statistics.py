@@ -4,9 +4,10 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
-from apps.schedules.models import ActionType
+from apps.schedules.models import ActionType, Agenda, EducationAction, EducationReport, Sector
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import _parse_materials, aggregate_official_statistics, generate_statistics_for_report
+from apps.statistics.dashboard import _category_audience
 from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardView, get_hybrid_queryset
 
 
@@ -132,6 +133,97 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(first_count, second_count)
         materials = ConsolidatedStatistic.objects.get(traceability_id='report_999', indicator_type='MATERIAL', category_action_type__isnull=True, category_entity_type__isnull=True)
         self.assertEqual(materials.value, 5)
+
+    def street_report(self, report_id, label, public=80):
+        agenda = SimpleNamespace(
+            action_type_ref=SimpleNamespace(name='Acao de Rua'),
+            action_type='',
+            requester_entity_type='Acao de Rua',
+            institution_location='Acao externa',
+            street_action_details=[label],
+        )
+        action = SimpleNamespace(
+            agenda=agenda,
+            type_action='Acao de Rua',
+            institution_name='Acao externa',
+            distribution_materials_distributed='',
+        )
+        return SimpleNamespace(
+            id=report_id,
+            status='APPROVED',
+            operation_date=date(2026, 7, 24),
+            created_at=None,
+            approximate_public=public,
+            street_action_details=[label],
+            distribution_materials_distributed='',
+            actions=SimpleNamespace(all=lambda: [action]),
+            statistics_processed=False,
+            statistics_processed_at=None,
+            statistics_processed_by=None,
+            save=lambda **kwargs: None,
+        )
+
+    def test_all_current_street_action_details_feed_official_categories(self):
+        cases = [
+            ('Bares', 'BARES'),
+            ('Pedagio', 'PEDAGIO'),
+            ('Pracas Esportivas', 'ESPORTES'),
+            ('Praia', 'PRAIA'),
+            ('Eventos', 'EVENTOS'),
+            ('Shopping/Centro Comerciais', 'SHOPPING'),
+            ('Pracas/Parques Publicos', 'PRACAS'),
+            ('Pontos turisticos', 'PONTOS TURISTICOS'),
+            ('Acao conjunta com a fiscalizacao', 'FISCALIZACAO'),
+        ]
+        for index, (label, expected_entity) in enumerate(cases, start=1002):
+            with self.subTest(label=label):
+                report = self.street_report(index, label)
+                generate_statistics_for_report(report)
+                stats = ConsolidatedStatistic.objects.filter(traceability_id=f'report_{index}', status='ACTIVE')
+                category = stats.get(indicator_type='ACTION', category_action_type=self.action, category_entity_type=expected_entity)
+                totals = aggregate_official_statistics(stats)
+                self.assertEqual(category.value, 1)
+                self.assertEqual(totals['ACTION - Outros'], 0)
+                self.assertEqual(totals['AUDIENCE - ACOES'], 80)
+
+    def test_category_audience_uses_report_approach_number_when_action_approach_is_zero(self):
+        sector, _ = Sector.objects.get_or_create(name='Educacao')
+        agenda = Agenda.objects.create(
+            title='Acao de Rua - Bares',
+            description='Acao externa',
+            date=date(2026, 7, 24),
+            start_time='09:00',
+            end_time='13:00',
+            location='Bar Modelo',
+            created_by=self.user,
+            responsible=self.user,
+            sector=sector,
+            action_type_ref=self.action,
+            requester_entity_type='Acao de Rua',
+            street_action_details=['Bares'],
+        )
+        report = EducationReport.objects.create(
+            agenda=agenda,
+            operation_date=date(2026, 7, 24),
+            team='GOLF',
+            approximate_public=200,
+            street_action_details=['Bares'],
+            status=EducationReport.ReportStatus.APPROVED,
+            statistics_processed=True,
+            created_by=self.user,
+        )
+        EducationAction.objects.create(
+            report=report,
+            agenda=agenda,
+            type_action='Acao de Rua',
+            institution_name='Bar Modelo',
+            approach=0,
+        )
+
+        audience = _category_audience(date(2026, 7, 1), date(2026, 7, 31), {})
+
+        self.assertEqual(audience['ACTION - Bares'], 200)
+        self.assertEqual(audience['ACTION - Outros'], 0)
 
     def test_escolinha_nota_10_is_classified_as_school(self):
         agenda = SimpleNamespace(action_type_ref=SimpleNamespace(name='Escolinha Nota 10'), action_type='', requester_entity_type='6', institution_location='Escola Municipal Pio X')

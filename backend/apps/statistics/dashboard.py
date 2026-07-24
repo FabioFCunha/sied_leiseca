@@ -9,7 +9,7 @@ from django.db.models.functions import Coalesce
 from apps.schedules.models import EducationAction, EducationReport
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
-from apps.statistics.services import aggregate_official_rows, aggregate_official_statistics
+from apps.statistics.services import _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
 from apps.statistics.views import get_hybrid_queryset
 
 
@@ -141,15 +141,19 @@ def _monthly_series(year, filters):
     ]
 def _category_audience(date_from, date_to, filters):
     reports = _operational_reports(date_from, date_to, filters)
-    rows = EducationAction.objects.filter(report__in=reports).values(
-        'agenda__requester_entity_type', 'agenda__action_type_ref__name',
-        'type_action', 'institution_name',
-    ).annotate(audience=Coalesce(Sum('approach'), 0))
+    actions = EducationAction.objects.filter(report__in=reports).select_related('agenda', 'report', 'agenda__action_type_ref')
     result = {key: 0 for key in (*LECTURE_KEYS, *STREET_KEYS)}
-    for row in rows:
-        entity = str(row['agenda__requester_entity_type'] or '').casefold()
-        action_name = str(row['agenda__action_type_ref__name'] or row['type_action'] or '').casefold()
-        institution_name = str(row.get('institution_name') or '').casefold()
+    for action in actions:
+        agenda = action.agenda
+        report = action.report
+        street_entity = _street_entity_from_details(
+            getattr(action, 'street_action_details', None),
+            getattr(report, 'street_action_details', None),
+            getattr(agenda, 'street_action_details', None),
+        )
+        entity = str(street_entity or agenda.requester_entity_type or '').casefold()
+        action_name = str((agenda.action_type_ref.name if agenda.action_type_ref else '') or action.type_action or '').casefold()
+        institution_name = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').casefold()
         is_school_context = (
             'escolinha' in action_name
             or 'escola nota 10' in action_name
@@ -163,7 +167,7 @@ def _category_audience(date_from, date_to, filters):
         elif 'escola' in entity or ('ensino' in entity and 'universidade' not in entity) or is_school_context: key = 'ACTION - Escola'
         elif 'bar' in entity or entity == '7': key = 'ACTION - Bares'
         elif 'pedágio' in entity or 'pedagio' in entity or entity == '10': key = 'ACTION - Pedágio'
-        elif 'esporte' in entity or entity == '9': key = 'ACTION - Praças Esportivas'
+        elif 'esport' in entity or entity == '9': key = 'ACTION - Praças Esportivas'
         elif 'praia' in entity or entity == '8': key = 'ACTION - Praia'
         elif 'evento' in entity or entity == '5': key = 'ACTION - Eventos'
         elif 'shopping' in entity or entity == '12': key = 'ACTION - Shopping'
@@ -172,7 +176,8 @@ def _category_audience(date_from, date_to, filters):
         elif 'social' in entity or entity == '15': key = 'ACTION - Ação Social'
         elif 'praça' in entity or 'praca' in entity or 'parque' in entity or entity == '11': key = 'ACTION - Praças/Parques Públicos'
         else: key = 'ACTION - Outros'
-        result[key] += float(row['audience'] or 0)
+        audience = action.approach or report.approximate_public
+        result[key] += float(audience or 0)
     return result
 def _rankings(date_from, date_to, filters):
     reports = _operational_reports(date_from, date_to, filters)
