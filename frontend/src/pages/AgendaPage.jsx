@@ -605,6 +605,7 @@ export default function AgendaPage() {
 
   const selectedTeam = lookups.teams.find((team) => String(team.id) === String(form.team_ref));
   const selectedTeamName = selectedTeam?.name || form.team_name;
+  const isEditingApprovedServiceOrder = Boolean(editing && reviewStep === "schedule" && form.status === "APPROVED");
 
   const availableTeams = useMemo(() => {
     if (scheduledShifts && form.date) {
@@ -626,6 +627,10 @@ export default function AgendaPage() {
   }, [lookups.chiefs, form.team_ref, selectedTeamName, selectedShift]);
 
   const allAgents = useMemo(() => {
+    if (isEditingApprovedServiceOrder) {
+      return lookups.agents.filter((agent) => belongsToTeam(agent, form.team_ref, selectedTeamName) && !isSupportRole(agent));
+    }
+
     let busyInOtherShifts = new Set();
     let currentShiftAbsents = new Set();
     if (scheduledShifts) {
@@ -648,7 +653,7 @@ export default function AgendaPage() {
       const idStr = String(agent.id);
       return !busyInOtherShifts.has(idStr) && !currentShiftAbsents.has(idStr);
     });
-  }, [lookups.agents, scheduledShifts, form.team_ref, selectedTeamName, form.agents_ref]);
+  }, [lookups.agents, scheduledShifts, form.team_ref, selectedTeamName, form.agents_ref, isEditingApprovedServiceOrder]);
 
   const teamAgents = useMemo(() => {
     if (selectedShift && selectedShift.members) {
