@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "./components/AppLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
@@ -13,7 +14,7 @@ import SetPasswordPage from "./pages/SetPasswordPage.jsx";
 import ShiftSchedulePage from "./pages/ShiftSchedulePage.jsx";
 import TechnicalReportsPage from "./pages/TechnicalReportsPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
-import StatisticsPage from "./pages/StatisticsPage.jsx";
+const StatisticsPage = lazy(() => import("./pages/StatisticsPage.jsx"));
 import EvaluationsPage from "./pages/EvaluationsPage.jsx";
 import SatisfactionSurveyPage from "./pages/SatisfactionSurveyPage.jsx";
 import ReleaseNotesPage from "./pages/ReleaseNotesPage.jsx";
@@ -46,7 +47,7 @@ export default function App() {
         <Route path="calendario" element={<CalendarPage />} />
         <Route path="escala" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"]} moduleName="ESCALA"><ShiftSchedulePage /></ProtectedRoute>} />
         <Route path="relatorio-tecnico" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="RELATORIOS"><TechnicalReportsPage /></ProtectedRoute>} />
-        <Route path="estatisticas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="ESTATISTICAS"><StatisticsPage /></ProtectedRoute>} />
+        <Route path="estatisticas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="ESTATISTICAS"><Suspense fallback={<div className="page">Carregando estatísticas…</div>}><StatisticsPage /></Suspense></ProtectedRoute>} />
         <Route path="avaliacoes" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AVALIACOES"><EvaluationsPage /></ProtectedRoute>} />
         <Route path="metas" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><GoalsPage /></ProtectedRoute>} />
         <Route path="cadastros" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><LookupsPage /></ProtectedRoute>} />

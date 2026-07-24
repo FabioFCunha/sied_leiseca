@@ -172,3 +172,60 @@ class StatisticsHistoricalSeriesView(APIView):
                     "value": value,
                 })
         return Response(response_data)
+
+class StatisticsDashboardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.statistics.dashboard import dashboard_payload
+        today = date.today()
+        date_from = parse_date(request.query_params.get('date_from')) or date(today.year, 1, 1)
+        date_to = parse_date(request.query_params.get('date_to')) or today
+        if date_from > date_to:
+            return Response({'error': 'A data inicial não pode ser posterior à data final.'}, status=400)
+        filters = {
+            key: request.query_params.get(key, '').strip()
+            for key in ('municipality', 'team', 'institution', 'entity', 'action_type')
+        }
+        return Response(dashboard_payload(date_from, date_to, filters))
+
+
+class StatisticsDashboardFiltersView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.schedules.models import EducationReport
+        reports = EducationReport.objects.filter(
+            status=EducationReport.ReportStatus.APPROVED,
+            statistics_processed=True,
+        )
+        return Response({
+            'municipalities': list(reports.exclude(agenda__city='').values_list('agenda__city', flat=True).distinct().order_by('agenda__city')),
+            'teams': list(reports.exclude(team='').values_list('team', flat=True).distinct().order_by('team')),
+            'entities': list(reports.exclude(agenda__requester_entity_type='').values_list('agenda__requester_entity_type', flat=True).distinct().order_by('agenda__requester_entity_type')),
+            'institutions': list(reports.exclude(actions__institution_name='').values_list('actions__institution_name', flat=True).distinct().order_by('actions__institution_name')[:500]),
+            'action_types': list(reports.exclude(actions__type_action='').values_list('actions__type_action', flat=True).distinct().order_by('actions__type_action')),
+        })
+
+
+class StatisticsDashboardCsvView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        import csv
+        from django.http import HttpResponse
+        from apps.statistics.dashboard import dashboard_payload
+        today = date.today()
+        date_from = parse_date(request.query_params.get('date_from')) or date(today.year, 1, 1)
+        date_to = parse_date(request.query_params.get('date_to')) or today
+        filters = {key: request.query_params.get(key, '').strip() for key in ('municipality', 'team', 'institution', 'entity', 'action_type')}
+        payload = dashboard_payload(date_from, date_to, filters)
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="estatisticas-sied.csv"'
+        response.write('\ufeff')
+        writer = csv.writer(response, delimiter=';')
+        writer.writerow(['Ano', 'Indicador', 'Valor'])
+        for row in payload['annual']:
+            for indicator, value in row['values'].items():
+                writer.writerow([row['year'], indicator, value])
+        return response

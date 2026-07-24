@@ -1,585 +1,204 @@
-import { TrendingUp, TrendingDown, Minus, BarChart3, CalendarDays, Activity, Filter, PieChart } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Activity, Award, BarChart3, BookOpen, Building2, CalendarDays,
+  Download, FileImage, FileSpreadsheet, Filter, MapPin, Presentation,
+  Printer, TrendingDown, TrendingUp, Users, X,
+} from "lucide-react";
+import {
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart,
+  Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip,
+  XAxis, YAxis,
+} from "recharts";
+import { toPng } from "html-to-image";
 import { api } from "../api/client.js";
-
 import { formatLocalISODate } from "../utils/date.js";
+import "./StatisticsPage.css";
 
-function formatNumber(value) {
-  return Number(value || 0).toLocaleString("pt-BR");
+const COLORS = ["#2563eb", "#7c3aed", "#059669", "#ea580c", "#db2777", "#0891b2", "#ca8a04", "#64748b", "#4f46e5", "#16a34a", "#dc2626"];
+const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const SERIES = [
+  ["audience", "Público total", "AUDIENCE - Geral", COLORS[0]],
+  ["lectureAudience", "Público em palestras", "AUDIENCE - PALESTRAS", COLORS[1]],
+  ["streetAudience", "Público em ações", "AUDIENCE - ACOES", COLORS[2]],
+  ["actions", "Total de ações", "ACTION - Geral", COLORS[3]],
+  ["materials", "Materiais", "MATERIAL - Geral", COLORS[4]],
+  ["certificates", "Certificados", "MATERIAL - Certificados", COLORS[5]],
+  ["comics", "Revistinhas", "MATERIAL - Soprinho", COLORS[6]],
+];
+const KPI_DEFS = [
+  ["AUDIENCE - Geral", "Público alcançado", Users, COLORS[0]],
+  ["ACTION - Geral", "Ações educativas", CalendarDays, COLORS[2]],
+  ["LECTURES - Geral", "Palestras", Presentation, COLORS[1]],
+  ["STREET_ACTIONS - Geral", "Ações de rua", Activity, COLORS[3]],
+  ["MATERIAL - Geral", "Materiais distribuídos", BookOpen, COLORS[4]],
+  ["MATERIAL - Certificados", "Certificados entregues", Award, COLORS[5]],
+  ["MATERIAL - Soprinho", "Revistinhas distribuídas", BookOpen, COLORS[6]],
+  ["AVERAGE_AUDIENCE", "Média de público por ação", BarChart3, COLORS[8]],
+];
+const HISTORICAL_ROWS = [
+  ["AUDIENCE - Geral", "1 - Público total"],
+  ["AUDIENCE - PALESTRAS", "1.1 - Público em palestras"],
+  ["AUDIENCE - ACOES", "1.2 - Público em ações"],
+  ["LECTURES - Geral", "2 - Palestras realizadas"],
+  ["ACTION - Escola", "2.1 - Escolas"],
+  ["ACTION - Universidade", "2.2 - Universidades"],
+  ["ACTION - Empresa", "2.3 - Empresas"],
+  ["MATERIAL - Certificados", "2.4 - Certificados entregues"],
+  ["STREET_ACTIONS - Geral", "3 - Ações de rua"],
+  ["ACTION - Bares", "3.1 - Bares"],
+  ["ACTION - Pedágio", "3.2 - Pedágio"],
+  ["ACTION - Praças Esportivas", "3.3 - Esportes"],
+  ["ACTION - Praia", "3.4 - Praia"],
+  ["ACTION - Eventos", "3.5 - Eventos"],
+  ["ACTION - Shopping", "3.6 - Shopping/Centro Comercial"],
+  ["ACTION - Ação Social", "3.7 - Ação Social"],
+  ["ACTION - Outros", "3.8 - Outros"],
+  ["ACTION - Praças/Parques Públicos", "3.9 - Praças/Parques Públicos"],
+  ["ACTION - Pontos turísticos", "3.10 - Pontos turísticos"],
+  ["ACTION - Fiscalização", "3.11 - Fiscalização"],
+  ["MATERIAL - Geral", "4 - Materiais de divulgação"],
+  ["MATERIAL - Soprinho", "Revistinha Soprinho"],
+];
+
+const number = value => Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+const iso = value => value instanceof Date ? formatLocalISODate(value) : value;
+const queryString = values => new URLSearchParams(Object.entries(values).filter(([, value]) => value !== "" && value != null)).toString();
+
+function Empty({ children = "Sem dados para os filtros selecionados." }) {
+  return <div className="stats-empty">{children}</div>;
 }
 
-function VariationBadge({ value, status }) {
-  if (status === "NEW_DATA") {
-    return (
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-        background: "rgba(4, 120, 87, 0.1)", color: "#047857"
-      }}>
-        Novo
-      </span>
-    );
-  }
-  
-  if (status === "NO_CHANGE" || value === null) {
-    return (
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-        background: "rgba(82, 96, 109, 0.1)", color: "#52606d"
-      }}>
-        <Minus size={14} /> 0.0%
-      </span>
-    );
-  }
-
-  const pct = Number(value || 0);
-  const isUp = pct > 0;
-  const isDown = pct < 0;
-  const Icon = isUp ? TrendingUp : isDown ? TrendingDown : Minus;
-  const label = isUp ? `+${pct.toFixed(1)}%` : `${pct.toFixed(1)}%`;
-  const bg = isUp ? "rgba(4, 120, 87, 0.1)" : isDown ? "rgba(220, 38, 38, 0.1)" : "rgba(82, 96, 109, 0.1)";
-  const color = isUp ? "#047857" : isDown ? "#dc2626" : "#52606d";
-
+function Section({ icon: Icon, title, subtitle, children, actions }) {
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-      background: bg, color
-    }}>
-      <Icon size={14} />
-      {label}
-    </span>
+    <section className="stats-panel">
+      <header className="stats-panel-header">
+        <div className="stats-panel-title"><span className="stats-icon"><Icon size={17} /></span><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div></div>
+        {actions && <div className="stats-panel-actions">{actions}</div>}
+      </header>
+      <div className="stats-panel-body">{children}</div>
+    </section>
   );
 }
 
-function KpiCard({ icon: Icon, label, value, subtitle, color = "var(--primary)" }) {
+function MetricCard({ definition, summary, previous, comparison, sparkline, totalActions }) {
+  const [key, label, Icon, color] = definition;
+  const value = Number(summary?.[key] || 0);
+  const prior = Number(previous?.[key] || 0);
+  const delta = comparison?.[key] || {};
+  const pct = delta.percentage;
+  const share = ["LECTURES - Geral", "STREET_ACTIONS - Geral"].includes(key) && totalActions ? (value / totalActions) * 100 : null;
+  const monthlyAverage = key === "ACTION - Geral" ? value / Math.max(new Date().getMonth() + 1, 1) : null;
+  const Trend = pct < 0 ? TrendingDown : TrendingUp;
   return (
-    <div style={{
-      background: "var(--surface)", borderRadius: 16, padding: "24px 28px",
-      border: "1px solid var(--line)",
-      boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
-      display: "flex", flexDirection: "column", gap: 6, position: "relative",
-      overflow: "hidden", transition: "transform 0.2s, box-shadow 0.2s",
-      flex: 1, minWidth: 200
-    }}
-    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 32px rgba(0,72,215,0.12)"; }}
-    onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 24px rgba(0,0,0,0.04)"; }}
-    >
-      <div style={{
-        position: "absolute", top: -20, right: -20, width: 80, height: 80,
-        borderRadius: "50%", background: color, opacity: 0.06
-      }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-        <div style={{
-          width: 36, height: 36, borderRadius: 10, display: "flex",
-          alignItems: "center", justifyContent: "center",
-          background: `linear-gradient(135deg, ${color}, ${color}dd)`, color: "#fff"
-        }}>
-          <Icon size={18} />
-        </div>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-soft)", textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</span>
-      </div>
-      <strong style={{ fontSize: 32, fontWeight: 800, color: "var(--text)", lineHeight: 1.1 }}>{value}</strong>
-      {subtitle && <span style={{ fontSize: 12, color: "var(--text-soft)" }}>{subtitle}</span>}
-    </div>
+    <article className="stats-kpi" style={{ "--kpi": color }}>
+      <div className="stats-kpi-top"><span className="stats-kpi-icon"><Icon size={18} /></span><span>{label}</span></div>
+      <div className="stats-kpi-value">{number(value)}</div>
+      <div className={`stats-kpi-delta ${pct < 0 ? "is-down" : "is-up"}`}><Trend size={14} />{pct == null ? (value ? "Novo" : "0,0%") : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`} <span>vs. {number(prior)}</span></div>
+      {share != null && <small>{share.toFixed(1)}% do total de ações</small>}
+      {monthlyAverage != null && <small>Média mensal: {number(monthlyAverage)}</small>}
+      {sparkline?.length > 1 && <div className="stats-spark"><ResponsiveContainer><LineChart data={sparkline}><Line dataKey={key} stroke={color} strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer></div>}
+    </article>
   );
 }
 
-function ChartSection({ icon: Icon, title, subtitle, gradient = "linear-gradient(135deg, #0048d7, #003299)", children }) {
-  return (
-    <div style={{
-      background: "var(--surface)", borderRadius: 16,
-      border: "1px solid var(--line)",
-      boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
-      overflow: "hidden", marginBottom: 32
-    }}>
-      <div style={{ padding: "24px 28px 16px", borderBottom: "1px solid var(--line)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, display: "flex",
-            alignItems: "center", justifyContent: "center",
-            background: gradient, color: "#fff"
-          }}>
-            <Icon size={16} />
-          </div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--text)" }}>{title}</h2>
-        </div>
-        {subtitle && <p style={{ margin: 0, fontSize: 13, color: "var(--text-soft)" }}>{subtitle}</p>}
-      </div>
-      <div style={{ padding: "28px" }}>
-        {children}
-      </div>
-    </div>
-  );
+function Heatmap({ rows }) {
+  if (!rows?.length) return <Empty />;
+  const max = Math.max(...rows.map(row => Number(row.actions || 0)), 1);
+  return <div className="stats-heatmap">{rows.map(row => <div key={row.operation_date} className="stats-heat-cell" style={{ opacity: .18 + .82 * Number(row.actions || 0) / max }} title={`${row.operation_date}: ${number(row.actions)} ações · público ${number(row.audience)}`}><span>{new Date(`${row.operation_date}T12:00:00`).getDate()}</span></div>)}</div>;
 }
 
-
-
-function StreetComparisonChart({ labels, previousValues, currentValues, previousYear, currentYear }) {
-  const maxValue = Math.max(...previousValues, ...currentValues, 1);
-  return (
-    <div style={{ display: "grid", gap: 14 }}>
-      {labels.map((label, index) => {
-        const previous = previousValues[index] || 0;
-        const current = currentValues[index] || 0;
-        const variation = previous ? ((current - previous) / previous) * 100 : null;
-        return (
-          <div key={label} style={{ display: "grid", gridTemplateColumns: "150px minmax(180px, 1fr) 86px", gap: 12, alignItems: "center" }}>
-            <strong style={{ fontSize: 12, color: "var(--text)", textAlign: "right" }}>{label}</strong>
-            <div style={{ display: "grid", gap: 5 }}>
-              <div style={{ height: 10, borderRadius: 8, background: "var(--surface-2)", overflow: "hidden" }}>
-                <div style={{ width: `${(previous / maxValue) * 100}%`, height: "100%", background: "#7c3aed", borderRadius: 8 }} />
-              </div>
-              <div style={{ height: 10, borderRadius: 8, background: "var(--surface-2)", overflow: "hidden" }}>
-                <div style={{ width: `${(current / maxValue) * 100}%`, height: "100%", background: "#047857", borderRadius: 8 }} />
-              </div>
-            </div>
-            <div style={{ fontSize: 11, color: "var(--text-soft)", lineHeight: 1.45 }}>
-              <div><span style={{ color: "#7c3aed" }}>●</span> {previousYear}: <strong>{formatNumber(previous)}</strong></div>
-              <div><span style={{ color: "#047857" }}>●</span> {currentYear}: <strong>{formatNumber(current)}</strong></div>
-              <div>{variation === null ? (current ? "Novo" : "0,0%") : `${variation >= 0 ? "+" : ""}${variation.toFixed(1)}%`}</div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-function HistoricalLineChart({ rows }) {
-  const width = 920;
-  const height = 320;
-  const padding = { left: 58, right: 28, top: 30, bottom: 42 };
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const maxValue = Math.max(...rows.flatMap(row => [row.lectures, row.actions]), 1);
-  const point = (value, index) => ({
-    x: padding.left + (index * plotWidth) / Math.max(rows.length - 1, 1),
-    y: padding.top + plotHeight - (value / maxValue) * plotHeight,
-  });
-  const lecturePoints = rows.map((row, index) => point(row.lectures, index));
-  const actionPoints = rows.map((row, index) => point(row.actions, index));
-  const path = points => points.map(({ x, y }) => `${x},${y}`).join(" ");
-
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Série anual de palestras e ações" style={{ width: "100%", minWidth: 720, display: "block" }}>
-        {[0, 0.25, 0.5, 0.75, 1].map(step => {
-          const y = padding.top + plotHeight - step * plotHeight;
-          return (
-            <g key={step}>
-              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="var(--line)" />
-              <text x={padding.left - 10} y={y + 4} textAnchor="end" fill="var(--text-soft)" fontSize="11">
-                {formatNumber(Math.round(maxValue * step))}
-              </text>
-            </g>
-          );
-        })}
-        <polyline points={path(lecturePoints)} fill="none" stroke="#7c3aed" strokeWidth="3" strokeLinejoin="round" />
-        <polyline points={path(actionPoints)} fill="none" stroke="#047857" strokeWidth="3" strokeLinejoin="round" />
-        {rows.map((row, index) => (
-          <g key={row.year}>
-            <circle cx={lecturePoints[index].x} cy={lecturePoints[index].y} r="4" fill="#7c3aed"><title>{`${row.year} · Palestras: ${formatNumber(row.lectures)}`}</title></circle>
-            <circle cx={actionPoints[index].x} cy={actionPoints[index].y} r="4" fill="#047857"><title>{`${row.year} · Ações: ${formatNumber(row.actions)}`}</title></circle>
-            <text x={lecturePoints[index].x} y={height - 15} textAnchor="middle" fill="var(--text-soft)" fontSize="11">{row.year}</text>
-          </g>
-        ))}
-      </svg>
-      <div style={{ display: "flex", justifyContent: "center", gap: 24, flexWrap: "wrap" }}>
-        <span style={{ color: "var(--text)", fontSize: 13 }}><strong style={{ color: "#7c3aed" }}>●</strong> Palestras</span>
-        <span style={{ color: "var(--text)", fontSize: 13 }}><strong style={{ color: "#047857" }}>●</strong> Ações</span>
-      </div>
-    </div>
-  );
-}
-function getDefaultFilters() {
-  const today = new Date();
-  const year = today.getFullYear();
-  return {
-    date_from: `${year}-01-01`,
-    date_to: formatLocalISODate(today),
-  };
+function Ranking({ rows, nameKey }) {
+  if (!rows?.length) return <Empty />;
+  const max = Math.max(...rows.map(row => Number(row.actions || 0)), 1);
+  return <div className="stats-ranking">{rows.map((row, index) => <div className="stats-rank-row" key={`${row[nameKey]}-${index}`}><b>{index + 1}</b><span>{row[nameKey] || "Não informado"}</span><div><i style={{ width: `${Number(row.actions || 0) / max * 100}%` }} /></div><strong>{number(row.actions)}</strong><small>{number(row.audience)} público</small></div>)}</div>;
 }
 
 export default function StatisticsPage() {
+  const now = new Date();
+  const dashboardRef = useRef(null);
+  const [filters, setFilters] = useState({ date_from: `${now.getFullYear()}-01-01`, date_to: iso(now), municipality: "", team: "", action_type: "", entity: "", institution: "" });
+  const [pending, setPending] = useState(filters);
+  const [options, setOptions] = useState({ municipalities: [], teams: [], action_types: [], entities: [], institutions: [] });
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [comparisonData, setComparisonData] = useState(null);
-  const [historicalData, setHistoricalData] = useState([]);
-  const [streetCompareYear, setStreetCompareYear] = useState(2025);
+  const [seriesMode, setSeriesMode] = useState("quantity");
+  const [activeSeries, setActiveSeries] = useState(Object.fromEntries(SERIES.map(([key]) => [key, true])));
+  const [drilldown, setDrilldown] = useState(null);
 
-  const [filters, setFilters] = useState(getDefaultFilters);
-  const [pendingFilters, setPendingFilters] = useState(getDefaultFilters);
-
-  const refDateTo = new Date(filters.date_to + "T00:00:00");
-  const currentYear = refDateTo.getFullYear();
-  const prevYear = currentYear - 1;
-
-  const prevDateFrom = `${prevYear}-01-01`;
-  const prevDateTo = `${prevYear}-12-31`;
-
-  const elapsedMonths = useMemo(() => {
-    const from = new Date(filters.date_from + "T00:00:00");
-    const to = new Date(filters.date_to + "T00:00:00");
-    return Math.max(Math.round((to - from) / (1000 * 60 * 60 * 24 * 30.44)), 1);
-  }, [filters]);
-
+  useEffect(() => { api("/statistics/dashboard/filters/").then(setOptions).catch(() => {}); }, []);
   useEffect(() => {
-    setLoading(true);
-    setError("");
-
-    const params = `date_from=${filters.date_from}&date_to=${filters.date_to}&prev_date_from=${prevDateFrom}&prev_date_to=${prevDateTo}`;
-    
-    Promise.all([
-      api(`/statistics/comparison/?${params}`),
-      api(`/statistics/historical-series/`),
-    ])
-      .then(([comp, hist]) => {
-        setComparisonData(comp);
-        setHistoricalData(hist);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+    setLoading(true); setError("");
+    api(`/statistics/dashboard/?${queryString(filters)}`).then(setData).catch(err => setError(err.message)).finally(() => setLoading(false));
   }, [filters]);
 
-  // Map Backend Category Keys to Frontend Labels
-  const comparisonFields = [
-    { key: "AUDIENCE - Geral", label: "Total de abordagens", icon: Activity, color: "#0048d7" },
-    { key: "AUDIENCE - PALESTRAS", label: "1.1 - Abordados em palestras", icon: BarChart3, color: "#7c3aed" },
-    { key: "AUDIENCE - ACOES", label: "1.2 - Abordados em ações", icon: TrendingUp, color: "#047857" },
-    { key: "ACTION - Geral", label: "2 - Ações Educativas (Total Geral)", icon: CalendarDays, color: "#0ea5e9" },
-    { key: "ACTION - Escola", label: "2.1 - Escolas", icon: Activity, color: "#f59e0b" },
-    { key: "ACTION - Universidade", label: "2.2 - Universidades", icon: BarChart3, color: "#ec4899" },
-    { key: "ACTION - Empresa", label: "2.3 - Empresas", icon: TrendingUp, color: "#8b5cf6" },
-    { key: "MATERIAL - Certificados", label: "2.4 - Certificados entregues", icon: CalendarDays, color: "#14b8a6" },
-    { key: "ACTION - Bares", label: "3.1 - Bares", icon: BarChart3, color: "#eab308" },
-    { key: "ACTION - Pedágio", label: "3.2 - Pedágio", icon: TrendingUp, color: "#a855f7" },
-    { key: "ACTION - Praças Esportivas", label: "3.3 - Esportes", icon: CalendarDays, color: "#3b82f6" },
-    { key: "ACTION - Praia", label: "3.4 - Praia", icon: Activity, color: "#22c55e" },
-    { key: "ACTION - Eventos", label: "3.5 - Eventos", icon: BarChart3, color: "#ec4899" },
-    { key: "ACTION - Shopping", label: "3.6 - Shopping/Centro Comercial", icon: TrendingUp, color: "#f97316" },
-    { key: "ACTION - Ação Social", label: "3.7 - Ação Social", icon: CalendarDays, color: "#6366f1" },
-    { key: "ACTION - Outros", label: "3.8 - Outros", icon: Activity, color: "#64748b" },
-    { key: "MATERIAL - Soprinho", label: "Revistinha Soprinho", icon: BarChart3, color: "#10b981" },
-    { key: "MATERIAL - Geral", label: "4 - Materiais de Divulgação", icon: TrendingUp, color: "#8b5cf6" },
-  ];
-
-  const table1Data = useMemo(() => {
-    if (!comparisonData) return [];
-    
-    return comparisonFields.map(field => {
-      const current = comparisonData.current_period[field.key] || 0;
-      const previous = comparisonData.previous_period[field.key] || 0;
-      const diffData = comparisonData.variations[field.key] || { variation: 0, status: "NO_CHANGE" };
-      const difference = current - previous;
-      const projection = Math.round((current / elapsedMonths) * 12);
-      
-      return { 
-        ...field, 
-        current, 
-        previous, 
-        difference, 
-        percentage: diffData.variation,
-        status: diffData.status,
-        projection 
-      };
+  const annual = useMemo(() => (data?.annual || []).map(row => ({ year: row.year, ...row.values, ...Object.fromEntries(SERIES.map(([alias,, key]) => [alias, Number(row.values[key] || 0)])) })), [data]);
+  const monthly = useMemo(() => (data?.monthly || []).map(row => ({ month: MONTHS[row.month - 1], ...row.values, audience: Number(row.values["AUDIENCE - Geral"] || 0), lectures: Number(row.values["LECTURES - Geral"] || 0), street: Number(row.values["STREET_ACTIONS - Geral"] || 0) })), [data]);
+  const categoryData = useMemo(() => (data?.categories || []).map((row, index) => ({ ...row, value: Number(row.value || 0), audience: Number(row.audience || 0), color: COLORS[index % COLORS.length] })).sort((a, b) => b.value - a.value), [data]);
+  const totalActions = Number(data?.summary?.["ACTION - Geral"] || 0);
+  const latestYears = annual.slice(-5);
+  const projection = useMemo(() => {
+    const selectedMonth = new Date(filters.date_to + "T12:00:00").getMonth();
+    const realizedTotal = monthly.slice(0, selectedMonth + 1).reduce((sum, row) => sum + Number(row.audience || 0), 0);
+    const monthlyPace = realizedTotal / Math.max(selectedMonth + 1, 1);
+    let cumulative = 0;
+    return monthly.map((row, index) => {
+      if (index <= selectedMonth) cumulative += Number(row.audience || 0);
+      return { ...row, realized: index <= selectedMonth ? cumulative : null, projection: Math.round(monthlyPace * (index + 1)) };
     });
-  }, [comparisonData, elapsedMonths]);
+  }, [monthly, filters.date_to]);
 
-  const historicalFields = [
-    { key: "AUDIENCE - Geral", label: "1 - Público total" },
-    { key: "AUDIENCE - PALESTRAS", label: "1.1 - Público em palestras" },
-    { key: "AUDIENCE - ACOES", label: "1.2 - Público em ações" },
-    { key: "LECTURES - Geral", label: "2 - Palestras realizadas" },
-    { key: "ACTION - Escola", label: "2.1 - Escolas" },
-    { key: "ACTION - Universidade", label: "2.2 - Universidades" },
-    { key: "ACTION - Empresa", label: "2.3 - Empresas" },
-    { key: "MATERIAL - Certificados", label: "2.4 - Certificados entregues" },
-    { key: "STREET_ACTIONS - Geral", label: "3 - Ações" },
-    { key: "ACTION - Bares", label: "3.1 - Bares" },
-    { key: "ACTION - Pedágio", label: "3.2 - Pedágio" },
-    { key: "ACTION - Praças Esportivas", label: "3.3 - Esportes" },
-    { key: "ACTION - Praia", label: "3.4 - Praia" },
-    { key: "ACTION - Eventos", label: "3.5 - Eventos" },
-    { key: "ACTION - Shopping", label: "3.6 - Shopping/Centro Comercial" },
-    { key: "ACTION - Ação Social", label: "3.7 - Ação Social" },
-    { key: "ACTION - Outros", label: "3.8 - Outros" },
-    { key: "ACTION - Praças/Parques Públicos", label: "3.9 - Praças/Parques Públicos" },
-    { key: "ACTION - Pontos turísticos", label: "3.10 - Pontos turísticos" },
-    { key: "ACTION - Fiscalização", label: "3.11 - Fiscalização" },
-    { key: "MATERIAL - Geral", label: "4 - Materiais de divulgação" },
-    { key: "MATERIAL - Soprinho", label: "Revistinha Soprinho" },
-  ];
-
-  const lectureCategoryKeys = [
-    "ACTION - Escola", "ACTION - Universidade", "ACTION - Empresa",
-  ];
-
-  const streetActionCategoryKeys = [
-    "ACTION - Bares", "ACTION - Pedágio", "ACTION - Praças Esportivas",
-    "ACTION - Praia", "ACTION - Eventos", "ACTION - Shopping",
-    "ACTION - Ação Social", "ACTION - Outros",
-    "ACTION - Praças/Parques Públicos", "ACTION - Pontos turísticos",
-    "ACTION - Fiscalização",
-  ];
-
-  // Aggregate the official historical series by year without percentage comparison.
-  const table3Data = useMemo(() => {
-    if (!historicalData) return [];
-
-    const years = [...new Set(historicalData.map(d => d.year))].sort((a, b) => a - b);
-
-    return years.map(year => {
-      const yearData = historicalData.filter(item => item.year === year);
-      const getValue = category => yearData
-        .filter(item => item.category === category)
-        .reduce((sum, item) => sum + Number(item.value || 0), 0);
-      const values = Object.fromEntries(
-        historicalFields.map(field => [field.key, getValue(field.key)])
-      );
-      values["LECTURES - Geral"] = lectureCategoryKeys.reduce(
-        (sum, key) => sum + getValue(key), 0
-      );
-      const categorizedStreetActions = streetActionCategoryKeys.reduce(
-        (sum, key) => sum + getValue(key), 0
-      );
-      values["STREET_ACTIONS - Geral"] = Math.max(
-        getValue("ACTION - Geral") - values["LECTURES - Geral"],
-        categorizedStreetActions,
-        0
-      );
-      return { year, values };
-    });
-  }, [historicalData]);
-  const historyPlotData = table3Data.map(row => ({
-    year: row.year,
-    lectures: row.values["LECTURES - Geral"] || 0,
-    actions: row.values["STREET_ACTIONS - Geral"] || 0,
-  }));
-  const historicalYears = table3Data.map(row => row.year);
-  const latestHistoricalRow = table3Data.at(-1);
-  const comparedHistoricalRow = table3Data.find(row => row.year === Number(streetCompareYear)) || table3Data.at(-2);
-  const streetChartFields = historicalFields.filter(field => field.key.startsWith("ACTION - ") && !lectureCategoryKeys.includes(field.key));
-  const streetChartLabels = streetChartFields.map(field => field.label.replace(/^3\.\d+\s*-\s*/, ""));
-  const streetPreviousValues = streetChartFields.map(field => comparedHistoricalRow?.values[field.key] || 0);
-  const streetCurrentValues = streetChartFields.map(field => latestHistoricalRow?.values[field.key] || 0);
-  const currentPeriod = comparisonData?.current_period || {};
-  const currentLectures = lectureCategoryKeys.reduce((sum, key) => sum + Number(currentPeriod[key] || 0), 0);
-  const categorizedCurrentActions = streetActionCategoryKeys.reduce((sum, key) => sum + Number(currentPeriod[key] || 0), 0);
-  const currentEducationalActions = Number(currentPeriod["ACTION - Geral"] || 0);
-  const currentStreetActions = Math.max(currentEducationalActions - currentLectures, categorizedCurrentActions, 0);
-  const applyFilters = () => setFilters({ ...pendingFilters });
-  const clearFilters = () => {
-    const defaults = getDefaultFilters();
-    setPendingFilters(defaults);
-    setFilters(defaults);
+  const reset = () => { const base = { date_from: `${now.getFullYear()}-01-01`, date_to: iso(now), municipality: "", team: "", action_type: "", entity: "", institution: "" }; setPending(base); setFilters(base); };
+  const exportExcel = () => {
+    const years = annual.map(row => row.year);
+    const lines = [["Indicador", ...years], ...HISTORICAL_ROWS.map(([key, label]) => [label, ...annual.map(row => row[key] || 0)])];
+    const blob = new Blob(["\ufeff" + lines.map(line => line.join("\t")).join("\n")], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "estatisticas-sied.xls"; link.click(); URL.revokeObjectURL(link.href);
+  };
+  const exportCsv = async () => {
+    const blob = await api(`/statistics/dashboard/export.csv?${queryString(filters)}`);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "estatisticas-sied.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+  const exportImage = async () => {
+    const dataUrl = await toPng(dashboardRef.current, { cacheBust: true, pixelRatio: 1.5, backgroundColor: "#f4f7fb" });
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = "dashboard-estatisticas-sied.png";
+    link.click();
   };
 
-  const tableHeaderStyle = {
-    padding: "14px 18px", fontWeight: 700, fontSize: 12, textTransform: "uppercase",
-    letterSpacing: 0.5, color: "#fff", background: "linear-gradient(135deg, #001338 0%, #0048d7 100%)",
-    borderBottom: "2px solid rgba(255,255,255,0.1)", whiteSpace: "nowrap", textAlign: "left"
-  };
-
-  const cellStyle = {
-    padding: "14px 18px", fontSize: 14, fontWeight: 500, color: "var(--text)",
-    borderBottom: "1px solid var(--line)", textAlign: "left"
-  };
-
-  const cellNumStyle = {
-    ...cellStyle, fontWeight: 700, fontFamily: "Inter, monospace", textAlign: "right"
-  };
-
-  const formatPeriod = (from, to) => {
-    const f = new Date(from + "T00:00:00");
-    const t = new Date(to + "T00:00:00");
-    return `${f.toLocaleDateString("pt-BR")} a ${t.toLocaleDateString("pt-BR")}`;
-  };
+  if (loading) return <section className="stats-dashboard"><div className="stats-loading">Carregando painel executivo…</div></section>;
+  if (error) return <section className="stats-dashboard"><div className="alert">Não foi possível carregar o dashboard: {error}</div></section>;
 
   return (
-    <section className="page" style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 48px" }}>
-      {/* Hero */}
-      <div style={{
-        background: "linear-gradient(135deg, #001338 0%, #003299 50%, #0048d7 100%)",
-        borderRadius: 20, padding: "36px 40px", marginBottom: 32, position: "relative",
-        overflow: "hidden", boxShadow: "0 12px 40px rgba(0, 72, 215, 0.2)"
-      }}>
-        <div style={{
-          position: "absolute", top: -60, right: -60, width: 200, height: 200,
-          borderRadius: "50%", background: "rgba(255,255,255,0.04)"
-        }} />
-        <div style={{
-          position: "absolute", bottom: -40, right: 80, width: 120, height: 120,
-          borderRadius: "50%", background: "rgba(255,255,255,0.03)"
-        }} />
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>
-          Painel de Gestão (Nova API)
-        </span>
-        <h1 style={{ margin: "8px 0 6px", fontSize: 28, fontWeight: 800, color: "#fff" }}>Estatísticas Oficiais SIED</h1>
-        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.65)", maxWidth: 500 }}>
-          Indicadores consolidados (Histórico + Relatórios Operacionais).
-        </p>
-      </div>
+    <section className="stats-dashboard" ref={dashboardRef}>
+      <header className="stats-hero"><div><span>Inteligência institucional</span><h1>Estatísticas Oficiais SIED</h1><p>Indicadores históricos e operacionais consolidados pela metodologia oficial.</p></div><div className="stats-export"><button onClick={() => window.print()}><Printer size={16}/>PDF</button><button onClick={exportExcel}><FileSpreadsheet size={16}/>Excel</button><button onClick={exportCsv}><Download size={16}/>CSV</button><button onClick={exportImage}><FileImage size={16}/>Imagem</button></div></header>
 
-      {/* Filtros */}
-      <div style={{
-        background: "var(--surface)", borderRadius: 16, padding: "20px 28px",
-        border: "1px solid var(--line)", boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
-        marginBottom: 28, display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap"
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 8 }}>
-          <Filter size={16} style={{ color: "var(--primary)" }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Período</span>
-        </div>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--text-soft)" }}>
-          Data inicial
-          <input type="date" value={pendingFilters.date_from} onChange={e => setPendingFilters(f => ({ ...f, date_from: e.target.value }))}
-            style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--line)", fontSize: 13 }} />
-        </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--text-soft)" }}>
-          Data final
-          <input type="date" value={pendingFilters.date_to} onChange={e => setPendingFilters(f => ({ ...f, date_to: e.target.value }))}
-            style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--line)", fontSize: 13 }} />
-        </label>
-        <button onClick={applyFilters} style={{ height: 38, padding: "0 20px", fontSize: 13, fontWeight: 700, borderRadius: 8 }}>
-          Aplicar
-        </button>
-        <button onClick={clearFilters} className="secondary" style={{ height: 38, padding: "0 16px", fontSize: 13 }}>
-          Limpar
-        </button>
-      </div>
+      <div className="stats-filters"><div className="stats-filter-title"><Filter size={17}/>Filtros globais</div><label>De<input type="date" value={pending.date_from} onChange={e => setPending(v => ({ ...v, date_from: e.target.value }))}/></label><label>Até<input type="date" value={pending.date_to} onChange={e => setPending(v => ({ ...v, date_to: e.target.value }))}/></label><label>Município<select value={pending.municipality} onChange={e => setPending(v => ({ ...v, municipality: e.target.value }))}><option value="">Todos</option>{options.municipalities.map(v => <option key={v}>{v}</option>)}</select></label><label>Equipe<select value={pending.team} onChange={e => setPending(v => ({ ...v, team: e.target.value }))}><option value="">Todas</option>{options.teams.map(v => <option key={v}>{v}</option>)}</select></label><label>Tipo<select value={pending.action_type} onChange={e => setPending(v => ({ ...v, action_type: e.target.value }))}><option value="">Todos</option>{options.action_types.map(v => <option key={v}>{v}</option>)}</select></label><label>Categoria<select value={pending.entity} onChange={e => setPending(v => ({ ...v, entity: e.target.value }))}><option value="">Todas</option>{options.entities.map(v => <option key={v}>{v}</option>)}</select></label><label>Instituição<select value={pending.institution} onChange={e => setPending(v => ({ ...v, institution: e.target.value }))}><option value="">Todas</option>{options.institutions.map(v => <option key={v}>{v}</option>)}</select></label><div className="stats-filter-actions"><button className="primary" onClick={() => setFilters(pending)}>Aplicar</button><button onClick={reset}>Limpar</button></div></div>
 
-      {loading ? (
-        <div style={{ display: "flex", gap: 16 }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} style={{ flex: 1, height: 120, borderRadius: 16, background: "var(--surface-2)", animation: "pulse 1.5s infinite" }} />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="alert">Não foi possível carregar as estatísticas: {error}</div>
-      ) : (
-        <>
-          {/* Indicadores centrais do visual aprovado */}
-          <div style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
-            <KpiCard icon={BarChart3} label="Palestras" value={formatNumber(currentLectures)} subtitle={formatPeriod(filters.date_from, filters.date_to)} color="#7c3aed" />
-            <KpiCard icon={TrendingUp} label="Ações" value={formatNumber(currentStreetActions)} subtitle={formatPeriod(filters.date_from, filters.date_to)} color="#047857" />
-            <KpiCard icon={CalendarDays} label="Ações educativas" value={formatNumber(currentEducationalActions)} subtitle="Palestras + ações" color="#0048d7" />
-          </div>
-          <ChartSection
-            icon={TrendingUp}
-            title="Ação e palestra ao longo da série histórica"
-            subtitle="Totais anuais oficiais; o ano corrente combina a base histórica e os relatórios aprovados no SIED."
-            gradient="linear-gradient(135deg, #7c3aed, #047857)"
-          >
-            <HistoricalLineChart rows={historyPlotData} />
-          </ChartSection>
+      <div className="stats-kpi-grid">{KPI_DEFS.map(def => <MetricCard key={def[0]} definition={def} summary={data.summary} previous={data.previous} comparison={data.comparisons} sparkline={annual.slice(-6)} totalActions={totalActions}/>)}</div>
 
-          <ChartSection
-            icon={Activity}
-            title="Comparativo das ações de rua"
-            subtitle="Categorias registradas na Solicitação Interna, incluindo as opções do novo processo."
-            gradient="linear-gradient(135deg, #047857, #0048d7)"
-          >
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
-                Comparar com
-                <select
-                  value={streetCompareYear}
-                  onChange={event => setStreetCompareYear(Number(event.target.value))}
-                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--text)" }}
-                >
-                  {historicalYears.filter(year => year !== latestHistoricalRow?.year).map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 28, alignItems: "start" }}>
-              <StreetComparisonChart
-                labels={streetChartLabels}
-                previousValues={streetPreviousValues}
-                currentValues={streetCurrentValues}
-                previousYear={comparedHistoricalRow?.year || streetCompareYear}
-                currentYear={latestHistoricalRow?.year || currentYear}
-              />
-              <div>
-                <h3 style={{ margin: "0 0 12px", color: "var(--text)" }}>Opções atuais na Solicitação Interna</h3>
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead><tr><th style={tableHeaderStyle}>Tipo</th><th style={{ ...tableHeaderStyle, textAlign: "right" }}>{comparedHistoricalRow?.year}</th><th style={{ ...tableHeaderStyle, textAlign: "right" }}>{latestHistoricalRow?.year}</th></tr></thead>
-                    <tbody>
-                      {streetChartFields.map((field, index) => (
-                        <tr key={field.key} style={{ background: index % 2 ? "var(--surface-2)" : "var(--surface)" }}>
-                          <td style={cellStyle}>{streetChartLabels[index]}</td>
-                          <td style={cellNumStyle}>{formatNumber(streetPreviousValues[index])}</td>
-                          <td style={cellNumStyle}>{formatNumber(streetCurrentValues[index])}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </ChartSection>
-          {/* Tabela 3: Histórico Anual */}
-          <div style={{
-            background: "var(--surface)", borderRadius: 16,
-            border: "1px solid var(--line)",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.04)",
-            overflow: "hidden", marginBottom: 32
-          }}>
-            <div style={{ padding: "24px 28px 16px", borderBottom: "1px solid var(--line)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 8, display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  background: "linear-gradient(135deg, #7c3aed, #5b21b6)", color: "#fff"
-                }}>
-                  <BarChart3 size={16} />
-                </div>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--text)" }}>
-                  Série Histórica
-                </h2>
-              </div>
-              <p style={{ margin: 0, fontSize: 13, color: "var(--text-soft)" }}>
-                Série histórica com totais anuais agregados (Banco de Dados Otimizado).
-              </p>
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...tableHeaderStyle, background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Ano</th>
-                    {historicalFields.map(field => (
-                      <th
-                        key={field.key}
-                        style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}
-                      >
-                        {field.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {table3Data.map((row, i) => (
-                    <tr key={row.year} style={{ background: i % 2 === 0 ? "var(--surface)" : "var(--surface-2)", transition: "background 0.15s" }}
-                      onMouseEnter={e => e.currentTarget.style.background = "rgba(124, 58, 237, 0.04)"}
-                      onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "var(--surface)" : "var(--surface-2)"}
-                    >
-                      <td style={{ ...cellStyle, fontWeight: 800, color: "var(--primary)" }}>{row.year}</td>
-                      {historicalFields.map(field => (
-                        <td key={field.key} style={cellNumStyle}>
-                          {formatNumber(row.values[field.key])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
+      <Section icon={TrendingUp} title="Série histórica institucional" subtitle="Ative ou desative os indicadores para comparar a evolução anual."><div className="stats-series-switches">{SERIES.map(([alias, label,, color]) => <label key={alias}><input type="checkbox" checked={activeSeries[alias]} onChange={() => setActiveSeries(v => ({ ...v, [alias]: !v[alias] }))}/><i style={{ background: color }}/>{label}</label>)}</div><div className="stats-chart-xl">{annual.length ? <ResponsiveContainer><LineChart data={annual} margin={{ top: 15, right: 25, bottom: 5, left: 10 }}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="year"/><YAxis tickFormatter={number}/><Tooltip formatter={number}/><Legend/>{SERIES.map(([alias, label,, color]) => activeSeries[alias] && <Line key={alias} type="monotone" dataKey={alias} name={label} stroke={color} strokeWidth={3} dot={{ r: 3 }} connectNulls/>)}</LineChart></ResponsiveContainer> : <Empty>Importe a série histórica oficial para visualizar 2011–2026.</Empty>}</div></Section>
+
+      <div className="stats-two-columns"><Section icon={CalendarDays} title="Evolução mensal" subtitle="Janeiro a dezembro no período selecionado." actions={<div className="stats-segmented"><button className={seriesMode === "quantity" ? "active" : ""} onClick={() => setSeriesMode("quantity")}>Quantidade</button><button className={seriesMode === "audience" ? "active" : ""} onClick={() => setSeriesMode("audience")}>Público</button></div>}><div className="stats-chart"><ResponsiveContainer><LineChart data={monthly}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="month"/><YAxis tickFormatter={number}/><Tooltip formatter={number}/>{seriesMode === "audience" ? <Line type="monotone" dataKey="audience" name="Público" stroke={COLORS[0]} strokeWidth={3}/> : <><Line type="monotone" dataKey="lectures" name="Palestras" stroke={COLORS[1]} strokeWidth={3}/><Line type="monotone" dataKey="street" name="Ações de rua" stroke={COLORS[2]} strokeWidth={3}/></>}</LineChart></ResponsiveContainer></div></Section><Section icon={Activity} title="Palestras × ações de rua" subtitle="Comparativo mensal por modalidade."><div className="stats-chart"><ResponsiveContainer><BarChart data={monthly}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="month"/><YAxis/><Tooltip formatter={number}/><Legend/><Bar dataKey="lectures" name="Palestras" fill={COLORS[1]} radius={[5,5,0,0]}/><Bar dataKey="street" name="Ações de rua" fill={COLORS[2]} radius={[5,5,0,0]}/></BarChart></ResponsiveContainer></div></Section></div>
+
+      <div className="stats-two-columns"><Section icon={Activity} title="Distribuição das ações" subtitle="Participação percentual por categoria."><div className="stats-chart"><ResponsiveContainer><PieChart><Pie data={categoryData} dataKey="value" nameKey="label" innerRadius="52%" outerRadius="78%" paddingAngle={2} onClick={entry => setDrilldown(entry)}>{categoryData.map((entry, index) => <Cell key={entry.key} fill={COLORS[index % COLORS.length]}/>)}</Pie><Tooltip formatter={number}/><Legend layout="vertical" verticalAlign="middle" align="right"/></PieChart></ResponsiveContainer></div></Section><Section icon={Users} title="Público e volume por categoria" subtitle="Ranking operacional das categorias selecionadas."><div className="stats-chart"><ResponsiveContainer><BarChart data={categoryData.slice(0, 10)} layout="vertical" margin={{ left: 30 }}><CartesianGrid strokeDasharray="3 3"/><XAxis type="number"/><YAxis dataKey="label" type="category" width={125}/><Tooltip formatter={number}/><Bar dataKey="audience" name="Público" radius={[0,6,6,0]} onClick={entry => setDrilldown(entry)}>{categoryData.map((entry, index) => <Cell key={entry.key} fill={COLORS[index % COLORS.length]}/>)}</Bar></BarChart></ResponsiveContainer></div></Section></div>
+
+      <div className="stats-two-columns"><Section icon={BarChart3} title="Evolução anual" subtitle="Total de ações educativas nos últimos anos."><div className="stats-chart"><ResponsiveContainer><BarChart data={latestYears}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="year"/><YAxis/><Tooltip formatter={number}/><Bar dataKey="ACTION - Geral" name="Ações" fill={COLORS[0]} radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div></Section><Section icon={TrendingUp} title="Realizado × projeção" subtitle="Ritmo acumulado e tendência até dezembro."><div className="stats-chart"><ResponsiveContainer><ComposedChart data={projection}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="month"/><YAxis/><Tooltip formatter={number}/><Area dataKey="realized" name="Realizado" fill={COLORS[0]} stroke={COLORS[0]} fillOpacity={.18}/><Line dataKey="projection" name="Projeção" stroke={COLORS[3]} strokeDasharray="7 5" strokeWidth={3}/></ComposedChart></ResponsiveContainer></div></Section></div>
+
+      <div className="stats-two-columns"><Section icon={BarChart3} title="Ranking de categorias" subtitle="Ordenação automática pelo volume de ações."><Ranking rows={categoryData.map(row => ({ label: row.label, actions: row.value, audience: row.audience }))} nameKey="label"/></Section><Section icon={Building2} title="Ranking de equipes" subtitle="Ações, público e média por equipe."><Ranking rows={data.teams} nameKey="team"/></Section></div>
+      <div className="stats-two-columns"><Section icon={MapPin} title="Indicadores por município" subtitle="Disponível para os relatórios operacionais do SIED."><Ranking rows={data.municipalities} nameKey="agenda__city"/></Section><Section icon={CalendarDays} title="Calendário de calor" subtitle="Intensidade diária de ações; passe o cursor para detalhes."><Heatmap rows={data.heatmap}/></Section></div>
+
+      <Section icon={BarChart3} title="Comparativo de categorias" subtitle="Período selecionado × mesmo período do ano anterior."><div className="stats-table-wrap"><table className="stats-table"><thead><tr><th>Categoria</th><th>Anterior</th><th>Atual</th><th>Diferença</th><th>Variação</th><th>Projeção</th></tr></thead><tbody>{categoryData.map(row => { const diff = row.value - Number(row.previous || 0); const pct = row.previous ? diff / row.previous * 100 : null; return <tr key={row.key} onClick={() => setDrilldown(row)}><td>{row.label}</td><td>{number(row.previous)}</td><td>{number(row.value)}</td><td className={diff < 0 ? "negative" : "positive"}>{diff >= 0 ? "+" : ""}{number(diff)}</td><td>{pct == null ? (row.value ? "Novo" : "0,0%") : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`}</td><td>{number(row.value * 12 / Math.max(new Date(filters.date_to + "T12:00:00").getMonth() + 1, 1))}</td></tr>; })}</tbody></table></div></Section>
+
+      <Section icon={BarChart3} title="Série histórica completa" subtitle="Todos os indicadores da metodologia institucional, sem comparação percentual."><div className="stats-table-wrap"><table className="stats-table stats-history-table"><thead><tr><th>Indicador</th>{annual.map(row => <th key={row.year}>{row.year}</th>)}</tr></thead><tbody>{HISTORICAL_ROWS.map(([key, label]) => <tr key={key}><td>{label}</td>{annual.map(row => <td key={row.year}>{number(row[key])}</td>)}</tr>)}</tbody></table></div></Section>
+
+      {drilldown && <div className="stats-drilldown"><div><button onClick={() => setDrilldown(null)}><X size={18}/></button><span>Detalhamento</span><h3>{drilldown.label}</h3><p>Total no período: <strong>{number(drilldown.value)}</strong></p><p>Use os filtros globais para detalhar por município, equipe ou instituição.</p></div></div>}
+      <footer className="stats-methodology">Fonte: banco de dados SIED · Série histórica oficial + relatórios operacionais aprovados · Dimensões de município e equipe disponíveis a partir do início operacional do SIED.</footer>
     </section>
   );
 }

@@ -6,7 +6,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.schedules.models import ActionType
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import _parse_materials, aggregate_official_statistics, generate_statistics_for_report
-from apps.statistics.views import StatisticsComparisonView, get_hybrid_queryset
+from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardView, get_hybrid_queryset
 
 
 class OfficialStatisticsTests(TestCase):
@@ -84,6 +84,26 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(response.data['macro_current']['ACTION'], 3)
         self.assertEqual(response.data['current_period']['ACTION - Bares'], 3)
 
+    @override_settings(STATISTICS_CUTOFF_DATE='2026-07-09')
+    def test_dashboard_uses_official_aggregation_for_all_sections(self):
+        self.stat('AUDIENCE', 100)
+        self.stat('ACTION', 2, action=self.lecture, entity='TOTAL')
+        self.stat('ACTION', 2, action=self.lecture, entity='ESCOLA')
+        self.stat('ACTION', 3, action=self.action, entity='TOTAL')
+        self.stat('ACTION', 3, action=self.action, entity='BARES')
+        request = APIRequestFactory().get('/statistics/dashboard/', {
+            'date_from': '2026-07-09', 'date_to': '2026-07-24',
+        })
+        force_authenticate(request, user=self.user)
+        response = StatisticsDashboardView.as_view()(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['summary']['AUDIENCE - Geral'], 100)
+        self.assertEqual(response.data['summary']['LECTURES - Geral'], 2)
+        self.assertEqual(response.data['summary']['STREET_ACTIONS - Geral'], 3)
+        self.assertIn('annual', response.data)
+        self.assertIn('monthly', response.data)
+        self.assertIn('categories', response.data)
+        self.assertIn('heatmap', response.data)
     def test_generate_is_idempotent_and_uses_action_materials(self):
         agenda = SimpleNamespace(action_type_ref=self.action, action_type='', requester_entity_type='7')
         action = SimpleNamespace(agenda=agenda, type_action='A\u00e7\u00e3o', distribution_materials_distributed='Certificados | 2\nRevistinha | 3')

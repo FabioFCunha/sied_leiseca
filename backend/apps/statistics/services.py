@@ -41,17 +41,13 @@ def _normalized_statistic_name(value):
     text = text.encode('ascii', 'ignore').decode('ascii').upper()
     return re.sub(r'[^A-Z0-9]+', ' ', text).strip()
 
-def aggregate_official_statistics(queryset):
+def aggregate_official_rows(rows):
     totals = defaultdict(float)
-    rows = queryset.values(
-        'methodology', 'indicator_type', 'category_action_type__name',
-        'category_entity_type',
-    ).annotate(total=Sum('value'))
     for row in rows:
         indicator = row['indicator_type']
-        action = _normalized_statistic_name(row['category_action_type__name'])
-        entity = _normalized_statistic_name(row['category_entity_type'])
-        value = float(row['total'] or 0)
+        action = _normalized_statistic_name(row.get('category_action_type__name'))
+        entity = _normalized_statistic_name(row.get('category_entity_type'))
+        value = float(row.get('total') or 0)
         if indicator == 'AUDIENCE':
             if not action and not entity:
                 totals['AUDIENCE - Geral'] += value
@@ -64,7 +60,7 @@ def aggregate_official_statistics(queryset):
                 totals['ACTION - Geral'] += value
             elif entity in ENTITY_KEYS:
                 totals[f"ACTION - {ENTITY_KEYS[entity]}"] += value
-                if row['methodology'] == 'HISTORICAL_LEGACY':
+                if row.get('methodology') == 'HISTORICAL_LEGACY':
                     totals['ACTION - Geral'] += value
         elif indicator == 'MATERIAL':
             if not action and not entity:
@@ -72,6 +68,14 @@ def aggregate_official_statistics(queryset):
             elif entity in ENTITY_KEYS:
                 totals[f"MATERIAL - {ENTITY_KEYS[entity]}"] += value
     return {key: totals[key] for key in OFFICIAL_KEYS}
+
+
+def aggregate_official_statistics(queryset):
+    rows = queryset.values(
+        'methodology', 'indicator_type', 'category_action_type__name',
+        'category_entity_type',
+    ).annotate(total=Sum('value'))
+    return aggregate_official_rows(rows)
 
 def _material_rows(payload):
     if isinstance(payload, dict):
