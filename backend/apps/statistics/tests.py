@@ -1,7 +1,8 @@
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from types import SimpleNamespace
 from apps.statistics.models import ConsolidatedStatistic, StatisticCategoryMapping
-from apps.statistics.services import generate_statistics_for_report, update_statistics_for_report, remove_statistics_for_report
+from apps.statistics.services import generate_statistics_for_report, remove_statistics_for_report
 from apps.schedules.models import ActionType
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
@@ -13,7 +14,14 @@ class MockReport:
         self.id = id
         self.status = status
         self.audience_total = audience_total
+        self.approximate_public = audience_total
+        self.operation_date = timezone.localdate()
         self.created_at = timezone.now()
+        self.distribution_materials_distributed = ''
+        self.actions = SimpleNamespace(all=lambda: [])
+        self.statistics_processed = False
+        self.statistics_processed_at = None
+        self.statistics_processed_by = None
         
     def save(self, *args, **kwargs):
         pass
@@ -80,8 +88,8 @@ class StatisticsModuleTests(TestCase):
         self.assertEqual(ConsolidatedStatistic.objects.get(traceability_id='report_10').value, 100)
         
         # Simula uma retificação (o valor mudou para 150)
-        report.audience_total = 150
-        update_statistics_for_report(report, self.user)
+        report.approximate_public = 150
+        generate_statistics_for_report(report, self.user)
         
         # Não deve criar duplicado, deve substituir
         self.assertEqual(ConsolidatedStatistic.objects.filter(traceability_id='report_10').count(), 1)

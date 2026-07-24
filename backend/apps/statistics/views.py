@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from datetime import datetime, date
 from django.db.models import Sum, Q
 from apps.statistics.models import ConsolidatedStatistic
+from apps.statistics.services import aggregate_official_statistics
 
 def parse_date(date_str):
     if not date_str:
@@ -73,26 +74,12 @@ class StatisticsSummaryView(APIView):
             
         qs = get_hybrid_queryset(date_from, date_to)
         
-        summary_data = qs.values(
-            'indicator_type', 
-            'category_action_type__name', 
-            'category_entity_type', 
-            'methodology'
-        ).annotate(total=Sum('value'))
-        
-        response_data = []
-        for item in summary_data:
-            key = build_category_key(
-                item['indicator_type'], 
-                item['category_action_type__name'], 
-                item['category_entity_type']
-            )
-            response_data.append({
-                "indicator": item['indicator_type'],
-                "category": key,
-                "value": float(item['total'] or 0),
-                "methodology": item['methodology']
-            })
+        totals = aggregate_official_statistics(qs)
+        response_data = [
+            {"indicator": key.split(' - ', 1)[0], "category": key,
+             "value": value, "methodology": "OFFICIAL_HYBRID"}
+            for key, value in totals.items()
+        ]
             
         return Response(response_data)
 
@@ -113,16 +100,8 @@ class StatisticsComparisonView(APIView):
         prev_qs = get_hybrid_queryset(prev_date_from, prev_date_to)
         
         # Agregador Dinâmico
-        def aggregate_totals(qs):
-            raw = qs.values('indicator_type', 'category_action_type__name', 'category_entity_type').annotate(total=Sum('value'))
-            totals = {}
-            for item in raw:
-                key = build_category_key(item['indicator_type'], item['category_action_type__name'], item['category_entity_type'])
-                totals[key] = totals.get(key, 0) + float(item['total'] or 0)
-            return totals
-            
-        current_totals = aggregate_totals(current_qs)
-        prev_totals = aggregate_totals(prev_qs)
+        current_totals = aggregate_official_statistics(current_qs)
+        prev_totals = aggregate_official_statistics(prev_qs)
         
         indicators = set(current_totals.keys()).union(prev_totals.keys())
         variations = {}
@@ -140,13 +119,18 @@ class StatisticsComparisonView(APIView):
                 variations[ind] = {"variation": round(pct, 2), "status": "CALCULATED"}
                 
         # Total Macro Indicators (AUDIENCE, ACTION, MATERIAL)
-        macro_current = { 'AUDIENCE': 0, 'ACTION': 0, 'MATERIAL': 0 }
-        macro_prev = { 'AUDIENCE': 0, 'ACTION': 0, 'MATERIAL': 0 }
+        macro_keys = {
+            'AUDIENCE': 'AUDIENCE - Geral',
+            'ACTION': 'ACTION - Geral',
+            'MATERIAL': 'MATERIAL - Geral',
+        }
+        macro_current = {name: current_totals[key] for name, key in macro_keys.items()}
+        macro_prev = {name: prev_totals[key] for name, key in macro_keys.items()}
         macro_var = {}
         
         for ind_type in macro_current.keys():
-            macro_current[ind_type] = sum(v for k, v in current_totals.items() if k.startswith(ind_type))
-            macro_prev[ind_type] = sum(v for k, v in prev_totals.items() if k.startswith(ind_type))
+            macro_current[ind_type] = current_totals[macro_keys[ind_type]]
+            macro_prev[ind_type] = prev_totals[macro_keys[ind_type]]
             
             p_val = macro_prev[ind_type]
             c_val = macro_current[ind_type]
@@ -171,29 +155,20 @@ class StatisticsHistoricalSeriesView(APIView):
     # permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        qs = ConsolidatedStatistic.objects.filter(status='ACTIVE').order_by('reference_year')
-        
-        series = qs.values(
-            'reference_year', 
-            'indicator_type', 
-            'category_action_type__name', 
-            'category_entity_type', 
-            'methodology'
-        ).annotate(total=Sum('value'))
-        
         response_data = []
-        for item in series:
-            key = build_category_key(
-                item['indicator_type'], 
-                item['category_action_type__name'], 
-                item['category_entity_type']
+        years = ConsolidatedStatistic.objects.filter(status='ACTIVE').values_list(
+            'reference_year', flat=True
+        ).distinct().order_by('reference_year')
+        for year in years:
+            totals = aggregate_official_statistics(
+                get_hybrid_queryset(date(year, 1, 1), date(year, 12, 31))
             )
-            response_data.append({
-                "year": item['reference_year'],
-                "indicator": item['indicator_type'],
-                "category": key,
-                "methodology": item['methodology'],
-                "value": float(item['total'] or 0)
-            })
-            
+            for key, value in totals.items():
+                response_data.append({
+                    "year": year,
+                    "indicator": key.split(' - ', 1)[0],
+                    "category": key,
+                    "methodology": "OFFICIAL_HYBRID",
+                    "value": value,
+                })
         return Response(response_data)

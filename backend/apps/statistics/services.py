@@ -1,8 +1,85 @@
 import re
 import json
+import unicodedata
+from collections import defaultdict
 from django.utils import timezone
 from apps.statistics.models import ConsolidatedStatistic
 from django.db import transaction
+from django.db.models import Sum
+
+OFFICIAL_KEYS = (
+    'AUDIENCE - Geral', 'AUDIENCE - PALESTRAS', 'AUDIENCE - ACOES',
+    'ACTION - Geral', 'ACTION - Escola', 'ACTION - Universidade',
+    'ACTION - Empresa', 'ACTION - Bares', 'ACTION - Ped\u00e1gio',
+    'ACTION - Pra\u00e7as Esportivas', 'ACTION - Praia', 'ACTION - Eventos',
+    'ACTION - Shopping', 'ACTION - A\u00e7\u00e3o Social', 'ACTION - Outros',
+    'MATERIAL - Geral', 'MATERIAL - Certificados', 'MATERIAL - Soprinho',
+)
+
+ENTITY_KEYS = {
+    'ESCOLA': 'Escola', 'ESCOLAS': 'Escola',
+    'UNIVERSIDADE': 'Universidade', 'UNIVERSIDADES': 'Universidade',
+    'EMPRESA': 'Empresa', 'EMPRESAS': 'Empresa',
+    'BARES': 'Bares', 'PEDAGIO': 'Ped\u00e1gio',
+    'ESPORTES': 'Pra\u00e7as Esportivas', 'PRACAS ESPORTIVAS': 'Pra\u00e7as Esportivas',
+    'PRAIA': 'Praia', 'EVENTOS': 'Eventos',
+    'SHOPPING': 'Shopping', 'SHOPPING CENTRO COMERCIAL': 'Shopping',
+    'ACAO SOCIAL': 'A\u00e7\u00e3o Social', 'OUTROS': 'Outros',
+    'CERTIFICADOS': 'Certificados',
+    'CERTIFICADOS ENTREGUES': 'Certificados',
+    'SOPRINHO': 'Soprinho', 'REVISTINHA SOPRINHO': 'Soprinho',
+}
+
+def _normalized_statistic_name(value):
+    text = unicodedata.normalize('NFKD', str(value or ''))
+    text = text.encode('ascii', 'ignore').decode('ascii').upper()
+    return re.sub(r'[^A-Z0-9]+', ' ', text).strip()
+
+def aggregate_official_statistics(queryset):
+    totals = defaultdict(float)
+    rows = queryset.values(
+        'methodology', 'indicator_type', 'category_action_type__name',
+        'category_entity_type',
+    ).annotate(total=Sum('value'))
+    for row in rows:
+        indicator = row['indicator_type']
+        action = _normalized_statistic_name(row['category_action_type__name'])
+        entity = _normalized_statistic_name(row['category_entity_type'])
+        value = float(row['total'] or 0)
+        if indicator == 'AUDIENCE':
+            if not action and not entity:
+                totals['AUDIENCE - Geral'] += value
+            elif (action == 'PALESTRA' and entity == 'TOTAL') or (not action and entity == 'PALESTRAS'):
+                totals['AUDIENCE - PALESTRAS'] += value
+            elif (action == 'ACAO' and entity == 'TOTAL') or (not action and entity == 'ACOES'):
+                totals['AUDIENCE - ACOES'] += value
+        elif indicator == 'ACTION':
+            if entity == 'TOTAL':
+                totals['ACTION - Geral'] += value
+            elif entity in ENTITY_KEYS:
+                totals[f"ACTION - {ENTITY_KEYS[entity]}"] += value
+                if row['methodology'] == 'HISTORICAL_LEGACY':
+                    totals['ACTION - Geral'] += value
+        elif indicator == 'MATERIAL':
+            if not action and not entity:
+                totals['MATERIAL - Geral'] += value
+            elif entity in ENTITY_KEYS:
+                totals[f"MATERIAL - {ENTITY_KEYS[entity]}"] += value
+    return {key: totals[key] for key in OFFICIAL_KEYS}
+
+def _material_rows(payload):
+    if isinstance(payload, dict):
+        if any(key in payload for key in ('name', 'material', 'kit', 'dynamic_name')):
+            name = next((payload.get(key) for key in ('name', 'material', 'kit', 'dynamic_name') if payload.get(key)), '')
+            quantity = next((payload.get(key) for key in ('quantity', 'value', 'count', 'amount') if payload.get(key) is not None), 0)
+            yield name, quantity
+        else:
+            for name, quantity in payload.items():
+                yield name, quantity
+    elif isinstance(payload, list):
+        for item in payload:
+            yield from _material_rows(item)
+
 
 def _parse_materials(materials_text):
     """
@@ -14,6 +91,17 @@ def _parse_materials(materials_text):
     revistinhas = 0
     if not materials_text:
         return total, certificados, revistinhas
+    parsed_rows = []
+    if isinstance(materials_text, (dict, list)):
+        parsed_rows = list(_material_rows(materials_text))
+    elif isinstance(materials_text, str) and materials_text.lstrip().startswith(('[', '{')):
+        try:
+            parsed_rows = list(_material_rows(json.loads(materials_text)))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            parsed_rows = []
+    if parsed_rows:
+        materials_text = '\n'.join(f'{name} | {quantity}' for name, quantity in parsed_rows)
+
         
     for line in materials_text.splitlines():
         text = line.strip()
@@ -87,8 +175,17 @@ def generate_statistics_for_report(report, processed_by=None):
     add_metric('AUDIENCE', total_audience)
     
     # Materiais consolidados no relatório
-    materials_text = getattr(report, 'distribution_materials_distributed', '')
-    tot_mat, tot_cert, tot_rev = _parse_materials(materials_text)
+    actions = list(report.actions.all())
+    report_materials = getattr(report, 'distribution_materials_distributed', '')
+    material_payloads = [report_materials] if str(report_materials or '').strip() else []
+    if not material_payloads:
+        material_payloads = list(dict.fromkeys(
+            action.distribution_materials_distributed
+            for action in actions
+            if str(getattr(action, 'distribution_materials_distributed', '') or '').strip()
+        ))
+    material_totals = [_parse_materials(payload) for payload in material_payloads]
+    tot_mat, tot_cert, tot_rev = (sum(values) for values in zip(*material_totals)) if material_totals else (0, 0, 0)
     add_metric('MATERIAL', tot_mat)
     add_metric('MATERIAL', tot_cert, entity_type='CERTIFICADOS ENTREGUES')
     add_metric('MATERIAL', tot_rev, entity_type='REVISTINHA SOPRINHO')
@@ -99,7 +196,7 @@ def generate_statistics_for_report(report, processed_by=None):
     palestras_total = 0
     acoes_total = 0
     
-    for action in report.actions.all():
+    for action in actions:
         agenda = action.agenda
         if not agenda:
             continue

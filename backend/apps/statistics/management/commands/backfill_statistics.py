@@ -6,13 +6,22 @@ from django.db import transaction
 class Command(BaseCommand):
     help = "Backfill statistics for all APPROVED EducationReports that have not been processed yet."
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--reprocess',
+            action='store_true',
+            help='Reprocessa todos os relatorios aprovados de forma idempotente.',
+        )
+
     def handle(self, *args, **options):
         reports = EducationReport.objects.filter(
-            status=EducationReport.ReportStatus.APPROVED,
-            statistics_processed=False
+            status=EducationReport.ReportStatus.APPROVED
         )
+        if not options['reprocess']:
+            reports = reports.filter(statistics_processed=False)
         total = reports.count()
-        self.stdout.write(f"Found {total} approved reports pending statistics backfill.")
+        mode = 'reprocessing' if options['reprocess'] else 'pending statistics backfill'
+        self.stdout.write(f"Found {total} approved reports for {mode}.")
         
         count = 0
         for report in reports:

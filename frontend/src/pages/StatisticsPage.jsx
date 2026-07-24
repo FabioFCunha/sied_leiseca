@@ -219,11 +219,11 @@ export default function StatisticsPage() {
       const getVal = (catName) => yearData.filter(d => d.category === catName).reduce((sum, item) => sum + item.value, 0);
       
       // Totals
-      const totalAbordagens = getVal("AUDIENCE - Geral") + getVal("AUDIENCE - PALESTRAS") + getVal("AUDIENCE - ACOES");
+      const totalAbordagens = getVal("AUDIENCE - Geral");
       const palestrasAudi = getVal("AUDIENCE - PALESTRAS");
       const acoesAudi = getVal("AUDIENCE - ACOES");
       
-      const acoesEduc = yearData.filter(d => d.indicator === "ACTION").reduce((sum, item) => sum + item.value, 0);
+      const acoesEduc = getVal("ACTION - Geral");
       
       // Approximation for "Palestras Realizadas" in historical data (this wasn't explicitly isolated from other action types if not mapped, but let's map what we have)
       const palestrasRealizadas = getVal("ACTION - Escola") + getVal("ACTION - Universidade") + getVal("ACTION - Empresa");
