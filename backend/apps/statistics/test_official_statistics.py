@@ -43,6 +43,14 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(totals['ACTION - Bares'], 2)
         self.assertEqual(totals['ACTION - Ped\u00e1gio'], 1)
 
+    def test_new_street_action_categories_are_exposed(self):
+        self.stat('ACTION', 2, action=self.action, entity='PRACAS')
+        self.stat('ACTION', 3, action=self.action, entity='PONTOS TURISTICOS')
+        self.stat('ACTION', 4, action=self.action, entity='FISCALIZACAO')
+        totals = aggregate_official_statistics(ConsolidatedStatistic.objects.all())
+        self.assertEqual(totals['ACTION - Pra\u00e7as/Parques P\u00fablicos'], 2)
+        self.assertEqual(totals['ACTION - Pontos tur\u00edsticos'], 3)
+        self.assertEqual(totals['ACTION - Fiscaliza\u00e7\u00e3o'], 4)
     def test_legacy_action_total_is_rebuilt_from_details_once(self):
         self.stat('ACTION', 2, entity='Escola', methodology='HISTORICAL_LEGACY')
         self.stat('ACTION', 3, entity='Bares', methodology='HISTORICAL_LEGACY')

@@ -207,39 +207,71 @@ export default function StatisticsPage() {
     });
   }, [comparisonData, elapsedMonths]);
 
-  // Aggregate Historical Series grouped by Year for Table 3
+  const historicalFields = [
+    { key: "AUDIENCE - Geral", label: "1 - Público total" },
+    { key: "AUDIENCE - PALESTRAS", label: "1.1 - Público em palestras" },
+    { key: "AUDIENCE - ACOES", label: "1.2 - Público em ações" },
+    { key: "LECTURES - Geral", label: "2 - Palestras realizadas" },
+    { key: "ACTION - Escola", label: "2.1 - Escolas" },
+    { key: "ACTION - Universidade", label: "2.2 - Universidades" },
+    { key: "ACTION - Empresa", label: "2.3 - Empresas" },
+    { key: "MATERIAL - Certificados", label: "2.4 - Certificados entregues" },
+    { key: "STREET_ACTIONS - Geral", label: "3 - Ações" },
+    { key: "ACTION - Bares", label: "3.1 - Bares" },
+    { key: "ACTION - Pedágio", label: "3.2 - Pedágio" },
+    { key: "ACTION - Praças Esportivas", label: "3.3 - Esportes" },
+    { key: "ACTION - Praia", label: "3.4 - Praia" },
+    { key: "ACTION - Eventos", label: "3.5 - Eventos" },
+    { key: "ACTION - Shopping", label: "3.6 - Shopping/Centro Comercial" },
+    { key: "ACTION - Ação Social", label: "3.7 - Ação Social" },
+    { key: "ACTION - Outros", label: "3.8 - Outros" },
+    { key: "ACTION - Praças/Parques Públicos", label: "3.9 - Praças/Parques Públicos" },
+    { key: "ACTION - Pontos turísticos", label: "3.10 - Pontos turísticos" },
+    { key: "ACTION - Fiscalização", label: "3.11 - Fiscalização" },
+    { key: "MATERIAL - Geral", label: "4 - Materiais de divulgação" },
+    { key: "MATERIAL - Soprinho", label: "Revistinha Soprinho" },
+  ];
+
+  const lectureCategoryKeys = [
+    "ACTION - Escola", "ACTION - Universidade", "ACTION - Empresa",
+  ];
+
+  const streetActionCategoryKeys = [
+    "ACTION - Bares", "ACTION - Pedágio", "ACTION - Praças Esportivas",
+    "ACTION - Praia", "ACTION - Eventos", "ACTION - Shopping",
+    "ACTION - Ação Social", "ACTION - Outros",
+    "ACTION - Praças/Parques Públicos", "ACTION - Pontos turísticos",
+    "ACTION - Fiscalização",
+  ];
+
+  // Aggregate the official historical series by year without percentage comparison.
   const table3Data = useMemo(() => {
     if (!historicalData) return [];
-    
-    const years = [...new Set(historicalData.map(d => d.year))].sort((a,b) => a - b);
-    
-    return years.map(y => {
-      const yearData = historicalData.filter(d => d.year === y);
-      
-      const getVal = (catName) => yearData.filter(d => d.category === catName).reduce((sum, item) => sum + item.value, 0);
-      
-      // Totals
-      const totalAbordagens = getVal("AUDIENCE - Geral");
-      const palestrasAudi = getVal("AUDIENCE - PALESTRAS");
-      const acoesAudi = getVal("AUDIENCE - ACOES");
-      
-      const acoesEduc = getVal("ACTION - Geral");
-      
-      // Approximation for "Palestras Realizadas" in historical data (this wasn't explicitly isolated from other action types if not mapped, but let's map what we have)
-      const palestrasRealizadas = getVal("ACTION - Escola") + getVal("ACTION - Universidade") + getVal("ACTION - Empresa");
 
-      return {
-        year: y,
-        approach: totalAbordagens,
-        approached_lectures: palestrasAudi,
-        approached_actions: acoesAudi,
-        lectures: palestrasRealizadas,
-        educational_actions: acoesEduc
-      };
+    const years = [...new Set(historicalData.map(d => d.year))].sort((a, b) => a - b);
+
+    return years.map(year => {
+      const yearData = historicalData.filter(item => item.year === year);
+      const getValue = category => yearData
+        .filter(item => item.category === category)
+        .reduce((sum, item) => sum + Number(item.value || 0), 0);
+      const values = Object.fromEntries(
+        historicalFields.map(field => [field.key, getValue(field.key)])
+      );
+      values["LECTURES - Geral"] = lectureCategoryKeys.reduce(
+        (sum, key) => sum + getValue(key), 0
+      );
+      const categorizedStreetActions = streetActionCategoryKeys.reduce(
+        (sum, key) => sum + getValue(key), 0
+      );
+      values["STREET_ACTIONS - Geral"] = Math.max(
+        getValue("ACTION - Geral") - values["LECTURES - Geral"],
+        categorizedStreetActions,
+        0
+      );
+      return { year, values };
     });
   }, [historicalData]);
-
-
   const applyFilters = () => setFilters({ ...pendingFilters });
   const clearFilters = () => {
     const defaults = getDefaultFilters();
@@ -458,10 +490,14 @@ export default function StatisticsPage() {
                 <thead>
                   <tr>
                     <th style={{ ...tableHeaderStyle, background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Ano</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Público Total</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Público (Palestras)</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Público (Ações)</th>
-                    <th style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}>Ações Educativas</th>
+                    {historicalFields.map(field => (
+                      <th
+                        key={field.key}
+                        style={{ ...tableHeaderStyle, textAlign: "right", background: "linear-gradient(135deg, #3b0764 0%, #7c3aed 100%)" }}
+                      >
+                        {field.label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -471,10 +507,11 @@ export default function StatisticsPage() {
                       onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? "var(--surface)" : "var(--surface-2)"}
                     >
                       <td style={{ ...cellStyle, fontWeight: 800, color: "var(--primary)" }}>{row.year}</td>
-                      <td style={cellNumStyle}>{formatNumber(row.approach)}</td>
-                      <td style={cellNumStyle}>{formatNumber(row.approached_lectures)}</td>
-                      <td style={cellNumStyle}>{formatNumber(row.approached_actions)}</td>
-                      <td style={cellNumStyle}>{formatNumber(row.educational_actions)}</td>
+                      {historicalFields.map(field => (
+                        <td key={field.key} style={cellNumStyle}>
+                          {formatNumber(row.values[field.key])}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>

@@ -13,6 +13,8 @@ OFFICIAL_KEYS = (
     'ACTION - Empresa', 'ACTION - Bares', 'ACTION - Ped\u00e1gio',
     'ACTION - Pra\u00e7as Esportivas', 'ACTION - Praia', 'ACTION - Eventos',
     'ACTION - Shopping', 'ACTION - A\u00e7\u00e3o Social', 'ACTION - Outros',
+    'ACTION - Pra\u00e7as/Parques P\u00fablicos',
+    'ACTION - Pontos tur\u00edsticos', 'ACTION - Fiscaliza\u00e7\u00e3o',
     'MATERIAL - Geral', 'MATERIAL - Certificados', 'MATERIAL - Soprinho',
 )
 
@@ -25,6 +27,10 @@ ENTITY_KEYS = {
     'PRAIA': 'Praia', 'EVENTOS': 'Eventos',
     'SHOPPING': 'Shopping', 'SHOPPING CENTRO COMERCIAL': 'Shopping',
     'ACAO SOCIAL': 'A\u00e7\u00e3o Social', 'OUTROS': 'Outros',
+    'PRACAS': 'Pra\u00e7as/Parques P\u00fablicos',
+    'PRACAS PARQUES PUBLICOS': 'Pra\u00e7as/Parques P\u00fablicos',
+    'PONTOS TURISTICOS': 'Pontos tur\u00edsticos',
+    'FISCALIZACAO': 'Fiscaliza\u00e7\u00e3o',
     'CERTIFICADOS': 'Certificados',
     'CERTIFICADOS ENTREGUES': 'Certificados',
     'SOPRINHO': 'Soprinho', 'REVISTINHA SOPRINHO': 'Soprinho',
