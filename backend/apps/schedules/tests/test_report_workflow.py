@@ -1,7 +1,10 @@
+from datetime import date
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.contrib.auth import get_user_model
-from apps.schedules.models import EducationReport, Agenda
+from apps.schedules.models import EducationAction, EducationReport, Agenda, Kit
+from apps.statistics.models import ConsolidatedStatistic
+from apps.statistics.services import generate_statistics_for_report
 
 User = get_user_model()
 
@@ -141,6 +144,51 @@ class EducationReportWorkflowTests(APITestCase):
             "status": "APPROVED"
         }, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_admin_editing_approved_report_reprocesses_statistics(self):
+        self.client.force_authenticate(user=self.admin)
+        Kit.objects.get_or_create(name="Certificados")
+        Kit.objects.get_or_create(name="Revistinha")
+        self.report.status = EducationReport.ReportStatus.APPROVED
+        self.report.operation_date = date(2026, 7, 1)
+        self.report.approximate_public = 50
+        self.report.accessibility_conditions_met = "YES"
+        self.report.save()
+        EducationAction.objects.create(
+            report=self.report,
+            agenda=self.agenda,
+            place_action="Local original",
+            start_time="09:00",
+            final_hour="10:00",
+            distribution_materials_distributed="Certificados | 2",
+        )
+        generate_statistics_for_report(self.report, processed_by=self.admin)
+
+        response = self.client.put(f"/api/education-reports/{self.report.id}/", {
+            "agenda": self.agenda.id,
+            "team": "Team A",
+            "operation_date": "2026-07-01",
+            "approximate_public": 200,
+            "accessibility_conditions_met": "YES",
+            "actions": [{
+                "agenda": self.agenda.id,
+                "place_action": "Local corrigido",
+                "start_time": "09:00",
+                "final_hour": "10:00",
+                "distribution_materials_distributed": "Certificados | 5\nRevistinha | 7",
+            }],
+        }, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        stats = ConsolidatedStatistic.objects.filter(traceability_id=f"report_{self.report.id}", status="ACTIVE")
+        audience = stats.get(indicator_type="AUDIENCE", category_action_type__isnull=True, category_entity_type__isnull=True)
+        materials = stats.get(indicator_type="MATERIAL", category_action_type__isnull=True, category_entity_type__isnull=True)
+        certificados = stats.get(indicator_type="MATERIAL", category_action_type__isnull=True, category_entity_type="CERTIFICADOS ENTREGUES")
+        revistinhas = stats.get(indicator_type="MATERIAL", category_action_type__isnull=True, category_entity_type="REVISTINHA SOPRINHO")
+        self.assertEqual(audience.value, 200)
+        self.assertEqual(materials.value, 12)
+        self.assertEqual(certificados.value, 5)
+        self.assertEqual(revistinhas.value, 7)
 
     def test_status_cannot_be_changed_via_payload(self):
         self.client.force_authenticate(user=self.admin)

@@ -955,7 +955,9 @@ export default function TechnicalReportsPage() {
     setIsSaving(true);
     try {
       await saveReport(form.status);
-      setMessage("Relatório retificado com sucesso.");
+      setMessage(form.status === "APPROVED"
+        ? "Relat\u00f3rio aprovado atualizado com sucesso. A Estat\u00edstica Institucional foi reprocessada automaticamente."
+        : "Relat\u00f3rio retificado com sucesso.");
       load();
     } catch (err) {
       setMessage(`⚠️ Não foi possível retificar o relatório\n\nMotivo:\n${err.message}`);
@@ -1014,6 +1016,7 @@ export default function TechnicalReportsPage() {
     setIsApproving(true);
     try {
       await api(`/education-reports/${id}/approve/`, { method: "POST" });
+      setMessage("Relat\u00f3rio aprovado com sucesso. A Estat\u00edstica Institucional foi atualizada automaticamente.");
       load();
     } catch (err) {
       alert(`Erro ao aprovar: ${err.message}`);

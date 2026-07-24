@@ -1852,6 +1852,9 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             self._validate_agenda_access(agenda)
             report = serializer.save()
             SatisfactionSurvey.objects.filter(agenda=report.agenda, report__isnull=True).update(report=report)
+            if report.status == EducationReport.ReportStatus.APPROVED:
+                from apps.statistics.services import generate_statistics_for_report
+                generate_statistics_for_report(report, processed_by=self.request.user)
 
     @decorators.action(detail=True, methods=["post"], url_path="submit-for-review")
     def submit_for_review(self, request, pk=None):
