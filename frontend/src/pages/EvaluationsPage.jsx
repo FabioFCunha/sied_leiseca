@@ -8,9 +8,11 @@ const emptyFilters = { date_from: "", date_to: "", state: "", region: "", munici
 function Stars({ rating }) {
   if (rating === undefined || rating === null) return null;
   const num = Number(rating);
-  const full = Math.floor(num);
-  const half = num % 1 >= 0.5;
-  const empty = 5 - full - (half ? 1 : 0);
+  if (Number.isNaN(num)) return null;
+  const normalized = Math.max(0, Math.min(5, num / 2));
+  const full = Math.floor(normalized);
+  const half = normalized % 1 >= 0.5;
+  const empty = Math.max(0, 5 - full - (half ? 1 : 0));
   return (
     <div style={{ display: "flex", gap: "2px", color: "#f6bd16" }}>
       {Array(full).fill(0).map((_, i) => <Star key={`f-${i}`} size={14} fill="currentColor" />)}
