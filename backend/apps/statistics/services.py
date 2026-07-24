@@ -55,6 +55,8 @@ def generate_statistics_for_report(report, processed_by=None):
     """
     Gera todos os 19 indicadores oficiais da Estatística Institucional.
     """
+    from apps.schedules.models import ActionType
+
     if report.status != 'APPROVED':
         return
         
@@ -171,6 +173,29 @@ def generate_statistics_for_report(report, processed_by=None):
     if acoes_total > 0:
         add_metric('ACTION', acoes_total, action_type='ACAO', entity_type='TOTAL')
         add_metric('AUDIENCE', total_audience, action_type='ACAO', entity_type='TOTAL')
+
+    action_type_names = {'ACAO': 'A\u00e7\u00e3o', 'PALESTRA': 'Palestra'}
+    resolved_action_types = {}
+    for action_type_code in {
+        metric['category_action_type'] for metric in metrics_to_sync
+        if metric['category_action_type'] is not None
+    }:
+        action_type_name = action_type_names.get(action_type_code)
+        if action_type_name is None:
+            raise ValueError(f"Tipo de acao estatistica desconhecido: '{action_type_code}'.")
+        try:
+            resolved_action_types[action_type_code] = ActionType.objects.get(name__iexact=action_type_name)
+        except ActionType.DoesNotExist as exc:
+            raise ValueError(
+                f"Tipo de acao obrigatorio para a estatistica nao cadastrado: '{action_type_name}'."
+            ) from exc
+        except ActionType.MultipleObjectsReturned as exc:
+            raise ValueError(
+                f"Mais de um tipo de acao corresponde a categoria estatistica '{action_type_name}'."
+            ) from exc
+    for metric in metrics_to_sync:
+        if metric['category_action_type'] is not None:
+            metric['category_action_type'] = resolved_action_types[metric['category_action_type']]
 
     # Find existing ones for this report
     existing_stats = list(ConsolidatedStatistic.objects.select_for_update().filter(
