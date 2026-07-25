@@ -239,6 +239,23 @@ def _visual_monthly_series(year, filters):
             values = derived_totals(_add_totals(values, monthly_baseline))
         visual_rows.append({'month': row['month'], 'values': values})
     return visual_rows
+
+def _daily_series(date_from, date_to, filters):
+    grouped = _grouped_statistics(
+        filtered_statistics(date_from, date_to, filters).filter(reference_date__isnull=False),
+        'reference_date',
+    )
+    rows = []
+    current = date_from
+    while current <= date_to:
+        rows.append({
+            'date': current.isoformat(),
+            'day_label': current.strftime('%d/%m'),
+            'values': derived_totals(aggregate_official_rows(grouped.get(current, []))),
+        })
+        current += timedelta(days=1)
+    return rows
+
 def _action_audience_value(action, report=None, is_palestra=False):
     primary = getattr(action, 'approached_lectures' if is_palestra else 'approached_actions', 0) or 0
     return primary or getattr(action, 'approach', 0) or getattr(report, 'approximate_public', 0) or 0
@@ -325,6 +342,7 @@ def dashboard_payload(date_from, date_to, filters):
     annual = _annual_series(filters)
     monthly = _monthly_series(date_to.year, filters)
     visual_monthly = _visual_monthly_series(date_to.year, filters)
+    daily = _daily_series(date_from, date_to, filters)
     category_audience = _category_audience(date_from, date_to, filters)
     categories = [
         {
@@ -340,7 +358,7 @@ def dashboard_payload(date_from, date_to, filters):
     payload = {
         'period': {'from': date_from, 'to': date_to, 'previous_from': previous_from, 'previous_to': previous_to, 'comparison_type': comparison['type'], 'comparison_label': comparison['label']},
         'summary': current, 'previous': previous, 'comparisons': comparisons,
-        'annual': annual, 'monthly': monthly, 'visual_monthly': visual_monthly, 'categories': categories,
+        'annual': annual, 'monthly': monthly, 'visual_monthly': visual_monthly, 'daily': daily, 'categories': categories,
         **rankings,
         'metadata': {'historical_dimensions': False, 'operational_dimensions_from': '2026-07-09', 'comparison_label': comparison['label'], 'comparison_type': comparison['type']},
     }
