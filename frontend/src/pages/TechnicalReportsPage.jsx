@@ -405,6 +405,7 @@ export default function TechnicalReportsPage() {
   const [pendingChiefQuery, setPendingChiefQuery] = useState("");
   const [reportsPreviewModal, setReportsPreviewModal] = useState(null);
   const [activeTab, setActiveTab] = useState("pending");
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [protocolSearch, setProtocolSearch] = useState("");
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
@@ -457,6 +458,7 @@ export default function TechnicalReportsPage() {
 
   const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(r.agenda))), [reports]);
   const pendingAgendas = useMemo(() => agendas.filter(a => !completedAgendaIds.has(String(a.id))), [agendas, completedAgendaIds]);
+  const pendingReviewReportsCount = useMemo(() => reports.filter((report) => report.status === "PENDING_REVIEW").length, [reports]);
 
   const filteredPendingAgendas = useMemo(() => {
     let list = pendingAgendas;
@@ -1113,7 +1115,12 @@ export default function TechnicalReportsPage() {
         {loadError && <div className="alert">{loadError}</div>}
 
         <form className="table-wrap report-form" onSubmit={submit}>
-          <h2>{reportName(form)}</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0 }}>{reportName(form)}</h2>
+            <button type="button" className="secondary" onClick={() => setShowPreviewModal(true)} style={{ padding: "8px 12px", fontSize: "12px", fontWeight: "800" }}>
+              <Clipboard size={14} /> Consultar resumo
+            </button>
+          </div>
 
           <div className="form-section">
             <h3>Ordem de serviço da agenda</h3>
@@ -1633,22 +1640,18 @@ export default function TechnicalReportsPage() {
       <aside className="side-panel report-sidebar">
         <div className="sidebar-tabs" style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
           <button type="button" className={activeTab === "pending" ? "active" : "secondary"} onClick={() => setActiveTab("pending")} style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}>Pendentes ({pendingAgendas.length})</button>
-          <button type="button" className={activeTab === "completed" ? "active" : "secondary"} onClick={() => setActiveTab("completed")} style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}>Feitos ({reports.length})</button>
-          <button type="button" className={activeTab === "preview" ? "active" : "secondary"} onClick={() => setActiveTab("preview")} style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}>Resumo</button>
+          <button
+            type="button"
+            className={activeTab === "completed" ? "active" : "secondary"}
+            onClick={() => {
+              const nextFilters = { ...pendingTechFilters, status: "PENDING_REVIEW" };
+              setPendingTechFilters(nextFilters);
+              setTechFilters(nextFilters);
+              setActiveTab("completed");
+            }}
+            style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}
+          >{"Aguardando aprova\u00e7\u00e3o"} ({pendingReviewReportsCount})</button>
         </div>
-
-        {activeTab === "preview" && (
-          <div className="report-preview-content">
-            <div className="modal-header" style={{ marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ fontSize: "15px", margin: 0 }}>Resumo do Relatório</h2>
-              <button className="secondary" type="button" onClick={copyPreview} style={{ padding: "4px 8px", fontSize: "12px" }}>
-                <Clipboard size={14} /> Copiar
-              </button>
-            </div>
-            <pre style={{ fontSize: "11px", padding: "12px", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "8px", whiteSpace: "pre-wrap" }}>{preview}</pre>
-            {!isAdmin && <small style={{ display: "block", marginTop: "12px", color: "var(--text-soft)" }}>Chefes visualizam os relatórios criados por eles; administradores visualizam todos.</small>}
-          </div>
-        )}
 
         {activeTab === "pending" && (
           <div className="report-list-content" style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "calc(100vh - 180px)", overflowY: "auto", paddingRight: "4px" }}>
@@ -1723,6 +1726,29 @@ export default function TechnicalReportsPage() {
         )}
       </aside>
     </section>
+
+    {showPreviewModal && (
+      <div className="modal-backdrop">
+        <article className="modal" style={{ maxWidth: "760px", width: "min(760px, 95vw)" }}>
+          <div className="modal-header">
+            <div>
+              <h2>{"Resumo do Relat\u00f3rio"}</h2>
+              <small>{"Consulta r\u00e1pida sem sair do preenchimento."}</small>
+            </div>
+            <button type="button" className="icon-button" onClick={() => setShowPreviewModal(false)} aria-label="Fechar resumo">
+              <X size={18} />
+            </button>
+          </div>
+          <pre style={{ fontSize: "12px", padding: "12px", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "8px", whiteSpace: "pre-wrap", maxHeight: "65vh", overflow: "auto" }}>{preview}</pre>
+          <div className="modal-actions">
+            <button className="secondary" type="button" onClick={copyPreview}>
+              <Clipboard size={14} /> Copiar
+            </button>
+            <button type="button" onClick={() => setShowPreviewModal(false)}>Voltar ao preenchimento</button>
+          </div>
+        </article>
+      </div>
+    )}
     </>
   );
 }
