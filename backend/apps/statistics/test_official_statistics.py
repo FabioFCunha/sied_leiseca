@@ -7,7 +7,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.schedules.models import ActionType, Agenda, EducationAction, EducationReport, Sector
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import _parse_materials, aggregate_official_statistics, generate_statistics_for_report
-from apps.statistics.dashboard import _category_audience
+from apps.statistics.dashboard import _category_audience, comparison_period
 from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardFiltersView, StatisticsDashboardView, get_hybrid_queryset
 
 
@@ -136,6 +136,20 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(annual[2011]['AUDIENCE - Geral'], 766996)
         self.assertEqual(annual[2025]['ACTION - Geral'], 1541)
         self.assertEqual(annual[2026]['AUDIENCE - Geral'], 84803)
+
+    def test_comparison_period_uses_previous_month_before_first_operational_year(self):
+        period = comparison_period(date(2026, 7, 1), date(2026, 7, 24))
+
+        self.assertEqual(period['from'], date(2026, 6, 1))
+        self.assertEqual(period['to'], date(2026, 6, 24))
+        self.assertEqual(period['type'], 'previous_month')
+
+    def test_comparison_period_uses_previous_year_after_first_operational_year(self):
+        period = comparison_period(date(2027, 7, 10), date(2027, 7, 24))
+
+        self.assertEqual(period['from'], date(2026, 7, 10))
+        self.assertEqual(period['to'], date(2026, 7, 24))
+        self.assertEqual(period['type'], 'previous_year')
 
     def test_legacy_street_action_uses_report_type_action_subcategory(self):
         agenda = SimpleNamespace(

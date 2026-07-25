@@ -24,6 +24,40 @@ STREET_KEYS = (
 DIMENSION_FILTERS = ('municipality', 'team', 'institution', 'entity', 'action_type')
 OFFICIAL_TEAMS = ('ALFA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOX', 'GOLF', 'HOTEL')
 
+OPERATIONAL_COMPARISON_START = date(2026, 7, 9)
+
+
+def _shift_month(value, months):
+    month_index = value.month - 1 + months
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(value.day, monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def comparison_period(date_from, date_to):
+    if date_to < date(OPERATIONAL_COMPARISON_START.year + 1, OPERATIONAL_COMPARISON_START.month, OPERATIONAL_COMPARISON_START.day):
+        return {
+            'from': _shift_month(date_from, -1),
+            'to': _shift_month(date_to, -1),
+            'type': 'previous_month',
+            'label': 'm\u00eas anterior',
+        }
+    try:
+        previous_from = date_from.replace(year=date_from.year - 1)
+    except ValueError:
+        previous_from = date(date_from.year - 1, 2, 28)
+    try:
+        previous_to = date_to.replace(year=date_to.year - 1)
+    except ValueError:
+        previous_to = date(date_to.year - 1, 2, 28)
+    return {
+        'from': previous_from,
+        'to': previous_to,
+        'type': 'previous_year',
+        'label': 'mesmo per\u00edodo do ano anterior',
+    }
+
 CATEGORY_LABELS = {
     'ACTION - Escola': 'Escolas', 'ACTION - Universidade': 'Universidades',
     'ACTION - Empresa': 'Empresas', 'ACTION - Bares': 'Bares',
@@ -280,14 +314,9 @@ def dashboard_payload(date_from, date_to, filters):
     current = derived_totals(aggregate_official_statistics(filtered_statistics(date_from, date_to, filters)))
     current['EXPECTED_PUBLIC'] = _expected_public_total(date_from, date_to, filters)
     current['REPORTS_WITHOUT_PUBLIC'] = _reports_without_public_total(date_from, date_to, filters)
-    try:
-        previous_from = date_from.replace(year=date_from.year - 1)
-    except ValueError:
-        previous_from = date(date_from.year - 1, 2, 28)
-    try:
-        previous_to = date_to.replace(year=date_to.year - 1)
-    except ValueError:
-        previous_to = date(date_to.year - 1, 2, 28)
+    comparison = comparison_period(date_from, date_to)
+    previous_from = comparison['from']
+    previous_to = comparison['to']
     previous = derived_totals(aggregate_official_statistics(filtered_statistics(previous_from, previous_to, filters)))
     previous['EXPECTED_PUBLIC'] = _expected_public_total(previous_from, previous_to, filters)
     previous['REPORTS_WITHOUT_PUBLIC'] = _reports_without_public_total(previous_from, previous_to, filters)
@@ -309,11 +338,11 @@ def dashboard_payload(date_from, date_to, filters):
     ]
     rankings = _rankings(date_from, date_to, filters)
     payload = {
-        'period': {'from': date_from, 'to': date_to, 'previous_from': previous_from, 'previous_to': previous_to},
+        'period': {'from': date_from, 'to': date_to, 'previous_from': previous_from, 'previous_to': previous_to, 'comparison_type': comparison['type'], 'comparison_label': comparison['label']},
         'summary': current, 'previous': previous, 'comparisons': comparisons,
         'annual': annual, 'monthly': monthly, 'visual_monthly': visual_monthly, 'categories': categories,
         **rankings,
-        'metadata': {'historical_dimensions': False, 'operational_dimensions_from': '2026-07-09'},
+        'metadata': {'historical_dimensions': False, 'operational_dimensions_from': '2026-07-09', 'comparison_label': comparison['label'], 'comparison_type': comparison['type']},
     }
     cache.set(cache_key, payload, 300)
     return payload
