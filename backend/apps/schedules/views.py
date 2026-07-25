@@ -1355,11 +1355,11 @@ class AgendaViewSet(viewsets.ModelViewSet):
         ]
 
         heatmap = defaultdict(int)
-        realized_rows = list(realized_qs.values("date", "start_time"))
-        for row in realized_rows:
+        approved_rows = list(qs_base.filter(status=Agenda.Status.APPROVED).values("date", "start_time"))
+        for row in approved_rows:
             day = row["date"].weekday()
             hour = row["start_time"].hour if row["start_time"] else 0
-            slot = f"{max(6, min(20, hour)):02d}:00"
+            slot = f"{max(6, min(21, hour)):02d}:00"
             heatmap[(day, slot)] += 1
         heatmap_rows = [
             {"day": day, "slot": slot, "total": total}
