@@ -499,6 +499,52 @@ const operationStatusStyle = {
 };
 
 
+function SectionCard({ icon: Icon, title, subtitle, children }) {
+  return (
+    <section style={{ border: "1px solid var(--line)", borderRadius: "16px", background: "var(--surface)", overflow: "hidden", boxShadow: "0 4px 18px rgba(0,0,0,0.025)" }}>
+      <header style={{ padding: "20px 22px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: "12px" }}>
+        {Icon && <span style={{ width: 36, height: 36, borderRadius: 10, background: "var(--primary)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon size={18} /></span>}
+        <div>
+          <h2 style={{ margin: 0, fontSize: 19, lineHeight: 1.2, fontWeight: 900, color: "var(--text)" }}>{title}</h2>
+          {subtitle && <p style={{ margin: "4px 0 0", color: "var(--text-soft)", fontSize: 12.5 }}>{subtitle}</p>}
+        </div>
+      </header>
+      <div style={{ padding: 22 }}>{children}</div>
+    </section>
+  );
+}
+
+function AlertsPanel({ alerts = [] }) {
+  const severity = {
+    danger: { bg: "#fef2f2", border: "#fecaca", color: "#b91c1c" },
+    warning: { bg: "#fffbeb", border: "#fde68a", color: "#92400e" },
+    info: { bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" },
+    muted: { bg: "#f8fafc", border: "#e2e8f0", color: "#475569" },
+  };
+  return (
+    <SectionCard icon={AlertTriangle} title="Alertas inteligentes" subtitle="Somente situa??es que exigem aten?o operacional.">
+      {alerts.length ? (
+        <div style={{ display: "grid", gap: 12 }}>
+          {alerts.map((alert, index) => {
+            const tone = severity[alert.severity] || severity.info;
+            return (
+              <a key={`${alert.title}-${index}`} href={alert.href || "/agendas"} style={{ textDecoration: "none", color: "inherit", border: `1px solid ${tone.border}`, background: tone.bg, borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                <span>
+                  <strong style={{ display: "block", color: tone.color, fontSize: 14 }}>{alert.title}</strong>
+                  <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{alert.description}</small>
+                </span>
+                <Navigation size={16} color={tone.color} />
+              </a>
+            );
+          })}
+        </div>
+      ) : (
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhum alerta operacional relevante para hoje.</p>
+      )}
+    </SectionCard>
+  );
+}
+
 function OperationalCard({ config, data }) {
   const Icon = config.icon;
   return (
