@@ -120,6 +120,13 @@ def _street_entity_from_action_counters(action):
             return entity
     return ''
 
+def _action_audience_value(action, is_palestra=False):
+    if is_palestra:
+        primary = _positive_counter(getattr(action, 'approached_lectures', 0))
+    else:
+        primary = _positive_counter(getattr(action, 'approached_actions', 0))
+    return primary or _positive_counter(getattr(action, 'approach', 0))
+
 def aggregate_official_rows(rows):
     totals = defaultdict(float)
     for row in rows:
@@ -260,8 +267,6 @@ def generate_statistics_for_report(report, processed_by=None):
     # ====================================================
     # INDICADORES DE PÚBLICO E MATERIAIS (NÍVEL RELATÓRIO)
     # ====================================================
-    total_audience = getattr(report, 'approximate_public', 0) or 0
-    add_metric('AUDIENCE', total_audience)
     
     # Materiais consolidados no relatório
     actions = list(report.actions.all())
@@ -284,6 +289,8 @@ def generate_statistics_for_report(report, processed_by=None):
     # ====================================================
     palestras_total = 0
     acoes_total = 0
+    palestras_audience = 0
+    acoes_audience = 0
     
     for action in actions:
         agenda = action.agenda
@@ -326,6 +333,7 @@ def generate_statistics_for_report(report, processed_by=None):
         
         if is_palestra:
             palestras_total += 1
+            palestras_audience += _action_audience_value(action, is_palestra=True)
             if entity_type_ref == '2' or 'escola' in entity_name_lower or ('ensino' in entity_name_lower and not 'universidade' in entity_name_lower): 
                 add_metric('ACTION', 1, action_type='PALESTRA', entity_type='ESCOLA')
             elif entity_type_ref == '1' or 'universidade' in entity_name_lower or 'faculdade' in entity_name_lower: 
@@ -338,6 +346,7 @@ def generate_statistics_for_report(report, processed_by=None):
                 
         elif is_acao:
             acoes_total += 1
+            acoes_audience += _action_audience_value(action, is_palestra=False)
             if entity_type_ref == '2' or is_school_context or 'escola' in entity_name_lower or ('ensino' in entity_name_lower and not 'universidade' in entity_name_lower):
                 add_metric('ACTION', 1, action_type='ACAO', entity_type='ESCOLA')
             elif entity_type_ref == '7' or 'bar' in entity_name_lower or 'bares' in entity_name_lower:
@@ -368,13 +377,17 @@ def generate_statistics_for_report(report, processed_by=None):
             else:
                 add_metric('ACTION', 1, action_type='ACAO', entity_type='OUTROS')
 
+    action_audience_total = palestras_audience + acoes_audience
+    total_audience = action_audience_total or (getattr(report, 'approximate_public', 0) or 0)
+    add_metric('AUDIENCE', total_audience)
+
     if palestras_total > 0:
         add_metric('ACTION', palestras_total, action_type='PALESTRA', entity_type='TOTAL')
-        add_metric('AUDIENCE', total_audience, action_type='PALESTRA', entity_type='TOTAL')
+        add_metric('AUDIENCE', palestras_audience or total_audience, action_type='PALESTRA', entity_type='TOTAL')
         
     if acoes_total > 0:
         add_metric('ACTION', acoes_total, action_type='ACAO', entity_type='TOTAL')
-        add_metric('AUDIENCE', total_audience, action_type='ACAO', entity_type='TOTAL')
+        add_metric('AUDIENCE', acoes_audience or total_audience, action_type='ACAO', entity_type='TOTAL')
 
     action_type_names = {'ACAO': 'A\u00e7\u00e3o', 'PALESTRA': 'Palestra'}
     resolved_action_types = {}

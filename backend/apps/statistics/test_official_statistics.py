@@ -137,6 +137,24 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(annual[2025]['ACTION - Geral'], 1541)
         self.assertEqual(annual[2026]['AUDIENCE - Geral'], 84803)
 
+    def test_generate_uses_action_approached_actions_as_reached_public(self):
+        agenda = SimpleNamespace(action_type_ref=self.action, action_type='', requester_entity_type='7')
+        action = SimpleNamespace(
+            agenda=agenda,
+            type_action='Ação',
+            approached_actions=382,
+            approached_lectures=0,
+            approach=0,
+            distribution_materials_distributed='',
+        )
+        report = SimpleNamespace(id=1999, status='APPROVED', operation_date=date(2026, 7, 10), created_at=None, approximate_public=1, distribution_materials_distributed='', actions=SimpleNamespace(all=lambda: [action]), statistics_processed=False, statistics_processed_at=None, statistics_processed_by=None, save=lambda **kwargs: None)
+
+        generate_statistics_for_report(report)
+        totals = aggregate_official_statistics(ConsolidatedStatistic.objects.filter(traceability_id='report_1999', status='ACTIVE'))
+
+        self.assertEqual(totals['AUDIENCE - Geral'], 382)
+        self.assertEqual(totals['AUDIENCE - ACOES'], 382)
+
     def test_generate_is_idempotent_and_uses_action_materials(self):
         agenda = SimpleNamespace(action_type_ref=self.action, action_type='', requester_entity_type='7')
         action = SimpleNamespace(agenda=agenda, type_action='A\u00e7\u00e3o', distribution_materials_distributed='Certificados | 2\nRevistinha | 3')

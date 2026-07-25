@@ -151,7 +151,7 @@ class EducationReportWorkflowTests(APITestCase):
         Kit.objects.get_or_create(name="Revistinha")
         self.report.status = EducationReport.ReportStatus.APPROVED
         self.report.operation_date = date(2026, 7, 1)
-        self.report.approximate_public = 50
+        self.report.approximate_public = 1
         self.report.accessibility_conditions_met = "YES"
         self.report.save()
         EducationAction.objects.create(
@@ -160,6 +160,7 @@ class EducationReportWorkflowTests(APITestCase):
             place_action="Local original",
             start_time="09:00",
             final_hour="10:00",
+            approached_actions=50,
             distribution_materials_distributed="Certificados | 2",
         )
         generate_statistics_for_report(self.report, processed_by=self.admin)
@@ -168,13 +169,14 @@ class EducationReportWorkflowTests(APITestCase):
             "agenda": self.agenda.id,
             "team": "Team A",
             "operation_date": "2026-07-01",
-            "approximate_public": 200,
+            "approximate_public": 1,
             "accessibility_conditions_met": "YES",
             "actions": [{
                 "agenda": self.agenda.id,
                 "place_action": "Local corrigido",
                 "start_time": "09:00",
                 "final_hour": "10:00",
+                "approached_actions": 200,
                 "distribution_materials_distributed": "Certificados | 5\nRevistinha | 7",
             }],
         }, format="json")

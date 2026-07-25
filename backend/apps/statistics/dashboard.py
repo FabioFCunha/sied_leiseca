@@ -205,6 +205,10 @@ def _visual_monthly_series(year, filters):
             values = derived_totals(_add_totals(values, monthly_baseline))
         visual_rows.append({'month': row['month'], 'values': values})
     return visual_rows
+def _action_audience_value(action, report=None, is_palestra=False):
+    primary = getattr(action, 'approached_lectures' if is_palestra else 'approached_actions', 0) or 0
+    return primary or getattr(action, 'approach', 0) or getattr(report, 'approximate_public', 0) or 0
+
 def _category_audience(date_from, date_to, filters):
     reports = _operational_reports(date_from, date_to, filters)
     actions = EducationAction.objects.filter(report__in=reports).select_related('agenda', 'report', 'agenda__action_type_ref')
@@ -244,7 +248,7 @@ def _category_audience(date_from, date_to, filters):
         elif 'social' in entity or entity == '15': key = 'ACTION - Ação Social'
         elif 'praça' in entity or 'praca' in entity or 'parque' in entity or entity == '11': key = 'ACTION - Praças/Parques Públicos'
         else: key = 'ACTION - Outros'
-        audience = action.approach or report.approximate_public
+        audience = _action_audience_value(action, report, is_palestra=('palestra' in action_name))
         result[key] += float(audience or 0)
     return result
 def _rankings(date_from, date_to, filters):
