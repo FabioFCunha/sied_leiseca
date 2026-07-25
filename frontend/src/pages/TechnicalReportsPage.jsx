@@ -1526,12 +1526,12 @@ export default function TechnicalReportsPage() {
                       <td>
                         <span style={{
                           background: r.status === "APPROVED" ? "var(--success)" :
-                                      r.status === "PENDING_REVIEW" ? "var(--info)" :
+                                      r.status === "PENDING_REVIEW" ? "#f59e0b" :
                                       r.status === "RETURNED" ? "var(--danger)" : "var(--warning)",
                           color: "#fff", padding: "4px 8px", borderRadius: 4, fontSize: 11, fontWeight: "bold"
                         }}>
                           {r.status === "APPROVED" ? "APROVADO" :
-                           r.status === "PENDING_REVIEW" ? "AGUARDANDO" :
+                           r.status === "PENDING_REVIEW" ? "PENDENTE" :
                            r.status === "RETURNED" ? "DEVOLVIDO" : "RASCUNHO"}
                         </span>
                       </td>
