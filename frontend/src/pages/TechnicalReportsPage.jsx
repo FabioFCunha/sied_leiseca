@@ -385,8 +385,8 @@ function normalizePayload(form) {
 export default function TechnicalReportsPage() {
   const [agendas, setAgendas] = useState([]);
   const [reports, setReports] = useState([]);
-  const [techFilters, setTechFilters] = useState({ protocol: "", team: "", date: "" });
-  const [pendingTechFilters, setPendingTechFilters] = useState({ protocol: "", team: "", date: "" });
+  const [techFilters, setTechFilters] = useState({ q: "", team: "", date: "", status: "" });
+  const [pendingTechFilters, setPendingTechFilters] = useState({ q: "", team: "", date: "", status: "" });
   const [pendingDateFilter, setPendingDateFilter] = useState("");
   const [pendingChiefFilter, setPendingChiefFilter] = useState("");
   const [pendingChiefQuery, setPendingChiefQuery] = useState("");
@@ -1475,8 +1475,8 @@ export default function TechnicalReportsPage() {
           <div style={{ animation: "fadeIn 0.4s ease" }}>
             <div className="filters glass-card" style={{ marginBottom: 24, display: 'flex', gap: 16 }}>
               <div className="filter-field">
-                <span>Protocolo</span>
-                <input placeholder="Ex: 123" value={pendingTechFilters.protocol} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, protocol: e.target.value })} />
+                <span>OS</span>
+                <input placeholder="Ex: 2610" value={pendingTechFilters.q} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, q: e.target.value })} />
               </div>
               <div className="filter-field">
                 <span>Equipe</span>
@@ -1485,6 +1485,16 @@ export default function TechnicalReportsPage() {
               <div className="filter-field">
                 <span>Data</span>
                 <input type="date" value={pendingTechFilters.date} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, date: e.target.value })} />
+              </div>
+              <div className="filter-field">
+                <span>Status</span>
+                <select value={pendingTechFilters.status} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, status: e.target.value })}>
+                  <option value="">Todos</option>
+                  <option value="PENDING_REVIEW">Pendente</option>
+                  <option value="APPROVED">Aprovado</option>
+                  <option value="DRAFT">Rascunho</option>
+                  <option value="RETURNED">Devolvido</option>
+                </select>
               </div>
               <div style={{ alignSelf: 'flex-end' }}>
                 <button onClick={() => setTechFilters(pendingTechFilters)}>Pesquisar</button>
@@ -1496,7 +1506,7 @@ export default function TechnicalReportsPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>Protocolo</th>
+                    <th>OS</th>
                     <th>Nome da Equipe</th>
                     <th>Data</th>
                     <th>Status</th>
@@ -1510,7 +1520,7 @@ export default function TechnicalReportsPage() {
                   )}
                   {reports.map((r) => (
                     <tr key={r.id}>
-                      <td><strong>{r.agenda ? `#${r.agenda}` : "-"}</strong></td>
+                      <td><strong>{r.agenda_service_order_number ? `OS ${r.agenda_service_order_number}` : r.agenda ? `#${r.agenda}` : "-"}</strong></td>
                       <td>{reportName(r)}</td>
                       <td>{formatDateBR(r.operation_date)}</td>
                       <td>
