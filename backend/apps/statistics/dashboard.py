@@ -25,6 +25,7 @@ DIMENSION_FILTERS = ('municipality', 'team', 'institution', 'entity', 'action_ty
 OFFICIAL_TEAMS = ('ALFA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOX', 'GOLF', 'HOTEL')
 
 OPERATIONAL_COMPARISON_START = date(2026, 7, 9)
+DASHBOARD_OPERATIONAL_START = date(2026, 7, 1)
 
 
 def _shift_month(value, months):
@@ -282,7 +283,7 @@ def _category_audience(date_from, date_to, filters):
             or 'escola nota 10' in action_name
             or 'nota 10' in action_name
             or 'escola' in institution_name
-            or 'col?gio' in institution_name
+            or 'colégio' in institution_name
             or 'colegio' in institution_name
         )
         if 'palestra' in action_name:
@@ -323,6 +324,7 @@ def _rankings(date_from, date_to, filters):
 
 
 def dashboard_payload(date_from, date_to, filters):
+    date_from = max(date_from, DASHBOARD_OPERATIONAL_START)
     signature = f"{date_from}:{date_to}:{sorted(filters.items())}"
     cache_key = f"statistics-dashboard:{hashlib.sha256(signature.encode()).hexdigest()}"
     cached = cache.get(cache_key)
