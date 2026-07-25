@@ -551,6 +551,51 @@ class AgendaAccessTests(APITestCase):
         rows = payload["results"] if "results" in payload else payload
         self.assertEqual([row["id"] for row in rows], [agenda.id])
 
+    def test_numeric_search_matches_only_protocol_or_service_order(self):
+        sector = Sector.objects.create(name="Solicitacoes")
+        manager = User.objects.create_user(
+            email="agenda-search@example.com",
+            password="password123",
+            full_name="Gestor Busca",
+            role=User.Role.MANAGER,
+            sector=sector,
+        )
+        target = Agenda.objects.create(
+            title="Solicitacao alvo",
+            description="Busca por OS",
+            date=date(2026, 7, 9),
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            location="Palacio Guanabara",
+            responsible=manager,
+            sector=sector,
+            created_by=manager,
+            status=Agenda.Status.APPROVED,
+            service_order_number=2465,
+        )
+        Agenda.objects.create(
+            title="Solicitacao com texto 2465",
+            description="Outro registro",
+            date=date(2026, 7, 10),
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            location="Endereco 2465",
+            responsible=manager,
+            sector=sector,
+            created_by=manager,
+            status=Agenda.Status.APPROVED,
+            service_order_number=1351,
+        )
+
+        self.client.force_authenticate(manager)
+        response = self.client.get(reverse("agendas-list"), {"q": "2465"})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        rows = payload["results"] if "results" in payload else payload
+        self.assertEqual([row["id"] for row in rows], [target.id])
+
+
 
 class ShiftSwapPermissionTests(APITestCase):
     def setUp(self):

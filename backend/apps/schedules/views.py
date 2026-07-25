@@ -759,20 +759,21 @@ class AgendaViewSet(viewsets.ModelViewSet):
             scoped = scoped.filter(action_type_ref_id=params["action_type"])
         if params.get("q"):
             term = params["q"].strip()
-            search_filter = (
-                Q(source_id__icontains=term)
-                | Q(title__icontains=term)
-                | Q(institution_location__icontains=term)
-                | Q(location__icontains=term)
-                | Q(address__icontains=term)
-                | Q(neighborhood__icontains=term)
-                | Q(city__icontains=term)
-                | Q(external_responsible__icontains=term)
-                | Q(agents__icontains=term)
-            )
             if term.isdigit():
-                search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
-            scoped = scoped.filter(search_filter)
+                scoped = scoped.filter(Q(id=int(term)) | Q(service_order_number=int(term)))
+            else:
+                search_filter = (
+                    Q(source_id__icontains=term)
+                    | Q(title__icontains=term)
+                    | Q(institution_location__icontains=term)
+                    | Q(location__icontains=term)
+                    | Q(address__icontains=term)
+                    | Q(neighborhood__icontains=term)
+                    | Q(city__icontains=term)
+                    | Q(external_responsible__icontains=term)
+                    | Q(agents__icontains=term)
+                )
+                scoped = scoped.filter(search_filter)
         if params.get("pending_report") == "true":
             if user.is_admin_role:
                 scoped = scoped.filter(technical_reports__isnull=True, date__gte="2026-07-01").exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])

@@ -318,7 +318,7 @@ def generate_statistics_for_report(report, processed_by=None):
             getattr(action, 'street_action_details', None),
             getattr(report, 'street_action_details', None),
             getattr(agenda, 'street_action_details', None),
-        ) or _street_entity_from_action_counters(action) or _street_entity_from_details(getattr(action, 'type_action', None))
+        ) or _street_entity_from_action_counters(action) or _street_entity_from_details(getattr(action, 'type_action', None)) or _street_entity_from_details(getattr(agenda, 'action_type', None))
         entity_name_lower = (street_entity or entity_type_ref).lower()
         institution_name_lower = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').lower()
         is_school_context = (

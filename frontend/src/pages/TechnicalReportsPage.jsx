@@ -78,8 +78,21 @@ const fieldLabels = {
 
 const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
 
+function normalizeTypeLabel(value) {
+  return String(value || "").trim().toLocaleLowerCase("pt-BR");
+}
+
+function isStreetActionValue(value) {
+  const normalized = normalizeTypeLabel(value);
+  return String(value) === STREET_ACTION_ID || normalized === "a\u00e7\u00e3o de rua" || normalized === "acao de rua";
+}
+
 function isStreetActionAgenda(agenda) {
-  return String(agenda?.requester_entity_type || "").toLowerCase().includes("rua");
+  return Boolean(
+    isStreetActionValue(agenda?.action_type_ref) ||
+    isStreetActionValue(agenda?.requester_entity_type) ||
+    isStreetActionValue(agenda?.action_type_ref_name)
+  );
 }
 
 function nullable(value) {
@@ -416,19 +429,18 @@ export default function TechnicalReportsPage() {
     () => agendas.find((agenda) => String(agenda.id) === String(form.agenda)),
     [agendas, form.agenda]
   );
-  const isStreetActionSelectedAgenda = Boolean(selectedAgenda && (String(selectedAgenda.action_type_ref) === STREET_ACTION_ID || String(selectedAgenda.requester_entity_type) === STREET_ACTION_ID));
+  const isStreetActionSelectedAgenda = Boolean(selectedAgenda && isStreetActionAgenda(selectedAgenda));
   const predefinedStreetActionTypes = useMemo(
-    () => [...new Set((form.street_action_details || []).map((detail) => String(detail?.type || "").trim()).filter(Boolean))],
+    () => [...new Set((form.street_action_details || [])
+      .map((detail) => String(detail?.type || "").trim())
+      .filter((type) => streetActionTypeOptions.includes(type)))],
     [form.street_action_details]
   );
   const isStreetAction = Boolean(isStreetActionSelectedAgenda || predefinedStreetActionTypes.length > 0);
   const shouldChooseStreetActionType = isStreetActionSelectedAgenda && predefinedStreetActionTypes.length > 1;
   const shouldRequireLegacyStreetActionType = isStreetActionSelectedAgenda && predefinedStreetActionTypes.length === 0;
-  const normalizeTypeLabel = (value) => String(value || "").trim().toLocaleLowerCase("pt-BR");
-  const isGenericStreetActionType = (value) => {
-    const normalized = normalizeTypeLabel(value);
-    return normalized === "a\u00e7\u00e3o de rua" || normalized === "acao de rua";
-  };
+  const hasValidStreetActionSubtype = (value) => streetActionTypeOptions.includes(value);
+  const isMissingLegacyStreetSubtype = (value) => shouldRequireLegacyStreetActionType && !hasValidStreetActionSubtype(value || "");
   const originalTypeActionForIndex = (index) => {
     if (!selectedAgenda) return "";
     if (isStreetActionSelectedAgenda) {
@@ -591,7 +603,7 @@ export default function TechnicalReportsPage() {
         ...currentAction,
         agenda: agenda.id,
         source_id: isUserCreated ? "" : (currentAction.source_id || `agenda_action:${agenda.id}`),
-        place_action: currentAction.place_action || ((String(agenda.action_type_ref) === STREET_ACTION_ID || String(agenda.requester_entity_type) === STREET_ACTION_ID) ? "" : (agenda.institution_location || agenda.location || "")),
+        place_action: currentAction.place_action || (isStreetActionAgenda(agenda) ? "" : (agenda.institution_location || agenda.location || "")),
         institution_name: currentAction.institution_name || agenda.institution_location || "",
         type_action: currentAction.type_action || agenda.action_type || agenda.action_type_ref_name || "",
         type_audience: currentAction.type_audience || agenda.audience || "",
@@ -629,7 +641,7 @@ export default function TechnicalReportsPage() {
       occurrence_observation: current.occurrence_observation || agenda.notes || agenda.description || "",
       actions: (() => {
         const meaningfulCurrentActions = getValidatableActions(current.actions).map(({ action }) => action);
-        if (String(agenda.action_type_ref) === STREET_ACTION_ID || String(agenda.requester_entity_type) === STREET_ACTION_ID) {
+        if (isStreetActionAgenda(agenda)) {
           return meaningfulCurrentActions.length
             ? meaningfulCurrentActions.map((action) => buildAgendaAction(action))
             : [buildAgendaAction({ place_action: "" })];
@@ -890,7 +902,7 @@ export default function TechnicalReportsPage() {
     if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
-      if (isStreetAction && (!action.type_action || (shouldRequireLegacyStreetActionType && isGenericStreetActionType(action.type_action)))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (isStreetAction && (!action.type_action || isMissingLegacyStreetSubtype(action.type_action))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -934,7 +946,7 @@ export default function TechnicalReportsPage() {
     if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
-      if (isStreetAction && (!action.type_action || (shouldRequireLegacyStreetActionType && isGenericStreetActionType(action.type_action)))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (isStreetAction && (!action.type_action || isMissingLegacyStreetSubtype(action.type_action))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -1274,7 +1286,7 @@ export default function TechnicalReportsPage() {
                             <span>Ação Definida pelo Chefe</span>
                             <select
                               id={`select-type-action-${index}`}
-                              value={shouldRequireLegacyStreetActionType && isGenericStreetActionType(action.type_action) ? "" : (action.type_action || "")}
+                              value={isMissingLegacyStreetSubtype(action.type_action) ? "" : (action.type_action || "")}
                               onChange={(event) => updateAction(index, "type_action", event.target.value)}
                               disabled={requestFieldsReadOnly && !action.__userCreated && !shouldRequireLegacyStreetActionType}
                               required
@@ -1283,11 +1295,11 @@ export default function TechnicalReportsPage() {
                               {streetActionTypeOptions.map((option) => (
                                 <option key={option} value={option}>{option}</option>
                               ))}
-                              {action.type_action && !streetActionTypeOptions.includes(action.type_action) && (
+                              {action.type_action && !isMissingLegacyStreetSubtype(action.type_action) && !streetActionTypeOptions.includes(action.type_action) && (
                                 <option value={action.type_action}>{action.type_action}</option>
                               )}
                             </select>
-                            {shouldRequireLegacyStreetActionType && (!action.type_action || isGenericStreetActionType(action.type_action)) && (
+                            {isMissingLegacyStreetSubtype(action.type_action) && (
                               <small>Selecione o tipo da ação de rua para classificar corretamente a estatística.</small>
                             )}
                           </label>

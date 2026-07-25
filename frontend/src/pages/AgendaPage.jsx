@@ -95,6 +95,31 @@ const emptyForm = {
   kit_7_quantity: "",
 };
 
+
+const normalizeAgendaTypeLabel = (value) =>
+  String(value || "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+
+const isStreetActionValue = (value) => {
+  const normalized = normalizeAgendaTypeLabel(value);
+  return String(value) === STREET_ACTION_ID || normalized === "a\u00e7\u00e3o de rua" || normalized === "acao de rua";
+};
+
+const isStreetActionForm = (form) =>
+  isStreetActionValue(form?.action_type_ref) || isStreetActionValue(form?.requester_entity_type);
+
+const streetActionDetailsLabel = (form) => {
+  const details = (form?.street_action_details || [])
+    .map((detail) => String(detail?.type || "").trim())
+    .filter((type) => STREET_ACTION_TYPE_OPTIONS.includes(type));
+  const legacyActionType = String(form?.action_type || "").trim();
+  if (!details.length && STREET_ACTION_TYPE_OPTIONS.includes(legacyActionType)) {
+    details.push(legacyActionType);
+  }
+  return details.length ? details.join(", ") : "N\u00e3o informado";
+};
+
 const agendaFields = Object.keys(emptyForm);
 
 const lowerAgeRangeOptions = new Set([
@@ -769,9 +794,7 @@ export default function AgendaPage() {
     event.preventDefault();
     setMessage("");
 
-    const isStreetAction =
-      String(form.action_type_ref) === STREET_ACTION_ID ||
-      String(form.requester_entity_type) === STREET_ACTION_ID;
+    const isStreetAction = isStreetActionForm(form);
 
     const normalizedStartTime = normalizeTime(form.start_time);
     if (!normalizedStartTime && form.start_time) {
@@ -1290,10 +1313,8 @@ export default function AgendaPage() {
               <span><b>Modalidade</b>{form.action_type || "-"}</span>
               <span><b>Data e horário</b>{form.date ? formatDateBR(form.date) : "-"} às {form.start_time || "-"}</span>
               <span><b>Ações</b>{
-                (String(form.requester_entity_type) === STREET_ACTION_ID || String(form.action_type_ref) === STREET_ACTION_ID)
-                  ? (form.street_action_details?.length > 0
-                      ? form.street_action_details.map(d => d.type).filter(Boolean).join(", ")
-                      : "-")
+                isStreetActionForm(form)
+                  ? streetActionDetailsLabel(form)
                   : (form.actions_count || "-")
               }</span>
               <span><b>Participantes</b>{form.participant_range || form.quantity || "-"}</span>
@@ -1728,7 +1749,7 @@ export default function AgendaPage() {
             </div>
             <input placeholder="Público" value={form.audience} onChange={(e) => update("audience", e.target.value)} />
             <input placeholder="Faixa etária" value={form.age_ranges} onChange={(e) => update("age_ranges", e.target.value)} />
-            {(!form.requester_entity_type || form.requester_entity_type !== STREET_ACTION_ID) ? (
+            {(!form.requester_entity_type || !isStreetActionValue(form.requester_entity_type)) ? (
               <input placeholder="Faixa de participantes" value={form.participant_range} onChange={(e) => update("participant_range", e.target.value)} />
             ) : (
               <div style={{ marginTop: "12px", marginBottom: "12px", border: "1px solid var(--border)", padding: "12px", borderRadius: "8px" }}>

@@ -163,6 +163,32 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(totals['ACTION - Outros'], 0)
         self.assertEqual(totals['AUDIENCE - Geral'], 100)
 
+    def test_legacy_street_action_uses_agenda_action_type_subcategory(self):
+        agenda = SimpleNamespace(
+            action_type_ref=SimpleNamespace(name='A??o de Rua'),
+            action_type='Bares',
+            requester_entity_type='6',
+            street_action_details=[],
+            institution_location='Local antigo',
+        )
+        action = SimpleNamespace(
+            agenda=agenda,
+            type_action='A??o de educa??o/conscientiza??o',
+            approached_actions=80,
+            approached_lectures=0,
+            approach=0,
+            street_action_details=[],
+            distribution_materials_distributed='',
+        )
+        report = SimpleNamespace(id=2002, status='APPROVED', operation_date=date(2026, 7, 9), created_at=None, approximate_public=0, street_action_details=[], distribution_materials_distributed='', actions=SimpleNamespace(all=lambda: [action]), statistics_processed=False, statistics_processed_at=None, statistics_processed_by=None, save=lambda **kwargs: None)
+
+        generate_statistics_for_report(report)
+        totals = aggregate_official_statistics(ConsolidatedStatistic.objects.filter(traceability_id='report_2002', status='ACTIVE'))
+
+        self.assertEqual(totals['ACTION - Bares'], 1)
+        self.assertEqual(totals['ACTION - Outros'], 0)
+        self.assertEqual(totals['AUDIENCE - Geral'], 80)
+
     def test_generate_uses_action_approached_actions_as_reached_public(self):
         agenda = SimpleNamespace(action_type_ref=self.action, action_type='', requester_entity_type='7')
         action = SimpleNamespace(
