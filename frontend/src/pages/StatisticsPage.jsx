@@ -49,22 +49,22 @@ const cleanLabel = (value) => String(value || "").trim() || text.notInformed;
 const ageGroupLabel = (value) => {
   const label = String(value || "").trim();
   const normalized = label.toLowerCase();
-  if (!label) return "";
-  if (normalized.includes("05") || normalized.includes("5 - 10") || normalized.includes("5 a 10")) return "05 - 10 anos (ensino fundamental - anos iniciais)";
-  if (normalized.includes("11 - 14") || normalized.includes("11 a 14")) return "11 - 14 anos (ensino fundamental - anos finais)";
-  if (normalized.includes("15 - 17") || normalized.includes("15 a 17")) return "15 - 17 anos (ensino m\u00e9dio)";
-  if (normalized.includes("acima de 18")) return "acima de 18 anos - Adultos";
-  return "";
+  if (!label || normalized === "adulto" || normalized === "n\u00e3o informado" || normalized === "nao informado") return "";
+  return label;
 };
 const requesterTypeLabel = (value) => {
   const label = String(value || "").trim();
   const normalized = label.toLowerCase();
   if (!label) return "";
-  if (normalized.includes("institui")) return "Institui\u00e7\u00e3o de Ensino";
-  if (normalized.includes("empresa") || normalized.includes("órgão") || normalized.includes("orgao")) return "Empresa/\u00d3rg\u00e3o";
-  if (normalized.includes("organiza") && normalized.includes("evento")) return "Organiza\u00e7\u00e3o de evento";
-  if (normalized.includes("a\u00e7\u00e3o de rua") || normalized.includes("acao de rua")) return "A\u00e7\u00e3o de Rua";
-  return "";
+  let base = "";
+  if (normalized.includes("institui")) base = "Institui\u00e7\u00e3o de Ensino";
+  else if (normalized.includes("empresa") || normalized.includes("\u00f3rg\u00e3o") || normalized.includes("orgao")) base = "Empresa/\u00d3rg\u00e3o";
+  else if (normalized.includes("organiza") && normalized.includes("evento")) base = "Organiza\u00e7\u00e3o de evento";
+  else if (normalized.includes("a\u00e7\u00e3o de rua") || normalized.includes("acao de rua")) base = "A\u00e7\u00e3o de Rua";
+  if (!base) return "";
+  if (normalized.includes("privado")) return `${base} Privado`;
+  if (normalized.includes("p\u00fablico") || normalized.includes("publico")) return `${base} P\u00fablico`;
+  return base;
 };
 const norm = (value) => String(value || "").trim().toLowerCase();
 const agendaMatchesFilters = (agenda, filters) => {
