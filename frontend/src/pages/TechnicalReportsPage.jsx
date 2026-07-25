@@ -592,7 +592,7 @@ export default function TechnicalReportsPage() {
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
 
-  const applyAgenda = (agenda) => {
+  const applyAgenda = (agenda, { preserveCurrent = true } = {}) => {
     const details = protocolDetails(agenda);
     const selectedMaterials = extractMaterialCategories(agenda);
     const initialEquipment = serializeMaterialRows([...selectedMaterials.dynamics, ...selectedMaterials.supports]);
@@ -619,40 +619,43 @@ export default function TechnicalReportsPage() {
         distribution_materials_distributed: currentAction.distribution_materials_distributed || blankKits,
       };
     };
-    setForm((current) => ({
-      ...current,
-      agenda: agenda.id,
-      agenda_title: agenda.title,
-      agenda_date: agenda.date,
-      agenda_location: agenda.institution_location || agenda.location,
-      operation_date: agenda.date || current.operation_date,
-      team: agenda.team_name || agenda.team_ref_name || agenda.sector_name || current.team,
-      education_agents: current.education_agents || details.agents,
-      changes_staff: current.changes_staff || "",
-      approximate_public: current.approximate_public || numericApproximatePublic(agenda.quantity),
-      request_details: current.request_details || details.audience,
-      street_action_details: current.street_action_details?.length ? current.street_action_details : (agenda.street_action_details || []),
-      materials_removed: current.materials_removed || materialsFromAgenda(agenda),
-      breathalyzers: current.breathalyzers || details.resources,
-      cars: current.cars || joinValues([agenda.vehicle, agenda.vehicle_name]),
-      contact_received: current.contact_received || joinContactValues([
-        agenda.external_responsible,
-        agenda.external_responsible_phone,
-        agenda.external_email,
-      ], current.contact_received),
-      occurrence_observation: current.occurrence_observation || agenda.notes || agenda.description || "",
-      actions: (() => {
-        const meaningfulCurrentActions = getValidatableActions(current.actions).map(({ action }) => action);
-        if (isStreetActionAgenda(agenda)) {
-          return meaningfulCurrentActions.length
-            ? meaningfulCurrentActions.map((action) => buildAgendaAction(action))
-            : [buildAgendaAction({ place_action: "" })];
-        }
-        return current.actions.map((action) => buildAgendaAction(action));
-      })(),
-    }));
+    setForm((current) => {
+      const source = preserveCurrent ? current : { ...empty, actions: [{ ...emptyAction }] };
+      return {
+        ...source,
+        agenda: agenda.id,
+        agenda_title: agenda.title,
+        agenda_date: agenda.date,
+        agenda_location: agenda.institution_location || agenda.location,
+        operation_date: agenda.date || source.operation_date,
+        team: agenda.team_name || agenda.team_ref_name || agenda.sector_name || source.team,
+        education_agents: source.education_agents || details.agents,
+        changes_staff: source.changes_staff || "",
+        approximate_public: source.approximate_public || numericApproximatePublic(agenda.quantity),
+        request_details: source.request_details || details.audience,
+        street_action_details: source.street_action_details?.length ? source.street_action_details : (agenda.street_action_details || []),
+        materials_removed: source.materials_removed || materialsFromAgenda(agenda),
+        breathalyzers: source.breathalyzers || details.resources,
+        cars: source.cars || joinValues([agenda.vehicle, agenda.vehicle_name]),
+        contact_received: source.contact_received || joinContactValues([
+          agenda.external_responsible,
+          agenda.external_responsible_phone,
+          agenda.external_email,
+        ], source.contact_received),
+        occurrence_observation: source.occurrence_observation || agenda.notes || agenda.description || "",
+        actions: (() => {
+          const meaningfulCurrentActions = getValidatableActions(source.actions).map(({ action }) => action);
+          if (isStreetActionAgenda(agenda)) {
+            return meaningfulCurrentActions.length
+              ? meaningfulCurrentActions.map((action) => buildAgendaAction(action))
+              : [buildAgendaAction({ place_action: "" })];
+          }
+          return source.actions.map((action) => buildAgendaAction(action));
+        })(),
+      };
+    });
 
-    // O carregamento da escala agora é feito pelo useEffect monitorando operation_date e team
+    // O carregamento da escala agora e feito pelo useEffect monitorando operation_date e team
   };
 
   const fillCoordinatesFromAgenda = async (agenda = selectedAgenda) => {
@@ -709,7 +712,8 @@ export default function TechnicalReportsPage() {
         setMessage("Nenhuma agenda realizada encontrada para essa OS.");
         return;
       }
-      applyAgenda(agenda);
+      setEditing(null);
+      applyAgenda(agenda, { preserveCurrent: false });
       const foundLocation = await fillCoordinatesFromAgenda(agenda);
       setMessage(foundLocation ? `${agendaReferenceLabel(agenda)} vinculada ao relatorio com localizacao preenchida.` : `${agendaReferenceLabel(agenda)} vinculada ao relatorio.`);
     } catch (err) {
@@ -1638,8 +1642,8 @@ export default function TechnicalReportsPage() {
         </div>
       )}
       <aside className="side-panel report-sidebar">
-        <div className="sidebar-tabs" style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
-          <button type="button" className={activeTab === "pending" ? "active" : "secondary"} onClick={() => setActiveTab("pending")} style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}>Pendentes ({pendingAgendas.length})</button>
+        <div className="sidebar-tabs" style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
+          <button type="button" className={activeTab === "pending" ? "active" : "secondary"} onClick={() => setActiveTab("pending")} style={{ width: "100%", fontSize: "12px", padding: "8px 10px", fontWeight: "700" }}>Pendentes ({pendingAgendas.length})</button>
           <button
             type="button"
             className={activeTab === "completed" ? "active" : "secondary"}
@@ -1649,8 +1653,19 @@ export default function TechnicalReportsPage() {
               setTechFilters(nextFilters);
               setActiveTab("completed");
             }}
-            style={{ flex: 1, fontSize: "12px", padding: "6px 4px", fontWeight: "700" }}
+            style={{ width: "100%", fontSize: "12px", padding: "8px 10px", fontWeight: "700" }}
           >{"Aguardando aprova\u00e7\u00e3o"} ({pendingReviewReportsCount})</button>
+          <button
+            type="button"
+            className={activeTab === "completed" && techFilters.status !== "PENDING_REVIEW" ? "active" : "secondary"}
+            onClick={() => {
+              const nextFilters = { ...pendingTechFilters, status: "" };
+              setPendingTechFilters(nextFilters);
+              setTechFilters(nextFilters);
+              setActiveTab("completed");
+            }}
+            style={{ width: "100%", fontSize: "12px", padding: "8px 10px", fontWeight: "700" }}
+          >{"Consultar relat\u00f3rios"}</button>
         </div>
 
         {activeTab === "pending" && (
@@ -1705,8 +1720,10 @@ export default function TechnicalReportsPage() {
                 key={agenda.id}
                 type="button"
                 onClick={() => {
+                  setEditing(null);
+                  setMessage("");
                   setProtocolSearch(serviceOrderLabel(agenda));
-                  applyAgenda(agenda);
+                  applyAgenda(agenda, { preserveCurrent: false });
                   fillCoordinatesFromAgenda(agenda);
                 }}
                 style={{ textAlign: "left", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--surface-2)", cursor: "pointer", transition: "all 0.2s", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "4px", width: "100%", wordBreak: "break-word", flexShrink: 0 }}
