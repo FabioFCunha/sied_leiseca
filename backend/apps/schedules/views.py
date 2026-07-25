@@ -703,14 +703,14 @@ class AgendaViewSet(viewsets.ModelViewSet):
         params = self.request.query_params
         user = self.request.user
 
-        # Restrição para que relatórios só fiquem pendentes após as 18h do dia da ação
+        # Reports become available after the agenda end_time.
         if params.get("reportable") == "true":
             from django.utils import timezone
             now = timezone.localtime(timezone.now())
-            if now.hour >= 18:
-                scoped = scoped.filter(date__lte=now.date(), service_order_number__isnull=False).exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
-            else:
-                scoped = scoped.filter(date__lt=now.date(), service_order_number__isnull=False).exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
+            scoped = scoped.filter(
+                Q(date__lt=now.date()) | Q(date=now.date(), end_time__lte=now.time()),
+                service_order_number__isnull=False,
+            ).exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
 
         if params.get("date"):
             scoped = scoped.filter(date=params["date"])
@@ -1608,10 +1608,10 @@ class AgendaViewSet(viewsets.ModelViewSet):
         messages_qs = SatisfactionSurvey.objects.filter(agenda__in=base_qs, answered_at__isnull=False).exclude(suggestion="")
         pending_moderation_count = SatisfactionSurvey.objects.filter(agenda__in=base_qs, answered_at__isnull=False, is_approved=False).exclude(suggestion="").count()
         now_dt = timezone.localtime(timezone.now())
-        if now_dt.hour >= 18:
-            reportable_agendas = base_qs.filter(date__lte=now_dt.date(), service_order_number__isnull=False)
-        else:
-            reportable_agendas = base_qs.filter(date__lt=now_dt.date(), service_order_number__isnull=False)
+        reportable_agendas = base_qs.filter(
+            Q(date__lt=now_dt.date()) | Q(date=now_dt.date(), end_time__lte=now_dt.time()),
+            service_order_number__isnull=False,
+        )
         pending_technical_reports_count = reportable_agendas.exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED]).filter(technical_reports__isnull=True).count()
         if not (request.user.is_superuser or request.user.role in ["ADMIN", "MANAGER"]):
             messages_qs = messages_qs.filter(is_approved=True)
