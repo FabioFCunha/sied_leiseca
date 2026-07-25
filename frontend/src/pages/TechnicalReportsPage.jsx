@@ -423,7 +423,12 @@ export default function TechnicalReportsPage() {
   );
   const isStreetAction = Boolean(isStreetActionSelectedAgenda || predefinedStreetActionTypes.length > 0);
   const shouldChooseStreetActionType = isStreetActionSelectedAgenda && predefinedStreetActionTypes.length > 1;
+  const shouldRequireLegacyStreetActionType = isStreetActionSelectedAgenda && predefinedStreetActionTypes.length === 0;
   const normalizeTypeLabel = (value) => String(value || "").trim().toLocaleLowerCase("pt-BR");
+  const isGenericStreetActionType = (value) => {
+    const normalized = normalizeTypeLabel(value);
+    return normalized === "a\u00e7\u00e3o de rua" || normalized === "acao de rua";
+  };
   const originalTypeActionForIndex = (index) => {
     if (!selectedAgenda) return "";
     if (isStreetActionSelectedAgenda) {
@@ -885,7 +890,7 @@ export default function TechnicalReportsPage() {
     if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
-      if (isStreetAction && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (isStreetAction && (!action.type_action || (shouldRequireLegacyStreetActionType && isGenericStreetActionType(action.type_action)))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -929,7 +934,7 @@ export default function TechnicalReportsPage() {
     if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
-      if (isStreetAction && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (isStreetAction && (!action.type_action || (shouldRequireLegacyStreetActionType && isGenericStreetActionType(action.type_action)))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -1269,9 +1274,9 @@ export default function TechnicalReportsPage() {
                             <span>Ação Definida pelo Chefe</span>
                             <select
                               id={`select-type-action-${index}`}
-                              value={action.type_action || ""}
+                              value={shouldRequireLegacyStreetActionType && isGenericStreetActionType(action.type_action) ? "" : (action.type_action || "")}
                               onChange={(event) => updateAction(index, "type_action", event.target.value)}
-                              disabled={requestFieldsReadOnly && !action.__userCreated}
+                              disabled={requestFieldsReadOnly && !action.__userCreated && !shouldRequireLegacyStreetActionType}
                               required
                             >
                               <option value="">Selecione</option>
@@ -1282,6 +1287,9 @@ export default function TechnicalReportsPage() {
                                 <option value={action.type_action}>{action.type_action}</option>
                               )}
                             </select>
+                            {shouldRequireLegacyStreetActionType && (!action.type_action || isGenericStreetActionType(action.type_action)) && (
+                              <small>Selecione o tipo da ação de rua para classificar corretamente a estatística.</small>
+                            )}
                           </label>
                         ) : null}
                       </div>

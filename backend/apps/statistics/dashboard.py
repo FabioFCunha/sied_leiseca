@@ -222,7 +222,7 @@ def _category_audience(date_from, date_to, filters):
             getattr(action, 'street_action_details', None),
             getattr(report, 'street_action_details', None),
             getattr(agenda, 'street_action_details', None),
-        ) or _street_entity_from_action_counters(action)
+        ) or _street_entity_from_action_counters(action) or _street_entity_from_details(getattr(action, 'type_action', None))
         entity = str(street_entity or agenda.requester_entity_type or '').casefold()
         action_name = str((agenda.action_type_ref.name if agenda.action_type_ref else '') or action.type_action or '').casefold()
         institution_name = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').casefold()
