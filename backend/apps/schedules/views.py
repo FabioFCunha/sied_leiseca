@@ -1396,6 +1396,180 @@ class AgendaViewSet(viewsets.ModelViewSet):
             )
         ]
 
+        operational_base = dashboard_base_queryset().filter(date=today).select_related(
+            "team_ref",
+            "chief_ref",
+            "support_1_ref",
+            "support_2_ref",
+            "action_type_ref",
+            "municipality_ref",
+            "sector",
+            "responsible",
+        ).prefetch_related("agents_ref", "technical_reports")
+        approved_report_filter = Q(technical_reports__status=EducationReport.ReportStatus.APPROVED)
+        completed_today_qs = operational_base.filter(
+            Q(status=Agenda.Status.COMPLETED) | approved_report_filter
+        ).distinct()
+        completed_today_ids = list(completed_today_qs.values_list("id", flat=True))
+        cancelled_today_qs = operational_base.filter(status=Agenda.Status.CANCELLED)
+        in_progress_today_qs = operational_base.filter(
+            start_time__lte=now,
+            end_time__gte=now,
+        ).exclude(status=Agenda.Status.CANCELLED).exclude(id__in=completed_today_ids).distinct()
+        pending_start_today_qs = operational_base.filter(
+            status=Agenda.Status.APPROVED,
+            start_time__gt=now,
+        ).exclude(id__in=completed_today_ids).distinct()
+        pending_report_today_qs = operational_base.filter(
+            date=today,
+            start_time__lt=now,
+            service_order_number__isnull=False,
+        ).exclude(status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]).exclude(
+            technical_reports__status=EducationReport.ReportStatus.APPROVED
+        ).distinct()
+
+        allowed_field_teams = {"ALFA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOX", "GOLF", "HOTEL"}
+
+        def clean_display(value, fallback="Não informado"):
+            text = str(value or "").strip()
+            return text if text else fallback
+
+        def operational_team_label(agenda):
+            raw = agenda.team_ref.name if agenda.team_ref else agenda.team_name
+            value = clean_display(raw, "Sem equipe")
+            upper = value.strip().upper()
+            return upper if upper in allowed_field_teams else value
+
+        def operational_chief_label(agenda):
+            return clean_display(agenda.chief_ref.name if agenda.chief_ref else agenda.chief_name, "Sem chefe")
+
+        def operational_location(agenda):
+            return clean_display(agenda.institution_location or agenda.location or agenda.address, "Local não informado")
+
+        def operational_city(agenda):
+            return clean_display(agenda.municipality_ref.name if agenda.municipality_ref else agenda.city, "Município não informado")
+
+        def operational_action_type(agenda):
+            return clean_display(agenda.action_type_ref.name if agenda.action_type_ref else agenda.action_type, "Ação")
+
+        def operational_status(agenda):
+            if agenda.status == Agenda.Status.CANCELLED:
+                return "cancelled", "Cancelada"
+            if agenda.status == Agenda.Status.PENDING:
+                return "pending_approval", "Aguardando aprovação"
+            if agenda.id in completed_today_ids:
+                return "completed", "Concluída"
+            if agenda.start_time <= now <= agenda.end_time:
+                return "in_progress", "Em andamento"
+            if agenda.start_time > now:
+                return "scheduled", "Programada"
+            return "pending_report", "Aguardando relatório"
+
+        def agenda_agents_count(agenda):
+            refs = list(agenda.agents_ref.all())
+            if refs:
+                return len({item.id for item in refs})
+            if not agenda.agents:
+                return 0
+            names = [name.strip() for name in re.split(r"\s+-\s+|,", agenda.agents) if name.strip()]
+            return len(set(name.casefold() for name in names))
+
+        def agenda_supports_count(agenda):
+            names = []
+            for ref, text_value in ((agenda.support_1_ref, agenda.support_1), (agenda.support_2_ref, agenda.support_2)):
+                label = ref.name if ref else text_value
+                if label and str(label).strip():
+                    names.append(str(label).strip().casefold())
+            return len(set(names))
+
+        today_agendas = list(operational_base.order_by("start_time", "id"))
+        operation_rows = []
+        total_supports = 0
+        for agenda in today_agendas:
+            status_key, status_text = operational_status(agenda)
+            supports_count = agenda_supports_count(agenda)
+            total_supports += supports_count
+            operation_rows.append({
+                "id": agenda.id,
+                "title": agenda.title,
+                "date": agenda.date.isoformat(),
+                "time": agenda.start_time.isoformat(timespec="minutes") if agenda.start_time else "",
+                "end_time": agenda.end_time.isoformat(timespec="minutes") if agenda.end_time else "",
+                "type": operational_action_type(agenda),
+                "location": operational_location(agenda),
+                "municipality": operational_city(agenda),
+                "team": operational_team_label(agenda),
+                "chief": operational_chief_label(agenda),
+                "status": agenda.status,
+                "operational_status": status_key,
+                "operational_status_label": status_text,
+                "service_order_number": agenda.service_order_number,
+                "agents_count": agenda_agents_count(agenda),
+                "supports_count": supports_count,
+                "href": f"/agendas?q={agenda.service_order_number or agenda.id}",
+            })
+
+        operational_team_names = {row["team"] for row in operation_rows if row["team"] != "Sem equipe"}
+        operational_chief_names = {row["chief"] for row in operation_rows if row["chief"] != "Sem chefe"}
+        total_agents_scheduled = sum(row["agents_count"] for row in operation_rows)
+        service_orders_today = operational_base.filter(service_order_number__isnull=False).count()
+        pending_approval_today = operational_base.filter(status=Agenda.Status.PENDING).count()
+
+        alerts = []
+        for agenda in operational_base.filter(status=Agenda.Status.APPROVED, service_order_number__isnull=True).order_by("start_time")[:5]:
+            alerts.append({
+                "severity": "warning",
+                "title": "Ordem de Serviço pendente",
+                "description": f"{agenda.title} ainda não possui OS emitida.",
+                "href": f"/agendas?q={agenda.id}",
+                "agenda_id": agenda.id,
+            })
+        for agenda in pending_report_today_qs.order_by("start_time")[:5]:
+            alerts.append({
+                "severity": "info",
+                "title": "Relatório técnico aguardando envio",
+                "description": f"{agenda.title} já passou do horário e ainda não tem relatório aprovado.",
+                "href": "/relatorio-tecnico",
+                "agenda_id": agenda.id,
+            })
+        for agenda in operational_base.filter(Q(team_ref__isnull=True) & Q(team_name="")).order_by("start_time")[:3]:
+            alerts.append({
+                "severity": "danger",
+                "title": "Equipe não definida",
+                "description": f"{agenda.title} precisa de equipe antes da execução.",
+                "href": f"/agendas?q={agenda.id}",
+                "agenda_id": agenda.id,
+            })
+        for agenda in operational_base.filter(status=Agenda.Status.CANCELLED).order_by("start_time")[:3]:
+            alerts.append({
+                "severity": "muted",
+                "title": "Agenda cancelada hoje",
+                "description": f"{agenda.title} consta como cancelada na operação do dia.",
+                "href": f"/agendas?q={agenda.id}",
+                "agenda_id": agenda.id,
+            })
+
+        operations = {
+            "date": today.isoformat(),
+            "cards": {
+                "scheduled_today": {"value": operational_base.count(), "label": "Ações programadas hoje"},
+                "in_progress": {"value": in_progress_today_qs.count(), "label": "Em andamento"},
+                "completed": {"value": completed_today_qs.count(), "label": "Concluídas"},
+                "pending_start": {"value": pending_start_today_qs.count(), "label": "Pendentes de início"},
+                "cancelled": {"value": cancelled_today_qs.count(), "label": "Canceladas"},
+                "teams_active": {"value": len(operational_team_names), "label": "Equipes em operação"},
+                "chiefs_active": {"value": len(operational_chief_names), "label": "Chefes em operação"},
+                "agents_scheduled": {"value": total_agents_scheduled, "label": "Agentes escalados"},
+                "supports_scheduled": {"value": total_supports, "label": "Apoios escalados"},
+                "service_orders": {"value": service_orders_today, "label": "Ordens de Serviço emitidas"},
+                "pending_reports": {"value": pending_report_today_qs.count(), "label": "Relatórios aguardando envio"},
+                "pending_approval": {"value": pending_approval_today, "label": "Solicitações aguardando aprovação"},
+            },
+            "alerts": alerts[:10],
+            "field_operations": operation_rows,
+            "timeline": operation_rows,
+        }
+
         status_total = max(qs_base.count(), 1)
         completion_rate = round((completed / status_total) * 100, 1)
         cancellation_rate = round((cancelled / status_total) * 100, 1)
@@ -1557,6 +1731,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             },
             "pending_moderation_count": pending_moderation_count,
             "pending_technical_reports_count": pending_technical_reports_count,
+            "operations": operations,
             "activity": {
 
                 "latest": recent[:6],
