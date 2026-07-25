@@ -1355,7 +1355,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
         ]
 
         heatmap = defaultdict(int)
-        for row in rows:
+        realized_rows = list(realized_qs.values("date", "start_time"))
+        for row in realized_rows:
             day = row["date"].weekday()
             hour = row["start_time"].hour if row["start_time"] else 0
             slot = f"{max(6, min(20, hour)):02d}:00"
