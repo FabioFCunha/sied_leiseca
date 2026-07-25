@@ -499,6 +499,21 @@ const operationStatusStyle = {
 };
 
 
+function OperationalCard({ config, data }) {
+  const Icon = config.icon;
+  return (
+    <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "16px", padding: "18px", position: "relative", overflow: "hidden", minHeight: "126px", boxShadow: "0 4px 18px rgba(0,0,0,0.03)" }}>
+      <div style={{ position: "absolute", top: -22, right: -22, width: 78, height: 78, borderRadius: "50%", background: config.color, opacity: 0.08 }} />
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+        <span style={{ width: 36, height: 36, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", background: config.gradient, color: "#fff", boxShadow: `0 6px 14px ${config.color}33` }}><Icon size={18} /></span>
+        <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase", letterSpacing: 0.4, lineHeight: 1.2 }}>{config.title}</strong>
+      </div>
+      <strong style={{ display: "block", fontSize: 32, lineHeight: 1, fontWeight: 900, color: "var(--text)" }}>{Number(data?.value || 0).toLocaleString("pt-BR")}</strong>
+      <small style={{ display: "block", marginTop: 8, color: "var(--text-soft)", fontSize: 12 }}>{config.hint}</small>
+    </div>
+  );
+}
+
 function StatusPill({ status }) {
   const style = operationStatusStyle[status] || operationStatusStyle.scheduled;
   return <span style={{ borderRadius: 999, padding: "5px 10px", background: style.bg, color: style.color, fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>{style.label}</span>;
@@ -517,8 +532,8 @@ function OperationDayPanel({ operations = [] }) {
                   <strong style={{ color: "var(--text)", fontSize: 14.5, fontWeight: 900 }}>{item.type || item.title}</strong>
                   {item.service_order_number && <span style={{ color: "var(--text-soft)", fontSize: 12, fontWeight: 800 }}>OS {item.service_order_number}</span>}
                 </div>
-                <p style={{ margin: "4px 0 0", color: "var(--text)", fontSize: 13.5, fontWeight: 700 }}>{item.location} ? {item.municipality}</p>
-                <small style={{ color: "var(--text-soft)", display: "block", marginTop: 4 }}>Equipe {item.team} ? Chefe {item.chief}</small>
+                <p style={{ margin: "4px 0 0", color: "var(--text)", fontSize: 13.5, fontWeight: 700 }}>{item.location} <span aria-hidden="true">-</span> {item.municipality}</p>
+                <small style={{ color: "var(--text-soft)", display: "block", marginTop: 4 }}>Equipe {item.team} <span aria-hidden="true">-</span> Chefe {item.chief}</small>
               </div>
               <StatusPill status={item.operational_status} />
             </article>
