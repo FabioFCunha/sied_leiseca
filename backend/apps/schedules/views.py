@@ -1447,23 +1447,27 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return clean_display(agenda.institution_location or agenda.location or agenda.address, "Local não informado")
 
         def operational_city(agenda):
-            return clean_display(agenda.municipality_ref.name if agenda.municipality_ref else agenda.city, "Município não informado")
+            return clean_display(agenda.municipality_ref.name if agenda.municipality_ref else agenda.city, "Munic?pio n?o informado")
 
         def operational_action_type(agenda):
-            return clean_display(agenda.action_type_ref.name if agenda.action_type_ref else agenda.action_type, "Ação")
+            return clean_display(agenda.action_type_ref.name if agenda.action_type_ref else agenda.action_type, "A??o")
 
         def operational_status(agenda):
             if agenda.status == Agenda.Status.CANCELLED:
                 return "cancelled", "Cancelada"
             if agenda.status == Agenda.Status.PENDING:
-                return "pending_approval", "Aguardando aprovação"
+                return "pending_approval", "Aguardando aprova??o"
             if agenda.id in completed_today_ids:
-                return "completed", "Concluída"
-            if agenda.start_time <= now <= agenda.end_time:
+                return "completed", "Conclu?da"
+            if agenda.start_time and agenda.start_time > now:
+                return "scheduled", "Pr?xima"
+            if agenda.start_time and agenda.end_time and agenda.start_time <= now <= agenda.end_time:
                 return "in_progress", "Em andamento"
-            if agenda.start_time > now:
-                return "scheduled", "Programada"
-            return "pending_report", "Aguardando relatório"
+            if agenda.end_time and agenda.end_time < now:
+                return "pending_report", "Aguardando relat?rio"
+            if agenda.start_time and not agenda.end_time and agenda.start_time <= now:
+                return "in_progress", "Em andamento"
+            return "scheduled", "Pr?xima"
 
         def agenda_agents_count(agenda):
             refs = list(agenda.agents_ref.all())

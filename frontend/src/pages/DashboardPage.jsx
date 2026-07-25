@@ -473,160 +473,79 @@ function ActivityPanel({ activity, advanced, materials }) {
 }
 
 const operationalCardConfig = [
-  { key: "scheduled_today", title: "A\u00e7\u00f5es programadas hoje", hint: "Agenda operacional do dia", icon: CalendarCheck, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
-  { key: "in_progress", title: "Em andamento", hint: "A\u00e7\u00f5es no hor\u00e1rio atual", icon: PauseCircle, color: "#00a676", gradient: "linear-gradient(135deg, #00a676, #007a58)" },
-  { key: "completed", title: "Conclu\u00eddas", hint: "Com relat\u00f3rio aprovado", icon: CheckCheck, color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0057a8)" },
-  { key: "pending_start", title: "Pendentes de in\u00edcio", hint: "Ainda v\u00e3o acontecer hoje", icon: Clock3, color: "#f6a700", gradient: "linear-gradient(135deg, #f6bd16, #d98b00)" },
+  { key: "scheduled_today", title: "Ações de hoje", hint: "Agenda operacional do dia", icon: CalendarCheck, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
+  { key: "in_progress", title: "Em andamento", hint: "Ações no horário atual", icon: PauseCircle, color: "#00a676", gradient: "linear-gradient(135deg, #00a676, #007a58)" },
+  { key: "pending_start", title: "Próximas", hint: "Ainda vão acontecer hoje", icon: Clock3, color: "#f6a700", gradient: "linear-gradient(135deg, #f6bd16, #d98b00)" },
+  { key: "completed", title: "Concluídas", hint: "Com relatório aprovado", icon: CheckCheck, color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0057a8)" },
   { key: "cancelled", title: "Canceladas", hint: "Canceladas no dia", icon: XCircle, color: "#d63031", gradient: "linear-gradient(135deg, #d63031, #a61b1b)" },
-  { key: "teams_active", title: "Equipes em opera\u00e7\u00e3o", hint: "ALFA a HOTEL escaladas", icon: Shield, color: "#6c5ce7", gradient: "linear-gradient(135deg, #6c5ce7, #4338ca)" },
-  { key: "chiefs_active", title: "Chefes em opera\u00e7\u00e3o", hint: "Chefes vinculados hoje", icon: UserCheck, color: "#0ea5e9", gradient: "linear-gradient(135deg, #0ea5e9, #0369a1)" },
-  { key: "agents_scheduled", title: "Agentes escalados", hint: "Efetivo programado", icon: Users, color: "#00cec9", gradient: "linear-gradient(135deg, #00cec9, #008b87)" },
-  { key: "supports_scheduled", title: "Apoios escalados", hint: "Apoios vinculados", icon: Users, color: "#e84393", gradient: "linear-gradient(135deg, #e84393, #b83273)" },
-  { key: "service_orders", title: "OS emitidas", hint: "Ordens de Servi\u00e7o do dia", icon: FileText, color: "#64748b", gradient: "linear-gradient(135deg, #64748b, #334155)" },
-  { key: "pending_reports", title: "Relat\u00f3rios aguardando envio", hint: "A\u00e7\u00f5es j\u00e1 report\u00e1veis", icon: AlertTriangle, color: "#dc6b16", gradient: "linear-gradient(135deg, #f97316, #c2410c)" },
-  { key: "pending_approval", title: "Aguardando aprova\u00e7\u00e3o", hint: "Solicita\u00e7\u00f5es pendentes", icon: Clock3, color: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #b45309)" },
+  { key: "pending_reports", title: "Relatórios aguardando envio", hint: "Ações já reportáveis", icon: AlertTriangle, color: "#dc6b16", gradient: "linear-gradient(135deg, #f97316, #c2410c)" },
+];
+
+const workforceConfig = [
+  { key: "teams_active", label: "Equipes", icon: Shield },
+  { key: "chiefs_active", label: "Chefes", icon: UserCheck },
+  { key: "agents_scheduled", label: "Agentes", icon: Users },
+  { key: "supports_scheduled", label: "Apoios", icon: Users },
+  { key: "service_orders", label: "OS emitidas", icon: FileText },
 ];
 
 const operationStatusStyle = {
-  scheduled: { label: "Programada", color: "#0048d7", bg: "#edf4ff" },
+  scheduled: { label: "Próxima", color: "#0048d7", bg: "#edf4ff" },
   in_progress: { label: "Em andamento", color: "#007a58", bg: "#e7f8f1" },
-  completed: { label: "Conclu\u00edda", color: "#047857", bg: "#dcfce7" },
+  completed: { label: "Concluída", color: "#047857", bg: "#dcfce7" },
   cancelled: { label: "Cancelada", color: "#b91c1c", bg: "#fee2e2" },
-  pending_report: { label: "Aguardando relat\u00f3rio", color: "#b45309", bg: "#fff7ed" },
-  pending_approval: { label: "Aguardando aprova\u00e7\u00e3o", color: "#92400e", bg: "#fef3c7" },
+  pending_report: { label: "Aguardando relatório", color: "#b45309", bg: "#fff7ed" },
+  pending_approval: { label: "Aguardando aprovação", color: "#92400e", bg: "#fef3c7" },
 };
 
-function OperationalCard({ config, data }) {
-  const Icon = config.icon;
-  return (
-    <div style={{ background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "16px", padding: "18px", position: "relative", overflow: "hidden", minHeight: "126px", boxShadow: "0 4px 18px rgba(0,0,0,0.03)" }}>
-      <div style={{ position: "absolute", top: -22, right: -22, width: 78, height: 78, borderRadius: "50%", background: config.color, opacity: 0.08 }} />
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
-        <span style={{ width: 36, height: 36, borderRadius: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", background: config.gradient, color: "#fff", boxShadow: `0 6px 14px ${config.color}33` }}><Icon size={18} /></span>
-        <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase", letterSpacing: 0.4, lineHeight: 1.2 }}>{config.title}</strong>
-      </div>
-      <strong style={{ display: "block", fontSize: 32, lineHeight: 1, fontWeight: 900, color: "var(--text)" }}>{Number(data?.value || 0).toLocaleString("pt-BR")}</strong>
-      <small style={{ display: "block", marginTop: 8, color: "var(--text-soft)", fontSize: 12 }}>{config.hint}</small>
-    </div>
-  );
-}
-
-function SectionCard({ icon: Icon, title, subtitle, children }) {
-  return (
-    <section style={{ border: "1px solid var(--line)", borderRadius: "16px", background: "var(--surface)", overflow: "hidden", boxShadow: "0 4px 18px rgba(0,0,0,0.025)" }}>
-      <header style={{ padding: "20px 22px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: "12px" }}>
-        {Icon && <span style={{ width: 36, height: 36, borderRadius: 10, background: "var(--primary)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon size={18} /></span>}
-        <div>
-          <h2 style={{ margin: 0, fontSize: 19, lineHeight: 1.2, fontWeight: 900, color: "var(--text)" }}>{title}</h2>
-          {subtitle && <p style={{ margin: "4px 0 0", color: "var(--text-soft)", fontSize: 12.5 }}>{subtitle}</p>}
-        </div>
-      </header>
-      <div style={{ padding: 22 }}>{children}</div>
-    </section>
-  );
-}
-
-function AlertsPanel({ alerts = [] }) {
-  const severity = {
-    danger: { bg: "#fef2f2", border: "#fecaca", color: "#b91c1c" },
-    warning: { bg: "#fffbeb", border: "#fde68a", color: "#92400e" },
-    info: { bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" },
-    muted: { bg: "#f8fafc", border: "#e2e8f0", color: "#475569" },
-  };
-  return (
-    <SectionCard icon={AlertTriangle} title="Alertas inteligentes" subtitle="Somente situa\u00e7\u00f5es que exigem aten\u00e7\u00e3o operacional.">
-      {alerts.length ? (
-        <div style={{ display: "grid", gap: 12 }}>
-          {alerts.map((alert, index) => {
-            const tone = severity[alert.severity] || severity.info;
-            return (
-              <a key={`${alert.title}-${index}`} href={alert.href || "/agendas"} style={{ textDecoration: "none", color: "inherit", border: `1px solid ${tone.border}`, background: tone.bg, borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-                <span>
-                  <strong style={{ display: "block", color: tone.color, fontSize: 14 }}>{alert.title}</strong>
-                  <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{alert.description}</small>
-                </span>
-                <Navigation size={16} color={tone.color} />
-              </a>
-            );
-          })}
-        </div>
-      ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhum alerta operacional relevante para hoje.</p>
-      )}
-    </SectionCard>
-  );
-}
 
 function StatusPill({ status }) {
   const style = operationStatusStyle[status] || operationStatusStyle.scheduled;
   return <span style={{ borderRadius: 999, padding: "5px 10px", background: style.bg, color: style.color, fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>{style.label}</span>;
 }
 
-function FieldOperationsPanel({ operations = [] }) {
+function OperationDayPanel({ operations = [] }) {
   return (
-    <SectionCard icon={MapPin} title="Opera\u00e7\u00e3o em campo" subtitle="Equipes, locais e situa\u00e7\u00e3o das a\u00e7\u00f5es de hoje.">
+    <SectionCard icon={MapPin} title="Operação do dia" subtitle="Ações em ordem cronológica, com equipe, local, chefe, status e OS.">
       {operations.length ? (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
-            <thead>
-              <tr style={{ color: "var(--text-soft)", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4, textAlign: "left" }}>
-                <th style={{ padding: "0 10px 12px" }}>Hor\u00e1rio</th>
-                <th style={{ padding: "0 10px 12px" }}>Tipo</th>
-                <th style={{ padding: "0 10px 12px" }}>Local</th>
-                <th style={{ padding: "0 10px 12px" }}>Munic\u00edpio</th>
-                <th style={{ padding: "0 10px 12px" }}>Equipe</th>
-                <th style={{ padding: "0 10px 12px" }}>Chefe</th>
-                <th style={{ padding: "0 10px 12px" }}>Situa\u00e7\u00e3o</th>
-                <th style={{ padding: "0 10px 12px" }}>OS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {operations.map((item) => (
-                <tr key={item.id} style={{ borderTop: "1px solid var(--line)" }}>
-                  <td style={{ padding: "13px 10px", fontWeight: 900, color: "var(--primary)" }}>{item.time || "-"}</td>
-                  <td style={{ padding: "13px 10px", fontWeight: 800 }}>{item.type}</td>
-                  <td style={{ padding: "13px 10px" }}>{item.location}</td>
-                  <td style={{ padding: "13px 10px" }}>{item.municipality}</td>
-                  <td style={{ padding: "13px 10px", fontWeight: 900 }}>{item.team}</td>
-                  <td style={{ padding: "13px 10px" }}>{item.chief}</td>
-                  <td style={{ padding: "13px 10px" }}><StatusPill status={item.operational_status} /></td>
-                  <td style={{ padding: "13px 10px", fontWeight: 800 }}>{item.service_order_number ? `OS ${item.service_order_number}` : "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ display: "grid", gap: 12 }}>
+          {operations.map((item) => (
+            <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px", background: "var(--surface-2)", display: "grid", gridTemplateColumns: "82px minmax(0, 1fr) auto", gap: 14, alignItems: "center" }}>
+              <strong style={{ color: "var(--primary)", fontSize: 16, fontWeight: 900 }}>{item.time || "--:--"}</strong>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <strong style={{ color: "var(--text)", fontSize: 14.5, fontWeight: 900 }}>{item.type || item.title}</strong>
+                  {item.service_order_number && <span style={{ color: "var(--text-soft)", fontSize: 12, fontWeight: 800 }}>OS {item.service_order_number}</span>}
+                </div>
+                <p style={{ margin: "4px 0 0", color: "var(--text)", fontSize: 13.5, fontWeight: 700 }}>{item.location} ? {item.municipality}</p>
+                <small style={{ color: "var(--text-soft)", display: "block", marginTop: 4 }}>Equipe {item.team} ? Chefe {item.chief}</small>
+              </div>
+              <StatusPill status={item.operational_status} />
+            </article>
+          ))}
         </div>
       ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhuma a\u00e7\u00e3o programada para hoje.</p>
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhuma ação programada para hoje.</p>
       )}
     </SectionCard>
   );
 }
 
-function TimelinePanel({ operations = [] }) {
+function WorkforcePanel({ cards = {} }) {
   return (
-    <SectionCard icon={Flag} title="Timeline das a\u00e7\u00f5es do dia" subtitle="Acompanhamento por ordem de hor\u00e1rio.">
-      {operations.length ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {operations.map((item) => {
-            const style = operationStatusStyle[item.operational_status] || operationStatusStyle.scheduled;
-            return (
-              <div key={item.id} style={{ display: "grid", gridTemplateColumns: "78px 1fr", gap: 14, alignItems: "stretch" }}>
-                <strong style={{ color: "var(--primary)", fontSize: 14, paddingTop: 4 }}>{item.time || "--:--"}</strong>
-                <div style={{ borderLeft: `4px solid ${style.color}`, background: "var(--surface-2)", borderRadius: 12, padding: "12px 14px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                    <strong style={{ color: "var(--text)", fontSize: 14 }}>{item.title}</strong>
-                    <StatusPill status={item.operational_status} />
-                  </div>
-                  <small style={{ color: "var(--text-soft)", display: "block", marginTop: 6 }}>{item.team} \u2022 {item.municipality} \u2022 {item.location}</small>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Sem timeline para o dia atual.</p>
-      )}
+    <SectionCard icon={Users} title="Efetivo do dia" subtitle="Recursos operacionais vinculados às ações de hoje.">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
+        {workforceConfig.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.key} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ width: 30, height: 30, borderRadius: 8, background: "var(--primary)", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Icon size={15} /></span>
+              <strong style={{ fontSize: 24, lineHeight: 1, color: "var(--text)", fontWeight: 900 }}>{Number(cards?.[item.key]?.value || 0).toLocaleString("pt-BR")}</strong>
+              <small style={{ color: "var(--text-soft)", fontWeight: 800 }}>{item.label}</small>
+            </div>
+          );
+        })}
+      </div>
     </SectionCard>
   );
 }
@@ -826,9 +745,9 @@ export default function DashboardPage() {
 
           <div style={{ display: "grid", gap: "24px" }}>
             <AlertsPanel alerts={dashboard?.operations?.alerts || []} />
-            <FieldOperationsPanel operations={dashboard?.operations?.field_operations || []} />
+            <OperationDayPanel operations={dashboard?.operations?.field_operations || []} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "24px", alignItems: "start" }}>
-              <TimelinePanel operations={dashboard?.operations?.timeline || []} />
+              <WorkforcePanel cards={dashboard?.operations?.cards || {}} />
               <MiniCalendar days={dashboard?.calendar || []} />
             </div>
           </div>
