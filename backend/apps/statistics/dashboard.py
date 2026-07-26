@@ -319,7 +319,24 @@ def _rankings(date_from, date_to, filters):
     )
     for row in municipalities + teams:
         row['average'] = round(float(row['audience'] or 0) / row['actions'], 2) if row['actions'] else 0
-    heatmap = list(reports.values('operation_date').annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0)).order_by('operation_date'))
+    heatmap = []
+    heatmap_rows = (
+        reports.values('operation_date', 'agenda__start_time')
+        .annotate(total=Count('actions', distinct=True))
+        .order_by('operation_date', 'agenda__start_time')
+    )
+    for row in heatmap_rows:
+        operation_date = row.get('operation_date')
+        if not operation_date:
+            continue
+        start_time = row.get('agenda__start_time')
+        hour = start_time.hour if start_time else 0
+        slot = f"{max(6, min(21, hour)):02d}:00"
+        heatmap.append({
+            'day': operation_date.weekday(),
+            'slot': slot,
+            'total': row.get('total') or 0,
+        })
     return {'municipalities': municipalities, 'teams': teams, 'heatmap': heatmap}
 
 
