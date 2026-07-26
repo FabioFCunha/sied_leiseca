@@ -1596,6 +1596,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
                     "approached_lectures": action.approached_lectures or 0,
                     "approached_actions": action_reported_approaches,
                     "materials": non_empty_lines(action.equipment_materials_distributed) + non_empty_lines(action.distribution_materials_distributed),
+                    "support_materials": non_empty_lines(action.equipment_materials_distributed),
+                    "distribution_materials": non_empty_lines(action.distribution_materials_distributed),
                 })
             return {
                 "id": report.id,
@@ -4350,6 +4352,7 @@ class GoogleFormsWebhookView(APIView):
         except Exception as e:
             _wh_logger.exception("Erro ao processar webhook do Google Forms")
             return response.Response({"detail": "Erro interno ao processar a solicitacao."}, status=500)
+
 
 
 

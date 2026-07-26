@@ -607,9 +607,9 @@ function OperationDayPanel({ operations = [] }) {
                       <TextList label="Efetivo PCD" value={report.education_pcd} />
                       <TextList label="Agentes informados" value={report.education_agents} />
                       <TextList label={"Altera\u00e7\u00f5es de efetivo"} value={report.changes_staff} />
-                      <TextList label={"Materiais utilizados"} value={materialsUsed} />
+                      <TextList label={"Materiais de apoio/din\u00e2micas utilizados"} value={materialsUsed} />
                       <TextList label={"Materiais distribu\u00eddos"} value={materialsDistributed} />
-                      <TextList label={"Etil\u00f4metros"} value={report.breathalyzers} />
+                      <TextList label={"Recursos, kits e materiais"} value={report.breathalyzers} />
                       <TextList label="Viaturas" value={report.cars} />
                       <TextList label="Acessibilidade" value={accessibilityLabel} />
                       <TextList label="Contato recebido" value={report.contact_received} />
@@ -623,7 +623,8 @@ function OperationDayPanel({ operations = [] }) {
                           <div key={`${item.id}-action-${index}`} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
                             <strong style={{ fontSize: 13 }}>{action.type || `A\u00e7\u00e3o ${index + 1}`}</strong>
                             <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{action.place || "Local n\u00e3o informado"} - {action.start_time || "--"} {"\u00e0s"} {action.final_hour || "--"} - {Number(action.reported_approaches || action.approached_actions || action.approach || 0).toLocaleString("pt-BR")} abordagens</small>
-                            {action.materials?.length ? <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>Materiais: {action.materials.join(", ")}</small> : null}
+                                                        {action.support_materials?.length ? <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>Materiais de apoio/dinâmicas: {action.support_materials.join(", ")}</small> : null}
+                            {action.distribution_materials?.length ? <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>Materiais distribuídos: {action.distribution_materials.join(", ")}</small> : null}
                           </div>
                         ))}
                       </div>
@@ -838,6 +839,8 @@ export default function DashboardPage() {
     </section>
   );
 }
+
+
 
 
 
