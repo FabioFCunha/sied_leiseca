@@ -551,7 +551,7 @@ function TextList({ label, value }) {
 
 function OperationDayPanel({ operations = [] }) {
   return (
-    <SectionCard icon={MapPin} title={"Opera\u00e7\u00e3o do dia"} subtitle={"A\u00e7\u00f5es em ordem cronol\u00f3gica, com equipe, efetivo, materiais, p\u00fablico e relat\u00f3rio t\u00e9cnico."}>
+    <SectionCard icon={MapPin} title={"Operação do dia"} subtitle={"Ações em ordem cronológica, com equipe, efetivo, materiais, público e relatório técnico."}>
       {operations.length ? (
         <div style={{ display: "grid", gap: 14 }}>
           {operations.map((item) => {
