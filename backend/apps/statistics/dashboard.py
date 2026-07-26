@@ -303,7 +303,7 @@ def _category_audience(date_from, date_to, filters):
         audience = _action_audience_value(action, report, is_palestra=('palestra' in action_name))
         result[key] += float(audience or 0)
     return result
-def _rankings(date_from, date_to, filters):
+def _rankings(date_from, date_to, filters, daily=None):
     reports = _operational_reports(date_from, date_to, filters)
     municipalities = list(
         reports.values('agenda__city')
@@ -319,7 +319,12 @@ def _rankings(date_from, date_to, filters):
     )
     for row in municipalities + teams:
         row['average'] = round(float(row['audience'] or 0) / row['actions'], 2) if row['actions'] else 0
-    heatmap = []
+    daily = daily if daily is not None else _daily_series(date_from, date_to, filters)
+    official_by_date = {
+        date.fromisoformat(row['date']): int(round(float(row.get('values', {}).get('ACTION - Geral', 0) or 0)))
+        for row in daily
+    }
+    raw_by_date = {}
     heatmap_rows = (
         reports.values('operation_date', 'agenda__start_time')
         .annotate(total=Count('actions', distinct=True))
@@ -330,15 +335,39 @@ def _rankings(date_from, date_to, filters):
         if not operation_date:
             continue
         start_time = row.get('agenda__start_time')
-        hour = start_time.hour if start_time else 0
+        hour = start_time.hour if start_time else 9
         slot = f"{max(6, min(21, hour)):02d}:00"
-        heatmap.append({
-            'date': operation_date.isoformat(),
-            'day': operation_date.weekday(),
-            'day_label': operation_date.strftime('%d/%m'),
-            'slot': slot,
-            'total': row.get('total') or 0,
-        })
+        raw_by_date.setdefault(operation_date, {})[slot] = raw_by_date.setdefault(operation_date, {}).get(slot, 0) + int(row.get('total') or 0)
+
+    heatmap = []
+    for operation_date, official_total in official_by_date.items():
+        if official_total <= 0:
+            continue
+        slots = raw_by_date.get(operation_date) or {'09:00': official_total}
+        raw_total = sum(slots.values())
+        if raw_total <= 0:
+            adjusted = {'09:00': official_total}
+        elif raw_total == official_total:
+            adjusted = slots
+        else:
+            portions = []
+            used = 0
+            for slot, raw_value in slots.items():
+                exact = (raw_value * official_total) / raw_total
+                base = int(exact)
+                used += base
+                portions.append([slot, base, exact - base])
+            for item in sorted(portions, key=lambda value: value[2], reverse=True)[:max(0, official_total - used)]:
+                item[1] += 1
+            adjusted = {slot: value for slot, value, _ in portions if value > 0}
+        for slot, total in sorted(adjusted.items()):
+            heatmap.append({
+                'date': operation_date.isoformat(),
+                'day': operation_date.weekday(),
+                'day_label': operation_date.strftime('%d/%m'),
+                'slot': slot,
+                'total': total,
+            })
     return {'municipalities': municipalities, 'teams': teams, 'heatmap': heatmap}
 
 
@@ -375,7 +404,7 @@ def dashboard_payload(date_from, date_to, filters):
         }
         for key in (*LECTURE_KEYS, *STREET_KEYS)
     ]
-    rankings = _rankings(date_from, date_to, filters)
+    rankings = _rankings(date_from, date_to, filters, daily)
     payload = {
         'period': {'from': date_from, 'to': date_to, 'previous_from': previous_from, 'previous_to': previous_to, 'comparison_type': comparison['type'], 'comparison_label': comparison['label']},
         'summary': current, 'previous': previous, 'comparisons': comparisons,
