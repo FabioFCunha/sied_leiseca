@@ -333,7 +333,9 @@ def _rankings(date_from, date_to, filters):
         hour = start_time.hour if start_time else 0
         slot = f"{max(6, min(21, hour)):02d}:00"
         heatmap.append({
+            'date': operation_date.isoformat(),
             'day': operation_date.weekday(),
+            'day_label': operation_date.strftime('%d/%m'),
             'slot': slot,
             'total': row.get('total') or 0,
         })
