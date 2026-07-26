@@ -580,6 +580,18 @@ function OperationDayPanel({ operations = [] }) {
                   <TextList label={"P\u00fablico alcan\u00e7ado"} value={item.public_reached ? `${Number(item.public_reached).toLocaleString("pt-BR")} pessoas` : "Aguardando relat\u00f3rio"} />
                 </div>
 
+                {item.absences?.length ? (
+                  <div style={{ border: "1px solid #fecaca", background: "#fef2f2", color: "#7f1d1d", borderRadius: 12, padding: "12px 14px", display: "grid", gap: 8 }}>
+                    <strong style={{ fontSize: 13, textTransform: "uppercase" }}>{"Faltas registradas na frequ\u00eancia"}</strong>
+                    {item.absences.map((absence, index) => (
+                      <div key={`${item.id}-absence-${index}`} style={{ fontSize: 13, display: "grid", gap: 3 }}>
+                        <span><strong>{absence.name}</strong> {absence.role ? `(${absence.role})` : ""}</span>
+                        {absence.reason && <span>Justificativa: {absence.reason}</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
                 {report ? (
                   <div style={{ display: "grid", gap: 12, padding: 12, borderRadius: 12, background: "var(--surface)", border: "1px solid var(--line)" }}>
                     <strong style={{ color: "var(--primary)", fontSize: 13, textTransform: "uppercase" }}>{"Informa\u00e7\u00f5es digitadas no relat\u00f3rio"}</strong>

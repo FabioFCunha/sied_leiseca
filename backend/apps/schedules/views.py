@@ -1406,6 +1406,17 @@ class AgendaViewSet(viewsets.ModelViewSet):
             "sector",
             "responsible",
         ).prefetch_related("agents_ref", "technical_reports__actions")
+        today_schedules = list(
+            ShiftSchedule.objects.filter(date=today)
+            .select_related("team")
+            .prefetch_related("absence_records")
+        )
+        schedule_by_team_id = {schedule.team_id: schedule for schedule in today_schedules if schedule.team_id}
+        schedule_by_team_name = {
+            str(schedule.team.name).strip().upper(): schedule
+            for schedule in today_schedules
+            if schedule.team and schedule.team.name
+        }
         approved_report_filter = Q(technical_reports__status=EducationReport.ReportStatus.APPROVED)
         completed_today_qs = operational_base.filter(
             Q(status=Agenda.Status.COMPLETED) | approved_report_filter
@@ -1516,6 +1527,30 @@ class AgendaViewSet(viewsets.ModelViewSet):
         def non_empty_lines(value):
             return [line.strip() for line in str(value or "").splitlines() if line.strip()]
 
+        def schedule_for_agenda(agenda):
+            if agenda.team_ref_id and agenda.team_ref_id in schedule_by_team_id:
+                return schedule_by_team_id[agenda.team_ref_id]
+            raw_team = agenda.team_ref.name if agenda.team_ref else agenda.team_name
+            return schedule_by_team_name.get(str(raw_team or "").strip().upper())
+
+        def absence_payload(schedule):
+            if not schedule:
+                return []
+            role_labels = {
+                ShiftAbsence.MemberType.CHIEF: "Chefe",
+                ShiftAbsence.MemberType.AGENT: "Agente",
+                ShiftAbsence.MemberType.SUPPORT: "Apoio",
+            }
+            return [
+                {
+                    "name": record.member_name,
+                    "role": role_labels.get(record.member_type, record.member_type),
+                    "reason": record.reason,
+                    "attachment_url": record.attachment.url if record.attachment else "",
+                }
+                for record in schedule.absence_records.all()
+            ]
+
         def latest_report_for_agenda(agenda):
             reports = [report for report in agenda.technical_reports.all() if report.status != EducationReport.ReportStatus.DRAFT]
             reports.sort(key=lambda report: report.updated_at or report.created_at, reverse=True)
@@ -1525,13 +1560,16 @@ class AgendaViewSet(viewsets.ModelViewSet):
             if not report:
                 return None
             actions = []
+            actions_public_reached = 0
             for action in report.actions.all():
+                action_approach = action.approach or 0
+                actions_public_reached += action_approach
                 actions.append({
                     "place": action.place_action or action.institution_name or "",
                     "type": action.type_action or "",
                     "start_time": action.start_time or "",
                     "final_hour": action.final_hour or "",
-                    "approach": action.approach or 0,
+                    "approach": action_approach,
                     "approached_lectures": action.approached_lectures or 0,
                     "approached_actions": action.approached_actions or 0,
                     "materials": non_empty_lines(action.equipment_materials_distributed) + non_empty_lines(action.distribution_materials_distributed),
@@ -1539,7 +1577,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return {
                 "id": report.id,
                 "status": report.status,
-                "public_reached": report.approximate_public or 0,
+                "public_reached": actions_public_reached or report.approximate_public or 0,
                 "education_pcd": non_empty_lines(report.education_pcd),
                 "education_agents": non_empty_lines(report.education_agents),
                 "changes_staff": non_empty_lines(report.changes_staff),
@@ -1567,6 +1605,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             agents_names = agenda_agents_names(agenda)
             supports_names = agenda_supports_names(agenda)
             report = latest_report_for_agenda(agenda)
+            absences = absence_payload(schedule_for_agenda(agenda))
             if report:
                 if report.status == EducationReport.ReportStatus.APPROVED:
                     status_key, status_text = "completed", "Conclu\u00edda"
@@ -1598,6 +1637,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "agents_names": agents_names,
                 "supports_count": supports_count,
                 "supports_names": supports_names,
+                "absences": absences,
+                "absence_count": len(absences),
                 "estimated_public": estimated_public,
                 "public_reached": reached_public,
                 "report": report_payload,
