@@ -555,12 +555,17 @@ function OperationDayPanel({ operations = [] }) {
         <div style={{ display: "grid", gap: 14 }}>
           {operations.map((item) => {
             const report = item.report;
-            const reportMaterials = [
+            const materialsUsed = [
               ...(report?.materials_removed || []),
               ...(report?.materials_spent || []),
               ...(report?.equipment_materials_distributed || []),
-              ...(report?.distribution_materials_distributed || []),
             ];
+            const materialsDistributed = report?.distribution_materials_distributed || [];
+            const accessibilityLabel = {
+              YES: "Sim",
+              NO: "Não",
+              PARTIAL: "Parcial",
+            }[String(report?.accessibility_conditions_met || "").toUpperCase()] || report?.accessibility_conditions_met;
             return (
               <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 16, padding: "16px 18px", background: "var(--surface-2)", display: "grid", gap: 12 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "82px minmax(0, 1fr) auto", gap: 14, alignItems: "center" }}>
@@ -602,12 +607,13 @@ function OperationDayPanel({ operations = [] }) {
                       <TextList label="Efetivo PCD" value={report.education_pcd} />
                       <TextList label="Agentes informados" value={report.education_agents} />
                       <TextList label={"Altera\u00e7\u00f5es de efetivo"} value={report.changes_staff} />
-                      <TextList label={"Materiais utilizados/distribu\u00eddos"} value={reportMaterials} />
+                      <TextList label={"Materiais utilizados"} value={materialsUsed} />
+                      <TextList label={"Materiais distribu\u00eddos"} value={materialsDistributed} />
                       <TextList label={"Etil\u00f4metros"} value={report.breathalyzers} />
                       <TextList label="Viaturas" value={report.cars} />
-                      <TextList label="Acessibilidade" value={report.accessibility_conditions_met} />
+                      <TextList label="Acessibilidade" value={accessibilityLabel} />
                       <TextList label="Contato recebido" value={report.contact_received} />
-                      <TextList label={"Ocorr\u00eancias"} value={report.occurrence_observation} />
+                      <TextList label={"Institui\u00e7\u00e3o/local informado"} value={report.occurrence_observation} />
                       <TextList label={"Observa\u00e7\u00f5es gerais"} value={report.general_observations} />
                     </div>
                     {report.actions?.length ? (
@@ -832,5 +838,6 @@ export default function DashboardPage() {
     </section>
   );
 }
+
 
 

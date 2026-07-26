@@ -5199,3 +5199,25 @@ button.stat-card.active {
   }
 }
 .highlight-error { border: 2px solid #ef6b5a !important; box-shadow: 0 0 8px rgba(239, 107, 90, 0.6) !important; transition: all 0.3s ease; }
+
+.operational-summary-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 1400px) {
+  .operational-summary-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .operational-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .operational-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
