@@ -560,7 +560,10 @@ function OperationDayPanel({ operations = [] }) {
               ...(report?.materials_spent || []),
               ...(report?.equipment_materials_distributed || []),
             ];
-            const materialsDistributed = report?.distribution_materials_distributed || [];
+            const materialsDistributed = [
+              ...(report?.distribution_materials_distributed || []),
+              ...((report?.actions || []).flatMap((action) => action.distribution_materials || [])),
+            ];
             const accessibilityLabel = {
               YES: "Sim",
               NO: "Não",
@@ -609,7 +612,6 @@ function OperationDayPanel({ operations = [] }) {
                       <TextList label={"Altera\u00e7\u00f5es de efetivo"} value={report.changes_staff} />
                       <TextList label={"Materiais de apoio/din\u00e2micas utilizados"} value={materialsUsed} />
                       <TextList label={"Materiais distribu\u00eddos"} value={materialsDistributed} />
-                      <TextList label={"Recursos, kits e materiais"} value={report.breathalyzers} />
                       <TextList label="Viaturas" value={report.cars} />
                       <TextList label="Acessibilidade" value={accessibilityLabel} />
                       <TextList label="Contato recebido" value={report.contact_received} />
@@ -839,6 +841,7 @@ export default function DashboardPage() {
     </section>
   );
 }
+
 
 
 
