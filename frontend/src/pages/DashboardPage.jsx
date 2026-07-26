@@ -489,12 +489,13 @@ const workforceConfig = [
 ];
 
 const operationStatusStyle = {
-  scheduled: { label: "Próxima", color: "#0048d7", bg: "#edf4ff" },
+  scheduled: { label: "Pr\u00f3xima", color: "#0048d7", bg: "#edf4ff" },
   in_progress: { label: "Em andamento", color: "#007a58", bg: "#e7f8f1" },
-  completed: { label: "Concluída", color: "#047857", bg: "#dcfce7" },
+  completed: { label: "Conclu\u00edda", color: "#047857", bg: "#dcfce7" },
   cancelled: { label: "Cancelada", color: "#b91c1c", bg: "#fee2e2" },
-  pending_report: { label: "Aguardando relatório", color: "#b45309", bg: "#fff7ed" },
-  pending_approval: { label: "Aguardando aprovação", color: "#92400e", bg: "#fef3c7" },
+  pending_report: { label: "Aguardando relat\u00f3rio", color: "#b45309", bg: "#fff7ed" },
+  submitted: { label: "Relat\u00f3rio enviado", color: "#1d4ed8", bg: "#dbeafe" },
+  pending_approval: { label: "Aguardando aprova\u00e7\u00e3o", color: "#92400e", bg: "#fef3c7" },
 };
 
 
@@ -546,7 +547,7 @@ function TextList({ label, value }) {
 
 function OperationDayPanel({ operations = [] }) {
   return (
-    <SectionCard icon={MapPin} title="Operacao do dia" subtitle="Acoes em ordem cronologica, com equipe, efetivo, materiais, publico e relatorio tecnico.">
+    <SectionCard icon={MapPin} title={"Opera\u00e7\u00e3o do dia"} subtitle={"A\u00e7\u00f5es em ordem cronol\u00f3gica, com equipe, efetivo, materiais, p\u00fablico e relat\u00f3rio t\u00e9cnico."}>
       {operations.length ? (
         <div style={{ display: "grid", gap: 14 }}>
           {operations.map((item) => {
@@ -575,32 +576,32 @@ function OperationDayPanel({ operations = [] }) {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, paddingTop: 8, borderTop: "1px solid var(--line)" }}>
                   <TextList label="Agentes em campo" value={item.agents_names} />
                   <TextList label="Apoios" value={item.supports_names} />
-                  <TextList label="Publico estimado" value={item.estimated_public ? `${Number(item.estimated_public).toLocaleString("pt-BR")} pessoas` : "Nao informado"} />
-                  <TextList label="Publico alcancado" value={item.public_reached ? `${Number(item.public_reached).toLocaleString("pt-BR")} pessoas` : "Aguardando relatorio"} />
+                  <TextList label={"P\u00fablico estimado"} value={item.estimated_public ? `${Number(item.estimated_public).toLocaleString("pt-BR")} pessoas` : "N\u00e3o informado"} />
+                  <TextList label={"P\u00fablico alcan\u00e7ado"} value={item.public_reached ? `${Number(item.public_reached).toLocaleString("pt-BR")} pessoas` : "Aguardando relat\u00f3rio"} />
                 </div>
 
                 {report ? (
                   <div style={{ display: "grid", gap: 12, padding: 12, borderRadius: 12, background: "var(--surface)", border: "1px solid var(--line)" }}>
-                    <strong style={{ color: "var(--primary)", fontSize: 13, textTransform: "uppercase" }}>Informacoes digitadas no relatorio</strong>
+                    <strong style={{ color: "var(--primary)", fontSize: 13, textTransform: "uppercase" }}>{"Informa\u00e7\u00f5es digitadas no relat\u00f3rio"}</strong>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
                       <TextList label="Efetivo PCD" value={report.education_pcd} />
                       <TextList label="Agentes informados" value={report.education_agents} />
-                      <TextList label="Alteracoes de efetivo" value={report.changes_staff} />
-                      <TextList label="Materiais utilizados/distribuidos" value={reportMaterials} />
-                      <TextList label="Etilometros" value={report.breathalyzers} />
+                      <TextList label={"Altera\u00e7\u00f5es de efetivo"} value={report.changes_staff} />
+                      <TextList label={"Materiais utilizados/distribu\u00eddos"} value={reportMaterials} />
+                      <TextList label={"Etil\u00f4metros"} value={report.breathalyzers} />
                       <TextList label="Viaturas" value={report.cars} />
                       <TextList label="Acessibilidade" value={report.accessibility_conditions_met} />
                       <TextList label="Contato recebido" value={report.contact_received} />
-                      <TextList label="Ocorrencias" value={report.occurrence_observation} />
-                      <TextList label="Observacoes gerais" value={report.general_observations} />
+                      <TextList label={"Ocorr\u00eancias"} value={report.occurrence_observation} />
+                      <TextList label={"Observa\u00e7\u00f5es gerais"} value={report.general_observations} />
                     </div>
                     {report.actions?.length ? (
                       <div style={{ display: "grid", gap: 8 }}>
-                        <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Acoes relatadas</strong>
+                        <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>{"A\u00e7\u00f5es relatadas"}</strong>
                         {report.actions.map((action, index) => (
                           <div key={`${item.id}-action-${index}`} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
-                            <strong style={{ fontSize: 13 }}>{action.type || `Acao ${index + 1}`}</strong>
-                            <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{action.place || "Local nao informado"} - {action.start_time || "--"} as {action.final_hour || "--"} - {Number(action.approach || 0).toLocaleString("pt-BR")} abordagens</small>
+                            <strong style={{ fontSize: 13 }}>{action.type || `A\u00e7\u00e3o ${index + 1}`}</strong>
+                            <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{action.place || "Local n\u00e3o informado"} - {action.start_time || "--"} {"\u00e0s"} {action.final_hour || "--"} - {Number(action.approach || 0).toLocaleString("pt-BR")} abordagens</small>
                             {action.materials?.length ? <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>Materiais: {action.materials.join(", ")}</small> : null}
                           </div>
                         ))}
@@ -613,7 +614,7 @@ function OperationDayPanel({ operations = [] }) {
           })}
         </div>
       ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhuma acao programada para hoje.</p>
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>{"Nenhuma a\u00e7\u00e3o programada para hoje."}</p>
       )}
     </SectionCard>
   );

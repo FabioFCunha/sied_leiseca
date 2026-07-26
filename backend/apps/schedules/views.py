@@ -1447,27 +1447,27 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return clean_display(agenda.institution_location or agenda.location or agenda.address, "Local não informado")
 
         def operational_city(agenda):
-            return clean_display(agenda.municipality_ref.name if agenda.municipality_ref else agenda.city, "Municipio nao informado")
+            return clean_display(agenda.municipality_ref.name if agenda.municipality_ref else agenda.city, "Munic\u00edpio n\u00e3o informado")
 
         def operational_action_type(agenda):
-            return clean_display(agenda.action_type_ref.name if agenda.action_type_ref else agenda.action_type, "Acao")
+            return clean_display(agenda.action_type_ref.name if agenda.action_type_ref else agenda.action_type, "A\u00e7\u00e3o")
 
         def operational_status(agenda):
             if agenda.status == Agenda.Status.CANCELLED:
                 return "cancelled", "Cancelada"
             if agenda.status == Agenda.Status.PENDING:
-                return "pending_approval", "Aguardando aprovacao"
+                return "pending_approval", "Aguardando aprova\u00e7\u00e3o"
             if agenda.id in completed_today_ids:
-                return "completed", "Concluida"
+                return "completed", "Conclu\u00edda"
             if agenda.start_time and agenda.start_time > now:
-                return "scheduled", "Proxima"
+                return "scheduled", "Pr\u00f3xima"
             if agenda.start_time and agenda.end_time and agenda.start_time <= now <= agenda.end_time:
                 return "in_progress", "Em andamento"
             if agenda.end_time and agenda.end_time < now:
-                return "pending_report", "Aguardando relatorio"
+                return "pending_report", "Aguardando relat\u00f3rio"
             if agenda.start_time and not agenda.end_time and agenda.start_time <= now:
                 return "in_progress", "Em andamento"
-            return "scheduled", "Proxima"
+            return "scheduled", "Pr\u00f3xima"
 
         def agenda_agents_names(agenda):
             refs = list(agenda.agents_ref.all())
@@ -1567,6 +1567,11 @@ class AgendaViewSet(viewsets.ModelViewSet):
             agents_names = agenda_agents_names(agenda)
             supports_names = agenda_supports_names(agenda)
             report = latest_report_for_agenda(agenda)
+            if report:
+                if report.status == EducationReport.ReportStatus.APPROVED:
+                    status_key, status_text = "completed", "Conclu\u00edda"
+                else:
+                    status_key, status_text = "submitted", "Relat\u00f3rio enviado"
             report_payload = report_details_payload(report)
             estimated_public = numeric_public_estimate(agenda)
             reached_public = report_payload["public_reached"] if report_payload else 0
