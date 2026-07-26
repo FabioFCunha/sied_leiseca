@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,7 +12,7 @@ def normalize_name(name):
     if not name:
         return ""
     val = name.strip()
-    if val.lower() in ["sem bairro", "sem município", "sem municipio"]:
+    if val.lower() in ["sem bairro", "sem municÃ­pio", "sem municipio"]:
         return val
     t = val.title()
     for prep in [" Da ", " De ", " Do ", " Das ", " Dos "]:
@@ -475,11 +475,11 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         member_id = request.data.get("member_id")
         lookup_model = self._member_model(member_type)
         if not lookup_model:
-            return response.Response({"detail": "Tipo de integrante inválido."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Tipo de integrante invÃ¡lido."}, status=status.HTTP_400_BAD_REQUEST)
             
         member = lookup_model.objects.filter(id=member_id, is_active=True).first()
         if not member:
-            return response.Response({"detail": "Integrante não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            return response.Response({"detail": "Integrante nÃ£o encontrado."}, status=status.HTTP_404_NOT_FOUND)
             
         with transaction.atomic():
             from apps.schedules.models import ShiftManualInclusion
@@ -518,7 +518,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         inclusion = ShiftManualInclusion.objects.filter(schedule=schedule, member_type=member_type, member_id=member_id).first()
         
         if not inclusion:
-            return response.Response({"detail": "Apenas integrantes incluídos manualmente podem ser removidos."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Apenas integrantes incluÃ­dos manualmente podem ser removidos."}, status=status.HTTP_400_BAD_REQUEST)
             
         with transaction.atomic():
             inclusion.delete()
@@ -544,7 +544,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         schedule.attendance_approved = False
         schedule.attendance_approved_at = None
         schedule.save(update_fields=["attendance_reported", "attendance_reported_at", "attendance_approved", "attendance_approved_at"])
-        return response.Response({"detail": "Frequência reportada com sucesso."})
+        return response.Response({"detail": "FrequÃªncia reportada com sucesso."})
 
     @decorators.action(detail=True, methods=["post"], url_path="approve-attendance")
     def approve_attendance(self, request, pk=None):
@@ -553,7 +553,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         schedule.attendance_approved = True
         schedule.attendance_approved_at = timezone.now()
         schedule.save(update_fields=["attendance_approved", "attendance_approved_at"])
-        return response.Response({"detail": "Frequência aprovada."})
+        return response.Response({"detail": "FrequÃªncia aprovada."})
 
 
 class ShiftSwapRequestViewSet(viewsets.ModelViewSet):
@@ -662,14 +662,14 @@ class AgendaViewSet(viewsets.ModelViewSet):
         try:
             user_id = int(user_id)
         except (TypeError, ValueError):
-            return response.Response({"detail": "Informe um ID de participante válido."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Informe um ID de participante vÃ¡lido."}, status=status.HTTP_400_BAD_REQUEST)
             
         user = User.objects.filter(id=user_id, is_active=True).first()
         if not user:
-            return response.Response({"detail": "Participante não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            return response.Response({"detail": "Participante nÃ£o encontrado."}, status=status.HTTP_404_NOT_FOUND)
             
         if not agenda.designated_users.filter(id=user_id).exists():
-            return response.Response({"detail": "Participante não está designado para esta Ordem de Serviço."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Participante nÃ£o estÃ¡ designado para esta Ordem de ServiÃ§o."}, status=status.HTTP_400_BAD_REQUEST)
             
         with transaction.atomic():
             if request.method == "DELETE":
@@ -726,7 +726,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
             | Q(source_id__startswith="appsheet:")
-            | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
+            | Q(sector__name__in=["SolicitaÃ§Ãµes externas", "SolicitaÃ§Ãµes internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
         )
@@ -856,11 +856,11 @@ class AgendaViewSet(viewsets.ModelViewSet):
         except ProtectedError:
             blockers = []
             if instance.technical_reports.exists():
-                blockers.append("relatório técnico")
+                blockers.append("relatÃ³rio tÃ©cnico")
             if hasattr(instance, "event_report"):
-                blockers.append("relatório de evento")
+                blockers.append("relatÃ³rio de evento")
             if instance.satisfaction_surveys.exists():
-                blockers.append("avaliação de satisfação")
+                blockers.append("avaliaÃ§Ã£o de satisfaÃ§Ã£o")
             if len(blockers) == 1:
                 joined = blockers[0]
             elif len(blockers) == 2:
@@ -868,18 +868,18 @@ class AgendaViewSet(viewsets.ModelViewSet):
             else:
                 joined = ", ".join(blockers[:-1]) + f" e {blockers[-1]}" if blockers else "registros vinculados"
             return response.Response(
-                {"detail": f"Esta solicitação não pode ser excluída porque já possui {joined} vinculado."},
+                {"detail": f"Esta solicitaÃ§Ã£o nÃ£o pode ser excluÃ­da porque jÃ¡ possui {joined} vinculado."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
     @decorators.action(detail=True, methods=["post"], url_path="reopen")
     def reopen(self, request, pk=None):
         if not request.user.is_admin_role:
-            return response.Response({"detail": "Permissão negada."}, status=status.HTTP_403_FORBIDDEN)
+            return response.Response({"detail": "PermissÃ£o negada."}, status=status.HTTP_403_FORBIDDEN)
         
         agenda = self.get_object()
         if agenda.status != Agenda.Status.CANCELLED:
-            return response.Response({"detail": "A solicitação não está cancelada."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "A solicitaÃ§Ã£o nÃ£o estÃ¡ cancelada."}, status=status.HTTP_400_BAD_REQUEST)
             
         reason = request.data.get("reason", "").strip()
         previous_valid_status = Agenda.Status.PENDING
@@ -908,10 +908,10 @@ class AgendaViewSet(viewsets.ModelViewSet):
             request,
             AuditLog.Action.STATUS_CHANGE,
             "Agendas",
-            f"Agenda reaberta: protocolo {agenda.id}. Observação: {reason}" if reason else f"Agenda reaberta: protocolo {agenda.id}.",
+            f"Agenda reaberta: protocolo {agenda.id}. ObservaÃ§Ã£o: {reason}" if reason else f"Agenda reaberta: protocolo {agenda.id}.",
             {"agenda_id": agenda.id, "title": agenda.title, "previous_status": Agenda.Status.CANCELLED, "status": previous_valid_status, "reopen_observation": reason},
         )
-        return response.Response({"detail": "Solicitação reaberta com sucesso.", "status": previous_valid_status})
+        return response.Response({"detail": "SolicitaÃ§Ã£o reaberta com sucesso.", "status": previous_valid_status})
 
     @decorators.action(detail=True, methods=["post"], url_path="send-available-dates")
     def send_available_dates(self, request, pk=None):
@@ -953,7 +953,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         _, message = available_dates_message(
             agenda,
             month,
-            days or "nenhuma data disponível nos próximos dias",
+            days or "nenhuma data disponÃ­vel nos prÃ³ximos dias",
         )
         return response.Response(
             {
@@ -1009,7 +1009,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
             | Q(source_id__startswith="appsheet:")
-            | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
+            | Q(sector__name__in=["SolicitaÃ§Ãµes externas", "SolicitaÃ§Ãµes internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
         )
@@ -1337,7 +1337,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             normalize_name(
                 row.get("municipality_ref__name")
                 or row.get("city")
-                or "Sem município"
+                or "Sem municÃ­pio"
             )
             for row in qs.values("municipality_ref__name", "city")
         )
@@ -1432,9 +1432,15 @@ class AgendaViewSet(viewsets.ModelViewSet):
             for schedule in today_schedules
             if schedule.team and schedule.team.name
         }
-        approved_report_filter = Q(technical_reports__status=EducationReport.ReportStatus.APPROVED)
+        submitted_report_statuses = [
+            EducationReport.ReportStatus.PENDING_REVIEW,
+            EducationReport.ReportStatus.SUBMITTED,
+            EducationReport.ReportStatus.APPROVED,
+            EducationReport.ReportStatus.RETURNED,
+        ]
+        submitted_report_filter = Q(technical_reports__status__in=submitted_report_statuses)
         completed_today_qs = operational_base.filter(
-            Q(status=Agenda.Status.COMPLETED) | approved_report_filter
+            Q(status=Agenda.Status.COMPLETED) | submitted_report_filter
         ).distinct()
         completed_today_ids = list(completed_today_qs.values_list("id", flat=True))
         cancelled_today_qs = operational_base.filter(status=Agenda.Status.CANCELLED)
@@ -1447,16 +1453,16 @@ class AgendaViewSet(viewsets.ModelViewSet):
             start_time__gt=now,
         ).exclude(id__in=completed_today_ids).distinct()
         pending_report_today_qs = operational_base.filter(
-            date=today,
+            date=operational_date,
             start_time__lt=now,
             service_order_number__isnull=False,
         ).exclude(status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]).exclude(
-            technical_reports__status=EducationReport.ReportStatus.APPROVED
+            id__in=completed_today_ids
         ).distinct()
 
         allowed_field_teams = {"ALFA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOX", "GOLF", "HOTEL"}
 
-        def clean_display(value, fallback="Não informado"):
+        def clean_display(value, fallback="NÃ£o informado"):
             text = str(value or "").strip()
             return text if text else fallback
 
@@ -1470,7 +1476,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return clean_display(agenda.chief_ref.name if agenda.chief_ref else agenda.chief_name, "Sem chefe")
 
         def operational_location(agenda):
-            return clean_display(agenda.institution_location or agenda.location or agenda.address, "Local não informado")
+            return clean_display(agenda.institution_location or agenda.location or agenda.address, "Local nÃ£o informado")
 
         def operational_city(agenda):
             return clean_display(agenda.municipality_ref.name if agenda.municipality_ref else agenda.city, "Munic\u00edpio n\u00e3o informado")
@@ -1672,24 +1678,24 @@ class AgendaViewSet(viewsets.ModelViewSet):
         for agenda in operational_base.filter(status=Agenda.Status.APPROVED, service_order_number__isnull=True).order_by("start_time")[:5]:
             alerts.append({
                 "severity": "warning",
-                "title": "Ordem de Serviço pendente",
-                "description": f"{agenda.title} ainda não possui OS emitida.",
+                "title": "Ordem de ServiÃ§o pendente",
+                "description": f"{agenda.title} ainda nÃ£o possui OS emitida.",
                 "href": f"/agendas?q={agenda.id}",
                 "agenda_id": agenda.id,
             })
         for agenda in pending_report_today_qs.order_by("start_time")[:5]:
             alerts.append({
                 "severity": "info",
-                "title": "Relatório técnico aguardando envio",
-                "description": f"{agenda.title} já passou do horário e ainda não tem relatório aprovado.",
+                "title": "RelatÃ³rio tÃ©cnico aguardando envio",
+                "description": f"{agenda.title} jÃ¡ passou do horÃ¡rio e ainda nÃ£o tem relatÃ³rio aprovado.",
                 "href": "/relatorio-tecnico",
                 "agenda_id": agenda.id,
             })
         for agenda in operational_base.filter(Q(team_ref__isnull=True) & Q(team_name="")).order_by("start_time")[:3]:
             alerts.append({
                 "severity": "danger",
-                "title": "Equipe não definida",
-                "description": f"{agenda.title} precisa de equipe antes da execução.",
+                "title": "Equipe nÃ£o definida",
+                "description": f"{agenda.title} precisa de equipe antes da execuÃ§Ã£o.",
                 "href": f"/agendas?q={agenda.id}",
                 "agenda_id": agenda.id,
             })
@@ -1697,7 +1703,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             alerts.append({
                 "severity": "muted",
                 "title": "Agenda cancelada hoje",
-                "description": f"{agenda.title} consta como cancelada na operação do dia.",
+                "description": f"{agenda.title} consta como cancelada na operaÃ§Ã£o do dia.",
                 "href": f"/agendas?q={agenda.id}",
                 "agenda_id": agenda.id,
             })
@@ -1843,11 +1849,11 @@ class AgendaViewSet(viewsets.ModelViewSet):
             "bars": {
                 "by_team_actions": by_team_actions,
                 "by_origin": [
-                    {"label": "Solicitação externa", "value": external_requests},
-                    {"label": "Solicitação interna", "value": internal_requests},
+                    {"label": "SolicitaÃ§Ã£o externa", "value": external_requests},
+                    {"label": "SolicitaÃ§Ã£o interna", "value": internal_requests},
                 ],
                 "by_neighborhood": by_neighborhood,
-                "by_user": [{"label": row["responsible__full_name"] or "Sem responsável", "value": row["total"]} for row in by_user],
+                "by_user": [{"label": row["responsible__full_name"] or "Sem responsÃ¡vel", "value": row["total"]} for row in by_user],
                 "by_status": [{"label": row["label"], "value": row["total"], "status": row["status"]} for row in by_status],
             },
             "donut": by_municipality,
@@ -1954,11 +1960,11 @@ class EventReportViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
 
             if not Agenda.objects.filter(pk=agenda.pk).filter(chief_agenda_filter(user)).exists():
-                raise PermissionDenied("Você só pode relatar agendas em que você está vinculado como Chefe.")
+                raise PermissionDenied("VocÃª sÃ³ pode relatar agendas em que vocÃª estÃ¡ vinculado como Chefe.")
         if user.is_agent_role:
             from rest_framework.exceptions import PermissionDenied
 
-            raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem enviar relatórios técnicos.")
+            raise PermissionDenied("Apenas Chefes, Gestores e Administradores podem enviar relatÃ³rios tÃ©cnicos.")
         submitted_at = timezone.now() if serializer.validated_data.get("status") == EventReport.ReportStatus.SUBMITTED else None
         serializer.save(created_by=user, submitted_at=submitted_at)
 
@@ -1976,29 +1982,29 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     statistics_fields = [
         ("approach", "Total de abordagens"),
         ("approached_lectures", "Abordados em palestras"),
-        ("approached_actions", "Abordados em ações"),
+        ("approached_actions", "Abordados em aÃ§Ãµes"),
         ("vetarolas", "Vetarolas"),
         ("used_adhesives", "Adesivos"),
-        ("sequence_certificates", "Sequência certificados"),
+        ("sequence_certificates", "SequÃªncia certificados"),
         ("gibis", "Gibis"),
         ("distributed_certificates", "Certificados"),
         ("lectures", "Palestras realizadas"),
         ("schools", "Escolas"),
         ("universities", "Universidades"),
         ("companies", "Empresas"),
-        ("educational_actions", "Ações educativas"),
+        ("educational_actions", "AÃ§Ãµes educativas"),
         ("bars", "Bares"),
-        ("tolls", "Pedágio"),
+        ("tolls", "PedÃ¡gio"),
         ("sports", "Esportes"),
         ("beach", "Praia"),
         ("events", "Eventos"),
         ("shopping", "Shopping/Centro Comercial"),
-        ("parks", "Praças/Parques públicos"),
-        ("tourist_spots", "Pontos turísticos"),
+        ("parks", "PraÃ§as/Parques pÃºblicos"),
+        ("tourist_spots", "Pontos turÃ­sticos"),
         ("social_actions", "A\u00e7\u00e3o social"),
         ("joint_inspections", "A\u00e7\u00e3o conjunta com a fiscaliza\u00e7\u00e3o"),
         ("other_actions", "Outros"),
-        ("publicity_materials", "Materiais de divulgação"),
+        ("publicity_materials", "Materiais de divulgaÃ§Ã£o"),
     ]
 
     schema_error_message = (
@@ -2044,7 +2050,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             if isinstance(exc, (APIException, Http404, PermissionDenied)):
                 raise
             logger.exception("Unexpected error in EducationReportViewSet.create")
-            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatório. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatÃ³rio. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, *args, **kwargs):
         try:
@@ -2058,7 +2064,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             if isinstance(exc, (APIException, Http404, PermissionDenied)):
                 raise
             logger.exception("Unexpected error in EducationReportViewSet.update")
-            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatório. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatÃ³rio. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'], url_path='process-statistics')
     def process_statistics(self, request, pk=None):
@@ -2066,15 +2072,15 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         
         if not request.user.has_perm('statistics.add_consolidatedstatistic'):
-            return response.Response({'error': 'Você não tem permissão para processar estatísticas oficiais.'}, status=status.HTTP_403_FORBIDDEN)
+            return response.Response({'error': 'VocÃª nÃ£o tem permissÃ£o para processar estatÃ­sticas oficiais.'}, status=status.HTTP_403_FORBIDDEN)
             
         report = self.get_object()
         
         if report.status != 'APPROVED':
-            return response.Response({'error': 'Apenas relatórios aprovados podem ser validados para a estatística oficial.'}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({'error': 'Apenas relatÃ³rios aprovados podem ser validados para a estatÃ­stica oficial.'}, status=status.HTTP_400_BAD_REQUEST)
             
         if report.statistics_processed:
-            # Re-processamento permitido se houver correção (lógica idempotente no services.py)
+            # Re-processamento permitido se houver correÃ§Ã£o (lÃ³gica idempotente no services.py)
             pass
             
         try:
@@ -2083,10 +2089,10 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             report.statistics_processed_at = timezone.now()
             report.statistics_processed_by = request.user
             report.save(update_fields=['statistics_processed', 'statistics_processed_at', 'statistics_processed_by'])
-            return response.Response({'message': 'Estatística processada e validada com sucesso.'}, status=status.HTTP_200_OK)
+            return response.Response({'message': 'EstatÃ­stica processada e validada com sucesso.'}, status=status.HTTP_200_OK)
         except Exception as e:
             logger.exception("Error processing statistics")
-            return response.Response({'error': 'Erro ao processar estatística. Consulte os logs para mais detalhes.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return response.Response({'error': 'Erro ao processar estatÃ­stica. Consulte os logs para mais detalhes.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def partial_update(self, request, *args, **kwargs):
         try:
@@ -2100,7 +2106,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             if isinstance(exc, (APIException, Http404, PermissionDenied)):
                 raise
             logger.exception("Unexpected error in EducationReportViewSet.partial_update")
-            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatório. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return response.Response({"detail": "Ocorreu um erro inesperado ao processar o relatÃ³rio. Tente novamente ou entre em contato com o administrador."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_queryset(self):
         user = self.request.user
@@ -2160,7 +2166,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             team = serializer.validated_data.get("team")
             if agenda and team and EducationReport.objects.filter(agenda=agenda, team=team).exists():
                 from rest_framework.exceptions import ValidationError
-                raise ValidationError("Já existe um relatório técnico registrado para este protocolo com esta equipe.")
+                raise ValidationError("JÃ¡ existe um relatÃ³rio tÃ©cnico registrado para este protocolo com esta equipe.")
 
             self._validate_agenda_access(agenda)
             if "status" in serializer.validated_data:
@@ -2172,9 +2178,9 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             if not self.request.user.is_admin_role:
                 if serializer.instance.status == EducationReport.ReportStatus.PENDING_REVIEW:
-                    self._log_permission_denied("REPORT_PENDING_REVIEW", "Este relatório já foi enviado para conferência e aguarda análise.", serializer.instance.agenda_id, serializer.instance.id)
+                    self._log_permission_denied("REPORT_PENDING_REVIEW", "Este relatÃ³rio jÃ¡ foi enviado para conferÃªncia e aguarda anÃ¡lise.", serializer.instance.agenda_id, serializer.instance.id)
                 elif serializer.instance.status == EducationReport.ReportStatus.APPROVED:
-                    self._log_permission_denied("REPORT_ALREADY_APPROVED", "Este relatório já foi aprovado e não pode mais ser alterado.", serializer.instance.agenda_id, serializer.instance.id)
+                    self._log_permission_denied("REPORT_ALREADY_APPROVED", "Este relatÃ³rio jÃ¡ foi aprovado e nÃ£o pode mais ser alterado.", serializer.instance.agenda_id, serializer.instance.id)
 
             if "status" in serializer.validated_data:
                 del serializer.validated_data["status"]
@@ -2196,13 +2202,13 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         if report.status not in [EducationReport.ReportStatus.DRAFT, EducationReport.ReportStatus.RETURNED]:
             if report.status == EducationReport.ReportStatus.PENDING_REVIEW:
-                self._log_permission_denied("REPORT_PENDING_REVIEW", "Este relatório já foi enviado para conferência e aguarda análise.", report.agenda_id, report.id)
+                self._log_permission_denied("REPORT_PENDING_REVIEW", "Este relatÃ³rio jÃ¡ foi enviado para conferÃªncia e aguarda anÃ¡lise.", report.agenda_id, report.id)
             elif report.status == EducationReport.ReportStatus.APPROVED:
-                self._log_permission_denied("REPORT_ALREADY_APPROVED", "Este relatório já foi aprovado e não pode mais ser alterado.", report.agenda_id, report.id)
+                self._log_permission_denied("REPORT_ALREADY_APPROVED", "Este relatÃ³rio jÃ¡ foi aprovado e nÃ£o pode mais ser alterado.", report.agenda_id, report.id)
             else:
-                self._log_permission_denied("AGENDA_STATUS_INVALID", "Esta agenda não permite mais alterações.", report.agenda_id, report.id)
+                self._log_permission_denied("AGENDA_STATUS_INVALID", "Esta agenda nÃ£o permite mais alteraÃ§Ãµes.", report.agenda_id, report.id)
         
-        # Validação obrigatória da conferência de frequência
+        # ValidaÃ§Ã£o obrigatÃ³ria da conferÃªncia de frequÃªncia
         from apps.schedules.models import ShiftSchedule, Team
         
         schedules_found = []
@@ -2220,7 +2226,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         if service_order_mode == Agenda.ServiceOrderMode.DESIGNATED:
             if len(schedules_found) > 1:
                 return response.Response(
-                    {"detail": "Foram encontradas múltiplas escalas para esta data. Revise a agenda antes de enviar o relatório."},
+                    {"detail": "Foram encontradas mÃºltiplas escalas para esta data. Revise a agenda antes de enviar o relatÃ³rio."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             schedule = schedules_found[0] if schedules_found else None
@@ -2228,11 +2234,11 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 expected_members = get_expected_attendance_member_keys(report.agenda, schedule)
                 checked = set(schedule.checked_members.keys())
                 if not expected_members.issubset(checked):
-                    return response.Response({"detail": "Confira a frequência de todos os participantes selecionados antes de enviar o relatório."}, status=status.HTTP_400_BAD_REQUEST)
+                    return response.Response({"detail": "Confira a frequÃªncia de todos os participantes selecionados antes de enviar o relatÃ³rio."}, status=status.HTTP_400_BAD_REQUEST)
         else:
             if len(schedules_found) != 1:
                 return response.Response(
-                    {"detail": "Não foi possível localizar a escala vinculada a este relatório. Verifique a agenda e tente novamente."},
+                    {"detail": "NÃ£o foi possÃ­vel localizar a escala vinculada a este relatÃ³rio. Verifique a agenda e tente novamente."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -2241,7 +2247,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 expected_members = get_expected_attendance_member_keys(report.agenda, schedule)
                 checked = set(schedule.checked_members.keys())
                 if not expected_members.issubset(checked):
-                    return response.Response({"detail": "Confira a frequência de todos os integrantes antes de enviar o relatório."}, status=status.HTTP_400_BAD_REQUEST)
+                    return response.Response({"detail": "Confira a frequÃªncia de todos os integrantes antes de enviar o relatÃ³rio."}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             old_status = report.status
@@ -2257,7 +2263,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 changed_by=request.user
             )
 
-            # Marcar frequência como reportada no ShiftSchedule
+            # Marcar frequÃªncia como reportada no ShiftSchedule
             if schedule and not schedule.attendance_reported:
                 schedule.attendance_reported = True
                 schedule.attendance_reported_at = timezone.now()
@@ -2270,16 +2276,16 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                     "attendance_approved_at",
                 ])
 
-        return response.Response({"detail": "Enviado para conferência."})
+        return response.Response({"detail": "Enviado para conferÃªncia."})
 
     @decorators.action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         if not request.user.is_admin_role:
-            raise PermissionDenied("Apenas gestores ou administradores podem aprovar relatórios.")
+            raise PermissionDenied("Apenas gestores ou administradores podem aprovar relatÃ³rios.")
             
         report = self.get_object()
         if report.status != EducationReport.ReportStatus.PENDING_REVIEW:
-            return response.Response({"detail": "Apenas relatórios aguardando conferência podem ser aprovados."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Apenas relatÃ³rios aguardando conferÃªncia podem ser aprovados."}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             old_status = report.status
             report.status = EducationReport.ReportStatus.APPROVED
@@ -2301,20 +2307,20 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         transaction.on_commit(lambda: send_satisfaction_survey_email(report))
         transaction.on_commit(lambda: send_report_confirmation_email(report))
         
-        return response.Response({"detail": "Relatório aprovado com sucesso."})
+        return response.Response({"detail": "RelatÃ³rio aprovado com sucesso."})
 
     @decorators.action(detail=True, methods=["post"], url_path="return-for-correction")
     def return_for_correction(self, request, pk=None):
         if not request.user.is_admin_role:
-            raise PermissionDenied("Apenas gestores ou administradores podem devolver relatórios.")
+            raise PermissionDenied("Apenas gestores ou administradores podem devolver relatÃ³rios.")
             
         notes = request.data.get("notes", "").strip()
         if not notes:
-            return response.Response({"detail": "A justificativa é obrigatória."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "A justificativa Ã© obrigatÃ³ria."}, status=status.HTTP_400_BAD_REQUEST)
             
         report = self.get_object()
         if report.status != EducationReport.ReportStatus.PENDING_REVIEW:
-            return response.Response({"detail": "Apenas relatórios aguardando conferência podem ser devolvidos."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Apenas relatÃ³rios aguardando conferÃªncia podem ser devolvidos."}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             old_status = report.status
             report.status = EducationReport.ReportStatus.RETURNED
@@ -2331,17 +2337,17 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 notes=notes
             )
             
-        return response.Response({"detail": "Relatório devolvido para correção."})
+        return response.Response({"detail": "RelatÃ³rio devolvido para correÃ§Ã£o."})
 
     def _validate_agenda_access(self, agenda):
         user = self.request.user
         if user.is_admin_role:
             return
         if user.is_agent_role:
-            self._log_permission_denied("USER_NOT_CHIEF", "Somente o chefe responsável pela escala pode preencher ou enviar este relatório.", agenda.pk)
+            self._log_permission_denied("USER_NOT_CHIEF", "Somente o chefe responsÃ¡vel pela escala pode preencher ou enviar este relatÃ³rio.", agenda.pk)
         allowed = Agenda.objects.filter(pk=agenda.pk).filter(chief_agenda_filter(user)).exists()
         if not allowed:
-            self._log_permission_denied("USER_NOT_LINKED_TO_TEAM", "Você não possui vínculo com esta equipe.", agenda.pk)
+            self._log_permission_denied("USER_NOT_LINKED_TO_TEAM", "VocÃª nÃ£o possui vÃ­nculo com esta equipe.", agenda.pk)
 
     def _register_accessibility_block(self, report):
         if report.accessibility_conditions_met != "NO" or not report.agenda_id:
@@ -2359,7 +2365,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 "external_responsible_phone": agenda.external_responsible_phone or "",
                 "external_email": agenda.external_email or agenda.contact_email or "",
                 "source_agenda": agenda,
-                "reason": "Local não atendeu às condições de acessibilidade para cadeirantes no relatório técnico.",
+                "reason": "Local nÃ£o atendeu Ã s condiÃ§Ãµes de acessibilidade para cadeirantes no relatÃ³rio tÃ©cnico.",
                 "is_active": True,
             },
         )
@@ -2461,7 +2467,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         by_audience = [
             {
-                "label": row["type_audience"] or "Sem público",
+                "label": row["type_audience"] or "Sem pÃºblico",
                 "value": row["approach"] or 0,
                 "actions": row["actions"],
             }
@@ -2523,7 +2529,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         ]
 
         # Previous Year Comparison for 4 indicators
-        # Usa o ano de referência (date_to) para determinar o ano atual e o anterior completo
+        # Usa o ano de referÃªncia (date_to) para determinar o ano atual e o anterior completo
         date_to_str = params.get("date_to")
         try:
             ref_date = date.fromisoformat(date_to_str) if date_to_str else timezone.localdate()
@@ -2533,11 +2539,11 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         ref_year = ref_date.year
         prev_year = ref_year - 1
 
-        # Período atual: todo o ano de referência até a data selecionada
+        # PerÃ­odo atual: todo o ano de referÃªncia atÃ© a data selecionada
         current_date_from = date(ref_year, 1, 1)
         current_date_to = ref_date
 
-        # Período anterior: ano inteiro anterior (01/01 a 31/12)
+        # PerÃ­odo anterior: ano inteiro anterior (01/01 a 31/12)
         prev_date_from = date(prev_year, 1, 1)
         prev_date_to = date(prev_year, 12, 31)
 
@@ -2588,8 +2594,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         comparison_fields = [
             ("approach",           "Abordagens"),
-            ("approached_actions", "Abordados em ações"),
-            ("publicity_materials","Materiais de divulgação"),
+            ("approached_actions", "Abordados em aÃ§Ãµes"),
+            ("publicity_materials","Materiais de divulgaÃ§Ã£o"),
             ("approached_lectures","Abordados em palestras"),
         ]
 
@@ -2692,7 +2698,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=False, methods=["get"], url_path="export-statistics")
     def export_statistics(self, request):
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
-            raise PermissionDenied("Apenas Chefes, Gestores e Administração podem exportar estatísticas.")
+            raise PermissionDenied("Apenas Chefes, Gestores e AdministraÃ§Ã£o podem exportar estatÃ­sticas.")
         from reportlab.lib import colors
         from reportlab.lib.units import mm
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, KeepTogether
@@ -2727,11 +2733,11 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 "key": "approach", "label": "1 - ABORDADOS", "section": True,
                 "children": [
                     {"key": "approached_lectures", "label": "1.1 - ABORDADOS PALESTRAS"},
-                    {"key": "approached_actions", "label": "1.2 - ABORDADOS AÇÕES"},
+                    {"key": "approached_actions", "label": "1.2 - ABORDADOS AÃ‡Ã•ES"},
                 ],
             },
             {
-                "key": "lectures", "label": "2 Ã¢â‚¬â€œ PALESTRAS", "section": True,
+                "key": "lectures", "label": "2 ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“ PALESTRAS", "section": True,
                 "children": [
                     {"key": "schools", "label": "2.1 - ESCOLAS"},
                     {"key": "universities", "label": "2.2 - UNIVERSIDADES"},
@@ -2739,23 +2745,23 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 ],
             },
             {
-                "key": "educational_actions", "label": "3 - AÇÕES", "section": True,
+                "key": "educational_actions", "label": "3 - AÃ‡Ã•ES", "section": True,
                 "children": [
                     {"key": "bars", "label": "3.1 - BAR/RESTAURANTE"},
-                    {"key": "tolls", "label": "3.2 - PEDÁGIO"},
-                    {"key": "sports", "label": "3.3 - PRAÇA ESPORTIVA"},
+                    {"key": "tolls", "label": "3.2 - PEDÃGIO"},
+                    {"key": "sports", "label": "3.3 - PRAÃ‡A ESPORTIVA"},
                     {"key": "beach", "label": "3.4 - PRAIA"},
                     {"key": "events", "label": "3.5 - EVENTO"},
                     {"key": "shopping", "label": "3.6 - SHOPPING/CENTRO COMERCIAL"},
-                    {"key": "parks", "label": "3.7 - PRAÇAS/PARQUES PÚBLICOS"},
-                    {"key": "tourist_spots", "label": "3.8 - PONTOS TURÍSTICOS"},
-                    {"key": "social_actions", "label": "3.9 - AÇÃO SOCIAL"},
-                    {"key": "joint_inspections", "label": "3.10 - AÇÃO CONJUNTA COM A FISCALIZAÇÃO"},
+                    {"key": "parks", "label": "3.7 - PRAÃ‡AS/PARQUES PÃšBLICOS"},
+                    {"key": "tourist_spots", "label": "3.8 - PONTOS TURÃSTICOS"},
+                    {"key": "social_actions", "label": "3.9 - AÃ‡ÃƒO SOCIAL"},
+                    {"key": "joint_inspections", "label": "3.10 - AÃ‡ÃƒO CONJUNTA COM A FISCALIZAÃ‡ÃƒO"},
                     {"key": "other_actions", "label": "3.11 - OUTROS"},
                 ],
             },
             {
-                "key": "publicity_materials", "label": "4 - MATERIAIS DE DIVULGAÇÃO", "section": True,
+                "key": "publicity_materials", "label": "4 - MATERIAIS DE DIVULGAÃ‡ÃƒO", "section": True,
                 "children": [
                     {"key": "distributed_certificates", "label": "4.1 - CERTIFICADOS ENTREGUES"},
                     {"key": "gibis", "label": '4.2 - KIT "Escolinha Nota 10"'},
@@ -2839,27 +2845,27 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         note_style = ParagraphStyle("NoteStyle", parent=styles["Normal"], fontSize=7.5, leading=10, textColor=colors.HexColor("#666666"), spaceBefore=2)
         footer_style = ParagraphStyle("Footer", parent=styles["Normal"], fontSize=7, textColor=colors.HexColor("#999999"), alignment=TA_CENTER)
 
-        period_from = request.query_params.get("date_from") or "início"
+        period_from = request.query_params.get("date_from") or "inÃ­cio"
         period_to = request.query_params.get("date_to") or today.isoformat()
         month_label = reference_date.strftime("%m")
 
         elements = []
 
         # --- Header ---
-        elements.append(Paragraph("Operação Lei Seca", title_style))
-        elements.append(Paragraph("Relatório Técnico de Estatísticas", ParagraphStyle("Sub", parent=subtitle_style, fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#333333"))))
+        elements.append(Paragraph("OperaÃ§Ã£o Lei Seca", title_style))
+        elements.append(Paragraph("RelatÃ³rio TÃ©cnico de EstatÃ­sticas", ParagraphStyle("Sub", parent=subtitle_style, fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#333333"))))
         elements.append(Spacer(1, 4))
-        elements.append(Paragraph(f"Período analisado: {period_from} a {period_to}", subtitle_style))
-        elements.append(Paragraph(f"Emitido em: {today.strftime('%d/%m/%Y')} &nbsp;|&nbsp; Relatórios: {reports.count()} &nbsp;|&nbsp; Ações registradas: {actions.count()}", subtitle_style))
+        elements.append(Paragraph(f"PerÃ­odo analisado: {period_from} a {period_to}", subtitle_style))
+        elements.append(Paragraph(f"Emitido em: {today.strftime('%d/%m/%Y')} &nbsp;|&nbsp; RelatÃ³rios: {reports.count()} &nbsp;|&nbsp; AÃ§Ãµes registradas: {actions.count()}", subtitle_style))
         elements.append(Spacer(1, 6))
 
         # --- Section 1: Quadro de metas ---
         elements.append(Paragraph(f"1. Quadro de metas {reference_year}", section_title_style))
         data_2 = [[
             Paragraph("Indicador", header_left),
-            Paragraph(f"{reference_year} até {month_label}", header_cell),
-            Paragraph(f"Projeção {reference_year}", header_cell),
-            Paragraph("Média*", header_cell),
+            Paragraph(f"{reference_year} atÃ© {month_label}", header_cell),
+            Paragraph(f"ProjeÃ§Ã£o {reference_year}", header_cell),
+            Paragraph("MÃ©dia*", header_cell),
             Paragraph(f"Meta {reference_year}", header_cell),
         ]]
         goal_section_indices = []
@@ -2905,12 +2911,12 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         elements.append(Spacer(1, 12))
 
-        # --- Section 2: Evolução anual ---
-        elements.append(Paragraph("2. Evolução anual desde 2019", section_title_style))
+        # --- Section 2: EvoluÃ§Ã£o anual ---
+        elements.append(Paragraph("2. EvoluÃ§Ã£o anual desde 2019", section_title_style))
         data_3 = [[
             Paragraph("Ano", header_left),
             Paragraph("Abordados em palestras", header_cell),
-            Paragraph("Abordados em ações", header_cell),
+            Paragraph("Abordados em aÃ§Ãµes", header_cell),
         ]]
         for row in yearly_rows:
             data_3.append([
@@ -2972,7 +2978,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         elements.append(Spacer(1, 16))
 
-        # --- Section 4: Comparação Ano a Ano ---
+        # --- Section 4: ComparaÃ§Ã£o Ano a Ano ---
         params = request.query_params
         date_to_str = params.get("date_to")
         try:
@@ -2995,23 +3001,23 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         comparison_fields = [
             ("approach", "Abordagens"),
-            ("approached_actions", "Abordados em ações"),
-            ("publicity_materials", "Materiais de divulgação"),
+            ("approached_actions", "Abordados em aÃ§Ãµes"),
+            ("publicity_materials", "Materiais de divulgaÃ§Ã£o"),
             ("approached_lectures", "Abordados em palestras"),
         ]
 
         BLUE_HEADER = colors.HexColor("#003299")
 
-        elements.append(Paragraph("4. Comparação Ano a Ano", section_title_style))
-        elements.append(Paragraph(f"Indicadores do ano de referência ({cmp_ref_year}) versus o ano anterior ({cmp_prev_year}) completo.", note_style))
+        elements.append(Paragraph("4. ComparaÃ§Ã£o Ano a Ano", section_title_style))
+        elements.append(Paragraph(f"Indicadores do ano de referÃªncia ({cmp_ref_year}) versus o ano anterior ({cmp_prev_year}) completo.", note_style))
         elements.append(Spacer(1, 4))
 
         data_cmp = [[
             Paragraph("Indicador", header_left),
             Paragraph(f"{cmp_ref_year} (acumulado)", header_cell),
             Paragraph(f"{cmp_prev_year} (total)", header_cell),
-            Paragraph("Diferença", header_cell),
-            Paragraph("Variação %", header_cell),
+            Paragraph("DiferenÃ§a", header_cell),
+            Paragraph("VariaÃ§Ã£o %", header_cell),
         ]]
         cmp_cur_agg = cmp_cur_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
         cmp_prev_agg = cmp_prev_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
@@ -3056,19 +3062,19 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         elements.append(Spacer(1, 16))
 
-        # --- Section 5: Nota técnica ---
-        elements.append(Paragraph("5. Nota técnica", section_title_style))
+        # --- Section 5: Nota tÃ©cnica ---
+        elements.append(Paragraph("5. Nota tÃ©cnica", section_title_style))
         notes = [
-            "Os dados deste relatório são calculados a partir dos relatórios técnicos cadastrados no sistema.",
-            "A projeção anual considera o acumulado do ano dividido pela quantidade de meses transcorridos e multiplicado por 12.",
-            "As metas e médias históricas são obtidas do cadastro anual de metas da aplicação.",
-            "* Média refere-se à média histórica dos anos anteriores registrados no sistema.",
+            "Os dados deste relatÃ³rio sÃ£o calculados a partir dos relatÃ³rios tÃ©cnicos cadastrados no sistema.",
+            "A projeÃ§Ã£o anual considera o acumulado do ano dividido pela quantidade de meses transcorridos e multiplicado por 12.",
+            "As metas e mÃ©dias histÃ³ricas sÃ£o obtidas do cadastro anual de metas da aplicaÃ§Ã£o.",
+            "* MÃ©dia refere-se Ã  mÃ©dia histÃ³rica dos anos anteriores registrados no sistema.",
         ]
         for note in notes:
-            elements.append(Paragraph(f"Ã¢â‚¬Â¢ {note}", note_style))
+            elements.append(Paragraph(f"ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {note}", note_style))
 
         elements.append(Spacer(1, 20))
-        elements.append(Paragraph(f"Operação Lei Seca Ã¢â‚¬â€ Relatório gerado automaticamente em {today.strftime('%d/%m/%Y')}", footer_style))
+        elements.append(Paragraph(f"OperaÃ§Ã£o Lei Seca ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â RelatÃ³rio gerado automaticamente em {today.strftime('%d/%m/%Y')}", footer_style))
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -3078,7 +3084,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             rightMargin=30,
             topMargin=30,
             bottomMargin=30,
-            title=f"Relatório de Estatísticas {reference_year}",
+            title=f"RelatÃ³rio de EstatÃ­sticas {reference_year}",
             author="Agenda OLS",
         )
         doc.build(elements)
@@ -3151,7 +3157,7 @@ class AccessibilityBlocklistViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if not (user.is_admin_role or user.role == User.Role.SUPERVISOR):
-            raise PermissionDenied("Sem permissão para gerenciar a lista de restrições de acessibilidade.")
+            raise PermissionDenied("Sem permissÃ£o para gerenciar a lista de restriÃ§Ãµes de acessibilidade.")
         
         queryset = AccessibilityBlocklist.objects.all()
         term = self.request.query_params.get("search")
@@ -3221,7 +3227,7 @@ class PublicAgendaRequestView(APIView):
             from datetime import datetime
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            return response.Response({"detail": "Formato de data inválido."}, status=400)
+            return response.Response({"detail": "Formato de data invÃ¡lido."}, status=400)
             
         agenda_id = request.query_params.get("agenda_id")
         qs = Agenda.objects.filter(
@@ -3238,14 +3244,14 @@ class PublicAgendaRequestView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         public_sector, _ = Sector.objects.get_or_create(
-            name="Solicitações externas",
-            defaults={"description": "Solicitações recebidas por formulário público"},
+            name="SolicitaÃ§Ãµes externas",
+            defaults={"description": "SolicitaÃ§Ãµes recebidas por formulÃ¡rio pÃºblico"},
         )
         system_user, created = User.objects.get_or_create(
             email="solicitacao.publica@agenda.local",
             defaults={
                 "username": "solicitacao.publica@agenda.local",
-                "full_name": "Solicitação Pública",
+                "full_name": "SolicitaÃ§Ã£o PÃºblica",
                 "role": User.Role.USER,
                 "is_active": False,
                 "sector": public_sector,
@@ -3267,7 +3273,7 @@ class PublicAgendaRequestView(APIView):
             end_time=data["end_time"],
             time_2=data.get("time_2"),
             time_3=data.get("time_3"),
-            location=data["address"] if data["requester_entity_type"].startswith("Ação de Rua") else data["institution_location"],
+            location=data["address"] if data["requester_entity_type"].startswith("AÃ§Ã£o de Rua") else data["institution_location"],
             action_type=data["action_type"],
             institution_location=data["institution_location"],
             actions_count=data.get("actions_count"),
@@ -3314,7 +3320,7 @@ class PublicAgendaRequestView(APIView):
         transaction.on_commit(lambda: send_agenda_status_email(agenda, Agenda.Status.PENDING))
         return response.Response(
             {
-                "detail": "Solicitação enviada com sucesso. Acompanhe o retorno pelo contato informado.",
+                "detail": "SolicitaÃ§Ã£o enviada com sucesso. Acompanhe o retorno pelo contato informado.",
                 "protocol": agenda.id,
             },
             status=201,
@@ -3329,7 +3335,7 @@ class PublicAgendaRequestUpdateView(APIView):
             payload = signing.loads(token, salt=PUBLIC_REQUEST_SALT)
             return Agenda.objects.get(pk=payload["agenda"])
         except (signing.BadSignature, KeyError, Agenda.DoesNotExist):
-            raise PermissionDenied("Link de alteração inválido.")
+            raise PermissionDenied("Link de alteraÃ§Ã£o invÃ¡lido.")
 
     def get(self, request, token):
         agenda = self.get_agenda(token)
@@ -3384,7 +3390,7 @@ class PublicAgendaRequestUpdateView(APIView):
         )
         return response.Response(
             {
-                "detail": "Data atualizada e formulário reenviado para avaliação.",
+                "detail": "Data atualizada e formulÃ¡rio reenviado para avaliaÃ§Ã£o.",
                 "protocol": agenda.id,
             }
         )
@@ -3397,7 +3403,7 @@ class SatisfactionSurveyPublicView(APIView):
         try:
             return SatisfactionSurvey.objects.select_related("agenda", "report").get(token=token)
         except SatisfactionSurvey.DoesNotExist:
-            raise PermissionDenied("Link da pesquisa inválido.")
+            raise PermissionDenied("Link da pesquisa invÃ¡lido.")
 
     def get(self, request, token):
         survey = self.get_survey(token)
@@ -3406,7 +3412,7 @@ class SatisfactionSurveyPublicView(APIView):
     def post(self, request, token):
         survey = self.get_survey(token)
         if survey.answered_at:
-            return response.Response({"detail": "Esta pesquisa já foi respondida."}, status=400)
+            return response.Response({"detail": "Esta pesquisa jÃ¡ foi respondida."}, status=400)
         serializer = SatisfactionSurveySerializer(survey, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         
@@ -3421,7 +3427,7 @@ class SatisfactionSurveyPublicView(APIView):
             is_approved=moderation_status == SatisfactionSurvey.ModerationStatus.APPROVED,
             moderation_status=moderation_status,
         )
-        return response.Response({"detail": "Pesquisa enviada com sucesso. Obrigado pela avaliação."})
+        return response.Response({"detail": "Pesquisa enviada com sucesso. Obrigado pela avaliaÃ§Ã£o."})
 
 
 class InternalAgendaRequestView(APIView):
@@ -3429,13 +3435,13 @@ class InternalAgendaRequestView(APIView):
 
     def post(self, request):
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
-            raise PermissionDenied("Apenas Chefes, Gestores e Administração podem criar solicitações internas.")
+            raise PermissionDenied("Apenas Chefes, Gestores e AdministraÃ§Ã£o podem criar solicitaÃ§Ãµes internas.")
         serializer = PublicAgendaRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         internal_sector, _ = Sector.objects.get_or_create(
-            name="Solicitações internas",
-            defaults={"description": "Solicitações cadastradas internamente pela equipe"},
+            name="SolicitaÃ§Ãµes internas",
+            defaults={"description": "SolicitaÃ§Ãµes cadastradas internamente pela equipe"},
         )
         agenda = Agenda.objects.create(
             title=data["title"],
@@ -3498,7 +3504,7 @@ class InternalAgendaRequestView(APIView):
         transaction.on_commit(lambda: send_agenda_status_email(agenda, Agenda.Status.PENDING))
         return response.Response(
             {
-                "detail": "Solicitação interna registrada com sucesso.",
+                "detail": "SolicitaÃ§Ã£o interna registrada com sucesso.",
                 "protocol": agenda.id,
             },
             status=201,
@@ -3510,7 +3516,7 @@ class ReportViewSet(viewsets.ViewSet):
 
     def _check_access(self, request):
         if not request.user.is_admin_role:
-            raise PermissionDenied("Apenas Gestores e Administração podem acessar relatórios.")
+            raise PermissionDenied("Apenas Gestores e AdministraÃ§Ã£o podem acessar relatÃ³rios.")
 
     def _queryset(self, request, *, check_access=True, unscoped=False):
         if check_access:
@@ -3582,7 +3588,7 @@ class ReportViewSet(viewsets.ViewSet):
         wb = Workbook()
         ws = wb.active
         ws.title = "Agendas"
-        ws.append(["Título", "Data", "Início", "Fim", "Status", "Equipe", "Responsável", "Local"])
+        ws.append(["TÃ­tulo", "Data", "InÃ­cio", "Fim", "Status", "Equipe", "ResponsÃ¡vel", "Local"])
         for agenda in qs:
             ws.append([
                 agenda.title,
@@ -3614,7 +3620,7 @@ class ReportViewSet(viewsets.ViewSet):
             Q(origin=Agenda.Origin.PUBLIC_FORM)
             | Q(source_id__startswith="internal-request:")
             | Q(source_id__startswith="appsheet:")
-            | Q(sector__name__in=["Solicitações externas", "Solicitações internas"])
+            | Q(sector__name__in=["SolicitaÃ§Ãµes externas", "SolicitaÃ§Ãµes internas"])
             | Q(created_by__email="solicitacao.publica@agenda.local")
             | Q(responsible__email="solicitacao.publica@agenda.local")
         )
@@ -3665,7 +3671,7 @@ class ReportViewSet(viewsets.ViewSet):
 
         # 3. Compute Top categories lists
         by_municipality_counter = Counter(
-            normalize_name(row.get("municipality_ref__name") or row.get("city") or "Sem município")
+            normalize_name(row.get("municipality_ref__name") or row.get("city") or "Sem municÃ­pio")
             for row in qs.values("municipality_ref__name", "city")
         )
         by_municipality = by_municipality_counter.most_common(8)
@@ -3735,17 +3741,17 @@ class ReportViewSet(viewsets.ViewSet):
             t.setStyle(t_style)
             return t
 
-        date_from = request.query_params.get("date_from") or "Início"
+        date_from = request.query_params.get("date_from") or "InÃ­cio"
         date_to = request.query_params.get("date_to") or today.strftime("%d/%m/%Y")
 
         elements = []
 
         # --- Header ---
-        elements.append(Paragraph("Operação Lei Seca", title_style))
-        elements.append(Paragraph("Relatório Consolidado de Atividades - Dashboard", ParagraphStyle("Sub", parent=subtitle_style, fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#333333"))))
+        elements.append(Paragraph("OperaÃ§Ã£o Lei Seca", title_style))
+        elements.append(Paragraph("RelatÃ³rio Consolidado de Atividades - Dashboard", ParagraphStyle("Sub", parent=subtitle_style, fontSize=11, fontName="Helvetica-Bold", textColor=colors.HexColor("#333333"))))
         elements.append(Spacer(1, 4))
-        elements.append(Paragraph(f"Período analisado: {date_from} a {date_to}", subtitle_style))
-        elements.append(Paragraph(f"Emitido em: {today.strftime('%d/%m/%Y')} &nbsp;|&nbsp; Total de agendas no período: {total}", subtitle_style))
+        elements.append(Paragraph(f"PerÃ­odo analisado: {date_from} a {date_to}", subtitle_style))
+        elements.append(Paragraph(f"Emitido em: {today.strftime('%d/%m/%Y')} &nbsp;|&nbsp; Total de agendas no perÃ­odo: {total}", subtitle_style))
         elements.append(Spacer(1, 8))
 
         # --- Section 1: Resumo Operacional ---
@@ -3757,26 +3763,26 @@ class ReportViewSet(viewsets.ViewSet):
             ("Agendas de Hoje", today_count),
             ("Agentes Escalados Hoje", today_agents_count),
             ("Agendas em Andamento", in_progress),
-            ("Próximas Agendas", upcoming_count),
+            ("PrÃ³ximas Agendas", upcoming_count),
         ]
-        elements.append(make_table(["Métrica Operacional", "Quantidade"], operacionais_rows, [350, 150]))
+        elements.append(make_table(["MÃ©trica Operacional", "Quantidade"], operacionais_rows, [350, 150]))
         elements.append(Spacer(1, 6))
 
-        # --- Section 2: Indicadores Avançados ---
-        elements.append(Paragraph("2. Indicadores Avançados", section_title_style))
+        # --- Section 2: Indicadores AvanÃ§ados ---
+        elements.append(Paragraph("2. Indicadores AvanÃ§ados", section_title_style))
         avancados_rows = [
-            ("Taxa de aprovação", f"{completion_rate}%"),
+            ("Taxa de aprovaÃ§Ã£o", f"{completion_rate}%"),
             ("Taxa de cancelamento", f"{cancellation_rate}%"),
-            ("Tempo médio de aprovação", "24h"),
-            ("Média por usuário", avg_per_user),
+            ("Tempo mÃ©dio de aprovaÃ§Ã£o", "24h"),
+            ("MÃ©dia por usuÃ¡rio", avg_per_user),
         ]
-        elements.append(make_table(["Indicador Avançado", "Valor"], avancados_rows, [350, 150]))
+        elements.append(make_table(["Indicador AvanÃ§ado", "Valor"], avancados_rows, [350, 150]))
         elements.append(Spacer(1, 6))
 
-        # --- Section 3: Agendas por Município ---
+        # --- Section 3: Agendas por MunicÃ­pio ---
         if by_municipality:
-            elements.append(Paragraph("3. Agendas por Município (Top 8)", section_title_style))
-            elements.append(make_table(["Município", "Agendas"], by_municipality, [350, 150]))
+            elements.append(Paragraph("3. Agendas por MunicÃ­pio (Top 8)", section_title_style))
+            elements.append(make_table(["MunicÃ­pio", "Agendas"], by_municipality, [350, 150]))
             elements.append(Spacer(1, 6))
 
         # --- Section 4: Agendas por Bairro ---
@@ -3789,11 +3795,11 @@ class ReportViewSet(viewsets.ViewSet):
         if by_team_actions:
             elements.append(Paragraph("5. Agendas por Equipe (Top 8)", section_title_style))
             team_rows = [(t["team_ref__name"] or t["team_name"] or "Sem equipe", t["total"]) for t in by_team_actions]
-            elements.append(make_table(["Equipe", "Agendas Concluídas"], team_rows, [350, 150]))
+            elements.append(make_table(["Equipe", "Agendas ConcluÃ­das"], team_rows, [350, 150]))
             elements.append(Spacer(1, 6))
 
         elements.append(Spacer(1, 10))
-        elements.append(Paragraph(f"Operação Lei Seca Ã¢â‚¬â€ Relatório gerado automaticamente em {today.strftime('%d/%m/%Y')}", footer_style))
+        elements.append(Paragraph(f"OperaÃ§Ã£o Lei Seca ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â RelatÃ³rio gerado automaticamente em {today.strftime('%d/%m/%Y')}", footer_style))
 
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -3803,7 +3809,7 @@ class ReportViewSet(viewsets.ViewSet):
             rightMargin=30,
             topMargin=25,
             bottomMargin=25,
-            title="Relatório Operacional de Agendas - Dashboard",
+            title="RelatÃ³rio Operacional de Agendas - Dashboard",
             author="Agenda OLS",
         )
         doc.build(elements)
@@ -3937,10 +3943,10 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             qs = qs.filter(team__iexact=team)
 
         CRITERIA_FIELDS = [
-            ("audiovisual_resources", "Recursos áudio-visuais"),
+            ("audiovisual_resources", "Recursos Ã¡udio-visuais"),
             ("speaker_knowledge", "Palestrante"),
             ("wheelchair_testimony", "Depoimento dos cadeirantes"),
-            ("workshops", "Dinâmicas"),
+            ("workshops", "DinÃ¢micas"),
             ("support_material", "Material de apoio"),
             ("punctuality", "Pontualidade"),
             ("team_enthusiasm", "Entusiasmo"),
@@ -4266,11 +4272,11 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
         best1 = sorted_criteria[0][0] if len(sorted_criteria) > 0 else ""
         best2 = sorted_criteria[1][0] if len(sorted_criteria) > 1 else ""
         executive_summary = (
-            f"Foram recebidas {total_surveys} avaliações no período selecionado. "
-            f"A nota média geral foi {overall_avg:.2f}. "
-            f"O índice de excelência atingiu {satisfaction_index:.1f}%. "
-            f"Os critérios mais bem avaliados foram {best1} e {best2}. "
-            f"O critério com menor média foi {worst_criteria}, indicando oportunidade de melhoria."
+            f"Foram recebidas {total_surveys} avaliaÃ§Ãµes no perÃ­odo selecionado. "
+            f"A nota mÃ©dia geral foi {overall_avg:.2f}. "
+            f"O Ã­ndice de excelÃªncia atingiu {satisfaction_index:.1f}%. "
+            f"Os critÃ©rios mais bem avaliados foram {best1} e {best2}. "
+            f"O critÃ©rio com menor mÃ©dia foi {worst_criteria}, indicando oportunidade de melhoria."
         )
 
         return response.Response({
@@ -4296,7 +4302,7 @@ class GoogleFormsWebhookView(APIView):
     def post(self, request):
         """
         Recebe o payload via POST do Google Apps Script (onFormSubmit)
-        O payload esperado é {"namedValues": {"Carimbo de data/hora": ["valor"], ...}}
+        O payload esperado Ã© {"namedValues": {"Carimbo de data/hora": ["valor"], ...}}
         """
         import logging as _logging
         _wh_logger = _logging.getLogger(__name__)
@@ -4313,9 +4319,9 @@ class GoogleFormsWebhookView(APIView):
             named_values = request.data
 
         if not named_values or not isinstance(named_values, dict):
-            return response.Response({"detail": "Payload inválido. Esperado 'namedValues'."}, status=400)
+            return response.Response({"detail": "Payload invÃ¡lido. Esperado 'namedValues'."}, status=400)
 
-        # Converte dicionário de listas para dicionário simples
+        # Converte dicionÃ¡rio de listas para dicionÃ¡rio simples
         row = {}
         for k, v in named_values.items():
             if isinstance(v, list) and len(v) > 0:
@@ -4332,15 +4338,18 @@ class GoogleFormsWebhookView(APIView):
             return response.Response({"detail": "Nenhum administrador encontrado."}, status=500)
 
         sector, _ = Sector.objects.get_or_create(
-            name="Solicitações externas",
-            defaults={"description": "Solicitações importadas do Google Forms/Sheets."},
+            name="SolicitaÃ§Ãµes externas",
+            defaults={"description": "SolicitaÃ§Ãµes importadas do Google Forms/Sheets."},
         )
 
         cmd = ImportGoogleSheetCommand()
         try:
-            # O índice 0 é usado apenas para log na descrição
+            # O Ã­ndice 0 Ã© usado apenas para log na descriÃ§Ã£o
             result = cmd.import_row(row, index=0, admin=admin, sector=sector, dry_run=False)
             return response.Response({"status": "success", "result": result})
         except Exception as e:
             _wh_logger.exception("Erro ao processar webhook do Google Forms")
             return response.Response({"detail": "Erro interno ao processar a solicitacao."}, status=500)
+
+
+
