@@ -1045,6 +1045,14 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 scoped = scoped.filter(municipality_ref_id=params["municipality"])
             if params.get("action_type"):
                 scoped = scoped.filter(action_type_ref_id=params["action_type"])
+            if params.get("institution"):
+                institution_term = params["institution"].strip()
+                scoped = scoped.filter(
+                    Q(title__icontains=institution_term)
+                    | Q(institution_location__icontains=institution_term)
+                    | Q(location__icontains=institution_term)
+                    | Q(external_responsible__icontains=institution_term)
+                )
             if params.get("q"):
                 term = params["q"].strip()
                 search_filter = (
@@ -1396,7 +1404,14 @@ class AgendaViewSet(viewsets.ModelViewSet):
             )
         ]
 
-        operational_base = dashboard_base_queryset().filter(date=today).select_related(
+        operational_date = today
+        if request.query_params.get("date"):
+            try:
+                operational_date = date.fromisoformat(request.query_params["date"])
+            except ValueError:
+                operational_date = today
+
+        operational_base = dashboard_base_queryset().filter(date=operational_date).select_related(
             "team_ref",
             "chief_ref",
             "support_1_ref",
@@ -1407,7 +1422,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             "responsible",
         ).prefetch_related("agents_ref", "technical_reports__actions")
         today_schedules = list(
-            ShiftSchedule.objects.filter(date=today)
+            ShiftSchedule.objects.filter(date=operational_date)
             .select_related("team")
             .prefetch_related("absence_records")
         )
@@ -1563,15 +1578,17 @@ class AgendaViewSet(viewsets.ModelViewSet):
             actions_public_reached = 0
             for action in report.actions.all():
                 action_approach = action.approach or 0
-                actions_public_reached += action_approach
+                action_reported_approaches = action.approached_actions or 0
+                actions_public_reached += action_reported_approaches or action_approach
                 actions.append({
                     "place": action.place_action or action.institution_name or "",
                     "type": action.type_action or "",
                     "start_time": action.start_time or "",
                     "final_hour": action.final_hour or "",
                     "approach": action_approach,
+                    "reported_approaches": action_reported_approaches,
                     "approached_lectures": action.approached_lectures or 0,
-                    "approached_actions": action.approached_actions or 0,
+                    "approached_actions": action_reported_approaches,
                     "materials": non_empty_lines(action.equipment_materials_distributed) + non_empty_lines(action.distribution_materials_distributed),
                 })
             return {
@@ -1686,20 +1703,21 @@ class AgendaViewSet(viewsets.ModelViewSet):
             })
 
         operations = {
-            "date": today.isoformat(),
+            "date": operational_date.isoformat(),
             "cards": {
-                "scheduled_today": {"value": operational_base.count(), "label": "Ações programadas hoje"},
+                "scheduled_today": {"value": operational_base.count(), "label": "A\u00e7\u00f5es do dia"},
                 "in_progress": {"value": in_progress_today_qs.count(), "label": "Em andamento"},
-                "completed": {"value": completed_today_qs.count(), "label": "Concluídas"},
-                "pending_start": {"value": pending_start_today_qs.count(), "label": "Pendentes de início"},
+                "pending_start": {"value": pending_start_today_qs.count(), "label": "Pr\u00f3ximas"},
+                "completed": {"value": completed_today_qs.count(), "label": "Conclu\u00eddas"},
                 "cancelled": {"value": cancelled_today_qs.count(), "label": "Canceladas"},
-                "teams_active": {"value": len(operational_team_names), "label": "Equipes em operação"},
-                "chiefs_active": {"value": len(operational_chief_names), "label": "Chefes em operação"},
-                "agents_scheduled": {"value": total_agents_scheduled, "label": "Agentes escalados"},
-                "supports_scheduled": {"value": total_supports, "label": "Apoios escalados"},
-                "service_orders": {"value": service_orders_today, "label": "Ordens de Serviço emitidas"},
-                "pending_reports": {"value": pending_report_today_qs.count(), "label": "Relatórios aguardando envio"},
-                "pending_approval": {"value": pending_approval_today, "label": "Solicitações aguardando aprovação"},
+                "pending_reports": {"value": pending_report_today_qs.count(), "label": "Relat\u00f3rios aguardando envio"},
+                "estimated_public": {"value": total_estimated_public, "label": "Estimativa de p\u00fablico"},
+                "public_reached": {"value": total_reached_public, "label": "P\u00fablico alcan\u00e7ado informado"},
+                "teams_active": {"value": len(operational_team_names), "label": "Equipes"},
+                "chiefs_active": {"value": len(operational_chief_names), "label": "Chefes"},
+                "agents_scheduled": {"value": total_agents_scheduled, "label": "Agentes"},
+                "supports_scheduled": {"value": total_supports, "label": "Apoios"},
+                "service_orders": {"value": service_orders_today, "label": "OS emitidas"},
             },
             "alerts": alerts[:10],
             "field_operations": operation_rows,

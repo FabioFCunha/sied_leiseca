@@ -26,15 +26,12 @@ import { formatLocalISODate } from "../utils/date.js";
 import { downloadUrl, getToken } from "../api/client.js";
 
 const today = new Date();
-const firstDay = formatLocalISODate(new Date(today.getFullYear(), today.getMonth(), 1));
-const lastDay = formatLocalISODate(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+const todayInput = formatLocalISODate(today);
 
 const emptyFilters = {
   q: "",
-  date_from: firstDay,
-  date_to: lastDay,
-  status: "APPROVED",
-  municipality: "",
+  date: todayInput,
+  institution: "",
 };
 
 const cardConfig = [
@@ -472,12 +469,19 @@ function ActivityPanel({ activity, advanced, materials }) {
 }
 
 const operationalCardConfig = [
-  { key: "scheduled_today", title: "Ações de hoje", hint: "Agenda operacional do dia", icon: CalendarCheck, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
-  { key: "in_progress", title: "Em andamento", hint: "Ações no horário atual", icon: PauseCircle, color: "#00a676", gradient: "linear-gradient(135deg, #00a676, #007a58)" },
-  { key: "pending_start", title: "Próximas", hint: "Ainda vão acontecer hoje", icon: Clock3, color: "#f6a700", gradient: "linear-gradient(135deg, #f6bd16, #d98b00)" },
-  { key: "completed", title: "Concluídas", hint: "Com relatório aprovado", icon: CheckCheck, color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0057a8)" },
-  { key: "cancelled", title: "Canceladas", hint: "Canceladas no dia", icon: XCircle, color: "#d63031", gradient: "linear-gradient(135deg, #d63031, #a61b1b)" },
-  { key: "pending_reports", title: "Relatórios aguardando envio", hint: "Ações já reportáveis", icon: AlertTriangle, color: "#dc6b16", gradient: "linear-gradient(135deg, #f97316, #c2410c)" },
+  { key: "scheduled_today", title: "A\u00e7\u00f5es do dia", hint: "Agenda operacional da data", icon: CalendarCheck, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
+  { key: "in_progress", title: "Em andamento", hint: "A\u00e7\u00f5es no hor\u00e1rio atual", icon: PauseCircle, color: "#00a676", gradient: "linear-gradient(135deg, #00a676, #007a58)" },
+  { key: "pending_start", title: "Pr\u00f3ximas", hint: "Ainda v\u00e3o acontecer", icon: Clock3, color: "#f6a700", gradient: "linear-gradient(135deg, #f6bd16, #d98b00)" },
+  { key: "completed", title: "Conclu\u00eddas", hint: "Com relat\u00f3rio aprovado", icon: CheckCheck, color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0057a8)" },
+  { key: "cancelled", title: "Canceladas", hint: "Canceladas na data", icon: XCircle, color: "#d63031", gradient: "linear-gradient(135deg, #d63031, #a61b1b)" },
+  { key: "pending_reports", title: "Relat\u00f3rios pendentes", hint: "A\u00e7\u00f5es j\u00e1 report\u00e1veis", icon: AlertTriangle, color: "#dc6b16", gradient: "linear-gradient(135deg, #f97316, #c2410c)" },
+  { key: "estimated_public", title: "P\u00fablico estimado", hint: "Soma prevista das agendas", icon: Users, color: "#00a676", gradient: "linear-gradient(135deg, #00a676, #007a58)" },
+  { key: "public_reached", title: "P\u00fablico alcan\u00e7ado", hint: "Informado nos relat\u00f3rios", icon: UserCheck, color: "#6c5ce7", gradient: "linear-gradient(135deg, #6c5ce7, #5345b5)" },
+  { key: "teams_active", title: "Equipes", hint: "Equipes escaladas", icon: Shield, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
+  { key: "chiefs_active", title: "Chefes", hint: "Chefes em opera\u00e7\u00e3o", icon: UserCheck, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
+  { key: "agents_scheduled", title: "Agentes", hint: "Agentes em campo", icon: Users, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
+  { key: "supports_scheduled", title: "Apoios", hint: "Apoios escalados", icon: Users, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
+  { key: "service_orders", title: "OS emitidas", hint: "Ordens de servi\u00e7o", icon: FileText, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
 ];
 
 const workforceConfig = [
@@ -613,7 +617,7 @@ function OperationDayPanel({ operations = [] }) {
                         {report.actions.map((action, index) => (
                           <div key={`${item.id}-action-${index}`} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
                             <strong style={{ fontSize: 13 }}>{action.type || `A\u00e7\u00e3o ${index + 1}`}</strong>
-                            <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{action.place || "Local n\u00e3o informado"} - {action.start_time || "--"} {"\u00e0s"} {action.final_hour || "--"} - {Number(action.approach || 0).toLocaleString("pt-BR")} abordagens</small>
+                            <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{action.place || "Local n\u00e3o informado"} - {action.start_time || "--"} {"\u00e0s"} {action.final_hour || "--"} - {Number(action.reported_approaches || action.approached_actions || action.approach || 0).toLocaleString("pt-BR")} abordagens</small>
                             {action.materials?.length ? <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>Materiais: {action.materials.join(", ")}</small> : null}
                           </div>
                         ))}
@@ -692,9 +696,9 @@ export default function DashboardPage() {
   }, []);
 
   const updateFilter = (field, value) => {
-    if (field === "date_from" || field === "date_to") {
+    if (field === "date") {
       setChartRange("");
-      setFilters((current) => ({ ...current, [field]: value, chart_group: "" }));
+      setFilters((current) => ({ ...current, date: value, chart_group: "" }));
       return;
     }
     setFilters((current) => ({ ...current, [field]: value }));
@@ -723,9 +727,8 @@ export default function DashboardPage() {
 
     setFilters((current) => ({
       ...current,
-      date_from: dateToInputValue(start),
-      date_to: dateToInputValue(end),
-      chart_group: range === chartFilters[3] ? "month" : "",
+      date: dateToInputValue(start),
+      chart_group: "",
     }));
   };
 
@@ -792,41 +795,16 @@ export default function DashboardPage() {
       </div>
 
 
-      <div className="global-filters" style={{ border: "1px solid var(--line)", background: "var(--surface)", borderRadius: "14px", padding: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+      <div className="global-filters" style={{ border: "1px solid var(--line)", background: "var(--surface)", borderRadius: "14px", padding: "16px", display: "grid", gridTemplateColumns: "220px minmax(260px, 1fr) 140px", gap: "16px", marginBottom: "24px", alignItems: "end" }}>
         <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>De</span>
-          <input type="date" value={filters.date_from} onChange={(event) => updateFilter("date_from", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
+          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Data</span>
+          <input type="date" value={filters.date} onChange={(event) => updateFilter("date", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
         </label>
         <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Até</span>
-          <input type="date" value={filters.date_to} onChange={(event) => updateFilter("date_to", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
+          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>{"Institui\u00e7\u00e3o"}</span>
+          <input type="text" placeholder={"Nome da institui\u00e7\u00e3o"} value={filters.institution} onChange={(event) => updateFilter("institution", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
         </label>
-        <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Status</span>
-          <select value={filters.status} onChange={(event) => updateFilter("status", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }}>
-            <option value="">Todos os status</option>
-            <option value="PENDING">Pendente</option>
-            <option value="APPROVED">Aprovada</option>
-            <option value="CANCELLED">Cancelada</option>
-          </select>
-        </label>
-        <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Região</span>
-          <select value={filters.region} onChange={(event) => updateFilter("region", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }}>
-            <option value="">Todas as regiões</option>
-            {regions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
-          </select>
-        </label>
-        <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Município</span>
-          <select value={filters.municipality} onChange={(event) => updateFilter("municipality", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }}>
-            <option value="">Todos os municípios</option>
-            {municipalities.map((municipality) => <option key={municipality.id} value={municipality.id}>{municipality.name}</option>)}
-          </select>
-        </label>
-        <div style={{ display: "flex", alignItems: "flex-end" }}>
-          <button className="secondary" type="button" onClick={() => { setFilters(emptyFilters); setChartRange(chartFilters[2]); }} style={{ borderRadius: "8px", height: "36px", width: "100%", fontWeight: "600", fontSize: "13px" }}>Limpar</button>
-        </div>
+        <button className="secondary" type="button" onClick={() => { setFilters(emptyFilters); setChartRange(""); }} style={{ borderRadius: "8px", height: "36px", width: "100%", fontWeight: "600", fontSize: "13px" }}>Limpar</button>
       </div>
 
       {loading ? (
@@ -846,8 +824,7 @@ export default function DashboardPage() {
 
           <div style={{ display: "grid", gap: "24px" }}>
             <OperationDayPanel operations={dashboard?.operations?.field_operations || []} />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "24px", alignItems: "start" }}>
-              <WorkforcePanel cards={dashboard?.operations?.cards || {}} />
+            <div style={{ marginTop: "24px" }}>
               <MiniCalendar days={dashboard?.calendar || []} />
             </div>
           </div>
