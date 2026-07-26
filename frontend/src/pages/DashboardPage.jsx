@@ -1,4 +1,4 @@
-﻿import {
+import {
   AlertTriangle,
   CalendarCheck,
   CalendarClock,
@@ -32,21 +32,22 @@ const emptyFilters = {
   q: "",
   date: todayInput,
   institution: "",
+  service_order: "",
 };
 
 const cardConfig = [
-  { key: "approved", label: "Aguardando OS", tooltip: "SolicitaÃ§Ãµes aprovadas que ainda aguardam a geraÃ§Ã£o da Ordem de ServiÃ§o", icon: CheckCircle2, tone: "green", status: "APPROVED", color: "#00b894", gradient: "linear-gradient(135deg, #00b894, #009472)" },
-  { key: "pending", label: "Aguardando anÃ¡lise", tooltip: "SolicitaÃ§Ãµes ainda nÃ£o avaliadas pelo Gestor ou Administrador", icon: Clock3, tone: "amber", status: "PENDING", color: "#fdcb6e", gradient: "linear-gradient(135deg, #fdcb6e, #e1b12c)" },
-  { key: "cancelled", label: "Recusadas / Canceladas", tooltip: "SolicitaÃ§Ãµes recusadas ou canceladas no perÃ­odo selecionado", icon: XCircle, tone: "red", status: "CANCELLED", color: "#d63031", gradient: "linear-gradient(135deg, #d63031, #b33939)" },
-  { key: "completed", label: "RelatÃ³rios aprovados", tooltip: "AÃ§Ãµes com relatÃ³rio tÃ©cnico conferido e aprovado", icon: CheckCheck, tone: "emerald", status: "COMPLETED", color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0762a8)" },
-  { key: "upcoming", label: "PrÃ³ximas agendas", icon: CalendarClock, tone: "violet", color: "#6c5ce7", gradient: "linear-gradient(135deg, #6c5ce7, #5345b5)" },
+  { key: "approved", label: "Aguardando OS", tooltip: "Solicitações aprovadas que ainda aguardam a geração da Ordem de Serviço", icon: CheckCircle2, tone: "green", status: "APPROVED", color: "#00b894", gradient: "linear-gradient(135deg, #00b894, #009472)" },
+  { key: "pending", label: "Aguardando análise", tooltip: "Solicitações ainda não avaliadas pelo Gestor ou Administrador", icon: Clock3, tone: "amber", status: "PENDING", color: "#fdcb6e", gradient: "linear-gradient(135deg, #fdcb6e, #e1b12c)" },
+  { key: "cancelled", label: "Recusadas / Canceladas", tooltip: "Solicitações recusadas ou canceladas no período selecionado", icon: XCircle, tone: "red", status: "CANCELLED", color: "#d63031", gradient: "linear-gradient(135deg, #d63031, #b33939)" },
+  { key: "completed", label: "Relatórios aprovados", tooltip: "Ações com relatório técnico conferido e aprovado", icon: CheckCheck, tone: "emerald", status: "COMPLETED", color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0762a8)" },
+  { key: "upcoming", label: "Próximas agendas", icon: CalendarClock, tone: "violet", color: "#6c5ce7", gradient: "linear-gradient(135deg, #6c5ce7, #5345b5)" },
   { key: "today_total", label: "Agendas de hoje", icon: CalendarCheck, tone: "blue", color: "#74b9ff", gradient: "linear-gradient(135deg, #74b9ff, #5798d6)" },
   { key: "today_agents", label: "Agentes de hoje", icon: Users, tone: "cyan", color: "#00cec9", gradient: "linear-gradient(135deg, #00cec9, #00a4a1)" },
   { key: "in_progress", label: "Em andamento", icon: PauseCircle, tone: "teal", color: "#e84393", gradient: "linear-gradient(135deg, #e84393, #c23979)" },
 ];
 
-const chartFilters = ["Hoje", "Semana", "MÃªs", "Ano"];
-const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "SÃ¡b", "Dom"];
+const chartFilters = ["Hoje", "Semana", "Mês", "Ano"];
+const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const hourSlots = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
 
 function dateToInputValue(date) {
@@ -108,7 +109,7 @@ const chiefComparisonConfig = [
   {
     key: "approaches",
     label: "Total de Abordagens",
-    tooltip: "Total de pessoas abordadas em todas as aÃ§Ãµes enviadas",
+    tooltip: "Total de pessoas abordadas em todas as ações enviadas",
     icon: Users,
     reported: "approaches",
     color: "#0048d7",
@@ -116,8 +117,8 @@ const chiefComparisonConfig = [
   },
   {
     key: "actions",
-    label: "AÃ§Ãµes Realizadas",
-    tooltip: "AÃ§Ãµes executadas, independentemente da aprovaÃ§Ã£o do relatÃ³rio",
+    label: "Ações Realizadas",
+    tooltip: "Ações executadas, independentemente da aprovação do relatório",
     icon: CalendarCheck,
     reported: "registered_actions",
     color: "#7c3aed",
@@ -125,8 +126,8 @@ const chiefComparisonConfig = [
   },
   {
     key: "waiting",
-    label: "Aguardando aprovaÃ§Ã£o",
-    tooltip: "AÃ§Ãµes realizadas cujos relatÃ³rios ainda nÃ£o foram aprovados",
+    label: "Aguardando aprovação",
+    tooltip: "Ações realizadas cujos relatórios ainda não foram aprovados",
     icon: Clock3,
     reported: "reports_waiting_approval",
     color: "#f59e0b",
@@ -134,8 +135,8 @@ const chiefComparisonConfig = [
   },
   {
     key: "avg-action",
-    label: "MÃ©dia por AÃ§Ã£o",
-    tooltip: "MÃ©dia de abordagens por aÃ§Ã£o realizada",
+    label: "Média por Ação",
+    tooltip: "Média de abordagens por ação realizada",
     icon: Activity,
     reported: "average_approaches_per_action",
     color: "#047857",
@@ -143,8 +144,8 @@ const chiefComparisonConfig = [
   },
   {
     key: "avg-team",
-    label: "MÃ©dia por Equipe",
-    tooltip: "MÃ©dia de abordagens dividida pelo nÃºmero de equipes",
+    label: "Média por Equipe",
+    tooltip: "Média de abordagens dividida pelo número de equipes",
     icon: Shield,
     reported: "average_approaches_per_team",
     color: "#dc6b16",
@@ -162,7 +163,7 @@ function ChiefFillingsMetrics({ data = {} }) {
       <div className="section-heading" style={{ marginBottom: "20px" }}>
         <div>
           <h2 style={{ fontSize: "18px", fontWeight: "800", color: "var(--text)" }}>Painel de Desempenho Operacional</h2>
-          <p style={{ fontSize: "13px", color: "var(--text-soft)", marginTop: "4px" }}>VisÃ£o direta e consolidada do resultado das equipes em campo.</p>
+          <p style={{ fontSize: "13px", color: "var(--text-soft)", marginTop: "4px" }}>Visão direta e consolidada do resultado das equipes em campo.</p>
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
@@ -216,8 +217,8 @@ function LineChart({ data = [] }) {
     <div className="chart-card main-chart" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px" }}>
       <div className="section-heading" style={{ marginBottom: "20px" }}>
         <div>
-          <h2 style={{ fontSize: "16px", fontWeight: "800" }}>EvoluÃ§Ã£o das agendas</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Comparativo diÃ¡rio do perÃ­odo selecionado.</p>
+          <h2 style={{ fontSize: "16px", fontWeight: "800" }}>Evolução das agendas</h2>
+          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Comparativo diário do período selecionado.</p>
         </div>
       </div>
       <div className="line-chart-wrap" style={{ position: "relative", height: "260px", padding: "10px 0" }}>
@@ -297,7 +298,7 @@ function DonutChart({ data = [] }) {
   return (
     <div className="chart-card donut-card" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
       <div className="section-heading" style={{ alignSelf: "stretch", marginBottom: "16px" }}>
-        <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Agendas por municÃ­pio</h2>
+        <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Agendas por município</h2>
       </div>
       <div className="donut" style={{ background: `conic-gradient(${stops})`, width: "160px", height: "160px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", boxShadow: "inset 0 0 10px rgba(0,0,0,0.1)" }}>
         <div className="donut-center" style={{ width: "110px", height: "110px", background: "var(--surface)", borderRadius: "50%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
@@ -324,7 +325,7 @@ function Heatmap({ data = [] }) {
   return (
     <div className="chart-card heatmap-card" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px" }}>
       <div className="section-heading" style={{ marginBottom: "16px" }}>
-        <h2 style={{ fontSize: "15px", fontWeight: "800" }}>HorÃ¡rios mais utilizados</h2>
+        <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Horários mais utilizados</h2>
       </div>
       <div className="heatmap" style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
         <div className="heatmap-header" style={{ display: "grid", gridTemplateColumns, gap: "3px", marginBottom: "6px", fontSize: "10px", fontWeight: "700", color: "var(--text-soft)", textAlign: "center" }}>
@@ -370,12 +371,12 @@ function MiniCalendar({ days = [] }) {
   const max = Math.max(...days.map((item) => item.total), 1);
   const monthLabel = days[0]?.date
     ? new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${days[0].date}T00:00:00Z`))
-    : "mÃªs";
+    : "mês";
   return (
     <div className="chart-card mini-calendar-card" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px" }}>
       <div className="section-heading" style={{ marginBottom: "16px" }}>
         <div>
-          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>CalendÃ¡rio de {monthLabel}</h2>
+          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Calendário de {monthLabel}</h2>
           <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Quantidade de agendas por dia.</p>
         </div>
       </div>
@@ -427,7 +428,7 @@ function ActivityPanel({ activity, advanced, materials }) {
                   <strong style={{ fontSize: "13px" }}>{item.team}</strong>
                   <i style={{ fontSize: "11px", fontStyle: "normal", color: "var(--primary)", fontWeight: "700" }}>{item.time}</i>
                 </div>
-                <small style={{ fontSize: "11.5px", color: "var(--text-soft)", marginTop: "2px" }}>{item.title} Â· <span style={{ color: "var(--success)", fontWeight: "600" }}>{statusLabel[item.status]}</span></small>
+                <small style={{ fontSize: "11.5px", color: "var(--text-soft)", marginTop: "2px" }}>{item.title} · <span style={{ color: "var(--success)", fontWeight: "600" }}>{statusLabel[item.status]}</span></small>
               </span>
             ))
           ) : (
@@ -438,8 +439,8 @@ function ActivityPanel({ activity, advanced, materials }) {
       <div className="chart-card materials-dashboard-card" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px" }}>
         <div className="section-heading" style={{ marginBottom: "14px" }}>
           <div>
-            <h2 style={{ fontSize: "15px", fontWeight: "800", textTransform: "uppercase" }}>Materiais distribuÃ­dos</h2>
-            <p style={{ color: "var(--text-soft)", fontSize: "12px", fontWeight: "700", margin: "3px 0 0", textTransform: "uppercase" }}>Total consolidado dos relatÃ³rios enviados.</p>
+            <h2 style={{ fontSize: "15px", fontWeight: "800", textTransform: "uppercase" }}>Materiais distribuídos</h2>
+            <p style={{ color: "var(--text-soft)", fontSize: "12px", fontWeight: "700", margin: "3px 0 0", textTransform: "uppercase" }}>Total consolidado dos relatórios enviados.</p>
           </div>
           <strong style={{ background: "#edf4ff", borderRadius: "10px", color: "#0048d7", fontSize: "20px", padding: "8px 12px" }}>{distributedMaterials.total}</strong>
         </div>
@@ -450,17 +451,17 @@ function ActivityPanel({ activity, advanced, materials }) {
               <strong style={{ color: "var(--primary)", flex: "0 0 auto", fontSize: "13px", fontWeight: "800", lineHeight: 1.25, textAlign: "right" }}>{item.value}</strong>
             </span>
           )) : (
-            <p style={{ color: "var(--text-soft)", fontSize: "13px", fontWeight: "800", margin: 0, textTransform: "uppercase" }}>Nenhum material distribuÃ­do registrado.</p>
+            <p style={{ color: "var(--text-soft)", fontSize: "13px", fontWeight: "800", margin: 0, textTransform: "uppercase" }}>Nenhum material distribuído registrado.</p>
           )}
         </div>
       </div>
       <div className="chart-card advanced-indicators-card" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px" }}>
-        <div className="section-heading" style={{ marginBottom: "14px" }}><h2 style={{ fontSize: "15px", fontWeight: "800" }}>Indicadores avanÃ§ados</h2></div>
+        <div className="section-heading" style={{ marginBottom: "14px" }}><h2 style={{ fontSize: "15px", fontWeight: "800" }}>Indicadores avançados</h2></div>
         <div className="advanced-list" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <span style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>Taxa de aprovaÃ§Ã£o <strong style={{ color: "var(--success)" }}>{advanced?.approval_rate ?? 0}%</strong></span>
+          <span style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>Taxa de aprovação <strong style={{ color: "var(--success)" }}>{advanced?.approval_rate ?? 0}%</strong></span>
           <span style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>Taxa de cancelamento <strong style={{ color: "var(--danger)" }}>{advanced?.cancellation_rate ?? 0}%</strong></span>
-          <span style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>Tempo mÃ©dio de aprovaÃ§Ã£o <strong>{advanced?.approval_avg_hours ?? 0}h</strong></span>
-          <span style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>MÃ©dia por usuÃ¡rio <strong>{advanced?.avg_per_user ?? 0}</strong></span>
+          <span style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>Tempo médio de aprovação <strong>{advanced?.approval_avg_hours ?? 0}h</strong></span>
+          <span style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>Média por usuário <strong>{advanced?.avg_per_user ?? 0}</strong></span>
           <span style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>Dentro do prazo <strong style={{ color: "var(--primary)" }}>{advanced?.sla ?? 0}%</strong></span>
         </div>
       </div>
@@ -646,7 +647,7 @@ function OperationDayPanel({ operations = [] }) {
 
 function WorkforcePanel({ cards = {} }) {
   return (
-    <SectionCard icon={Users} title="Efetivo do dia" subtitle="Recursos operacionais vinculados Ã s aÃ§Ãµes de hoje.">
+    <SectionCard icon={Users} title="Efetivo do dia" subtitle="Recursos operacionais vinculados às ações de hoje.">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
         {workforceConfig.map((item) => {
           const Icon = item.icon;
@@ -669,7 +670,7 @@ export default function DashboardPage() {
   const [filters, setFilters] = useState(emptyFilters);
   const [municipalities, setMunicipalities] = useState([]);
   const [regions, setRegions] = useState([]);
-  const [chartRange, setChartRange] = useState("MÃªs");
+  const [chartRange, setChartRange] = useState("Mês");
   const [loading, setLoading] = useState(true);
   const [refreshTick, setRefreshTick] = useState(0);
   const [error, setError] = useState("");
@@ -756,7 +757,7 @@ export default function DashboardPage() {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert(err.message || "Erro ao exportar o relatÃ³rio.");
+      alert(err.message || "Erro ao exportar o relatório.");
     }
   };
 
@@ -767,7 +768,7 @@ export default function DashboardPage() {
     <section className="page dashboard-page">
       <div className="dashboard-hero" style={{ background: "linear-gradient(135deg, #001338 0%, #002d72 100%)", padding: "28px", borderRadius: "16px", color: "#ffffff", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px 0 rgba(0, 19, 56, 0.15)" }}>
         <div>
-          <span style={{ fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1.5px", color: "#f6bd16", opacity: 0.95, display: "block", marginBottom: "2px" }}>VisÃ£o operacional</span>
+          <span style={{ fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1.5px", color: "#f6bd16", opacity: 0.95, display: "block", marginBottom: "2px" }}>Visão operacional</span>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
             <h1 style={{ color: "#ffffff", fontSize: "38px", fontWeight: "900", margin: "4px 0", lineHeight: 1 }}>Dashboard</h1>
             {isModerator && dashboard?.pending_moderation_count > 0 && (
@@ -785,11 +786,11 @@ export default function DashboardPage() {
                   animation: "pulse 2s infinite"
                 }}
               >
-                {dashboard.pending_moderation_count} avaliaÃ§Ãµes pendentes
+                {dashboard.pending_moderation_count} avaliações pendentes
               </span>
             )}
           </div>
-          <p style={{ margin: 0, color: "#d2e1ff", opacity: 0.9, fontSize: "15px", marginTop: "8px" }}>SISTEMA INTEGRADO DA EDUCAÃ‡ÃƒO - OPERAÃ‡ÃƒO LEI SECA</p>
+          <p style={{ margin: 0, color: "#d2e1ff", opacity: 0.9, fontSize: "15px", marginTop: "8px" }}>SISTEMA INTEGRADO DA EDUCAÇÃO - OPERAÇÃO LEI SECA</p>
         </div>
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <div className="hero-search" style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: "10px", display: "flex", alignItems: "center", padding: "0 12px" }}>
@@ -803,7 +804,7 @@ export default function DashboardPage() {
       </div>
 
 
-      <div className="global-filters" style={{ border: "1px solid var(--line)", background: "var(--surface)", borderRadius: "14px", padding: "16px", display: "grid", gridTemplateColumns: "220px minmax(260px, 1fr) 140px", gap: "16px", marginBottom: "24px", alignItems: "end" }}>
+      <div className="global-filters" style={{ border: "1px solid var(--line)", background: "var(--surface)", borderRadius: "14px", padding: "16px", display: "grid", gridTemplateColumns: "180px minmax(240px, 1fr) 160px 140px", gap: "16px", marginBottom: "24px", alignItems: "end" }}>
         <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Data</span>
           <input type="date" value={filters.date} onChange={(event) => updateFilter("date", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
@@ -811,6 +812,10 @@ export default function DashboardPage() {
         <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>{"Institui\u00e7\u00e3o"}</span>
           <input type="text" placeholder={"Nome da institui\u00e7\u00e3o"} value={filters.institution} onChange={(event) => updateFilter("institution", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
+        </label>
+        <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>OS</span>
+          <input type="text" placeholder="Ex: 2610" value={filters.service_order} onChange={(event) => updateFilter("service_order", event.target.value.replace(/\D/g, ""))} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
         </label>
         <button className="secondary" type="button" onClick={() => { setFilters(emptyFilters); setChartRange(""); }} style={{ borderRadius: "8px", height: "36px", width: "100%", fontWeight: "600", fontSize: "13px" }}>Limpar</button>
       </div>
@@ -821,7 +826,7 @@ export default function DashboardPage() {
           <span style={{ fontSize: "14px", color: "var(--text-soft)", fontWeight: "600" }}>Carregando dados operacionais...</span>
         </div>
       ) : error ? (
-        <div className="alert">NÃ£o foi possÃ­vel carregar o Dashboard: {error}</div>
+        <div className="alert">Não foi possível carregar o Dashboard: {error}</div>
       ) : (
         <>
           <div className="metric-grid operational-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px" }}>

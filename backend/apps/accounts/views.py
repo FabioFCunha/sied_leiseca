@@ -43,6 +43,24 @@ def can_manage_users(user):
     return bool(user and user.is_authenticated and (user.is_superuser or user.is_admin_role))
 
 
+AUDIT_ALLOWED_EMAILS = {"madelon@pm.rj.gov.br", "fabiocunhaosp@gmail.com"}
+AUDIT_ALLOWED_CPFS = {"05203737746", "08922040793"}
+
+
+def only_digits(value):
+    return "".join(char for char in str(value or "") if char.isdigit())
+
+
+def can_access_audit(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    email = str(getattr(user, "email", "") or "").lower()
+    cpf = only_digits(getattr(user, "cpf", ""))
+    return email in AUDIT_ALLOWED_EMAILS or cpf in AUDIT_ALLOWED_CPFS
+
+
 
 
 class UserAccessPermission(BasePermission):
@@ -187,7 +205,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        if not self.request.user.is_superuser:
+        if not can_access_audit(self.request.user):
             return AuditLog.objects.none()
         queryset = AuditLog.objects.select_related("user").all()
         params = self.request.query_params

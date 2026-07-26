@@ -52,7 +52,7 @@ export default function App() {
         <Route path="metas" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><GoalsPage /></ProtectedRoute>} />
         <Route path="cadastros" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><LookupsPage /></ProtectedRoute>} />
         <Route path="usuarios" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "CREATOR"]}><UsersPage /></ProtectedRoute>} />
-        <Route path="auditoria" element={<ProtectedRoute roles={["CREATOR"]}><AuditLogsPage /></ProtectedRoute>} />
+        <Route path="auditoria" element={<ProtectedRoute roles={["CREATOR"]} moduleName="AUDITORIA"><AuditLogsPage /></ProtectedRoute>} />
         <Route path="novidades" element={<ReleaseNotesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

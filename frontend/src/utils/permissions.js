@@ -12,9 +12,34 @@ export function isCreator(user) {
   return Boolean(user?.is_superuser);
 }
 
+const AUDIT_ALLOWED_EMAILS = new Set([
+  "madelon@pm.rj.gov.br",
+  "fabiocunhaosp@gmail.com",
+]);
+
+const AUDIT_ALLOWED_CPFS = new Set([
+  "05203737746",
+  "08922040793",
+]);
+
+function onlyDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+export function canAccessAudit(user) {
+  if (!user) return false;
+  if (isCreator(user)) return true;
+  const email = String(user.email || "").toLowerCase();
+  const cpf = onlyDigits(user.cpf);
+  return AUDIT_ALLOWED_EMAILS.has(email) || AUDIT_ALLOWED_CPFS.has(cpf);
+}
+
 export function canAccessRoute(user, allowedRoles = [], moduleName = null) {
   if (!allowedRoles.length) {
     return true;
+  }
+  if (moduleName === "AUDITORIA") {
+    return canAccessAudit(user);
   }
   if (allowedRoles.includes("CREATOR") && isCreator(user)) {
     return true;

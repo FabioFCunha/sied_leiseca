@@ -1,4 +1,4 @@
-﻿import json
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -1053,6 +1053,10 @@ class AgendaViewSet(viewsets.ModelViewSet):
                     | Q(location__icontains=institution_term)
                     | Q(external_responsible__icontains=institution_term)
                 )
+            if params.get("service_order"):
+                service_order = "".join(char for char in str(params["service_order"]) if char.isdigit())
+                if service_order:
+                    scoped = scoped.filter(service_order_number=int(service_order))
             if params.get("q"):
                 term = params["q"].strip()
                 search_filter = (
