@@ -3,24 +3,24 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 
 const actionOptions = [
-  ["", "Todas as a\u00e7\u00f5es"],
+  ["", "Todas as ações"],
   ["LOGIN", "Login"],
-  ["CREATE", "Cria\u00e7\u00e3o"],
-  ["UPDATE", "Altera\u00e7\u00e3o"],
-  ["DELETE", "Exclus\u00e3o"],
-  ["STATUS_CHANGE", "Mudan\u00e7a de status"],
+  ["CREATE", "Criação"],
+  ["UPDATE", "Alteração"],
+  ["DELETE", "Exclusão"],
+  ["STATUS_CHANGE", "Mudança de status"],
   ["PASSWORD_LINK", "Link de senha"],
-  ["SET_PASSWORD", "Defini\u00e7\u00e3o de senha"],
+  ["SET_PASSWORD", "Definição de senha"],
   ["EMAIL", "Envio de e-mail"],
-  ["REPORT_EXPORT", "Exporta\u00e7\u00e3o de relat\u00f3rio"],
+  ["REPORT_EXPORT", "Exportação de relatório"],
 ];
 
 const moduleOptions = [
-  ["", "Todos os m\u00f3dulos"],
+  ["", "Todos os módulos"],
   ["Agendas", "Agendas"],
-  ["Usuarios", "Usu\u00e1rios"],
-  ["Autenticacao", "Autentica\u00e7\u00e3o"],
-  ["Relatorios", "Relat\u00f3rios"],
+  ["Usuarios", "Usuários"],
+  ["Autenticacao", "Autenticação"],
+  ["Relatorios", "Relatórios"],
 ];
 
 function formatDateTime(value) {
@@ -96,23 +96,23 @@ export default function AuditLogsPage() {
         <div className="page-title">
           <div>
             <h1>Auditoria</h1>
-            <p>Acompanhe acessos, cadastros, altera\u00e7\u00f5es e exporta\u00e7\u00f5es do sistema.</p>
+            <p>Acompanhe acessos, cadastros, alterações e exportações do sistema.</p>
           </div>
         </div>
 
         <div className="filters audit-filters">
           <label className="filter-field">
             <span>Buscar</span>
-            <input placeholder="Usu\u00e1rio, descri\u00e7\u00e3o ou IP" value={filters.q} onChange={(event) => updateFilter("q", event.target.value)} />
+            <input placeholder="Usuário, descrição ou IP" value={filters.q} onChange={(event) => updateFilter("q", event.target.value)} />
           </label>
           <label className="filter-field">
-            <span>A\u00e7\u00e3o</span>
+            <span>Ação</span>
             <select value={filters.action} onChange={(event) => updateFilter("action", event.target.value)}>
               {actionOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
           <label className="filter-field">
-            <span>M\u00f3dulo</span>
+            <span>Módulo</span>
             <select value={filters.module} onChange={(event) => updateFilter("module", event.target.value)}>
               {moduleOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
@@ -129,7 +129,7 @@ export default function AuditLogsPage() {
             <input type="date" value={filters.date_from} onChange={(event) => updateFilter("date_from", event.target.value)} />
           </label>
           <label className="filter-field">
-            <span>At\u00e9</span>
+            <span>Até</span>
             <input type="date" value={filters.date_to} onChange={(event) => updateFilter("date_to", event.target.value)} />
           </label>
           <div className="audit-filter-actions">
@@ -144,10 +144,10 @@ export default function AuditLogsPage() {
             <thead>
               <tr>
                 <th>Data</th>
-                <th>Usu\u00e1rio</th>
-                <th>A\u00e7\u00e3o</th>
-                <th>M\u00f3dulo</th>
-                <th>Descri\u00e7\u00e3o</th>
+                <th>Usuário</th>
+                <th>Ação</th>
+                <th>Módulo</th>
+                <th>Descrição</th>
                 <th className="actions-heading">Detalhes</th>
               </tr>
             </thead>
@@ -186,15 +186,15 @@ export default function AuditLogsPage() {
             <dl>
               <dt>Data</dt>
               <dd>{formatDateTime(selected.created_at)}</dd>
-              <dt>Usu\u00e1rio</dt>
+              <dt>Usuário</dt>
               <dd>{selected.user_name || selected.user_email || "-"}</dd>
-              <dt>A\u00e7\u00e3o</dt>
+              <dt>Ação</dt>
               <dd>{selected.action_label}</dd>
-              <dt>M\u00f3dulo</dt>
+              <dt>Módulo</dt>
               <dd>{selected.module}</dd>
               <dt>IP</dt>
               <dd>{selected.ip_address || "-"}</dd>
-              <dt>Descri\u00e7\u00e3o</dt>
+              <dt>Descrição</dt>
               <dd>{selected.description}</dd>
             </dl>
             <div className="metadata-box">
