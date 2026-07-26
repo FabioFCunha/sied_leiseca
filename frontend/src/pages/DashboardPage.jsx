@@ -9,7 +9,6 @@ import {
   FileText,
   Flag,
   MapPin,
-  Navigation,
   PauseCircle,
   Search,
   UserCheck,
@@ -514,37 +513,6 @@ function SectionCard({ icon: Icon, title, subtitle, children }) {
   );
 }
 
-function AlertsPanel({ alerts = [] }) {
-  const severity = {
-    danger: { bg: "#fef2f2", border: "#fecaca", color: "#b91c1c" },
-    warning: { bg: "#fffbeb", border: "#fde68a", color: "#92400e" },
-    info: { bg: "#eff6ff", border: "#bfdbfe", color: "#1d4ed8" },
-    muted: { bg: "#f8fafc", border: "#e2e8f0", color: "#475569" },
-  };
-  return (
-    <SectionCard icon={AlertTriangle} title="Alertas inteligentes" subtitle="Somente situa??es que exigem aten?o operacional.">
-      {alerts.length ? (
-        <div style={{ display: "grid", gap: 12 }}>
-          {alerts.map((alert, index) => {
-            const tone = severity[alert.severity] || severity.info;
-            return (
-              <a key={`${alert.title}-${index}`} href={alert.href || "/agendas"} style={{ textDecoration: "none", color: "inherit", border: `1px solid ${tone.border}`, background: tone.bg, borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-                <span>
-                  <strong style={{ display: "block", color: tone.color, fontSize: 14 }}>{alert.title}</strong>
-                  <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{alert.description}</small>
-                </span>
-                <Navigation size={16} color={tone.color} />
-              </a>
-            );
-          })}
-        </div>
-      ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhum alerta operacional relevante para hoje.</p>
-      )}
-    </SectionCard>
-  );
-}
-
 function OperationalCard({ config, data }) {
   const Icon = config.icon;
   return (
@@ -565,28 +533,87 @@ function StatusPill({ status }) {
   return <span style={{ borderRadius: 999, padding: "5px 10px", background: style.bg, color: style.color, fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>{style.label}</span>;
 }
 
+function TextList({ label, value }) {
+  if (!value || (Array.isArray(value) && !value.length)) return null;
+  const values = Array.isArray(value) ? value : [value];
+  return (
+    <div style={{ display: "grid", gap: 3 }}>
+      <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>{label}</strong>
+      {values.map((item, index) => <span key={`${label}-${index}`} style={{ fontSize: 13, color: "var(--text)" }}>{item}</span>)}
+    </div>
+  );
+}
+
 function OperationDayPanel({ operations = [] }) {
   return (
-    <SectionCard icon={MapPin} title="Operação do dia" subtitle="Ações em ordem cronológica, com equipe, local, chefe, status e OS.">
+    <SectionCard icon={MapPin} title="Operacao do dia" subtitle="Acoes em ordem cronologica, com equipe, efetivo, materiais, publico e relatorio tecnico.">
       {operations.length ? (
-        <div style={{ display: "grid", gap: 12 }}>
-          {operations.map((item) => (
-            <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px", background: "var(--surface-2)", display: "grid", gridTemplateColumns: "82px minmax(0, 1fr) auto", gap: 14, alignItems: "center" }}>
-              <strong style={{ color: "var(--primary)", fontSize: 16, fontWeight: 900 }}>{item.time || "--:--"}</strong>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <strong style={{ color: "var(--text)", fontSize: 14.5, fontWeight: 900 }}>{item.type || item.title}</strong>
-                  {item.service_order_number && <span style={{ color: "var(--text-soft)", fontSize: 12, fontWeight: 800 }}>OS {item.service_order_number}</span>}
+        <div style={{ display: "grid", gap: 14 }}>
+          {operations.map((item) => {
+            const report = item.report;
+            const reportMaterials = [
+              ...(report?.materials_removed || []),
+              ...(report?.materials_spent || []),
+              ...(report?.equipment_materials_distributed || []),
+              ...(report?.distribution_materials_distributed || []),
+            ];
+            return (
+              <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 16, padding: "16px 18px", background: "var(--surface-2)", display: "grid", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "82px minmax(0, 1fr) auto", gap: 14, alignItems: "center" }}>
+                  <strong style={{ color: "var(--primary)", fontSize: 16, fontWeight: 900 }}>{item.time || "--:--"}</strong>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <strong style={{ color: "var(--text)", fontSize: 15, fontWeight: 900 }}>{item.type || item.title}</strong>
+                      {item.service_order_number && <span style={{ color: "var(--text-soft)", fontSize: 12, fontWeight: 800 }}>OS {item.service_order_number}</span>}
+                    </div>
+                    <p style={{ margin: "4px 0 0", color: "var(--text)", fontSize: 13.5, fontWeight: 700 }}>{item.location} <span aria-hidden="true">-</span> {item.municipality}</p>
+                    <small style={{ color: "var(--text-soft)", display: "block", marginTop: 4 }}>Equipe {item.team} <span aria-hidden="true">-</span> Chefe {item.chief}</small>
+                  </div>
+                  <StatusPill status={item.operational_status} />
                 </div>
-                <p style={{ margin: "4px 0 0", color: "var(--text)", fontSize: 13.5, fontWeight: 700 }}>{item.location} <span aria-hidden="true">-</span> {item.municipality}</p>
-                <small style={{ color: "var(--text-soft)", display: "block", marginTop: 4 }}>Equipe {item.team} <span aria-hidden="true">-</span> Chefe {item.chief}</small>
-              </div>
-              <StatusPill status={item.operational_status} />
-            </article>
-          ))}
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, paddingTop: 8, borderTop: "1px solid var(--line)" }}>
+                  <TextList label="Agentes em campo" value={item.agents_names} />
+                  <TextList label="Apoios" value={item.supports_names} />
+                  <TextList label="Publico estimado" value={item.estimated_public ? `${Number(item.estimated_public).toLocaleString("pt-BR")} pessoas` : "Nao informado"} />
+                  <TextList label="Publico alcancado" value={item.public_reached ? `${Number(item.public_reached).toLocaleString("pt-BR")} pessoas` : "Aguardando relatorio"} />
+                </div>
+
+                {report ? (
+                  <div style={{ display: "grid", gap: 12, padding: 12, borderRadius: 12, background: "var(--surface)", border: "1px solid var(--line)" }}>
+                    <strong style={{ color: "var(--primary)", fontSize: 13, textTransform: "uppercase" }}>Informacoes digitadas no relatorio</strong>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+                      <TextList label="Efetivo PCD" value={report.education_pcd} />
+                      <TextList label="Agentes informados" value={report.education_agents} />
+                      <TextList label="Alteracoes de efetivo" value={report.changes_staff} />
+                      <TextList label="Materiais utilizados/distribuidos" value={reportMaterials} />
+                      <TextList label="Etilometros" value={report.breathalyzers} />
+                      <TextList label="Viaturas" value={report.cars} />
+                      <TextList label="Acessibilidade" value={report.accessibility_conditions_met} />
+                      <TextList label="Contato recebido" value={report.contact_received} />
+                      <TextList label="Ocorrencias" value={report.occurrence_observation} />
+                      <TextList label="Observacoes gerais" value={report.general_observations} />
+                    </div>
+                    {report.actions?.length ? (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Acoes relatadas</strong>
+                        {report.actions.map((action, index) => (
+                          <div key={`${item.id}-action-${index}`} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
+                            <strong style={{ fontSize: 13 }}>{action.type || `Acao ${index + 1}`}</strong>
+                            <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{action.place || "Local nao informado"} - {action.start_time || "--"} as {action.final_hour || "--"} - {Number(action.approach || 0).toLocaleString("pt-BR")} abordagens</small>
+                            {action.materials?.length ? <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>Materiais: {action.materials.join(", ")}</small> : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
         </div>
       ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhuma ação programada para hoje.</p>
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhuma acao programada para hoje.</p>
       )}
     </SectionCard>
   );
@@ -805,7 +832,6 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: "grid", gap: "24px" }}>
-            <AlertsPanel alerts={dashboard?.operations?.alerts || []} />
             <OperationDayPanel operations={dashboard?.operations?.field_operations || []} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "24px", alignItems: "start" }}>
               <WorkforcePanel cards={dashboard?.operations?.cards || {}} />

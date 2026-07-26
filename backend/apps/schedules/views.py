@@ -1405,7 +1405,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             "municipality_ref",
             "sector",
             "responsible",
-        ).prefetch_related("agents_ref", "technical_reports")
+        ).prefetch_related("agents_ref", "technical_reports__actions")
         approved_report_filter = Q(technical_reports__status=EducationReport.ReportStatus.APPROVED)
         completed_today_qs = operational_base.filter(
             Q(status=Agenda.Status.COMPLETED) | approved_report_filter
@@ -1447,51 +1447,132 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return clean_display(agenda.institution_location or agenda.location or agenda.address, "Local não informado")
 
         def operational_city(agenda):
-            return clean_display(agenda.municipality_ref.name if agenda.municipality_ref else agenda.city, "Munic?pio n?o informado")
+            return clean_display(agenda.municipality_ref.name if agenda.municipality_ref else agenda.city, "Municipio nao informado")
 
         def operational_action_type(agenda):
-            return clean_display(agenda.action_type_ref.name if agenda.action_type_ref else agenda.action_type, "A??o")
+            return clean_display(agenda.action_type_ref.name if agenda.action_type_ref else agenda.action_type, "Acao")
 
         def operational_status(agenda):
             if agenda.status == Agenda.Status.CANCELLED:
                 return "cancelled", "Cancelada"
             if agenda.status == Agenda.Status.PENDING:
-                return "pending_approval", "Aguardando aprova??o"
+                return "pending_approval", "Aguardando aprovacao"
             if agenda.id in completed_today_ids:
-                return "completed", "Conclu?da"
+                return "completed", "Concluida"
             if agenda.start_time and agenda.start_time > now:
-                return "scheduled", "Pr?xima"
+                return "scheduled", "Proxima"
             if agenda.start_time and agenda.end_time and agenda.start_time <= now <= agenda.end_time:
                 return "in_progress", "Em andamento"
             if agenda.end_time and agenda.end_time < now:
-                return "pending_report", "Aguardando relat?rio"
+                return "pending_report", "Aguardando relatorio"
             if agenda.start_time and not agenda.end_time and agenda.start_time <= now:
                 return "in_progress", "Em andamento"
-            return "scheduled", "Pr?xima"
+            return "scheduled", "Proxima"
 
-        def agenda_agents_count(agenda):
+        def agenda_agents_names(agenda):
             refs = list(agenda.agents_ref.all())
             if refs:
-                return len({item.id for item in refs})
+                return [item.name for item in refs if item.name]
             if not agenda.agents:
-                return 0
+                return []
             names = [name.strip() for name in re.split(r"\s+-\s+|,", agenda.agents) if name.strip()]
-            return len(set(name.casefold() for name in names))
+            seen = set()
+            unique = []
+            for name in names:
+                key = name.casefold()
+                if key not in seen:
+                    seen.add(key)
+                    unique.append(name)
+            return unique
 
-        def agenda_supports_count(agenda):
+        def agenda_agents_count(agenda):
+            return len(agenda_agents_names(agenda))
+
+        def agenda_supports_names(agenda):
             names = []
             for ref, text_value in ((agenda.support_1_ref, agenda.support_1), (agenda.support_2_ref, agenda.support_2)):
                 label = ref.name if ref else text_value
                 if label and str(label).strip():
-                    names.append(str(label).strip().casefold())
-            return len(set(names))
+                    names.append(str(label).strip())
+            seen = set()
+            unique = []
+            for name in names:
+                key = name.casefold()
+                if key not in seen:
+                    seen.add(key)
+                    unique.append(name)
+            return unique
+
+        def agenda_supports_count(agenda):
+            return len(agenda_supports_names(agenda))
+
+        def numeric_public_estimate(agenda):
+            if agenda.quantity:
+                return int(agenda.quantity or 0)
+            raw = str(agenda.audience or "").strip()
+            match = re.search(r"\d+", raw)
+            return int(match.group(0)) if match else 0
+
+        def non_empty_lines(value):
+            return [line.strip() for line in str(value or "").splitlines() if line.strip()]
+
+        def latest_report_for_agenda(agenda):
+            reports = [report for report in agenda.technical_reports.all() if report.status != EducationReport.ReportStatus.DRAFT]
+            reports.sort(key=lambda report: report.updated_at or report.created_at, reverse=True)
+            return reports[0] if reports else None
+
+        def report_details_payload(report):
+            if not report:
+                return None
+            actions = []
+            for action in report.actions.all():
+                actions.append({
+                    "place": action.place_action or action.institution_name or "",
+                    "type": action.type_action or "",
+                    "start_time": action.start_time or "",
+                    "final_hour": action.final_hour or "",
+                    "approach": action.approach or 0,
+                    "approached_lectures": action.approached_lectures or 0,
+                    "approached_actions": action.approached_actions or 0,
+                    "materials": non_empty_lines(action.equipment_materials_distributed) + non_empty_lines(action.distribution_materials_distributed),
+                })
+            return {
+                "id": report.id,
+                "status": report.status,
+                "public_reached": report.approximate_public or 0,
+                "education_pcd": non_empty_lines(report.education_pcd),
+                "education_agents": non_empty_lines(report.education_agents),
+                "changes_staff": non_empty_lines(report.changes_staff),
+                "accessibility_conditions_met": report.accessibility_conditions_met,
+                "materials_removed": non_empty_lines(report.materials_removed),
+                "materials_spent": non_empty_lines(report.materials_spent),
+                "equipment_materials_distributed": non_empty_lines(report.equipment_materials_distributed),
+                "distribution_materials_distributed": non_empty_lines(report.distribution_materials_distributed),
+                "breathalyzers": non_empty_lines(report.breathalyzers),
+                "cars": report.cars or "",
+                "changes_general": non_empty_lines(report.changes_general),
+                "contact_received": report.contact_received or "",
+                "occurrence_observation": report.occurrence_observation or "",
+                "general_observations": report.general_observations or "",
+                "actions": actions,
+            }
 
         today_agendas = list(operational_base.order_by("start_time", "id"))
         operation_rows = []
         total_supports = 0
+        total_estimated_public = 0
+        total_reached_public = 0
         for agenda in today_agendas:
             status_key, status_text = operational_status(agenda)
-            supports_count = agenda_supports_count(agenda)
+            agents_names = agenda_agents_names(agenda)
+            supports_names = agenda_supports_names(agenda)
+            report = latest_report_for_agenda(agenda)
+            report_payload = report_details_payload(report)
+            estimated_public = numeric_public_estimate(agenda)
+            reached_public = report_payload["public_reached"] if report_payload else 0
+            total_estimated_public += estimated_public
+            total_reached_public += reached_public
+            supports_count = len(supports_names)
             total_supports += supports_count
             operation_rows.append({
                 "id": agenda.id,
@@ -1508,8 +1589,13 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "operational_status": status_key,
                 "operational_status_label": status_text,
                 "service_order_number": agenda.service_order_number,
-                "agents_count": agenda_agents_count(agenda),
+                "agents_count": len(agents_names),
+                "agents_names": agents_names,
                 "supports_count": supports_count,
+                "supports_names": supports_names,
+                "estimated_public": estimated_public,
+                "public_reached": reached_public,
+                "report": report_payload,
                 "href": f"/agendas?q={agenda.service_order_number or agenda.id}",
             })
 
