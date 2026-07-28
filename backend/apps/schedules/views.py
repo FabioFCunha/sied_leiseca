@@ -759,21 +759,27 @@ class AgendaViewSet(viewsets.ModelViewSet):
             scoped = scoped.filter(action_type_ref_id=params["action_type"])
         if params.get("q"):
             term = params["q"].strip()
-            if term.isdigit():
-                scoped = scoped.filter(Q(id=int(term)) | Q(service_order_number=int(term)))
-            else:
-                search_filter = (
-                    Q(source_id__icontains=term)
-                    | Q(title__icontains=term)
-                    | Q(institution_location__icontains=term)
-                    | Q(location__icontains=term)
-                    | Q(address__icontains=term)
-                    | Q(neighborhood__icontains=term)
-                    | Q(city__icontains=term)
-                    | Q(external_responsible__icontains=term)
-                    | Q(agents__icontains=term)
-                )
-                scoped = scoped.filter(search_filter)
+            search_filter = (
+                Q(source_id__icontains=term)
+                | Q(title__icontains=term)
+                | Q(institution_location__icontains=term)
+                | Q(location__icontains=term)
+                | Q(address__icontains=term)
+                | Q(neighborhood__icontains=term)
+                | Q(city__icontains=term)
+                | Q(external_responsible__icontains=term)
+                | Q(agents__icontains=term)
+            )
+            
+            # Verifica prefixos de números de sistema (OS, Protocolo, etc) com variações de pontuação ou se o termo é estritamente numérico
+            match = re.search(r'(?i)(?:os|prot(?:ocolo|\.)?|n[ºo°])[\s:\-]*(?:n[ºo°][\s:\-]*)?(\d+)', term)
+            if match:
+                num = match.group(1)
+                search_filter |= Q(id=int(num)) | Q(service_order_number=int(num))
+            elif term.isdigit():
+                search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
+                
+            scoped = scoped.filter(search_filter)
         if params.get("pending_report") == "true":
             if user.is_admin_role:
                 scoped = scoped.filter(technical_reports__isnull=True, date__gte="2026-07-01").exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
@@ -1655,6 +1661,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "end_time": agenda.end_time.isoformat(timespec="minutes") if agenda.end_time else "",
                 "type": operational_action_type(agenda),
                 "location": operational_location(agenda),
+                "address": agenda.address or "",
+                "neighborhood": agenda.neighborhood_ref.name if agenda.neighborhood_ref else agenda.neighborhood or "",
                 "municipality": operational_city(agenda),
                 "team": operational_team_label(agenda),
                 "chief": operational_chief_label(agenda),
