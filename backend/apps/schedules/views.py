@@ -736,8 +736,28 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 | Q(created_by__email="solicitacao.publica@agenda.local")
                 | Q(responsible__email="solicitacao.publica@agenda.local")
             )
+        search_term = params.get("q", "").strip()
+        exact_search_filter = None
+
+        if search_term:
+            match = re.search(
+                r'(?i)(?:os|prot(?:ocolo|\.)?|n[ºo°])[\s:#\-]*(?:n[ºo°][\s:#\-]*)?(\d+)',
+                search_term,
+            )
+            normalized_number = search_term.lstrip("#").strip()
+
+            if match:
+                number = int(match.group(1))
+                exact_search_filter = Q(id=number) | Q(service_order_number=number)
+            elif normalized_number.isdigit():
+                number = int(normalized_number)
+                exact_search_filter = Q(id=number) | Q(service_order_number=number)
+
         if params.get("source") == "requests":
-            scoped = scoped.filter(request_source_filter)
+            if exact_search_filter is None:
+                scoped = scoped.filter(request_source_filter)
+            else:
+                scoped = scoped.filter(request_source_filter | exact_search_filter)
         if params.get("sector"):
             scoped = scoped.filter(sector_id=params["sector"])
         if params.get("user"):
@@ -757,28 +777,20 @@ class AgendaViewSet(viewsets.ModelViewSet):
             scoped = scoped.filter(municipality_ref__region_id=params["region"])
         if params.get("action_type"):
             scoped = scoped.filter(action_type_ref_id=params["action_type"])
-        if params.get("q"):
-            term = params["q"].strip()
+        if exact_search_filter is not None:
+            scoped = scoped.filter(exact_search_filter)
+        elif search_term:
             search_filter = (
-                Q(source_id__icontains=term)
-                | Q(title__icontains=term)
-                | Q(institution_location__icontains=term)
-                | Q(location__icontains=term)
-                | Q(address__icontains=term)
-                | Q(neighborhood__icontains=term)
-                | Q(city__icontains=term)
-                | Q(external_responsible__icontains=term)
-                | Q(agents__icontains=term)
+                Q(source_id__icontains=search_term)
+                | Q(title__icontains=search_term)
+                | Q(institution_location__icontains=search_term)
+                | Q(location__icontains=search_term)
+                | Q(address__icontains=search_term)
+                | Q(neighborhood__icontains=search_term)
+                | Q(city__icontains=search_term)
+                | Q(external_responsible__icontains=search_term)
+                | Q(agents__icontains=search_term)
             )
-            
-            # Verifica prefixos de números de sistema (OS, Protocolo, etc) com variações de pontuação ou se o termo é estritamente numérico
-            match = re.search(r'(?i)(?:os|prot(?:ocolo|\.)?|n[ºo°])[\s:\-]*(?:n[ºo°][\s:\-]*)?(\d+)', term)
-            if match:
-                num = match.group(1)
-                search_filter |= Q(id=int(num)) | Q(service_order_number=int(num))
-            elif term.isdigit():
-                search_filter |= Q(id=int(term)) | Q(service_order_number=int(term))
-                
             scoped = scoped.filter(search_filter)
         if params.get("pending_report") == "true":
             if user.is_admin_role:
