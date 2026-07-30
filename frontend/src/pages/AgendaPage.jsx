@@ -713,6 +713,11 @@ export default function AgendaPage() {
       if (!isHistoric && !belongsToTeam(support, form.team_ref, selectedTeamName)) return false;
       
       const idStr = String(support.id);
+
+      if (isHistoric) {
+        return true;
+      }
+
       return !busyInOtherShifts.has(idStr) && !currentShiftAbsents.has(idStr);
     });
   }, [lookups.supports, scheduledShifts, form.team_ref, selectedTeamName, form.support_1_ref, form.support_2_ref]);
