@@ -578,6 +578,7 @@ class OperationalRoleChangeSynchronizationTests(APITestCase):
     def setUp(self):
         self.hotel, _ = Team.objects.get_or_create(name="HOTEL")
         self.alfa, _ = Team.objects.get_or_create(name="ALFA")
+        self.hotel_33, _ = Team.objects.get_or_create(id=33, defaults={"name": "HOTEL 33"})
         self.admin = User.objects.create_user(
             email="admin-role-sync@example.com",
             password="password123",
@@ -704,9 +705,20 @@ class OperationalRoleChangeSynchronizationTests(APITestCase):
             cpf="555.666.777-88",
             role=User.Role.SUPPORT,
         )
+        previous_agent = Agent.objects.create(
+            source_id=f"user:{other.id}",
+            name=other.full_name,
+            cpf="55566677788",
+            team=self.alfa,
+            role="AGENTE",
+            is_active=True,
+        )
 
         with self.assertRaises(ValidationError):
             sync_user_lookup(other, team=self.alfa)
+
+        previous_agent.refresh_from_db()
+        self.assertTrue(previous_agent.is_active)
 
         owned_support.refresh_from_db()
         self.assertEqual(owned_support.source_id, f"user:{owner.id}")
@@ -731,7 +743,7 @@ class OperationalRoleChangeSynchronizationTests(APITestCase):
             source_id="user:71",
             name="Ronaldo da Conceição Ferreira Lima",
             cpf="01229890742",
-            team=self.hotel,
+            team=self.hotel_33,
             role="AGENTE",
             is_active=True,
         )
@@ -740,23 +752,24 @@ class OperationalRoleChangeSynchronizationTests(APITestCase):
             source_id="user:71",
             name="Ronaldo de Almeida Rodrigues",
             cpf="99988877766",
-            team=self.hotel,
+            team=self.hotel_33,
             role="APOIO",
             is_active=False,
         )
 
-        sync_user_lookup(user, team=self.hotel)
-        sync_user_lookup(user, team=self.hotel)
+        sync_user_lookup(user, team=self.hotel_33)
+        sync_user_lookup(user, team=self.hotel_33)
 
         agent.refresh_from_db()
         support.refresh_from_db()
         self.assertEqual(agent.id, 37)
         self.assertFalse(agent.is_active)
+        self.assertEqual(agent.name, user.full_name)
         self.assertEqual(support.id, 12)
         self.assertTrue(support.is_active)
         self.assertEqual(support.name, "Ronaldo da Conceição Ferreira Lima")
         self.assertEqual(support.cpf, "01229890742")
-        self.assertEqual(support.team, self.hotel)
+        self.assertEqual(support.team_id, 33)
         self.assertEqual(support.source_id, "user:71")
         self.assertEqual(support.vacation_start, date(2026, 9, 1))
         self.assertEqual(support.vacation_end, date(2026, 9, 5))

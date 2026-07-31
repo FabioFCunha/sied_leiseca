@@ -248,6 +248,7 @@ def sync_user_lookup(user, team=None, clear_team=False):
         existing = Chief.objects.filter(source_id=user_lookup_source_id(user)).first()
         phone = user.phone or (existing.phone if existing else "")
         selected_team = None if clear_team else (team or (existing.team if existing and existing.team_id else None) or fallback_team_for_user(user))
+        deactivate_other_user_lookups(user, Chief)
         lookup = upsert_user_lookup(
             Chief,
             user,
@@ -273,6 +274,7 @@ def sync_user_lookup(user, team=None, clear_team=False):
     if user.role == User.Role.USER:
         existing = Agent.objects.filter(source_id=user_lookup_source_id(user)).first()
         selected_team = None if clear_team else (team or (existing.team if existing and existing.team_id else None) or fallback_team_for_user(user))
+        deactivate_other_user_lookups(user, Agent)
         lookup = upsert_user_lookup(Agent, user, "AGENTE", {"team": selected_team})
         if not lookup:
             return
@@ -287,6 +289,7 @@ def sync_user_lookup(user, team=None, clear_team=False):
     if user.role == User.Role.SUPPORT:
         existing = Support.objects.filter(source_id=user_lookup_source_id(user)).first()
         selected_team = None if clear_team else (team or (existing.team if existing and existing.team_id else None) or fallback_team_for_user(user))
+        deactivate_other_user_lookups(user, Support)
         lookup = upsert_user_lookup(Support, user, "APOIO", {"team": selected_team})
         if not lookup:
             return
