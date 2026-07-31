@@ -777,9 +777,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             scoped = scoped.filter(municipality_ref__region_id=params["region"])
         if params.get("action_type"):
             scoped = scoped.filter(action_type_ref_id=params["action_type"])
-        if exact_search_filter is not None:
-            scoped = scoped.filter(exact_search_filter)
-        elif search_term:
+        if search_term:
             search_filter = (
                 Q(source_id__icontains=search_term)
                 | Q(title__icontains=search_term)
@@ -791,6 +789,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 | Q(external_responsible__icontains=search_term)
                 | Q(agents__icontains=search_term)
             )
+            if exact_search_filter is not None:
+                search_filter |= exact_search_filter
             scoped = scoped.filter(search_filter)
         if params.get("pending_report") == "true":
             if user.is_admin_role:
