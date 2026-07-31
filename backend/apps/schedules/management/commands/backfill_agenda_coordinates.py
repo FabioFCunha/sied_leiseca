@@ -13,6 +13,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Simula sem modificar registros.")
         parser.add_argument("--limit", type=int, help="Quantidade máxima de agendas a processar.")
+        parser.add_argument("--agenda-id", type=int, help="Protocolo de uma única agenda a processar.")
         parser.add_argument(
             "--interval",
             type=float,
@@ -33,17 +34,23 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
         limit = options.get("limit")
+        agenda_id = options.get("agenda_id")
         retry_not_found = options["retry_not_found"]
         interval = max(float(options["interval"]), 1.0)
 
         if limit is not None and limit <= 0:
             raise CommandError("--limit deve ser maior que zero.")
-        if not dry_run and limit is None and not options["all"]:
+        if not dry_run and limit is None and agenda_id is None and not options["all"]:
             raise CommandError("Informe --limit ou use --all para confirmar o processamento real de todas as agendas.")
 
         summary = {"processed": 0, "found": 0, "not_found": 0, "ignored": 0, "errors": 0}
         queried = False
         queryset = Agenda.objects.select_related("neighborhood_ref", "municipality_ref").order_by("id")
+        if agenda_id is not None:
+            queryset = queryset.filter(id=agenda_id)
+            if not queryset.exists():
+                self.stdout.write(self.style.WARNING(f"Agenda {agenda_id} não encontrada; nenhum registro processado."))
+                return
 
         for agenda in queryset.iterator():
             normalized_address = normalize_agenda_address(agenda)

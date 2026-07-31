@@ -191,6 +191,54 @@ class AgendaGeocodingTests(TestCase):
         self.assertEqual(geocode.call_count, 1)
         self.assertIn("processados: 1", output)
 
+    @patch("apps.schedules.management.commands.backfill_agenda_coordinates.geocode_address")
+    def test_agenda_id_processes_only_the_found_agenda(self, geocode):
+        target = self.agenda(id=5556, title="Protocolo selecionado")
+        self.agenda(id=5557, title="Outro protocolo", address="Rua B, 2")
+        geocode.return_value = (Decimal("-22.8"), Decimal("-43.2"))
+
+        output = self.run_command("--agenda-id", str(target.id), "--dry-run")
+
+        self.assertEqual(geocode.call_count, 1)
+        self.assertIn("processados: 1", output)
+
+    @patch("apps.schedules.management.commands.backfill_agenda_coordinates.geocode_address")
+    def test_agenda_id_not_found_does_not_process_other_records(self, geocode):
+        self.agenda(id=5557)
+
+        output = self.run_command("--agenda-id", "5556", "--dry-run")
+
+        geocode.assert_not_called()
+        self.assertIn("Agenda 5556 não encontrada; nenhum registro processado.", output)
+
+    @patch("apps.schedules.management.commands.backfill_agenda_coordinates.geocode_address")
+    def test_agenda_id_dry_run_never_writes(self, geocode):
+        target = self.agenda(id=5556)
+        geocode.return_value = (Decimal("-22.8"), Decimal("-43.2"))
+
+        self.run_command("--agenda-id", "5556", "--dry-run")
+
+        target.refresh_from_db()
+        self.assertIsNone(target.latitude)
+        self.assertIsNone(target.longitude)
+        self.assertEqual(target.geocoding_status, Agenda.GeocodingStatus.PENDING)
+        self.assertIsNone(target.geocoding_attempted_at)
+
+    @patch("apps.schedules.management.commands.backfill_agenda_coordinates.geocode_address")
+    def test_agenda_id_real_run_writes_only_selected_agenda(self, geocode):
+        target = self.agenda(id=5556, title="Protocolo selecionado")
+        other = self.agenda(id=5557, title="Outro protocolo", address="Rua B, 2")
+        geocode.return_value = (Decimal("-22.8"), Decimal("-43.2"))
+
+        self.run_command("--agenda-id", "5556")
+
+        target.refresh_from_db()
+        other.refresh_from_db()
+        self.assertEqual(target.geocoding_status, Agenda.GeocodingStatus.FOUND)
+        self.assertEqual(target.latitude, Decimal("-22.80000000"))
+        self.assertEqual(other.geocoding_status, Agenda.GeocodingStatus.PENDING)
+        self.assertIsNone(other.latitude)
+        self.assertEqual(geocode.call_count, 1)
     def test_dashboard_sends_coordinates_and_keeps_missing_agenda(self):
         located = self.agenda(latitude=Decimal("-22.9068"), longitude=Decimal("-43.1729"), geocoding_status=Agenda.GeocodingStatus.FOUND)
         missing = self.agenda(title="Sem coordenadas", address="", geocoding_status=Agenda.GeocodingStatus.NOT_FOUND)
