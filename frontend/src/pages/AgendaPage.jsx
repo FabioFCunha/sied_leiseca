@@ -1,9 +1,10 @@
 import { CheckCircle2, ClipboardCheck, Copy, ExternalLink, History, Plus, Save, Trash2, XCircle, Edit, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import Filters from "../components/Filters.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { STREET_ACTION_TYPE_OPTIONS } from "../utils/streetActionTypes.js";
+import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR, normalizeTime, addHoursToTime } from "../utils/date.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { statusClass, statusLabel } from "../utils/status.js";
@@ -117,7 +118,7 @@ const streetActionDetailsLabel = (form) => {
   if (!details.length && STREET_ACTION_TYPE_OPTIONS.includes(legacyActionType)) {
     details.push(legacyActionType);
   }
-  return details.length ? details.join(", ") : "N\u00e3o informado";
+  return details.length ? details.map(streetActionTypeLabel).join(", ") : "N\u00e3o informado";
 };
 
 const agendaFields = Object.keys(emptyForm);
@@ -271,6 +272,7 @@ function serviceOrderLabel(agenda) {
 }
 
 export default function AgendaPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [agendas, setAgendas] = useState([]);
   const [pageInfo, setPageInfo] = useState({ count: 0, next: null, previous: null });
   const [sectors, setSectors] = useState([]);
@@ -889,6 +891,14 @@ export default function AgendaPage() {
     setForm(newForm);
   };
 
+  useEffect(() => {
+    const agendaId = searchParams.get("open");
+    if (!agendaId) return;
+    api(`/agendas/${agendaId}/`).then((agenda) => {
+      edit(agenda);
+      setSearchParams({}, { replace: true });
+    }).catch((err) => setMessage(err.message));
+  }, []);
   const reviewAndSchedule = (agenda) => {
     edit(agenda);
     setReviewStep("summary");
@@ -1777,7 +1787,7 @@ export default function AgendaPage() {
                       >
                         <option value="">Selecione o tipo</option>
                         {STREET_ACTION_TYPE_OPTIONS.map((option) => (
-                          <option key={option} value={option}>{option}</option>
+                          <option key={option} value={option}>{streetActionTypeLabel(option)}</option>
                         ))}
                       </select>
                       <button

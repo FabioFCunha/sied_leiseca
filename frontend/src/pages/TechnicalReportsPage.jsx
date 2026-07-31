@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { STREET_ACTION_TYPE_OPTIONS } from "../utils/streetActionTypes.js";
+import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
 
 import { buildPreview, chiefFromReport, reportName } from "../utils/reportPreview.js";
@@ -1212,7 +1212,7 @@ export default function TechnicalReportsPage() {
                   (form.street_action_details || []).map((detail, idx) => (
                     <div key={idx} className="street-action-summary-card">
                       <div>
-                        <strong>{detail.type || `Ação ${idx + 1}`}</strong>
+                        <strong>{detail.type ? streetActionTypeLabel(detail.type) : `Ação ${idx + 1}`}</strong>
                         <small>{detail.public ? `Público estimado: ${detail.public}` : "Público estimado não informado"}</small>
                       </div>
                     </div>
@@ -1304,10 +1304,10 @@ export default function TechnicalReportsPage() {
                             >
                               <option value="">Selecione</option>
                               {streetActionTypeOptions.map((option) => (
-                                <option key={option} value={option}>{option}</option>
+                                <option key={option} value={option}>{streetActionTypeLabel(option)}</option>
                               ))}
                               {action.type_action && !isMissingLegacyStreetSubtype(action.type_action) && !streetActionTypeOptions.includes(action.type_action) && (
-                                <option value={action.type_action}>{action.type_action}</option>
+                                <option value={action.type_action}>{streetActionTypeLabel(action.type_action)}</option>
                               )}
                             </select>
                             {isMissingLegacyStreetSubtype(action.type_action) && (
