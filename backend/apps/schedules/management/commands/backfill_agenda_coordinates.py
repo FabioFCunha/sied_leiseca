@@ -15,6 +15,11 @@ class Command(BaseCommand):
         parser.add_argument("--limit", type=int, help="Quantidade máxima de agendas a processar.")
         parser.add_argument("--agenda-id", type=int, help="Protocolo de uma única agenda a processar.")
         parser.add_argument(
+            "--debug-geocoding",
+            action="store_true",
+            help="Exibe diagnóstico detalhado das consultas de geocodificação.",
+        )
+        parser.add_argument(
             "--interval",
             type=float,
             default=1.1,
@@ -35,6 +40,7 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         limit = options.get("limit")
         agenda_id = options.get("agenda_id")
+        debug_geocoding = options["debug_geocoding"]
         retry_not_found = options["retry_not_found"]
         interval = max(float(options["interval"]), 1.0)
 
@@ -69,7 +75,15 @@ class Command(BaseCommand):
                 break
 
             summary["processed"] += 1
+            if debug_geocoding:
+                self.stdout.write(f"[geocoding] Agenda: {agenda.id}")
+                self.stdout.write(f"[geocoding] Endereço original: {agenda.address or '(vazio)'}")
+                self.stdout.write(f"[geocoding] Endereço normalizado: {normalized_address or '(vazio)'}")
             if not normalized_address:
+                if debug_geocoding:
+                    self.stdout.write(
+                        "[geocoding] Não encontrado: endereço original ausente ou vazio após normalização."
+                    )
                 summary["not_found"] += 1
                 self.stdout.write(f"Agenda {agenda.id}: endereço ausente.")
                 if not dry_run:
@@ -86,11 +100,20 @@ class Command(BaseCommand):
             if queried:
                 time.sleep(interval)
             try:
-                coordinates = geocode_address(normalized_address)
+                if debug_geocoding:
+                    coordinates = geocode_address(normalized_address, diagnostic=self.stdout.write)
+                else:
+                    coordinates = geocode_address(normalized_address)
                 queried = True
-            except GeocodingError:
+            except GeocodingError as exc:
                 queried = True
                 summary["errors"] += 1
+                if debug_geocoding:
+                    cause = exc.__cause__ or exc
+                    self.stderr.write(
+                        f"[geocoding] Agenda {agenda.id} — exceção/timeout: "
+                        f"{type(cause).__name__}: {str(cause)[:240]}"
+                    )
                 self.stderr.write(f"Agenda {agenda.id}: falha na consulta; registro preservado.")
                 continue
 

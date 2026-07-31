@@ -21,6 +21,14 @@ def _clean_component(value):
     return re.sub(r"\s*,\s*", ", ", text).strip(" ,")
 
 
+def _remove_zero_house_number(value):
+    return re.sub(
+        r"(?i)(?:,\s*0|(?:,\s*|\s+)n(?:[º°]|o|[úu]mero)\.?\s*0)$",
+        "",
+        value,
+    ).rstrip(" ,")
+
+
 def _comparable(value):
     text = unicodedata.normalize("NFKD", str(value or ""))
     text = text.encode("ascii", "ignore").decode("ascii").casefold()
@@ -36,7 +44,7 @@ def _contains_component(address, component):
 
 
 def normalize_agenda_address(agenda):
-    address = _clean_component(getattr(agenda, "address", ""))
+    address = _remove_zero_house_number(_clean_component(getattr(agenda, "address", "")))
     if not address:
         return ""
 
@@ -56,8 +64,22 @@ def normalize_agenda_address(agenda):
     return ", ".join(normalized)
 
 
-def geocode_address(address, *, base_url=None, user_agent=None, timeout=None, opener=urlopen):
+def _emit_diagnostic(diagnostic, message):
+    if diagnostic is not None:
+        diagnostic(f"[geocoding] {message}")
+
+
+def geocode_address(
+    address,
+    *,
+    base_url=None,
+    user_agent=None,
+    timeout=None,
+    opener=urlopen,
+    diagnostic=None,
+):
     if not address:
+        _emit_diagnostic(diagnostic, "Não encontrado: endereço normalizado vazio.")
         return None
     service_url = base_url or os.getenv("NOMINATIM_BASE_URL", DEFAULT_NOMINATIM_URL)
     identifying_agent = user_agent or os.getenv("NOMINATIM_USER_AGENT", DEFAULT_USER_AGENT)
@@ -67,18 +89,41 @@ def geocode_address(address, *, base_url=None, user_agent=None, timeout=None, op
         f"{service_url.rstrip('?')}?{query}",
         headers={"Accept": "application/json", "User-Agent": identifying_agent},
     )
+    _emit_diagnostic(diagnostic, f"URL final: {request.full_url}")
     try:
         with opener(request, timeout=request_timeout) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+            status = getattr(response, "status", None)
+            if status is None:
+                getcode = getattr(response, "getcode", None)
+                status = getcode() if callable(getcode) else "indisponível"
+            response_body = response.read().decode("utf-8")
+            body_preview = re.sub(r"\s+", " ", response_body).strip()[:240]
+            _emit_diagnostic(diagnostic, f"Status HTTP: {status}")
+            _emit_diagnostic(diagnostic, f"Corpo da resposta (até 240 caracteres): {body_preview}")
+            payload = json.loads(response_body)
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+        if isinstance(exc, HTTPError):
+            _emit_diagnostic(diagnostic, f"Status HTTP: {exc.code}")
+        _emit_diagnostic(
+            diagnostic,
+            f"Exceção/timeout: {type(exc).__name__}: {str(exc)[:240]}",
+        )
         raise GeocodingError("Falha ao consultar o serviço de geocodificação.") from exc
+    result_count = len(payload) if isinstance(payload, list) else 0
+    _emit_diagnostic(diagnostic, f"Quantidade de resultados: {result_count}")
     if not payload:
+        _emit_diagnostic(diagnostic, "Não encontrado: o serviço retornou zero resultados.")
         return None
     try:
         latitude = Decimal(str(payload[0]["lat"]))
         longitude = Decimal(str(payload[0]["lon"]))
     except (KeyError, TypeError, InvalidOperation) as exc:
+        _emit_diagnostic(
+            diagnostic,
+            f"Exceção: coordenadas inválidas ({type(exc).__name__}: {str(exc)[:240]}).",
+        )
         raise GeocodingError("O serviço de geocodificação retornou coordenadas inválidas.") from exc
     if not (Decimal("-90") <= latitude <= Decimal("90") and Decimal("-180") <= longitude <= Decimal("180")):
+        _emit_diagnostic(diagnostic, "Exceção: coordenadas retornadas estão fora dos limites válidos.")
         raise GeocodingError("O serviço de geocodificação retornou coordenadas fora dos limites válidos.")
     return latitude, longitude
