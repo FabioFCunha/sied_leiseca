@@ -740,17 +740,20 @@ class AgendaViewSet(viewsets.ModelViewSet):
         exact_search_filter = None
 
         if search_term:
-            match = re.search(
-                r'(?i)(?:os|prot(?:ocolo|\.)?|n[ºo°])[\s:#\-]*(?:n[ºo°][\s:#\-]*)?(\d+)',
+            match = re.fullmatch(
+                r"(?i)(protocolo|os)[\s:#\-]*(?:n[\u00bao\u00b0][\s:#\-]*)?(\d+)",
                 search_term,
             )
-            normalized_number = search_term.lstrip("#").strip()
+            number_match = re.fullmatch(r"\d+", search_term)
 
             if match:
-                number = int(match.group(1))
-                exact_search_filter = Q(id=number) | Q(service_order_number=number)
-            elif normalized_number.isdigit():
-                number = int(normalized_number)
+                number = int(match.group(2))
+                if match.group(1).lower() == "protocolo":
+                    exact_search_filter = Q(id=number)
+                else:
+                    exact_search_filter = Q(service_order_number=number)
+            elif number_match:
+                number = int(number_match.group(0))
                 exact_search_filter = Q(id=number) | Q(service_order_number=number)
 
         if params.get("source") == "requests":
@@ -777,7 +780,9 @@ class AgendaViewSet(viewsets.ModelViewSet):
             scoped = scoped.filter(municipality_ref__region_id=params["region"])
         if params.get("action_type"):
             scoped = scoped.filter(action_type_ref_id=params["action_type"])
-        if search_term:
+        if exact_search_filter is not None:
+            scoped = scoped.filter(exact_search_filter)
+        elif search_term:
             search_filter = (
                 Q(source_id__icontains=search_term)
                 | Q(title__icontains=search_term)
@@ -789,8 +794,6 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 | Q(external_responsible__icontains=search_term)
                 | Q(agents__icontains=search_term)
             )
-            if exact_search_filter is not None:
-                search_filter |= exact_search_filter
             scoped = scoped.filter(search_filter)
         if params.get("pending_report") == "true":
             if user.is_admin_role:
