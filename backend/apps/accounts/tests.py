@@ -19,6 +19,7 @@ from apps.schedules.models import (
     Support,
     Sector,
     Team,
+    ShiftSchedule,
 )
 
 
@@ -305,8 +306,10 @@ class LookupSynchronizationTests(APITestCase):
         self.assertEqual(res.source_id, f"user:{user.id}")
         self.assertEqual(res.name, "Ronaldo Lima") # Updated to user's name
 
-    def test_legacy_lookup_with_same_name_unique_no_cpf_reused(self):
+    def test_legacy_lookup_is_not_reused_by_name_only(self):
         from apps.accounts.serializers import upsert_user_lookup
+        from rest_framework.exceptions import ValidationError
+
         legacy = Support.objects.create(
             name="Ronaldo Lima",
             cpf="",
@@ -321,11 +324,12 @@ class LookupSynchronizationTests(APITestCase):
             role=User.Role.SUPPORT,
         )
 
-        res = upsert_user_lookup(Support, user, "APOIO")
-        self.assertIsNotNone(res)
-        self.assertEqual(res.id, legacy.id)
-        self.assertEqual(res.source_id, f"user:{user.id}")
+        with self.assertRaises(ValidationError):
+            upsert_user_lookup(Support, user, "APOIO")
 
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.source_id, "")
+        self.assertFalse(Support.objects.filter(source_id=f"user:{user.id}").exists())
     def test_lookup_bound_to_other_user_not_overwritten_by_name(self):
         from apps.accounts.serializers import upsert_user_lookup
         user_a = User.objects.create_user(
@@ -348,9 +352,10 @@ class LookupSynchronizationTests(APITestCase):
             role=User.Role.SUPPORT,
         )
 
-        res = upsert_user_lookup(Support, user_b, "APOIO")
-        # Deve retornar None indicando conflito de nome, e não alterar lookup_a
-        self.assertIsNone(res)
+        from rest_framework.exceptions import ValidationError
+        with self.assertRaises(ValidationError):
+            upsert_user_lookup(Support, user_b, "APOIO")
+        # O conflito não pode alterar lookup_a
         lookup_a.refresh_from_db()
         self.assertEqual(lookup_a.source_id, f"user:{user_a.id}")
         self.assertEqual(lookup_a.name, "Ronaldo Lima")
@@ -382,9 +387,9 @@ class LookupSynchronizationTests(APITestCase):
             role=User.Role.SUPPORT,
         )
 
-        res = upsert_user_lookup(Support, user_b, "APOIO")
-        # Como o nome é único no banco de dados, deve retornar None
-        self.assertIsNone(res)
+        from rest_framework.exceptions import ValidationError
+        with self.assertRaises(ValidationError):
+            upsert_user_lookup(Support, user_b, "APOIO")
         lookup_a.refresh_from_db()
         self.assertEqual(lookup_a.source_id, f"user:{user_a.id}")
         self.assertEqual(lookup_a.cpf, "11111111111")
@@ -407,9 +412,9 @@ class LookupSynchronizationTests(APITestCase):
             role=User.Role.SUPPORT,
         )
 
-        res = upsert_user_lookup(Support, user_b, "APOIO")
-        # Deve retornar None devido a conflito de CPF vinculado
-        self.assertIsNone(res)
+        from rest_framework.exceptions import ValidationError
+        with self.assertRaises(ValidationError):
+            upsert_user_lookup(Support, user_b, "APOIO")
         lookup_a.refresh_from_db()
         self.assertEqual(lookup_a.source_id, "user:9999")
 
@@ -435,8 +440,9 @@ class LookupSynchronizationTests(APITestCase):
             self.admin.full_name = "Admin Alterado"
             self.admin.save()
 
-            res = safe_save_lookup(support_b, user=self.admin, model_name="Support")
-            self.assertIsNone(res)
+            from rest_framework.exceptions import ValidationError
+            with self.assertRaises(ValidationError):
+                safe_save_lookup(support_b, user=self.admin, model_name="Support")
 
             support_a.name = "Support A Alterado"
             support_a.save()
@@ -567,3 +573,191 @@ class LookupSynchronizationTests(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
+
+class OperationalRoleChangeSynchronizationTests(APITestCase):
+    def setUp(self):
+        self.hotel, _ = Team.objects.get_or_create(name="HOTEL")
+        self.alfa, _ = Team.objects.get_or_create(name="ALFA")
+        self.admin = User.objects.create_user(
+            email="admin-role-sync@example.com",
+            password="password123",
+            full_name="Administrador",
+            role=User.Role.ADMIN,
+        )
+
+    def test_agent_to_support_updates_current_lookup_and_preserves_history(self):
+        from apps.accounts.serializers import sync_user_lookup
+
+        user = User.objects.create_user(
+            email="agent-to-support@example.com",
+            password="pass",
+            full_name="Pessoa Operacional",
+            cpf="123.456.789-01",
+            role=User.Role.USER,
+            vacation_start=date(2026, 8, 1),
+            vacation_end=date(2026, 8, 10),
+        )
+        agent = Agent.objects.create(
+            source_id=f"user:{user.id}",
+            name=user.full_name,
+            cpf="12345678901",
+            team=self.alfa,
+            role="AGENTE",
+            is_active=True,
+        )
+        schedule = ShiftSchedule.objects.create(
+            date=date(2026, 7, 20),
+            team=self.alfa,
+            created_by=self.admin,
+        )
+        schedule.extra_agents.add(agent)
+
+        user.role = User.Role.SUPPORT
+        user.full_name = "Pessoa Operacional Atualizada"
+        user.cpf = "123.456.789-01"
+        user.save()
+        sync_user_lookup(user, team=self.hotel)
+
+        agent.refresh_from_db()
+        support = Support.objects.get(source_id=f"user:{user.id}")
+        self.assertFalse(agent.is_active)
+        self.assertTrue(support.is_active)
+        self.assertEqual(support.name, "Pessoa Operacional Atualizada")
+        self.assertEqual(support.cpf, "12345678901")
+        self.assertEqual(support.team, self.hotel)
+        self.assertEqual(support.vacation_start, date(2026, 8, 1))
+        self.assertEqual(support.vacation_end, date(2026, 8, 10))
+        self.assertTrue(schedule.extra_agents.filter(id=agent.id).exists())
+
+    def test_support_to_agent_inactivates_previous_role(self):
+        from apps.accounts.serializers import sync_user_lookup
+
+        user = User.objects.create_user(
+            email="support-to-agent@example.com",
+            password="pass",
+            full_name="Apoio Convertido",
+            cpf="98765432100",
+            role=User.Role.SUPPORT,
+        )
+        support = Support.objects.create(
+            source_id=f"user:{user.id}",
+            name=user.full_name,
+            cpf=user.cpf,
+            team=self.hotel,
+            role="APOIO",
+            is_active=True,
+        )
+
+        user.role = User.Role.USER
+        user.save(update_fields=["role"])
+        sync_user_lookup(user, team=self.alfa)
+
+        support.refresh_from_db()
+        agent = Agent.objects.get(source_id=f"user:{user.id}")
+        self.assertFalse(support.is_active)
+        self.assertTrue(agent.is_active)
+        self.assertEqual(agent.team, self.alfa)
+
+    def test_repeated_sync_is_idempotent(self):
+        from apps.accounts.serializers import sync_user_lookup
+
+        user = User.objects.create_user(
+            email="idempotent-support@example.com",
+            password="pass",
+            full_name="Apoio Idempotente",
+            cpf="11122233344",
+            role=User.Role.SUPPORT,
+        )
+
+        sync_user_lookup(user, team=self.hotel)
+        first_id = Support.objects.get(source_id=f"user:{user.id}").id
+        sync_user_lookup(user, team=self.hotel)
+        sync_user_lookup(user, team=self.hotel)
+
+        self.assertEqual(Support.objects.filter(source_id=f"user:{user.id}").count(), 1)
+        self.assertEqual(Support.objects.get(source_id=f"user:{user.id}").id, first_id)
+        self.assertFalse(Agent.objects.filter(source_id=f"user:{user.id}", is_active=True).exists())
+
+    def test_bound_record_of_another_user_is_never_reused(self):
+        from apps.accounts.serializers import sync_user_lookup
+        from rest_framework.exceptions import ValidationError
+
+        owner = User.objects.create_user(
+            email="cpf-owner@example.com",
+            password="pass",
+            full_name="Titular do Cadastro",
+            cpf="55566677788",
+            role=User.Role.SUPPORT,
+        )
+        owned_support = Support.objects.create(
+            source_id=f"user:{owner.id}",
+            name=owner.full_name,
+            cpf=owner.cpf,
+            team=self.hotel,
+            role="APOIO",
+            is_active=True,
+        )
+        other = User.objects.create_user(
+            email="cpf-conflict@example.com",
+            password="pass",
+            full_name="Outra Pessoa",
+            cpf="555.666.777-88",
+            role=User.Role.SUPPORT,
+        )
+
+        with self.assertRaises(ValidationError):
+            sync_user_lookup(other, team=self.alfa)
+
+        owned_support.refresh_from_db()
+        self.assertEqual(owned_support.source_id, f"user:{owner.id}")
+        self.assertEqual(owned_support.name, owner.full_name)
+        self.assertFalse(Support.objects.filter(source_id=f"user:{other.id}").exists())
+
+    def test_ronaldo_case_uses_source_id_and_corrects_stale_support(self):
+        from apps.accounts.serializers import sync_user_lookup
+
+        user = User.objects.create_user(
+            id=71,
+            email="ronaldo@example.com",
+            password="pass",
+            full_name="Ronaldo da Conceição Ferreira Lima",
+            cpf="012.298.907-42",
+            role=User.Role.SUPPORT,
+            vacation_start=date(2026, 9, 1),
+            vacation_end=date(2026, 9, 5),
+        )
+        agent = Agent.objects.create(
+            id=37,
+            source_id="user:71",
+            name="Ronaldo da Conceição Ferreira Lima",
+            cpf="01229890742",
+            team=self.hotel,
+            role="AGENTE",
+            is_active=True,
+        )
+        support = Support.objects.create(
+            id=12,
+            source_id="user:71",
+            name="Ronaldo de Almeida Rodrigues",
+            cpf="99988877766",
+            team=self.hotel,
+            role="APOIO",
+            is_active=False,
+        )
+
+        sync_user_lookup(user, team=self.hotel)
+        sync_user_lookup(user, team=self.hotel)
+
+        agent.refresh_from_db()
+        support.refresh_from_db()
+        self.assertEqual(agent.id, 37)
+        self.assertFalse(agent.is_active)
+        self.assertEqual(support.id, 12)
+        self.assertTrue(support.is_active)
+        self.assertEqual(support.name, "Ronaldo da Conceição Ferreira Lima")
+        self.assertEqual(support.cpf, "01229890742")
+        self.assertEqual(support.team, self.hotel)
+        self.assertEqual(support.source_id, "user:71")
+        self.assertEqual(support.vacation_start, date(2026, 9, 1))
+        self.assertEqual(support.vacation_end, date(2026, 9, 5))
+        self.assertEqual(Support.objects.filter(source_id="user:71").count(), 1)
