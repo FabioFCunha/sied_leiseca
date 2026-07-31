@@ -18,6 +18,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import OperationalMap from "../components/OperationalMap.jsx";
 import { api } from "../api/client.js";
 import { formatDateBR } from "../utils/date.js";
 import { statusLabel } from "../utils/status.js";
@@ -666,9 +668,11 @@ function WorkforcePanel({ cards = {} }) {
 
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
   const [filters, setFilters] = useState(emptyFilters);
   const [municipalities, setMunicipalities] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [regions, setRegions] = useState([]);
   const [chartRange, setChartRange] = useState("Mês");
   const [loading, setLoading] = useState(true);
@@ -678,10 +682,12 @@ export default function DashboardPage() {
   useEffect(() => {
     Promise.all([
       api("/municipalities/?page_size=500"),
-      api("/regions/?page_size=200")
-    ]).then(([munData, regData]) => {
+      api("/regions/?page_size=200"),
+      api("/teams/?page_size=200")
+    ]).then(([munData, regData, teamData]) => {
       setMunicipalities(munData.results || munData);
       setRegions(regData.results || regData);
+      setTeams((teamData.results || teamData).filter((item) => item.is_active !== false));
     });
   }, []);
 
@@ -804,7 +810,7 @@ export default function DashboardPage() {
       </div>
 
 
-      <div className="global-filters" style={{ border: "1px solid var(--line)", background: "var(--surface)", borderRadius: "14px", padding: "16px", display: "grid", gridTemplateColumns: "180px minmax(240px, 1fr) 160px 140px", gap: "16px", marginBottom: "24px", alignItems: "end" }}>
+      <div className="global-filters" style={{ border: "1px solid var(--line)", background: "var(--surface)", borderRadius: "14px", padding: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px", marginBottom: "24px", alignItems: "end" }}>
         <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Data</span>
           <input type="date" value={filters.date} onChange={(event) => updateFilter("date", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
@@ -814,6 +820,13 @@ export default function DashboardPage() {
           <input type="text" placeholder={"Nome da institui\u00e7\u00e3o"} value={filters.institution} onChange={(event) => updateFilter("institution", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
         </label>
         <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Município</span>
+          <select value={filters.municipality || ""} onChange={(event) => updateFilter("municipality", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }}><option value="">Todos</option>{municipalities.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        </label>
+        <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>Equipe</span>
+          <select value={filters.team || ""} onChange={(event) => updateFilter("team", event.target.value)} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }}><option value="">Todas</option>{teams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        </label>        <label className="filter-field" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-soft)", textTransform: "uppercase" }}>OS</span>
           <input type="text" placeholder="Ex: 2610" value={filters.service_order} onChange={(event) => updateFilter("service_order", event.target.value.replace(/\D/g, ""))} style={{ borderRadius: "8px", border: "1px solid var(--line)", height: "36px", padding: "0 10px", fontSize: "12.5px", width: "100%" }} />
         </label>
@@ -836,6 +849,7 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: "grid", gap: "24px" }}>
+            <OperationalMap operations={dashboard?.operations?.field_operations || []} onOpenAgenda={(agendaId) => navigate(`/agendas?open=${agendaId}`)} />
             <OperationDayPanel operations={dashboard?.operations?.field_operations || []} />
             <div style={{ marginTop: "24px" }}>
               <MiniCalendar days={dashboard?.calendar || []} />
