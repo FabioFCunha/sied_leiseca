@@ -279,6 +279,11 @@ class Agenda(models.Model):
         TEAM = "TEAM", "Equipe operacional"
         DESIGNATED = "DESIGNATED", "Participantes selecionados"
 
+    class GeocodingStatus(models.TextChoices):
+        PENDING = "PENDING", "Pendente"
+        FOUND = "FOUND", "Localizado"
+        NOT_FOUND = "NOT_FOUND", "Não localizado"
+
     class Origin(models.TextChoices):
         INTERNAL = "INTERNAL", "Interna"
         PUBLIC_FORM = "PUBLIC_FORM", "Formulario publico"
@@ -351,6 +356,11 @@ class Agenda(models.Model):
     neighborhood_ref = models.ForeignKey(Neighborhood, on_delete=models.SET_NULL, null=True, blank=True)
     city = models.CharField(max_length=120, blank=True)
     state = models.CharField(max_length=40, blank=True)
+    latitude = models.DecimalField(max_digits=12, decimal_places=8, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=12, decimal_places=8, null=True, blank=True)
+    geocoding_address = models.CharField(max_length=500, null=True, blank=True)
+    geocoding_status = models.CharField(max_length=20, choices=GeocodingStatus.choices, default=GeocodingStatus.PENDING, null=True, blank=True)
+    geocoding_attempted_at = models.DateTimeField(null=True, blank=True)
     municipality_ref = models.ForeignKey(Municipality, on_delete=models.SET_NULL, null=True, blank=True)
     external_responsible = models.CharField(max_length=160, blank=True)
     external_responsible_phone = models.CharField(max_length=160, blank=True)
