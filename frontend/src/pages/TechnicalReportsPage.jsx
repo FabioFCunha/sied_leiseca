@@ -360,6 +360,16 @@ function getAgendaActionPlace(agenda) {
 }
 
 function hydrateForm(report, agenda) {
+  console.log("DEBUG LOCAL DA A??O", {
+    reportId: report?.id,
+    reportActions: report?.actions,
+    agendaRecebida: agenda,
+    institution_location: agenda?.institution_location,
+    location: agenda?.location,
+    address: agenda?.address,
+    request_details: report?.request_details,
+  });
+
   const hasAnySourceId = report.actions?.some((a) => a.source_id) ?? false;
   return {
     ...report,
