@@ -1337,7 +1337,10 @@ export default function TechnicalReportsPage() {
                 const safeAgenda = selectedAgenda || {};
                 const cats = extractMaterialCategories(safeAgenda);
                 const baseAction = form.actions[0] || emptyAction;
-                const removedValue = baseAction.distribution_materials_removed || serializeMaterialRows(cats.kits);
+                const isEditableReport = form.status === "DRAFT" || form.status === "RETURNED";
+                const removedValue = isEditableReport
+                  ? serializeMaterialRows(cats.kits)
+                  : (baseAction.distribution_materials_removed || serializeMaterialRows(cats.kits));
                 const distributedValue = baseAction.distribution_materials_distributed || serializeBlankMaterialRows(cats.kits);
 
                 if (!cats.kits.length) return null;
