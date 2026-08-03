@@ -378,7 +378,7 @@ function hydrateForm(report, agenda) {
           place_action: action.place_action || getAgendaActionPlace(agenda),
           __userCreated: hasAnySourceId ? !action.source_id : idx > 0,
         }))
-      : [{ ...emptyAction, agenda: report.agenda, source_id: agenda ? `agenda_action:${agenda.id}` : "", __userCreated: false }],
+      : [{ ...emptyAction, agenda: report.agenda, source_id: agenda ? `agenda_action:${agenda.id}` : "", place_action: getAgendaActionPlace(agenda), __userCreated: false }],
   };
 }
 
@@ -617,7 +617,7 @@ export default function TechnicalReportsPage() {
         ...currentAction,
         agenda: agenda.id,
         source_id: isUserCreated ? "" : (currentAction.source_id || `agenda_action:${agenda.id}`),
-        place_action: currentAction.place_action || (isStreetActionAgenda(agenda) ? "" : getAgendaActionPlace(agenda)),
+        place_action: currentAction.place_action || getAgendaActionPlace(agenda),
         institution_name: currentAction.institution_name || agenda.institution_location || "",
         type_action: currentAction.type_action || agenda.action_type || agenda.action_type_ref_name || "",
         type_audience: currentAction.type_audience || agenda.audience || "",
