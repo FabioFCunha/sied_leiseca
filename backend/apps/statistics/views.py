@@ -203,7 +203,13 @@ class StatisticsDashboardFiltersView(APIView):
         return Response({
             'municipalities': list(reports.exclude(agenda__city='').values_list('agenda__city', flat=True).distinct().order_by('agenda__city')),
             'teams': list(reports.filter(team__in=OFFICIAL_TEAMS).values_list('team', flat=True).distinct().order_by('team')),
-            'entities': list(reports.exclude(agenda__requester_entity_type='').values_list('agenda__requester_entity_type', flat=True).distinct().order_by('agenda__requester_entity_type')),
+            'entities': [
+                'A??o de Rua',
+                'Empresa/?rg?o P?blico',
+                'Institui??o de Ensino P?blico',
+                'Organiza??o de evento Privado',
+                'Organiza??o de evento P?blico',
+            ],
             'institutions': list(reports.exclude(actions__institution_name='').values_list('actions__institution_name', flat=True).distinct().order_by('actions__institution_name')[:500]),
             'action_types': list(reports.exclude(actions__type_action='').values_list('actions__type_action', flat=True).distinct().order_by('actions__type_action')),
         })

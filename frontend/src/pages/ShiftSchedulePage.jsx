@@ -224,8 +224,8 @@ export default function ShiftSchedulePage() {
     [canApprove, schedules],
   );
 
-  const memberChangeTitle = memberChangeForm.action === "REMOVED" ? "Motivo da retirada" : "Motivo da inclusao de extra";
-  const memberChangeSubmitLabel = memberChangeForm.action === "REMOVED" ? "Confirmar retirada" : "Confirmar inclusao";
+  const memberChangeTitle = memberChangeForm.action === "REMOVED" ? "Motivo da retirada" : "Motivo da inclusão de extra";
+  const memberChangeSubmitLabel = memberChangeForm.action === "REMOVED" ? "Confirmar retirada" : "Confirmar inclusão";
   const loadSchedules = async () => {
     setLoading(true);
     try {
@@ -834,19 +834,19 @@ export default function ShiftSchedulePage() {
             </section>
 
             <section className="shift-change-history">
-              <h3>Alteracoes da escala</h3>
+              <h3>Alterações da escala</h3>
               {(detailSchedule.member_changes || []).length > 0 ? (
                 <div className="shift-change-history-list">
                   {(detailSchedule.member_changes || []).map((change) => (
                     <article key={change.id} className="shift-change-card">
-                      <strong>{change.action === "REMOVED" ? "Retirado" : "Extra incluido"}: {change.member_name} - {change.member_type === "CHIEF" ? "Chefe" : change.member_type === "SUPPORT" ? "Apoio" : "Agente"}</strong>
+                      <strong>{change.action === "REMOVED" ? "Retirado" : "Extra incluído"}: {change.member_name} - {change.member_type === "CHIEF" ? "Chefe" : change.member_type === "SUPPORT" ? "Apoio" : "Agente"}</strong>
                       <span>Motivo: {change.reason}</span>
-                      <small>Registrado por: {change.created_by_name || "Usuario nao informado"} - {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(change.created_at))}</small>
+                      <small>Registrado por: {change.created_by_name || "Usuário não informado"} - {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(change.created_at))}</small>
                     </article>
                   ))}
                 </div>
               ) : (
-                <p className="shift-change-empty">Nenhuma alteracao registrada nesta escala.</p>
+                <p className="shift-change-empty">Nenhuma alteração registrada nesta escala.</p>
               )}
             </section>
           </article>
@@ -866,7 +866,7 @@ export default function ShiftSchedulePage() {
 
             <form className="absence-form" onSubmit={(event) => { event.preventDefault(); submitMemberChange(); }}>
               <label>
-                <span>Funcao</span>
+                <span>Função</span>
                 <input type="text" value={memberChangeForm.memberRoleLabel} readOnly />
               </label>
               <label>

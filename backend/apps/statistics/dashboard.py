@@ -72,6 +72,23 @@ CATEGORY_LABELS = {
 }
 
 
+
+ENTITY_EQUIVALENTS = {
+    "A??o de Rua": ["6", "6 P?blico", "A??o de Rua"],
+    "Institui??o de Ensino P?blico": [
+        "Escola",
+        "Institui??o de Ensino P?blico",
+    ],
+    "Empresa/?rg?o P?blico": ["Empresa/?rg?o P?blico"],
+    "Organiza??o de evento Privado": ["Organiza??o de evento Privado"],
+    "Organiza??o de evento P?blico": ["Organiza??o de evento P?blico"],
+}
+
+
+def entity_filter_values(value):
+    return ENTITY_EQUIVALENTS.get(value, [value])
+
+
 def derived_totals(totals):
     values = dict(totals)
     lectures = sum(float(values.get(key, 0) or 0) for key in LECTURE_KEYS)
@@ -124,7 +141,7 @@ def _expected_public_queryset(date_from, date_to, filters):
     if filters.get('institution'):
         qs = qs.filter(institution_location__icontains=filters['institution'])
     if filters.get('entity'):
-        qs = qs.filter(requester_entity_type__iexact=filters['entity'])
+        qs = qs.filter(requester_entity_type__in=entity_filter_values(filters['entity']))
     if filters.get('action_type'):
         qs = qs.filter(action_type__icontains=filters['action_type'])
     return qs
@@ -156,7 +173,7 @@ def _operational_reports(date_from, date_to, filters):
     if filters.get('institution'):
         qs = qs.filter(actions__institution_name__icontains=filters['institution']).distinct()
     if filters.get('entity'):
-        qs = qs.filter(agenda__requester_entity_type__iexact=filters['entity'])
+        qs = qs.filter(agenda__requester_entity_type__in=entity_filter_values(filters['entity']))
     if filters.get('action_type'):
         qs = qs.filter(actions__type_action__icontains=filters['action_type']).distinct()
     return qs

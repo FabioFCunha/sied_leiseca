@@ -221,7 +221,7 @@ class ShiftManualInclusion(models.Model):
 
 class ShiftScheduleChange(models.Model):
     class Action(models.TextChoices):
-        EXTRA = "EXTRA", "Inclusao de extra"
+        EXTRA = "EXTRA", "Inclus?o de extra"
         REMOVED = "REMOVED", "Retirada"
 
     class MemberType(models.TextChoices):

@@ -451,25 +451,25 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         reason = str(request.data.get("reason") or "").strip()
 
         if action_value not in ShiftScheduleChange.Action.values:
-            return response.Response({"detail": "Informe uma acao valida."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Informe uma a??o v?lida."}, status=status.HTTP_400_BAD_REQUEST)
         if member_type not in ShiftScheduleChange.MemberType.values:
-            return response.Response({"detail": "Informe um tipo de integrante valido."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Informe um tipo de integrante v?lido."}, status=status.HTTP_400_BAD_REQUEST)
         if not reason:
-            return response.Response({"detail": "Informe o motivo da alteracao."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Informe o motivo da altera??o."}, status=status.HTTP_400_BAD_REQUEST)
 
         lookup_model = self._member_model(member_type)
         relation = self._member_change_relation(schedule, action_value, member_type)
         if not lookup_model or not relation:
-            return response.Response({"detail": "Nao foi possivel identificar a alteracao solicitada."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "N?o foi poss?vel identificar a altera??o solicitada."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             member_id = int(member_id)
         except (TypeError, ValueError):
-            return response.Response({"detail": "Informe um integrante valido."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Informe um integrante v?lido."}, status=status.HTTP_400_BAD_REQUEST)
 
         member = lookup_model.objects.filter(id=member_id, is_active=True).select_related("team").first()
         if not member:
-            return response.Response({"detail": "Integrante nao encontrado ou inativo."}, status=status.HTTP_404_NOT_FOUND)
+            return response.Response({"detail": "Integrante n?o encontrado ou inativo."}, status=status.HTTP_404_NOT_FOUND)
 
         member_belongs_to_team = self._member_home_team_matches_schedule(member, schedule)
         extra_relation = self._member_change_relation(schedule, ShiftScheduleChange.Action.EXTRA, member_type)
@@ -480,14 +480,14 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         if action_value == ShiftScheduleChange.Action.EXTRA:
             if member_belongs_to_team:
                 if not in_removed:
-                    return response.Response({"detail": "Este integrante titular ja esta ativo na escala."}, status=status.HTTP_400_BAD_REQUEST)
+                    return response.Response({"detail": "Este integrante titular j? est? ativo na escala."}, status=status.HTTP_400_BAD_REQUEST)
             elif in_extra:
-                return response.Response({"detail": "Este integrante extra ja esta na escala."}, status=status.HTTP_400_BAD_REQUEST)
+                return response.Response({"detail": "Este integrante extra j? est? na escala."}, status=status.HTTP_400_BAD_REQUEST)
         elif member_belongs_to_team:
             if in_removed:
-                return response.Response({"detail": "Este integrante ja foi retirado da escala."}, status=status.HTTP_400_BAD_REQUEST)
+                return response.Response({"detail": "Este integrante j? foi retirado da escala."}, status=status.HTTP_400_BAD_REQUEST)
         elif not in_extra:
-            return response.Response({"detail": "Somente integrantes extras ativos podem ser retirados nesta operacao."}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Somente integrantes extras ativos podem ser retirados nesta opera??o."}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             if action_value == ShiftScheduleChange.Action.EXTRA:
@@ -1169,7 +1169,19 @@ class AgendaViewSet(viewsets.ModelViewSet):
             if params.get("vehicle"):
                 scoped = scoped.filter(vehicle_ref_id=params["vehicle"])
             if params.get("team"):
-                scoped = scoped.filter(team_ref_id=params["team"])
+                TeamModel = Agenda._meta.get_field("team_ref").related_model
+                selected_team = TeamModel.objects.filter(
+                    id=params["team"]
+                ).first()
+
+                if selected_team:
+                    selected_name = selected_team.name.strip()
+                    scoped = scoped.filter(
+                        Q(team_ref__name__iexact=selected_name)
+                        | Q(team_name__iexact=selected_name)
+                    )
+                else:
+                    scoped = scoped.none()
             if params.get("municipality"):
                 scoped = scoped.filter(municipality_ref_id=params["municipality"])
             if params.get("action_type"):

@@ -687,7 +687,25 @@ export default function DashboardPage() {
     ]).then(([munData, regData, teamData]) => {
       setMunicipalities(munData.results || munData);
       setRegions(regData.results || regData);
-      setTeams((teamData.results || teamData).filter((item) => item.is_active !== false));
+      const uniqueTeams = Array.from(
+        new Map(
+          (teamData.results || teamData)
+            .filter((item) => item.is_active !== false)
+            .map((item) => {
+              const normalizedName = String(item.name || "").trim().toUpperCase();
+              return [
+                normalizedName,
+                {
+                  ...item,
+                  name: normalizedName,
+                },
+              ];
+            })
+            .filter(([name]) => name)
+        ).values()
+      ).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+      setTeams(uniqueTeams);
     });
   }, []);
 

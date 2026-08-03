@@ -31,6 +31,7 @@ def agent_agenda_filter(user):
     if user.role == User.Role.SUPPORT:
         if cpf:
             cpf_values = [cpf]
+
             if len(cpf) == 11:
                 cpf_values.append(
                     f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
@@ -76,6 +77,7 @@ def supervisor_can_read_agenda(user, agenda):
 def user_can_read_agenda(user, agenda):
     if agenda.created_by_id == user.id or agenda.responsible_id == user.id:
         return True
+
     if agenda.designated_users.filter(id=user.id).exists():
         return True
 
@@ -102,12 +104,14 @@ def user_can_read_agenda(user, agenda):
         if user.full_name:
             if agenda.agents_ref.filter(name__iexact=user.full_name).exists():
                 return True
+
             if user.full_name.casefold() in (agenda.agents or "").casefold():
                 return True
 
     if user.sector_id and user.sector and user.sector.name:
         sector_name = user.sector.name.casefold()
         team_ref_name = agenda.team_ref.name.casefold() if agenda.team_ref else ""
+
         return sector_name in {
             team_ref_name,
             (agenda.team_name or "").casefold(),
