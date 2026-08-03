@@ -170,6 +170,59 @@ def _reports_without_public_total(date_from, date_to, filters):
     ).count()
 
 
+def _administrative_demands_queryset(date_from, date_to, filters):
+    qs = Agenda.objects.filter(
+        date__range=(date_from, date_to),
+        origin=Agenda.Origin.INTERNAL,
+        requester_entity_type="Demanda Administrativa",
+    ).exclude(status__in=[Agenda.Status.CANCELLED, "REJECTED", "REFUSED"])
+    if filters.get('municipality'):
+        qs = qs.filter(city__iexact=filters['municipality'])
+    if filters.get('team'):
+        qs = qs.filter(Q(team_name__iexact=filters['team']) | Q(team_ref__name__iexact=filters['team']))
+    if filters.get('institution'):
+        qs = qs.filter(institution_location__icontains=filters['institution'])
+    if filters.get('entity'):
+        if "Demanda Administrativa" not in entity_filter_values(filters['entity']):
+            return qs.none()
+    if filters.get('action_type'):
+        qs = qs.filter(Q(action_type__icontains=filters['action_type']) | Q(action_type_ref__name__icontains=filters['action_type']))
+    return qs
+
+
+def _administrative_demands_payload(date_from, date_to, filters):
+    labels = {
+        Agenda.AdministrativeDemandType.TRAVEL: "Deslocamento de viagem",
+        Agenda.AdministrativeDemandType.INTERVIEW: "Entrevista",
+        Agenda.AdministrativeDemandType.MEETING: "Reunião",
+    }
+    codes = [
+        Agenda.AdministrativeDemandType.TRAVEL,
+        Agenda.AdministrativeDemandType.INTERVIEW,
+        Agenda.AdministrativeDemandType.MEETING,
+    ]
+    grouped = {
+        row['administrative_demand_type']: int(row['total'] or 0)
+        for row in _administrative_demands_queryset(date_from, date_to, filters)
+        .values('administrative_demand_type')
+        .annotate(total=Count('id'))
+    }
+    total = sum(grouped.get(code, 0) for code in codes)
+    items = []
+    for code in codes:
+        value = grouped.get(code, 0)
+        items.append({
+            'code': code,
+            'label': labels[code],
+            'value': value,
+            'percentage': round((value / total) * 100, 2) if total else 0.0,
+        })
+    return {
+        'total': total,
+        'items': items,
+    }
+
+
 def _operational_reports(date_from, date_to, filters):
     qs = EducationReport.objects.filter(
         status=EducationReport.ReportStatus.APPROVED,
@@ -432,10 +485,12 @@ def dashboard_payload(date_from, date_to, filters):
         for key in (*LECTURE_KEYS, *STREET_KEYS)
     ]
     rankings = _rankings(date_from, date_to, filters, daily)
+    administrative_demands = _administrative_demands_payload(date_from, date_to, filters)
     payload = {
         'period': {'from': date_from, 'to': date_to, 'previous_from': previous_from, 'previous_to': previous_to, 'comparison_type': comparison['type'], 'comparison_label': comparison['label']},
         'summary': current, 'previous': previous, 'comparisons': comparisons,
         'annual': annual, 'monthly': monthly, 'visual_monthly': visual_monthly, 'daily': daily, 'categories': categories,
+        'administrative_demands': administrative_demands,
         **rankings,
         'metadata': {'historical_dimensions': False, 'operational_dimensions_from': '2026-07-09', 'comparison_label': comparison['label'], 'comparison_type': comparison['type']},
     }

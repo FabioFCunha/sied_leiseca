@@ -205,6 +205,7 @@ class StatisticsDashboardFiltersView(APIView):
             'teams': list(reports.filter(team__in=OFFICIAL_TEAMS).values_list('team', flat=True).distinct().order_by('team')),
             'entities': [
                 'A\u00e7\u00e3o de Rua',
+                'Demanda Administrativa',
                 'Empresa/\u00d3rg\u00e3o P\u00fablico',
                 'Institui\u00e7\u00e3o de Ensino P\u00fablico',
                 'Organiza\u00e7\u00e3o de evento Privado',
