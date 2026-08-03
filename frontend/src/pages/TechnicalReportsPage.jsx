@@ -356,20 +356,17 @@ function buildRequestDetails(report, agenda) {
 }
 
 function getAgendaActionPlace(agenda) {
-  return agenda?.institution_location || agenda?.location || agenda?.address || "";
+  const fullAddress = [
+    agenda?.address,
+    agenda?.neighborhood || agenda?.neighborhood_ref_name,
+    agenda?.city || agenda?.municipality_ref_name,
+    agenda?.state,
+  ].filter(Boolean).join(", ");
+
+  return fullAddress || agenda?.location || agenda?.institution_location || "";
 }
 
 function hydrateForm(report, agenda) {
-  console.log("DEBUG LOCAL DA A??O", {
-    reportId: report?.id,
-    reportActions: report?.actions,
-    agendaRecebida: agenda,
-    institution_location: agenda?.institution_location,
-    location: agenda?.location,
-    address: agenda?.address,
-    request_details: report?.request_details,
-  });
-
   const hasAnySourceId = report.actions?.some((a) => a.source_id) ?? false;
   return {
     ...report,
