@@ -977,4 +977,4 @@ class EducationReportSubmitForReviewTests(APITestCase):
         url = reverse("education-reports-submit-for-review", args=[report.pk])
         response = self.client.post(url)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data["detail"], "Não foi possível localizar a escala vinculada a este relatório. Verifique a agenda e tente novamente.")
+        self.assertEqual(response.data["detail"], "N\u00e3o foi poss\u00edvel localizar a escala vinculada a este relat\u00f3rio. Verifique a agenda e tente novamente.")

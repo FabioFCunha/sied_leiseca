@@ -2390,8 +2390,13 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         else:
             if len(schedules_found) != 1:
                 return response.Response(
-                    {"detail": "NÃ£o foi possÃ­vel localizar a escala vinculada a este relatÃ³rio. Verifique a agenda e tente novamente."},
-                    status=status.HTTP_400_BAD_REQUEST
+                    {
+                        "detail": (
+                            "N\u00e3o foi poss\u00edvel localizar a escala vinculada a este "
+                            "relat\u00f3rio. Verifique a agenda e tente novamente."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             schedule = schedules_found[0] if schedules_found else None
