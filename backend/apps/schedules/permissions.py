@@ -118,7 +118,7 @@ class ShiftSchedulePermission(BasePermission):
             else:
                 return False
         if view.__class__.__name__ == "ShiftScheduleViewSet":
-            if view.action in {"create", "update", "destroy", "approve_attendance"}:
+            if view.action in {"create", "update", "destroy", "approve_attendance", "member_change"}:
                 return self._can_manage_shift_schedule(request.user)
             if view.action == "partial_update":
                 if self._can_manage_shift_schedule(request.user):
@@ -141,7 +141,7 @@ class ShiftSchedulePermission(BasePermission):
             else:
                 return False
         if view.__class__.__name__ == "ShiftScheduleViewSet":
-            if view.action in {"update", "destroy", "approve_attendance"}:
+            if view.action in {"update", "destroy", "approve_attendance", "member_change"}:
                 return self._can_manage_shift_schedule(request.user)
             if view.action in {"absence", "partial_update", "report_attendance"}:
                 if self._can_manage_shift_schedule(request.user):

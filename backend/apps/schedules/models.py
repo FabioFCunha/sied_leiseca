@@ -219,6 +219,40 @@ class ShiftManualInclusion(models.Model):
         return f"Incluido: {self.member_name} - {self.schedule}"
 
 
+class ShiftScheduleChange(models.Model):
+    class Action(models.TextChoices):
+        EXTRA = "EXTRA", "Inclusao de extra"
+        REMOVED = "REMOVED", "Retirada"
+
+    class MemberType(models.TextChoices):
+        CHIEF = "CHIEF", "Chefe"
+        AGENT = "AGENT", "Agente"
+        SUPPORT = "SUPPORT", "Apoio"
+
+    schedule = models.ForeignKey(ShiftSchedule, on_delete=models.CASCADE, related_name="member_changes")
+    action = models.CharField(max_length=16, choices=Action.choices)
+    member_type = models.CharField(max_length=16, choices=MemberType.choices)
+    member_id = models.PositiveIntegerField()
+    member_name = models.CharField(max_length=180)
+    reason = models.TextField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_shift_schedule_changes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["schedule", "created_at"], name="shift_ch_sched_created_idx"),
+            models.Index(fields=["schedule", "action", "member_type"], name="shift_ch_sched_action_type_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.action} {self.member_name} - {self.schedule}"
+
+
 class ShiftSwapRequest(models.Model):
     class MemberType(models.TextChoices):
         CHIEF = "CHIEF", "Chefe"

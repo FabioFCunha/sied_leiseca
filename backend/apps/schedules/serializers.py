@@ -28,6 +28,7 @@ from .models import (
     SatisfactionSurveyModerationHistory,
     ShiftAbsence,
     ShiftSchedule,
+    ShiftScheduleChange,
     ShiftSwapRequest,
     Support,
     Team,
@@ -332,11 +333,31 @@ def build_schedule_members(obj):
     return get_effective_members(obj)
 
 
+class ShiftScheduleChangeSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
+
+    class Meta:
+        model = ShiftScheduleChange
+        fields = [
+            "id",
+            "action",
+            "member_type",
+            "member_id",
+            "member_name",
+            "reason",
+            "created_by",
+            "created_by_name",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
 class ShiftScheduleSerializer(serializers.ModelSerializer):
     team_name = serializers.CharField(source="team.name", read_only=True)
     created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
     members = serializers.SerializerMethodField()
     swap_requests = serializers.SerializerMethodField()
+    member_changes = ShiftScheduleChangeSerializer(many=True, read_only=True)
 
     class Meta:
         model = ShiftSchedule
@@ -348,6 +369,7 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
             "notes",
             "members",
             "swap_requests",
+            "member_changes",
             "extra_chiefs",
             "extra_agents",
             "extra_supports",

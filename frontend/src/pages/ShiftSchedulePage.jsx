@@ -51,6 +51,17 @@ function emptyAbsenceForm() {
   };
 }
 
+function emptyMemberChangeForm() {
+  return {
+    action: "EXTRA",
+    memberType: "AGENT",
+    memberId: "",
+    memberName: "",
+    memberRoleLabel: "Agente",
+    reason: "",
+  };
+}
+
 const teamColorMap = {
   ALFA: { bg: "#e7f8ee", border: "#39a66a", text: "#145232" },
   BRAVO: { bg: "#eaf2ff", border: "#3b82f6", text: "#173f83" },
@@ -103,6 +114,8 @@ export default function ShiftSchedulePage() {
   const [swapForm, setSwapForm] = useState(emptySwapForm());
   const [attendanceTarget, setAttendanceTarget] = useState(null);
   const [attendanceForm, setAttendanceForm] = useState({});
+  const [memberChangeForm, setMemberChangeForm] = useState(emptyMemberChangeForm());
+  const [isMemberChangeOpen, setIsMemberChangeOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [pendingValidationCount, setPendingValidationCount] = useState(0);
@@ -210,6 +223,9 @@ export default function ShiftSchedulePage() {
     () => (canApprove ? schedules.filter((schedule) => schedule.attendance_reported && !schedule.attendance_approved) : []),
     [canApprove, schedules],
   );
+
+  const memberChangeTitle = memberChangeForm.action === "REMOVED" ? "Motivo da retirada" : "Motivo da inclusao de extra";
+  const memberChangeSubmitLabel = memberChangeForm.action === "REMOVED" ? "Confirmar retirada" : "Confirmar inclusao";
   const loadSchedules = async () => {
     setLoading(true);
     try {
@@ -431,98 +447,55 @@ export default function ShiftSchedulePage() {
     }
   };
 
+  const openMemberChangeModal = ({ action, group, member }) => {
+    const memberType = group === "chiefs" ? "CHIEF" : group === "supports" ? "SUPPORT" : "AGENT";
+    const memberRoleLabel = group === "chiefs" ? "Chefe" : group === "supports" ? "Apoio" : "Agente";
+    setMemberChangeForm({
+      action,
+      memberType,
+      memberId: String(member.id),
+      memberName: member.name,
+      memberRoleLabel,
+      reason: "",
+    });
+    setIsMemberChangeOpen(true);
+  };
+
   const handleAddMember = async (group, memberId) => {
     if (!canApprove || !detailSchedule) return;
-    setLoading(true);
-    setMessage("");
-    try {
-      const idNum = Number(memberId);
-      const isChief = group === "chiefs";
-      const isSupport = group === "supports";
-      const isAgent = group === "agents";
-
-      let memberObj = null;
-      if (isChief) memberObj = chiefs.find((c) => c.id === idNum);
-      if (isAgent) memberObj = agents.find((a) => a.id === idNum);
-      if (isSupport) memberObj = supports.find((s) => s.id === idNum);
-
-      if (!memberObj) return;
-
-      const isDefaultTeamMember = String(memberObj.team_name || "").trim().toUpperCase() === String(detailSchedule.team_name || "").trim().toUpperCase();
-
-      let payload = {};
-      if (isChief) {
-        if (isDefaultTeamMember) {
-          payload.removed_chiefs = (detailSchedule.removed_chiefs || []).filter((id) => id !== idNum);
-        } else {
-          payload.extra_chiefs = [...(detailSchedule.extra_chiefs || []), idNum];
-        }
-      } else if (isSupport) {
-        if (isDefaultTeamMember) {
-          payload.removed_supports = (detailSchedule.removed_supports || []).filter((id) => id !== idNum);
-        } else {
-          payload.extra_supports = [...(detailSchedule.extra_supports || []), idNum];
-        }
-      } else if (isAgent) {
-        if (isDefaultTeamMember) {
-          payload.removed_agents = (detailSchedule.removed_agents || []).filter((id) => id !== idNum);
-        } else {
-          payload.extra_agents = [...(detailSchedule.extra_agents || []), idNum];
-        }
-      }
-
-      const updated = await api(`/shift-schedules/${detailSchedule.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-
-      setSchedules((current) =>
-        current.map((s) => (String(s.id) === String(detailSchedule.id) ? updated : s))
-      );
-    } catch (err) {
-      setMessage(err.message);
-    } finally {
-      setLoading(false);
-    }
+    const idNum = Number(memberId);
+    let memberObj = null;
+    if (group === "chiefs") memberObj = chiefs.find((c) => c.id === idNum);
+    if (group === "agents") memberObj = agents.find((a) => a.id === idNum);
+    if (group === "supports") memberObj = supports.find((s) => s.id === idNum);
+    if (!memberObj) return;
+    openMemberChangeModal({ action: "EXTRA", group, member: memberObj });
   };
 
   const handleRemoveMember = async (group, member) => {
     if (!canApprove || !detailSchedule) return;
+    openMemberChangeModal({ action: "REMOVED", group, member });
+  };
+
+  const submitMemberChange = async () => {
+    if (!canApprove || !detailSchedule) return;
     setLoading(true);
     setMessage("");
     try {
-      const idNum = Number(member.id);
-      const isChief = group === "chiefs";
-      const isSupport = group === "supports";
-      const isAgent = group === "agents";
-
-      let payload = {};
-      if (member.is_extra) {
-        if (isChief) {
-          payload.extra_chiefs = (detailSchedule.extra_chiefs || []).filter((id) => id !== idNum);
-        } else if (isSupport) {
-          payload.extra_supports = (detailSchedule.extra_supports || []).filter((id) => id !== idNum);
-        } else if (isAgent) {
-          payload.extra_agents = (detailSchedule.extra_agents || []).filter((id) => id !== idNum);
-        }
-      } else {
-        if (isChief) {
-          payload.removed_chiefs = [...(detailSchedule.removed_chiefs || []), idNum];
-        } else if (isSupport) {
-          payload.removed_supports = [...(detailSchedule.removed_supports || []), idNum];
-        } else if (isAgent) {
-          payload.removed_agents = [...(detailSchedule.removed_agents || []), idNum];
-        }
-      }
-
-      const updated = await api(`/shift-schedules/${detailSchedule.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
+      const updated = await api(`/shift-schedules/${detailSchedule.id}/member-change/`, {
+        method: "POST",
+        body: JSON.stringify({
+          action: memberChangeForm.action,
+          member_type: memberChangeForm.memberType,
+          member_id: Number(memberChangeForm.memberId),
+          reason: memberChangeForm.reason,
+        }),
       });
-
       setSchedules((current) =>
         current.map((s) => (String(s.id) === String(detailSchedule.id) ? updated : s))
       );
+      setIsMemberChangeOpen(false);
+      setMemberChangeForm(emptyMemberChangeForm());
     } catch (err) {
       setMessage(err.message);
     } finally {
@@ -586,6 +559,11 @@ export default function ShiftSchedulePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const closeMemberChangeModal = () => {
+    setIsMemberChangeOpen(false);
+    setMemberChangeForm(emptyMemberChangeForm());
   };
 
   const deleteSchedule = async () => {
@@ -854,6 +832,58 @@ export default function ShiftSchedulePage() {
                 </div>
               )}
             </section>
+
+            <section className="shift-change-history">
+              <h3>Alteracoes da escala</h3>
+              {(detailSchedule.member_changes || []).length > 0 ? (
+                <div className="shift-change-history-list">
+                  {(detailSchedule.member_changes || []).map((change) => (
+                    <article key={change.id} className="shift-change-card">
+                      <strong>{change.action === "REMOVED" ? "Retirado" : "Extra incluido"}: {change.member_name} - {change.member_type === "CHIEF" ? "Chefe" : change.member_type === "SUPPORT" ? "Apoio" : "Agente"}</strong>
+                      <span>Motivo: {change.reason}</span>
+                      <small>Registrado por: {change.created_by_name || "Usuario nao informado"} - {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(change.created_at))}</small>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="shift-change-empty">Nenhuma alteracao registrada nesta escala.</p>
+              )}
+            </section>
+          </article>
+        </div>
+      )}
+
+      {isMemberChangeOpen && (
+        <div className="modal-backdrop" onClick={closeMemberChangeModal}>
+          <article className="modal shift-modal absence-modal" onClick={(event) => event.stopPropagation()}>
+            <header className="modal-header">
+              <div>
+                <h2>{memberChangeTitle}</h2>
+                <p>{memberChangeForm.memberName}</p>
+              </div>
+              <button className="icon-button" type="button" onClick={closeMemberChangeModal} aria-label="Fechar"><X size={18} /></button>
+            </header>
+
+            <form className="absence-form" onSubmit={(event) => { event.preventDefault(); submitMemberChange(); }}>
+              <label>
+                <span>Funcao</span>
+                <input type="text" value={memberChangeForm.memberRoleLabel} readOnly />
+              </label>
+              <label>
+                <span>Motivo</span>
+                <textarea
+                  value={memberChangeForm.reason}
+                  onChange={(event) => setMemberChangeForm((current) => ({ ...current, reason: event.target.value }))}
+                  placeholder="Informe o motivo"
+                  rows={4}
+                  required
+                />
+              </label>
+              <div className="modal-actions">
+                <button className="secondary" type="button" onClick={closeMemberChangeModal}>Cancelar</button>
+                <button type="submit" disabled={loading || !String(memberChangeForm.reason || "").trim()}>{memberChangeSubmitLabel}</button>
+              </div>
+            </form>
           </article>
         </div>
       )}

@@ -5221,3 +5221,45 @@ button.stat-card.active {
     grid-template-columns: 1fr !important;
   }
 }
+
+
+.shift-change-history {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 18px;
+}
+
+.shift-change-history h3 {
+  margin: 0;
+}
+
+.shift-change-history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.shift-change-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+.shift-change-card strong {
+  color: var(--text);
+}
+
+.shift-change-card span,
+.shift-change-card small,
+.shift-change-empty {
+  color: var(--text-soft);
+}
+
+.app-shell.dark-mode .shift-change-card {
+  background: #1b2a36;
+  border-color: #365164;
+}

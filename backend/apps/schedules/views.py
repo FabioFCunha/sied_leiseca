@@ -65,6 +65,7 @@ from .models import (
     ShiftAbsence,
     ReportStatusHistory,
     ShiftSchedule,
+    ShiftScheduleChange,
     ShiftSwapRequest,
     Support,
     Team,
@@ -296,6 +297,8 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             "absent_agents",
             "absent_supports",
             "absence_records",
+            "member_changes",
+            "member_changes__created_by",
         )
         params = self.request.query_params
         if params.get("date"):
@@ -420,6 +423,99 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             ShiftAbsence.MemberType.AGENT: schedule.absent_agents,
             ShiftAbsence.MemberType.SUPPORT: schedule.absent_supports,
         }.get(member_type)
+
+    def _member_change_relation(self, schedule, action_value, member_type):
+        action_map = {
+            ShiftScheduleChange.Action.EXTRA: {
+                ShiftScheduleChange.MemberType.CHIEF: schedule.extra_chiefs,
+                ShiftScheduleChange.MemberType.AGENT: schedule.extra_agents,
+                ShiftScheduleChange.MemberType.SUPPORT: schedule.extra_supports,
+            },
+            ShiftScheduleChange.Action.REMOVED: {
+                ShiftScheduleChange.MemberType.CHIEF: schedule.removed_chiefs,
+                ShiftScheduleChange.MemberType.AGENT: schedule.removed_agents,
+                ShiftScheduleChange.MemberType.SUPPORT: schedule.removed_supports,
+            },
+        }
+        return action_map.get(action_value, {}).get(member_type)
+
+    def _member_home_team_matches_schedule(self, member, schedule):
+        return bool(member.team_id and schedule.team_id and member.team_id == schedule.team_id)
+
+    @decorators.action(detail=True, methods=["post"], url_path="member-change")
+    def member_change(self, request, pk=None):
+        schedule = self.get_object()
+        action_value = request.data.get("action")
+        member_type = request.data.get("member_type")
+        member_id = request.data.get("member_id")
+        reason = str(request.data.get("reason") or "").strip()
+
+        if action_value not in ShiftScheduleChange.Action.values:
+            return response.Response({"detail": "Informe uma acao valida."}, status=status.HTTP_400_BAD_REQUEST)
+        if member_type not in ShiftScheduleChange.MemberType.values:
+            return response.Response({"detail": "Informe um tipo de integrante valido."}, status=status.HTTP_400_BAD_REQUEST)
+        if not reason:
+            return response.Response({"detail": "Informe o motivo da alteracao."}, status=status.HTTP_400_BAD_REQUEST)
+
+        lookup_model = self._member_model(member_type)
+        relation = self._member_change_relation(schedule, action_value, member_type)
+        if not lookup_model or not relation:
+            return response.Response({"detail": "Nao foi possivel identificar a alteracao solicitada."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            member_id = int(member_id)
+        except (TypeError, ValueError):
+            return response.Response({"detail": "Informe um integrante valido."}, status=status.HTTP_400_BAD_REQUEST)
+
+        member = lookup_model.objects.filter(id=member_id, is_active=True).select_related("team").first()
+        if not member:
+            return response.Response({"detail": "Integrante nao encontrado ou inativo."}, status=status.HTTP_404_NOT_FOUND)
+
+        member_belongs_to_team = self._member_home_team_matches_schedule(member, schedule)
+        extra_relation = self._member_change_relation(schedule, ShiftScheduleChange.Action.EXTRA, member_type)
+        removed_relation = self._member_change_relation(schedule, ShiftScheduleChange.Action.REMOVED, member_type)
+        in_extra = extra_relation.filter(id=member.id).exists()
+        in_removed = removed_relation.filter(id=member.id).exists()
+
+        if action_value == ShiftScheduleChange.Action.EXTRA:
+            if member_belongs_to_team:
+                if not in_removed:
+                    return response.Response({"detail": "Este integrante titular ja esta ativo na escala."}, status=status.HTTP_400_BAD_REQUEST)
+            elif in_extra:
+                return response.Response({"detail": "Este integrante extra ja esta na escala."}, status=status.HTTP_400_BAD_REQUEST)
+        elif member_belongs_to_team:
+            if in_removed:
+                return response.Response({"detail": "Este integrante ja foi retirado da escala."}, status=status.HTTP_400_BAD_REQUEST)
+        elif not in_extra:
+            return response.Response({"detail": "Somente integrantes extras ativos podem ser retirados nesta operacao."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            if action_value == ShiftScheduleChange.Action.EXTRA:
+                if member_belongs_to_team:
+                    removed_relation.remove(member)
+                else:
+                    extra_relation.add(member)
+                    removed_relation.remove(member)
+            else:
+                if member_belongs_to_team:
+                    removed_relation.add(member)
+                else:
+                    extra_relation.remove(member)
+
+            ShiftScheduleChange.objects.create(
+                schedule=schedule,
+                action=action_value,
+                member_type=member_type,
+                member_id=member.id,
+                member_name=member.name,
+                reason=reason,
+                created_by=request.user,
+            )
+            schedule.updated_by = request.user
+            schedule.save(update_fields=["updated_by", "updated_at"])
+
+        serializer = self.get_serializer(self.get_queryset().get(pk=schedule.pk))
+        return response.Response(serializer.data)
 
     @decorators.action(detail=True, methods=["post", "delete"], url_path="absence")
     def absence(self, request, pk=None):
