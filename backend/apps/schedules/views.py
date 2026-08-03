@@ -4102,14 +4102,15 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             qs = qs.filter(team__iexact=team)
 
         CRITERIA_FIELDS = [
-            ("audiovisual_resources", "Recursos Ã¡udio-visuais"),
+            ("audiovisual_resources", "Recursos \u00e1udio-visuais"),
             ("speaker_knowledge", "Palestrante"),
             ("wheelchair_testimony", "Depoimento dos cadeirantes"),
-            ("workshops", "DinÃ¢micas"),
+            ("workshops", "Din\u00e2micas"),
             ("support_material", "Material de apoio"),
             ("punctuality", "Pontualidade"),
-            ("team_enthusiasm", "Entusiasmo"),
+            ("enthusiasm", "Entusiasmo"),
         ]
+
         ALL_CRITERIA = CRITERIA_FIELDS + [("overall_rating", "Nota geral")]
 
         states = [
@@ -4431,11 +4432,11 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
         best1 = sorted_criteria[0][0] if len(sorted_criteria) > 0 else ""
         best2 = sorted_criteria[1][0] if len(sorted_criteria) > 1 else ""
         executive_summary = (
-            f"Foram recebidas {total_surveys} avaliaÃ§Ãµes no perÃ­odo selecionado. "
-            f"A nota mÃ©dia geral foi {overall_avg:.2f}. "
-            f"O Ã­ndice de excelÃªncia atingiu {satisfaction_index:.1f}%. "
-            f"Os critÃ©rios mais bem avaliados foram {best1} e {best2}. "
-            f"O critÃ©rio com menor mÃ©dia foi {worst_criteria}, indicando oportunidade de melhoria."
+            f"Foram recebidas {total_surveys} avalia\u00e7\u00f5es no per\u00edodo selecionado. "
+            f"A nota m\u00e9dia geral foi {overall_avg:.2f}. "
+            f"O \u00edndice de excel\u00eancia atingiu {satisfaction_index:.1f}%. "
+            f"Os crit\u00e9rios mais bem avaliados foram {best1} e {best2}. "
+            f"O crit\u00e9rio com menor m\u00e9dia foi {worst_criteria}, indicando oportunidade de melhoria."
         )
 
         return response.Response({
