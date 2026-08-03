@@ -4108,7 +4108,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             ("workshops", "Din\u00e2micas"),
             ("support_material", "Material de apoio"),
             ("punctuality", "Pontualidade"),
-            ("enthusiasm", "Entusiasmo"),
+            ("team_enthusiasm", "Entusiasmo"),
         ]
 
         ALL_CRITERIA = CRITERIA_FIELDS + [("overall_rating", "Nota geral")]
