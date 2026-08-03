@@ -91,10 +91,10 @@ const empty = {
 };
 
 const internalRequesterTypeOptions = [
-  "InstituiÃ§Ã£o de Ensino",
-  "Empresa/ÃrgÃ£o",
-  "OrganizaÃ§Ã£o de Evento",
-  "AÃ§Ã£o de Rua",
+  "Institui\u00e7\u00e3o de Ensino",
+  "Empresa/\u00d3rg\u00e3o",
+  "Organiza\u00e7\u00e3o de Evento",
+  "A\u00e7\u00e3o de Rua",
   "Demanda Administrativa",
 ];
 
