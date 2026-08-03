@@ -421,6 +421,8 @@ export default function AgendaPage() {
   };
 
   const responsibleOptions = useMemo(() => (users.length ? users : [user]).filter(Boolean), [users, user]);
+  const editingAgenda = useMemo(() => agendas.find((agenda) => String(agenda.id) === String(editing)), [agendas, editing]);
+  const internalResponsibleName = editingAgenda?.created_by_name || "";
   const activeUserOptions = useMemo(
     () => buildActiveOperationalUserOptions({
       users: users.length ? users : [user],
@@ -867,6 +869,7 @@ export default function AgendaPage() {
     try {
       if (editing) {
         const original = agendas.find((a) => String(a.id) === String(editing));
+        if (original?.origin === "INTERNAL") payload.responsible = original.responsible || "";
         const diffPayload = getDiffPayload(payload, original);
         await api(`/agendas/${editing}/`, { method: "PATCH", body: JSON.stringify(diffPayload) });
       } else {
@@ -889,7 +892,7 @@ export default function AgendaPage() {
     let newForm = agendaFields.reduce((values, field) => {
       const value = field === "materials" ? normalizeMaterialRows(agenda.materials) : agenda[field] ?? "";
       values[field] = field === "responsible"
-        ? (user?.id || value)
+        ? (value || user?.id || "")
         : field === "service_order_mode" ? (value || "TEAM")
         : field === "designated_users" ? (Array.isArray(value) ? value.map(String) : [])
         : field.endsWith("_time") && value ? value.slice(0, 5) : value;
@@ -1070,6 +1073,7 @@ export default function AgendaPage() {
     try {
       const payload = normalizePayload({ ...nextForm, lookupVehicles: lookups.vehicles });
       const original = agendas.find((a) => String(a.id) === String(editing));
+      if (original?.origin === "INTERNAL") payload.responsible = original.responsible || "";
       const diffPayload = getDiffPayload(payload, original);
       if (nextForm.status) diffPayload.status = nextForm.status; // Ensure status is sent
       if (nextForm.cancel_reason !== undefined) diffPayload.cancel_reason = nextForm.cancel_reason;
@@ -1094,6 +1098,7 @@ export default function AgendaPage() {
     try {
       const payload = normalizePayload({ ...form, lookupVehicles: lookups.vehicles });
       const original = agendas.find((a) => String(a.id) === String(editing));
+      if (original?.origin === "INTERNAL") payload.responsible = original.responsible || "";
       const diffPayload = getDiffPayload(payload, original);
       await api(`/agendas/${editing}/?skip_email=true`, { method: "PATCH", body: JSON.stringify(diffPayload) });
       setForm(emptyForm);
@@ -1514,10 +1519,14 @@ export default function AgendaPage() {
                     </label>
                     <label className="field-label">
                       <span>Responsável interno</span>
-                      <select value={form.responsible || ""} onChange={(e) => update("responsible", e.target.value)} required>
-                        <option value="">Selecione o responsável</option>
-                        {responsibleOptions.map((option) => <option key={option.id} value={option.id}>{option.full_name}</option>)}
-                      </select>
+                      {form.origin === "INTERNAL" ? (
+                        <input value={internalResponsibleName || ""} readOnly />
+                      ) : (
+                        <select value={form.responsible || ""} onChange={(e) => update("responsible", e.target.value)} required>
+                          <option value="">Selecione o respons?vel</option>
+                          {responsibleOptions.map((option) => <option key={option.id} value={option.id}>{option.full_name}</option>)}
+                        </select>
+                      )}
                     </label>
                   </div>
                   <div className="compact-grid">
@@ -1779,12 +1788,17 @@ export default function AgendaPage() {
 
           <div className="form-section">
             <h3>Responsável e público</h3>
-            {!editing && (
+            {!editing ? (
             <select value={form.responsible} onChange={(e) => update("responsible", e.target.value)} required>
-              <option value="">Responsável interno</option>
+              <option value="">Respons?vel interno</option>
               {responsibleOptions.map((option) => <option key={option.id} value={option.id}>{option.full_name}</option>)}
             </select>
-            )}
+            ) : form.origin === "INTERNAL" ? (
+            <label className="field-label">
+              <span>Respons?vel interno</span>
+              <input value={internalResponsibleName || ""} readOnly />
+            </label>
+            ) : null}
             <div className="compact-grid">
               <input placeholder="Telefone do respons?vel" value={form.external_responsible_phone} onChange={(e) => update("external_responsible_phone", e.target.value)} />
               <input type="email" placeholder="E-mail" value={form.external_email} onChange={(e) => update("external_email", e.target.value)} />

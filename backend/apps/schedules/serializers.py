@@ -742,6 +742,8 @@ class AgendaSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         materials_data = validated_data.pop("materials", None)
         designated_users = validated_data.pop("designated_users", None)
+        if instance.origin == Agenda.Origin.INTERNAL:
+            validated_data.pop("responsible", None)
         agenda = super().update(instance, validated_data)
         if designated_users is not None:
             agenda.designated_users.set(designated_users)
