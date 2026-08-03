@@ -27,13 +27,31 @@ def supervisor_agenda_filter(user, prefix=""):
 def agent_agenda_filter(user):
     query = Q(created_by=user) | Q(responsible=user) | Q(designated_users=user)
     cpf = "".join(char for char in str(user.cpf or "") if char.isdigit())
-    if cpf:
-        query |= Q(agents_ref__cpf=cpf)
-    if user.full_name:
-        query |= Q(agents_ref__name__iexact=user.full_name) | Q(agents__icontains=user.full_name)
+
+    if user.role == User.Role.SUPPORT:
+        if cpf:
+            cpf_values = [cpf]
+            if len(cpf) == 11:
+                cpf_values.append(
+                    f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+                )
+
+            query |= (
+                Q(support_1_ref__cpf__in=cpf_values)
+                | Q(support_2_ref__cpf__in=cpf_values)
+            )
+    else:
+        if cpf:
+            query |= Q(agents_ref__cpf=cpf)
+
+        if user.full_name:
+            query |= (
+                Q(agents_ref__name__iexact=user.full_name)
+                | Q(agents__icontains=user.full_name)
+            )
+
     query |= team_agenda_filter(user)
     return query
-
 
 def supervisor_can_read_agenda(user, agenda):
     if agenda.created_by_id == user.id or agenda.responsible_id == user.id:
@@ -60,20 +78,42 @@ def user_can_read_agenda(user, agenda):
         return True
     if agenda.designated_users.filter(id=user.id).exists():
         return True
+
     cpf = "".join(char for char in str(user.cpf or "") if char.isdigit())
-    if cpf and agenda.agents_ref.filter(cpf=cpf).exists():
-        return True
-    if user.full_name:
-        if agenda.agents_ref.filter(name__iexact=user.full_name).exists():
+
+    if user.role == User.Role.SUPPORT:
+        support_1_cpf = "".join(
+            char
+            for char in str(getattr(agenda.support_1_ref, "cpf", "") or "")
+            if char.isdigit()
+        )
+        support_2_cpf = "".join(
+            char
+            for char in str(getattr(agenda.support_2_ref, "cpf", "") or "")
+            if char.isdigit()
+        )
+
+        if cpf and cpf in {support_1_cpf, support_2_cpf}:
             return True
-        if user.full_name.casefold() in (agenda.agents or "").casefold():
+    else:
+        if cpf and agenda.agents_ref.filter(cpf=cpf).exists():
             return True
+
+        if user.full_name:
+            if agenda.agents_ref.filter(name__iexact=user.full_name).exists():
+                return True
+            if user.full_name.casefold() in (agenda.agents or "").casefold():
+                return True
+
     if user.sector_id and user.sector and user.sector.name:
         sector_name = user.sector.name.casefold()
         team_ref_name = agenda.team_ref.name.casefold() if agenda.team_ref else ""
-        return sector_name in {team_ref_name, (agenda.team_name or "").casefold()}
-    return False
+        return sector_name in {
+            team_ref_name,
+            (agenda.team_name or "").casefold(),
+        }
 
+    return False
 
 class AgendaPermission(BasePermission):
     def has_permission(self, request, view):

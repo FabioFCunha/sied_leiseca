@@ -98,7 +98,27 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (!isVisitor) {
-      api("/sectors/").then((data) => setSectors(data.results || data));
+      api("/teams/?page_size=200").then((data) => {
+        const uniqueTeams = Array.from(
+          new Map(
+            (data.results || data)
+              .filter((item) => item.is_active !== false)
+              .map((item) => {
+                const normalizedName = String(item.name || "").trim().toUpperCase();
+                return [
+                  normalizedName,
+                  {
+                    ...item,
+                    name: normalizedName,
+                  },
+                ];
+              })
+              .filter(([name]) => name)
+          ).values()
+        ).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+        setSectors(uniqueTeams);
+      });
       Promise.all([
         api("/municipalities/?page_size=500"),
         api("/regions/?page_size=200")
@@ -114,6 +134,12 @@ export default function CalendarPage() {
       Object.entries(filters).filter(([, value]) => value !== undefined && value !== "")
     );
     delete scopedFilters.date;
+
+    if (scopedFilters.sector) {
+      scopedFilters.team = scopedFilters.sector;
+      delete scopedFilters.sector;
+    }
+
     const params = new URLSearchParams({
       ...scopedFilters,
       date_from: formatLocalISODate(days[0]),

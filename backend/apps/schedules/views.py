@@ -869,7 +869,19 @@ class AgendaViewSet(viewsets.ModelViewSet):
         if params.get("vehicle"):
             scoped = scoped.filter(vehicle_ref_id=params["vehicle"])
         if params.get("team"):
-            scoped = scoped.filter(team_ref_id=params["team"])
+            TeamModel = Agenda._meta.get_field("team_ref").related_model
+            selected_team = TeamModel.objects.filter(
+                id=params["team"]
+            ).first()
+
+            if selected_team:
+                selected_name = selected_team.name.strip()
+                scoped = scoped.filter(
+                    Q(team_ref__name__iexact=selected_name)
+                    | Q(team_name__iexact=selected_name)
+                )
+            else:
+                scoped = scoped.none()
         if params.get("municipality"):
             scoped = scoped.filter(municipality_ref_id=params["municipality"])
         if params.get("region"):
