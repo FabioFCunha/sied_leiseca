@@ -567,30 +567,33 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               <div className="field-card" style={{ flex: 1 }}>
                 <strong>Tipo de solicitante: <b>*</b></strong>
                 <div className="radio-list" role="radiogroup" aria-label="Tipo de solicitante">
-                  {[
-                    { id: "Instituição de Ensino", label: "Instituição de Ensino" },
-                    { id: "Empresa/Órgão", label: "Empresa/Órgão" },
-                    { id: "Organização de evento", label: "Organização de evento" },
-                    { id: STREET_ACTION_ID, label: "Ação de Rua" }
-                  ].map((option) => (
+                  {(internalRequest ? internalRequesterTypeOptions.map((label) => ({ id: label, label })) : [
+                    { id: "Institui??o de Ensino", label: "Institui??o de Ensino" },
+                    { id: "Empresa/?rg?o", label: "Empresa/?rg?o" },
+                    { id: "Organiza??o de evento", label: "Organiza??o de evento" },
+                    { id: STREET_ACTION_ID, label: "A??o de Rua" },
+                  ]).map((option) => (
                     <label className="radio-option compact-radio option-tile" key={option.id}>
                       <input
                         type="radio"
                         name="requester_entity_kind"
                         checked={form.requester_entity_kind === option.id}
                         onChange={() => {
-                          const isAcaoRua = option.id === STREET_ACTION_ID;
+                          const isAcaoRua = isStreetRequesterType(option.id);
+                          const isAdministrative = isAdministrativeRequesterType(option.id);
                           setForm((current) => ({
                             ...current,
                             requester_entity_kind: option.id,
+                            requester_entity_nature: internalRequest ? "" : current.requester_entity_nature,
+                            administrative_demand_type: isAdministrative ? current.administrative_demand_type : "",
                             ...(isAcaoRua ? { quantity: "", participant_range: "", action_type: "", end_time: "" } : {}),
                             ...(isAcaoRua && internalRequest && user ? {
                               external_responsible: user.full_name || "",
                               external_email: user.email || "",
                               external_responsible_phone: user.phone ? String(user.phone).replace(/\D/g, "") : "",
-                              institution_location: user.sector_name || user.sector?.name || "Operação Lei Seca RJ",
+                              institution_location: user.sector_name || user.sector?.name || "Opera??o Lei Seca RJ",
                               requester_role: user.role || "Agente",
-                            } : {})
+                            } : {}),
                           }));
                         }}
                         required
@@ -600,11 +603,42 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                   ))}
                 </div>
               </div>
-              {!isStreetRequesterType(form.requester_entity_kind) ? (
+              {internalRequest ? (
                 <div className="field-card" style={{ flex: 1 }}>
-                  <strong>Público ou Privado? <b>*</b></strong>
+                  {isAdministrativeRequesterType(form.requester_entity_kind) ? (
+                    <label className="field-label" style={{ marginBottom: 0 }}>
+                      <strong>Tipo de demanda administrativa <b>*</b></strong>
+                      <select
+                        value={form.administrative_demand_type || ""}
+                        onChange={(e) => update("administrative_demand_type", e.target.value)}
+                        required
+                        style={{ marginTop: "0.5rem" }}
+                      >
+                        <option value="">Selecione</option>
+                        {administrativeDemandTypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : isStreetRequesterType(form.requester_entity_kind) ? (
+                    <label className="field-label" style={{ marginBottom: 0 }}>
+                      <strong>Nome do evento / A??o: <b>*</b></strong>
+                      <input
+                        type="text"
+                        value={form.institution_location || ""}
+                        onChange={(e) => update("institution_location", e.target.value)}
+                        placeholder="Ex: Opera??o na Praia de Copacabana"
+                        required
+                        style={{ marginTop: "0.5rem" }}
+                      />
+                    </label>
+                  ) : null}
+                </div>
+              ) : !isStreetRequesterType(form.requester_entity_kind) ? (
+                <div className="field-card" style={{ flex: 1 }}>
+                  <strong>P?blico ou Privado? <b>*</b></strong>
                   <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
-                    {["Público", "Privado"].map((option) => (
+                    {["P?blico", "Privado"].map((option) => (
                       <label className="radio-option compact-radio option-tile" key={option}>
                         <input
                           type="radio"
@@ -621,12 +655,12 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               ) : (
                 <div className="field-card" style={{ flex: 1 }}>
                   <label className="field-label" style={{ marginBottom: 0 }}>
-                    <strong>Nome do evento / Ação: <b>*</b></strong>
+                    <strong>Nome do evento / A??o: <b>*</b></strong>
                     <input
                       type="text"
                       value={form.institution_location || ""}
                       onChange={(e) => update("institution_location", e.target.value)}
-                      placeholder="Ex: Operação na Praia de Copacabana"
+                      placeholder="Ex: Opera??o na Praia de Copacabana"
                       required
                       style={{ marginTop: "0.5rem" }}
                     />
