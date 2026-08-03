@@ -74,14 +74,24 @@ CATEGORY_LABELS = {
 
 
 ENTITY_EQUIVALENTS = {
-    "A??o de Rua": ["6", "6 P?blico", "A??o de Rua"],
-    "Institui??o de Ensino P?blico": [
-        "Escola",
-        "Institui??o de Ensino P?blico",
+    "A\u00e7\u00e3o de Rua": [
+        "6",
+        "6 P\u00fablico",
+        "A\u00e7\u00e3o de Rua",
     ],
-    "Empresa/?rg?o P?blico": ["Empresa/?rg?o P?blico"],
-    "Organiza??o de evento Privado": ["Organiza??o de evento Privado"],
-    "Organiza??o de evento P?blico": ["Organiza??o de evento P?blico"],
+    "Institui\u00e7\u00e3o de Ensino P\u00fablico": [
+        "Escola",
+        "Institui\u00e7\u00e3o de Ensino P\u00fablico",
+    ],
+    "Empresa/\u00d3rg\u00e3o P\u00fablico": [
+        "Empresa/\u00d3rg\u00e3o P\u00fablico",
+    ],
+    "Organiza\u00e7\u00e3o de evento Privado": [
+        "Organiza\u00e7\u00e3o de evento Privado",
+    ],
+    "Organiza\u00e7\u00e3o de evento P\u00fablico": [
+        "Organiza\u00e7\u00e3o de evento P\u00fablico",
+    ],
 }
 
 
