@@ -32,8 +32,8 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
     <div className="chart-card satisfaction-panel" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px", marginBottom: "24px" }}>
       <div className="section-heading" style={{ marginBottom: "20px" }}>
         <div>
-          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Indicadores de Satisfa&ccedil;&atilde;o</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Avalia&ccedil;&otilde;es baseadas nas pesquisas de satisfa&ccedil;&atilde;o respondidas.</p>
+          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Indicadores de Satisfa??o</h2>
+          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Avalia??es baseadas nas pesquisas de satisfa??o respondidas.</p>
         </div>
       </div>
       <div className="satisfaction-grid" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -519,7 +519,7 @@ export default function EvaluationsPage() {
       await loadData();
     } catch (err) {
       console.error(err);
-      alert(err.message || "Erro ao moderar comentario.");
+      alert(err.message || "Erro ao moderar coment?rio.");
     }
   };
   const handleExport = async (format, e) => {
@@ -547,8 +547,8 @@ export default function EvaluationsPage() {
   const availableTeams = data?.teams || [];
 
   const cardConfig = [
-    { key: "total_surveys", label: "Avaliacoes Recebidas", icon: BarChart3, tone: "blue", format: "int" },
-    { key: "satisfaction_index", label: "Indice de Satisfacao", icon: ThumbsUp, tone: "green", format: "percent" },
+    { key: "total_surveys", label: "Avalia??es Recebidas", icon: BarChart3, tone: "blue", format: "int" },
+    { key: "satisfaction_index", label: "?ndice de Satisfa??o", icon: ThumbsUp, tone: "green", format: "percent" },
     { key: "speaker_avg", label: "Nota Palestrante", icon: Mic, tone: "violet", format: "decimal" },
     { key: "resources_avg", label: "Recursos Audiovisuais", icon: BookOpen, tone: "teal", format: "decimal" },
     { key: "punctuality_avg", label: "Pontualidade", icon: Clock3, tone: "blue", format: "decimal" },
@@ -557,7 +557,7 @@ export default function EvaluationsPage() {
     { key: "support_material_avg", label: "Material de Apoio", icon: HeartHandshake, tone: "green", format: "decimal" },
     { key: "wheelchair_avg", label: "Depoimento Cadeirantes", icon: Accessibility, tone: "violet", format: "decimal" },
     { key: "best_criteria", label: "Melhor Criterio", icon: Award, tone: "green", format: "criteria" },
-    { key: "worst_criteria", label: "Menor Avaliacao", icon: TrendingDown, tone: "red", format: "criteria" },
+    { key: "worst_criteria", label: "Menor Avalia??o", icon: TrendingDown, tone: "red", format: "criteria" },
     { key: "most_improved", label: "Maior Aumento", icon: TrendingUp, tone: "green", format: "criteria" },
   ];
 

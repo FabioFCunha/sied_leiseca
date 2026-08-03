@@ -101,11 +101,14 @@ const internalRequesterTypeOptions = [
 const administrativeDemandTypeOptions = [
   { value: "TRAVEL", label: "Deslocamento de viagem" },
   { value: "INTERVIEW", label: "Entrevista" },
-  { value: "MEETING", label: "ReuniÃ£o" },
+  { value: "MEETING", label: "Reuni\u00e3o" },
 ];
 
 function isStreetRequesterType(value) {
-  return String(value || "") === STREET_ACTION_ID || String(value || "").trim() === "AÃ§Ã£o de Rua";
+  return (
+    String(value || "") === STREET_ACTION_ID
+    || String(value || "").trim() === "A\u00e7\u00e3o de Rua"
+  );
 }
 
 function isAdministrativeRequesterType(value) {
@@ -571,7 +574,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                     { id: "Institui??o de Ensino", label: "Institui??o de Ensino" },
                     { id: "Empresa/?rg?o", label: "Empresa/?rg?o" },
                     { id: "Organiza??o de evento", label: "Organiza??o de evento" },
-                    { id: STREET_ACTION_ID, label: "A??o de Rua" },
+                    { id: STREET_ACTION_ID, label: "A\u00e7\u00e3o de Rua" },
                   ]).map((option) => (
                     <label className="radio-option compact-radio option-tile" key={option.id}>
                       <input
