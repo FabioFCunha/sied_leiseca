@@ -5263,3 +5263,19 @@ button.stat-card.active {
   background: #1b2a36;
   border-color: #365164;
 }
+
+/* Estat?sticas ? largura do filtro Categoria */
+.stats-category-filter {
+  min-width: 320px;
+}
+
+.stats-category-filter select {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .stats-category-filter {
+    min-width: 0;
+  }
+}
+
