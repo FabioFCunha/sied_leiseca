@@ -58,6 +58,7 @@ const emptyForm = {
   requester_cpf: "",
   requester_role: "",
   requester_entity_type: "",
+  administrative_demand_type: "",
   audience: "",
   age_ranges: "",
   accessibility_access: "",
@@ -122,6 +123,28 @@ const streetActionDetailsLabel = (form) => {
 };
 
 const agendaFields = Object.keys(emptyForm);
+
+const administrativeDemandTypeLabels = {
+  TRAVEL: "Deslocamento de viagem",
+  INTERVIEW: "Entrevista",
+  MEETING: "ReuniÃ£o",
+};
+
+const internalRequesterTypeOptions = [
+  "InstituiÃ§Ã£o de Ensino",
+  "Empresa/ÃrgÃ£o",
+  "OrganizaÃ§Ã£o de Evento",
+  "AÃ§Ã£o de Rua",
+  "Demanda Administrativa",
+];
+
+const administrativeDemandTypeOptions = [
+  { value: "TRAVEL", label: "Deslocamento de viagem" },
+  { value: "INTERVIEW", label: "Entrevista" },
+  { value: "MEETING", label: "ReuniÃ£o" },
+];
+
+const isAdministrativeDemandValue = (value) => String(value || "").trim() === "Demanda Administrativa";
 
 const lowerAgeRangeOptions = new Set([
   "04 até 8 anos",
@@ -411,6 +434,12 @@ export default function AgendaPage() {
 
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+
+  const updateRequesterEntityType = (value) => setForm((current) => ({
+    ...current,
+    requester_entity_type: value,
+    administrative_demand_type: isAdministrativeDemandValue(value) ? current.administrative_demand_type : "",
+  }));
 
   const clearOperationalComposition = () => ({
     team_ref: "",
@@ -1325,6 +1354,9 @@ export default function AgendaPage() {
               <span><b>Telefone</b>{form.external_responsible_phone || "-"}</span>
               <span><b>Instituição</b>{form.institution_location || "-"}</span>
               <span><b>Tipo de entidade</b>{String(form.requester_entity_type) === STREET_ACTION_ID ? "Ação de Rua" : (form.requester_entity_type || "-")}</span>
+              {isAdministrativeDemandValue(form.requester_entity_type) ? (
+                <span><b>Tipo da demanda</b>{administrativeDemandTypeLabels[form.administrative_demand_type] || "-"}</span>
+              ) : null}
               <span><b>Modalidade</b>{form.action_type || "-"}</span>
               <span><b>Data e horário</b>{form.date ? formatDateBR(form.date) : "-"} às {form.start_time || "-"}</span>
               <span><b>Ações</b>{
@@ -1753,15 +1785,33 @@ export default function AgendaPage() {
               {responsibleOptions.map((option) => <option key={option.id} value={option.id}>{option.full_name}</option>)}
             </select>
             )}
-            <input placeholder="Responsável no local" value={form.external_responsible} onChange={(e) => update("external_responsible", e.target.value)} />
             <div className="compact-grid">
-              <input placeholder="Telefone do responsável" value={form.external_responsible_phone} onChange={(e) => update("external_responsible_phone", e.target.value)} />
+              <input placeholder="Telefone do respons?vel" value={form.external_responsible_phone} onChange={(e) => update("external_responsible_phone", e.target.value)} />
               <input type="email" placeholder="E-mail" value={form.external_email} onChange={(e) => update("external_email", e.target.value)} />
             </div>
             <div className="compact-grid">
-              <input placeholder="Cargo/função" value={form.requester_role} onChange={(e) => update("requester_role", e.target.value)} />
-              <input placeholder="Tipo de entidade" value={form.requester_entity_type} onChange={(e) => update("requester_entity_type", e.target.value)} />
+              <input placeholder="Cargo/fun??o" value={form.requester_role} onChange={(e) => update("requester_role", e.target.value)} />
+              {editing && form.origin === "INTERNAL" ? (
+                <select value={form.requester_entity_type || ""} onChange={(e) => updateRequesterEntityType(e.target.value)}>
+                  <option value="">Tipo de entidade</option>
+                  {internalRequesterTypeOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              ) : (
+                <input placeholder="Tipo de entidade" value={form.requester_entity_type} onChange={(e) => update("requester_entity_type", e.target.value)} />
+              )}
             </div>
+            {editing && form.origin === "INTERNAL" && isAdministrativeDemandValue(form.requester_entity_type) ? (
+              <div className="compact-grid">
+                <select value={form.administrative_demand_type || ""} onChange={(e) => update("administrative_demand_type", e.target.value)} required>
+                  <option value="">Tipo de demanda administrativa</option>
+                  {administrativeDemandTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <input placeholder="Público" value={form.audience} onChange={(e) => update("audience", e.target.value)} />
             <input placeholder="Faixa etária" value={form.age_ranges} onChange={(e) => update("age_ranges", e.target.value)} />
             {(!form.requester_entity_type || !isStreetActionValue(form.requester_entity_type)) ? (

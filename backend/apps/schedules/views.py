@@ -3392,7 +3392,7 @@ class PublicAgendaRequestView(APIView):
         return response.Response({"available": True})
 
     def post(self, request):
-        serializer = PublicAgendaRequestSerializer(data=request.data)
+        serializer = PublicAgendaRequestSerializer(data=request.data, context={"is_internal_request": False})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         public_sector, _ = Sector.objects.get_or_create(
@@ -3440,6 +3440,7 @@ class PublicAgendaRequestView(APIView):
             requester_cpf=data.get("requester_cpf", ""),
             requester_role=data.get("requester_role", ""),
             requester_entity_type=data["requester_entity_type"],
+            administrative_demand_type=data.get("administrative_demand_type", ""),
             audience=data.get("audience", ""),
             participant_range=data.get("participant_range", ""),
             age_ranges=data.get("age_ranges", ""),
@@ -3588,7 +3589,7 @@ class InternalAgendaRequestView(APIView):
     def post(self, request):
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
             raise PermissionDenied("Apenas Chefes, Gestores e AdministraÃ§Ã£o podem criar solicitaÃ§Ãµes internas.")
-        serializer = PublicAgendaRequestSerializer(data=request.data)
+        serializer = PublicAgendaRequestSerializer(data=request.data, context={"is_internal_request": True})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         internal_sector, _ = Sector.objects.get_or_create(
@@ -3618,6 +3619,7 @@ class InternalAgendaRequestView(APIView):
             requester_cpf=data.get("requester_cpf", ""),
             requester_role=data.get("requester_role", ""),
             requester_entity_type=data["requester_entity_type"],
+            administrative_demand_type=data.get("administrative_demand_type", ""),
             audience=data.get("audience", ""),
             participant_range=data.get("participant_range", ""),
             age_ranges=data.get("age_ranges", ""),

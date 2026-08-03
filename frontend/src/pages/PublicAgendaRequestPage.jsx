@@ -63,6 +63,7 @@ const empty = {
   institution_location: "",
   requester_entity_kind: "",
   requester_entity_nature: "",
+  administrative_demand_type: "",
   cep: "",
   address: "",
   address_number: "",
@@ -88,6 +89,28 @@ const empty = {
   image_authorization_other: "",
   notes: "",
 };
+
+const internalRequesterTypeOptions = [
+  "InstituiÃ§Ã£o de Ensino",
+  "Empresa/ÃrgÃ£o",
+  "OrganizaÃ§Ã£o de Evento",
+  "AÃ§Ã£o de Rua",
+  "Demanda Administrativa",
+];
+
+const administrativeDemandTypeOptions = [
+  { value: "TRAVEL", label: "Deslocamento de viagem" },
+  { value: "INTERVIEW", label: "Entrevista" },
+  { value: "MEETING", label: "ReuniÃ£o" },
+];
+
+function isStreetRequesterType(value) {
+  return String(value || "") === STREET_ACTION_ID || String(value || "").trim() === "AÃ§Ã£o de Rua";
+}
+
+function isAdministrativeRequesterType(value) {
+  return String(value || "").trim() === "Demanda Administrativa";
+}
 
 function optionList(options) {
   return options.map((option) => (
@@ -213,7 +236,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
 
   const submit = async (event) => {
     event.preventDefault();
-    const isAcaoRua = form.requester_entity_kind === STREET_ACTION_ID;
+    const isAcaoRua = isStreetRequesterType(form.requester_entity_kind);
     
     const normalizedStartTime = normalizeTime(form.start_time);
     if (!normalizedStartTime && form.start_time) {
@@ -265,17 +288,17 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
       }
       return;
     }
-    if (!form.age_ranges && form.requester_entity_kind !== STREET_ACTION_ID) {
+    if (!form.age_ranges && !isStreetRequesterType(form.requester_entity_kind)) {
       setMessage("Selecione pelo menos uma faixa etária do público.");
       return;
     }
-    if (form.requester_entity_kind !== STREET_ACTION_ID) {
+    if (!isStreetRequesterType(form.requester_entity_kind)) {
       if (!form.accessibility_access || !form.has_accessible_bathrooms) {
         setMessage("Responda todas as perguntas sobre acessibilidade do local.");
         return;
       }
     }
-    if (form.requester_entity_kind !== STREET_ACTION_ID && !form.image_authorization) {
+    if (!isStreetRequesterType(form.requester_entity_kind) && !form.image_authorization) {
       setMessage("Selecione uma opção de autorização de uso de imagem.");
       return;
     }
@@ -293,7 +316,10 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
         address: fullAddress,
         title,
         description: form.notes || title,
-        requester_entity_type: `${form.requester_entity_kind} ${form.requester_entity_nature}`.trim(),
+        requester_entity_type: internalRequest
+          ? form.requester_entity_kind
+          : `${form.requester_entity_kind} ${form.requester_entity_nature}`.trim(),
+        administrative_demand_type: internalRequest ? (form.administrative_demand_type || "") : "",
         image_authorization:
           form.image_authorization === "Outro"
             ? form.image_authorization_other
@@ -317,6 +343,11 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
       delete payload.cep;
       delete payload.address_number;
       delete payload.address_complement;
+      if (internalRequest && isAdministrativeRequesterType(form.requester_entity_kind) && !form.administrative_demand_type) {
+        setMessage("Selecione o tipo de demanda administrativa.");
+        setLoading(false);
+        return;
+      }
       const response = await api(internalRequest ? "/internal/agenda-request/" : "/public/agenda-request/", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -343,25 +374,118 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
           </div>
           <form className="stack-form" onSubmit={submit}>
             <div className="form-section">
-              <h3>Dados do protocolo</h3>
-              <label className="field-label">
-                <span>Solicitante</span>
-                <input value={form.external_responsible} readOnly />
-              </label>
-              <label className="field-label">
-                <span>E-mail</span>
-                <input value={form.external_email} readOnly />
-              </label>
-              <label className="field-label">
-                <span>Telefone</span>
-                <input value={form.external_responsible_phone} readOnly />
-              </label>
-              <label className="field-label">
-                <span>Instituicao/Organizacao</span>
-                <input value={form.institution_location} readOnly />
-              </label>
+            <div className="split">
+              <div className="field-card" style={{ flex: 1 }}>
+                <strong>Tipo de solicitante: <b>*</b></strong>
+                <div className="radio-list" role="radiogroup" aria-label="Tipo de solicitante">
+                  {(internalRequest ? internalRequesterTypeOptions.map((label) => ({ id: label, label })) : [
+                    { id: "InstituiÃ§Ã£o de Ensino", label: "InstituiÃ§Ã£o de Ensino" },
+                    { id: "Empresa/ÃrgÃ£o", label: "Empresa/ÃrgÃ£o" },
+                    { id: "OrganizaÃ§Ã£o de evento", label: "OrganizaÃ§Ã£o de evento" },
+                    { id: STREET_ACTION_ID, label: "AÃ§Ã£o de Rua" },
+                  ]).map((option) => (
+                    <label className="radio-option compact-radio option-tile" key={option.id}>
+                      <input
+                        type="radio"
+                        name="requester_entity_kind"
+                        checked={form.requester_entity_kind === option.id}
+                        onChange={() => {
+                          const isAcaoRua = isStreetRequesterType(option.id);
+                          const isAdministrative = isAdministrativeRequesterType(option.id);
+                          setForm((current) => ({
+                            ...current,
+                            requester_entity_kind: option.id,
+                            requester_entity_nature: internalRequest ? "" : current.requester_entity_nature,
+                            administrative_demand_type: isAdministrative ? current.administrative_demand_type : "",
+                            ...(isAcaoRua ? { quantity: "", participant_range: "", action_type: "", end_time: "" } : {}),
+                            ...(isAcaoRua && internalRequest && user ? {
+                              external_responsible: user.full_name || "",
+                              external_email: user.email || "",
+                              external_responsible_phone: user.phone ? String(user.phone).replace(/\D/g, "") : "",
+                              institution_location: user.sector_name || user.sector?.name || "OperaÃ§Ã£o Lei Seca RJ",
+                              requester_role: user.role || "Agente",
+                            } : {}),
+                          }));
+                        }}
+                        required
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {internalRequest ? (
+                <div className="field-card" style={{ flex: 1 }}>
+                  {isAdministrativeRequesterType(form.requester_entity_kind) ? (
+                    <label className="field-label" style={{ marginBottom: 0 }}>
+                      <strong>Tipo de demanda administrativa <b>*</b></strong>
+                      <select
+                        value={form.administrative_demand_type || ""}
+                        onChange={(e) => update("administrative_demand_type", e.target.value)}
+                        required
+                        style={{ marginTop: "0.5rem" }}
+                      >
+                        <option value="">Selecione</option>
+                        {administrativeDemandTypeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : isStreetRequesterType(form.requester_entity_kind) ? (
+                    <label className="field-label" style={{ marginBottom: 0 }}>
+                      <strong>Nome do evento / AÃ§Ã£o: <b>*</b></strong>
+                      <input
+                        type="text"
+                        value={form.institution_location || ""}
+                        onChange={(e) => update("institution_location", e.target.value)}
+                        placeholder="Ex: OperaÃ§Ã£o na Praia de Copacabana"
+                        required
+                        style={{ marginTop: "0.5rem" }}
+                      />
+                    </label>
+                  ) : (
+                    <div className="notice-card compact-notice">
+                      <strong>Selecione o tipo de solicitante para continuar.</strong>
+                    </div>
+                  )}
+                </div>
+              ) : !isStreetRequesterType(form.requester_entity_kind) ? (
+                <div className="field-card" style={{ flex: 1 }}>
+                  <strong>P?blico ou Privado? <b>*</b></strong>
+                  <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
+                    {["P?blico", "Privado"].map((option) => (
+                      <label className="radio-option compact-radio option-tile" key={option}>
+                        <input
+                          type="radio"
+                          name="requester_entity_nature"
+                          checked={form.requester_entity_nature === option}
+                          onChange={() => update("requester_entity_nature", option)}
+                          required
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="field-card" style={{ flex: 1 }}>
+                  <label className="field-label" style={{ marginBottom: 0 }}>
+                    <strong>Nome do evento / AÃ§Ã£o: <b>*</b></strong>
+                    <input
+                      type="text"
+                      value={form.institution_location || ""}
+                      onChange={(e) => update("institution_location", e.target.value)}
+                      placeholder="Ex: OperaÃ§Ã£o na Praia de Copacabana"
+                      required
+                      style={{ marginTop: "0.5rem" }}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
-            <div className="form-section">
+          </div>
+
+<div className="form-section">
               <h3>Nova data solicitada</h3>
               <div className="split">
                 <label className="field-label" style={{ flex: 1 }}>
@@ -476,7 +600,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                   ))}
                 </div>
               </div>
-              {form.requester_entity_kind !== STREET_ACTION_ID ? (
+              {!isStreetRequesterType(form.requester_entity_kind) ? (
                 <div className="field-card" style={{ flex: 1 }}>
                   <strong>Público ou Privado? <b>*</b></strong>
                   <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
@@ -514,7 +638,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
 
           <div className="form-section">
             <h3>Dados da ação</h3>
-            {form.requester_entity_kind !== STREET_ACTION_ID ? (
+            {!isStreetRequesterType(form.requester_entity_kind) ? (
               <div className="field-card selection-card">
                 <strong>MODALIDADE PRETENDIDA <b>*</b></strong>
                 <div className="radio-list" role="radiogroup" aria-label="Modalidade pretendida">
@@ -525,7 +649,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                         name="action_type"
                         checked={form.action_type === option}
                         onChange={() => update("action_type", option)}
-                        required={form.requester_entity_kind !== STREET_ACTION_ID}
+                        required={!isStreetRequesterType(form.requester_entity_kind)}
                       />
                       <span>{option}</span>
                     </label>
@@ -562,7 +686,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} max={internalRequest ? undefined : "18:00"} required />
               </label>
             </div>
-            {form.requester_entity_kind === STREET_ACTION_ID && (
+            {isStreetRequesterType(form.requester_entity_kind) && (
               <>
                 <div className="notice-card compact-notice">
                   <strong>Duração de até 4 horas. Informe manualmente o horário final.</strong>
@@ -597,7 +721,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                         name="age_ranges"
                         checked={form.age_ranges === option}
                         onChange={() => update("age_ranges", option)}
-                        required={form.requester_entity_kind !== STREET_ACTION_ID}
+                        required={!isStreetRequesterType(form.requester_entity_kind)}
                       />
                       <span>{option}</span>
                     </label>
@@ -618,7 +742,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                           participant_range: option.label,
                           quantity: String(option.quantity),
                         }))}
-                        required={form.requester_entity_kind !== STREET_ACTION_ID}
+                        required={!isStreetRequesterType(form.requester_entity_kind)}
                       />
                       <span>{option.label}</span>
                     </label>
@@ -727,7 +851,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                             name="accessibility_access"
                             checked={form.accessibility_access === option}
                             onChange={() => update("accessibility_access", option)}
-                            required={form.requester_entity_kind !== STREET_ACTION_ID}
+                            required={!isStreetRequesterType(form.requester_entity_kind)}
                           />
                           <span>{option}</span>
                         </label>
@@ -747,7 +871,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                             name="has_accessible_bathrooms"
                             checked={form.has_accessible_bathrooms === option}
                             onChange={() => update("has_accessible_bathrooms", option)}
-                            required={form.requester_entity_kind !== STREET_ACTION_ID}
+                            required={!isStreetRequesterType(form.requester_entity_kind)}
                           />
                           <span>{option}</span>
                         </label>
@@ -783,7 +907,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                         name="image_authorization"
                         checked={form.image_authorization === option}
                         onChange={() => update("image_authorization", option)}
-                        required={form.requester_entity_kind !== STREET_ACTION_ID}
+                        required={!isStreetRequesterType(form.requester_entity_kind)}
                       />
                       <span>{option === "Outro" ? "Outro:" : option}</span>
                       {option === "Outro" && (

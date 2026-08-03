@@ -526,6 +526,7 @@ class AgendaSerializer(serializers.ModelSerializer):
             "requester_role",
             "audience",
             "requester_entity_type",
+            "administrative_demand_type",
             "age_ranges",
             "accessibility_access",
             "has_ramps",
@@ -581,10 +582,24 @@ class AgendaSerializer(serializers.ModelSerializer):
         if "action_type_ref" in attrs:
             action_type_ref = getattr(attrs["action_type_ref"], "id", None) if attrs["action_type_ref"] else None
         requester_entity_type = str(attrs.get("requester_entity_type", getattr(instance, "requester_entity_type", "")))
+        administrative_demand_type = str(attrs.get("administrative_demand_type", getattr(instance, "administrative_demand_type", "")) or "")
         is_street_action = (str(action_type_ref) == STREET_ACTION_ID) or (requester_entity_type == STREET_ACTION_ID)
 
+        current_origin = attrs.get("origin", getattr(instance, "origin", ""))
+        if current_origin == Agenda.Origin.INTERNAL:
+            if requester_entity_type == "Demanda Administrativa":
+                valid_subtypes = {choice for choice, _label in Agenda.AdministrativeDemandType.choices}
+                if not administrative_demand_type:
+                    raise serializers.ValidationError({"administrative_demand_type": "Informe o tipo de demanda administrativa."})
+                if administrative_demand_type not in valid_subtypes:
+                    raise serializers.ValidationError({"administrative_demand_type": "Informe um tipo de demanda administrativa v?lido."})
+            else:
+                attrs["administrative_demand_type"] = ""
+        else:
+            attrs["administrative_demand_type"] = ""
+
         if start_time and end_time and start_time == end_time:
-            raise serializers.ValidationError({"end_time": "A hora final n?o pode ser igual ? hora inicial."})
+            raise serializers.ValidationError({"end_time": "A hora final nÃ£o pode ser igual Ã  hora inicial."})
 
         status_field = attrs.get("status", getattr(instance, "status", None))
         cancel_reason = attrs.get("cancel_reason", getattr(instance, "cancel_reason", ""))
@@ -1338,6 +1353,7 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
     requester_cpf = serializers.CharField(max_length=20, required=False, allow_blank=True)
     requester_role = serializers.CharField(max_length=160, required=False, allow_blank=True)
     requester_entity_type = serializers.CharField(max_length=160)
+    administrative_demand_type = serializers.ChoiceField(choices=[choice for choice, _label in Agenda.AdministrativeDemandType.choices], required=False, allow_blank=True)
     audience = serializers.CharField(max_length=160, required=False, allow_blank=True)
     participant_range = serializers.ChoiceField(
         choices=["30 a 50", "51 a 100", "100 a 200"], required=False, allow_blank=True
@@ -1358,8 +1374,23 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["start_time"] == attrs["end_time"]:
-            raise serializers.ValidationError("A hora final não pode ser igual à hora inicial.")
-            
+            raise serializers.ValidationError("A hora final nÃ£o pode ser igual Ã  hora inicial.")
+
+        is_internal_request = bool(self.context.get("is_internal_request"))
+        requester_entity_type = str(attrs.get("requester_entity_type", "") or "")
+        administrative_demand_type = str(attrs.get("administrative_demand_type", "") or "")
+        if is_internal_request:
+            valid_subtypes = {choice for choice, _label in Agenda.AdministrativeDemandType.choices}
+            if requester_entity_type == "Demanda Administrativa":
+                if not administrative_demand_type:
+                    raise serializers.ValidationError({"administrative_demand_type": "Informe o tipo de demanda administrativa."})
+                if administrative_demand_type not in valid_subtypes:
+                    raise serializers.ValidationError({"administrative_demand_type": "Informe o tipo de demanda administrativa vÃ¡lido."})
+            else:
+                attrs["administrative_demand_type"] = ""
+        else:
+            attrs["administrative_demand_type"] = ""
+
         date = attrs.get("date")
         if date:
             agenda_id = self.context.get("agenda_id")

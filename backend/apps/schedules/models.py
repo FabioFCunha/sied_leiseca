@@ -221,7 +221,7 @@ class ShiftManualInclusion(models.Model):
 
 class ShiftScheduleChange(models.Model):
     class Action(models.TextChoices):
-        EXTRA = "EXTRA", "Inclus?o de extra"
+        EXTRA = "EXTRA", "Inclusao de extra"
         REMOVED = "REMOVED", "Retirada"
 
     class MemberType(models.TextChoices):
@@ -404,6 +404,18 @@ class Agenda(models.Model):
     requester_role = models.CharField(max_length=160, blank=True)
     audience = models.CharField(max_length=160, blank=True)
     requester_entity_type = models.CharField(max_length=160, blank=True)
+
+    class AdministrativeDemandType(models.TextChoices):
+        TRAVEL = "TRAVEL", "Deslocamento de viagem"
+        INTERVIEW = "INTERVIEW", "Entrevista"
+        MEETING = "MEETING", "Reuni?o"
+
+    administrative_demand_type = models.CharField(
+        max_length=20,
+        choices=AdministrativeDemandType.choices,
+        blank=True,
+        default="",
+    )
     age_ranges = models.CharField(max_length=220, blank=True)
     accessibility_access = models.CharField(max_length=80, blank=True)
     accessibility_block = models.ForeignKey(
