@@ -7,6 +7,7 @@ import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/stre
 import { formatDateBR } from "../utils/date.js";
 
 import { buildPreview, chiefFromReport, reportName } from "../utils/reportPreview.js";
+import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
 import { getValidatableActions } from "./technicalReportsActionHelpers.js";
 
 function memberRows(members = {}) {
@@ -1953,6 +1954,15 @@ export default function TechnicalReportsPage() {
           </div>
           <pre style={{ fontSize: "12px", padding: "12px", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "8px", whiteSpace: "pre-wrap", maxHeight: "65vh", overflow: "auto" }}>{preview}</pre>
           <div className="modal-actions">
+            <button
+              className="primary"
+              type="button"
+              onClick={() =>
+                generateTechnicalReportPdf(form, selectedAgenda, attendanceForm)
+              }
+            >
+              Baixar PDF técnico
+            </button>
             <button className="secondary" type="button" onClick={copyPreview}>
               <Clipboard size={14} /> Copiar
             </button>
