@@ -145,6 +145,14 @@ function uniqueVehicleValues(...values) {
     .map((value) => String(value || "").trim());
 }
 
+function dedupeVehicleText(value = "") {
+  return joinValues(
+    uniqueVehicleValues(
+      ...String(value || "").split(/\r?\n/)
+    )
+  );
+}
+
 function formatContactValue(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
@@ -679,7 +687,7 @@ export default function TechnicalReportsPage() {
         street_action_details: source.street_action_details?.length ? source.street_action_details : (agenda.street_action_details || []),
         materials_removed: source.materials_removed || materialsFromAgenda(agenda),
         breathalyzers: source.breathalyzers || details.resources,
-        cars: source.cars || joinValues(uniqueVehicleValues(agenda?.vehicle, agenda?.vehicle_name)),
+        cars: dedupeVehicleText(source.cars) || joinValues(uniqueVehicleValues(agenda?.vehicle, agenda?.vehicle_name)),
         contact_received: source.contact_received || joinContactValues([
           agenda.external_responsible,
           agenda.external_responsible_phone,
