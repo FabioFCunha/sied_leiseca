@@ -1072,6 +1072,11 @@ class EducationReportSerializer(serializers.ModelSerializer):
             "contact_received",
             "occurrence_observation",
             "general_observations",
+            "has_exceptional_occurrence",
+            "exceptional_occurrence_type",
+            "exceptional_occurrence_description",
+            "exceptional_occurrence_actions_taken",
+            "exceptional_occurrence_impact",
             "photo_1",
             "photo_2",
             "no_photo_reason",
@@ -1120,13 +1125,81 @@ class EducationReportSerializer(serializers.ModelSerializer):
         instance = self.instance
         agenda = attrs.get("agenda", getattr(instance, "agenda", None))
         if not agenda:
-            raise serializers.ValidationError("Informe o protocolo da solicitação.")
+            raise serializers.ValidationError("Informe o protocolo da solicita\u00e7\u00e3o.")
         status = attrs.get("status", getattr(instance, "status", None))
         accessibility = attrs.get("accessibility_conditions_met", getattr(instance, "accessibility_conditions_met", ""))
         if status == EducationReport.ReportStatus.APPROVED and accessibility not in {"YES", "NO"}:
             raise serializers.ValidationError({
-                "accessibility_conditions_met": "Informe se o local atendeu às condições de acessibilidade para cadeirantes."
+                "accessibility_conditions_met": "Informe se o local atendeu \u00e0s condi\u00e7\u00f5es de acessibilidade para cadeirantes."
             })
+
+        has_exceptional_occurrence = attrs.get(
+            "has_exceptional_occurrence",
+            getattr(instance, "has_exceptional_occurrence", False),
+        )
+        exceptional_occurrence_type = (
+            attrs.get(
+                "exceptional_occurrence_type",
+                getattr(instance, "exceptional_occurrence_type", ""),
+            )
+            or ""
+        )
+        exceptional_occurrence_description = (
+            attrs.get(
+                "exceptional_occurrence_description",
+                getattr(instance, "exceptional_occurrence_description", ""),
+            )
+            or ""
+        )
+        exceptional_occurrence_actions_taken = (
+            attrs.get(
+                "exceptional_occurrence_actions_taken",
+                getattr(instance, "exceptional_occurrence_actions_taken", ""),
+            )
+            or ""
+        )
+        exceptional_occurrence_impact = (
+            attrs.get(
+                "exceptional_occurrence_impact",
+                getattr(instance, "exceptional_occurrence_impact", ""),
+            )
+            or ""
+        )
+
+        if has_exceptional_occurrence:
+            valid_types = {choice for choice, _label in EducationReport.ExceptionalOccurrenceType.choices}
+            valid_impacts = {choice for choice, _label in EducationReport.ExceptionalOccurrenceImpact.choices}
+            errors = {}
+
+            if not exceptional_occurrence_type:
+                errors["exceptional_occurrence_type"] = "Informe o tipo da ocorr\u00eancia excepcional."
+            elif exceptional_occurrence_type not in valid_types:
+                errors["exceptional_occurrence_type"] = "Informe um tipo de ocorr\u00eancia excepcional v\u00e1lido."
+
+            if not exceptional_occurrence_description:
+                errors["exceptional_occurrence_description"] = "Informe a descri\u00e7\u00e3o da ocorr\u00eancia excepcional."
+
+            if not exceptional_occurrence_actions_taken:
+                errors["exceptional_occurrence_actions_taken"] = "Informe as provid\u00eancias adotadas."
+
+            if not exceptional_occurrence_impact:
+                errors["exceptional_occurrence_impact"] = "Informe o impacto da ocorr\u00eancia excepcional."
+            elif exceptional_occurrence_impact not in valid_impacts:
+                errors["exceptional_occurrence_impact"] = "Informe um impacto de ocorr\u00eancia excepcional v\u00e1lido."
+
+            if errors:
+                raise serializers.ValidationError(errors)
+
+            attrs["exceptional_occurrence_type"] = exceptional_occurrence_type
+            attrs["exceptional_occurrence_description"] = exceptional_occurrence_description
+            attrs["exceptional_occurrence_actions_taken"] = exceptional_occurrence_actions_taken
+            attrs["exceptional_occurrence_impact"] = exceptional_occurrence_impact
+        else:
+            attrs["exceptional_occurrence_type"] = ""
+            attrs["exceptional_occurrence_description"] = ""
+            attrs["exceptional_occurrence_actions_taken"] = ""
+            attrs["exceptional_occurrence_impact"] = ""
+
         return attrs
 
     def create(self, validated_data):

@@ -618,6 +618,21 @@ class EducationReport(models.Model):
         LOCAL = "LOCAL", "Local"
         IMPORTED = "IMPORTED", "Importado"
 
+    class ExceptionalOccurrenceType(models.TextChoices):
+        VEHICLE_BREAKDOWN = "VEHICLE_BREAKDOWN", "Quebra ou pane de viatura"
+        WORK_ACCIDENT = "WORK_ACCIDENT", "Acidente de trabalho"
+        MEDICAL_ASSISTANCE = "MEDICAL_ASSISTANCE", "Atendimento m\u00e9dico"
+        EQUIPMENT_OR_MATERIAL = "EQUIPMENT_OR_MATERIAL", "Problema com equipamento ou material"
+        ACTIVITY_INTERRUPTION = "ACTIVITY_INTERRUPTION", "Interrup\u00e7\u00e3o da atividade"
+        SECURITY_INCIDENT = "SECURITY_INCIDENT", "Ocorr\u00eancia de seguran\u00e7a"
+        SEVERE_WEATHER = "SEVERE_WEATHER", "Condi\u00e7\u00e3o clim\u00e1tica grave"
+        OTHER = "OTHER", "Outro"
+
+    class ExceptionalOccurrenceImpact(models.TextChoices):
+        NO_IMPACT = "NO_IMPACT", "Sem preju\u00edzo"
+        PARTIAL = "PARTIAL", "Prejudicada parcialmente"
+        INTERRUPTED = "INTERRUPTED", "Interrompida"
+
     class ReportStatus(models.TextChoices):
         DRAFT = "DRAFT", "Rascunho"
         PENDING_REVIEW = "PENDING_REVIEW", "Aguardando conferência"
@@ -672,6 +687,21 @@ class EducationReport(models.Model):
     contact_received = models.CharField(max_length=220, blank=True)
     occurrence_observation = models.TextField(blank=True)
     general_observations = models.TextField(blank=True)
+    has_exceptional_occurrence = models.BooleanField(default=False)
+    exceptional_occurrence_type = models.CharField(
+        max_length=50,
+        choices=ExceptionalOccurrenceType.choices,
+        blank=True,
+        default="",
+    )
+    exceptional_occurrence_description = models.TextField(blank=True, default="")
+    exceptional_occurrence_actions_taken = models.TextField(blank=True, default="")
+    exceptional_occurrence_impact = models.CharField(
+        max_length=30,
+        choices=ExceptionalOccurrenceImpact.choices,
+        blank=True,
+        default="",
+    )
     photo_1 = models.FileField(upload_to="education_reports/", null=True, blank=True)
     photo_2 = models.FileField(upload_to="education_reports/", null=True, blank=True)
     no_photo_reason = models.TextField(blank=True)
