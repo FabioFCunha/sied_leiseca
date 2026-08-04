@@ -6,6 +6,16 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR, formatLocalISODate } from "../utils/date.js";
 import { statusClass, statusLabel } from "../utils/status.js";
 
+const WEEKDAY_LABELS = [
+  "Dom",
+  "Seg",
+  "Ter",
+  "Qua",
+  "Qui",
+  "Sex",
+  "Sáb",
+];
+
 function serviceTeamLabel(agenda) {
   return agenda.team_name || agenda.sector_name || "Equipe não definida";
 }
