@@ -52,6 +52,55 @@ const chartFilters = ["Hoje", "Semana", "Mês", "Ano"];
 const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const hourSlots = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
 
+const exceptionalOccurrenceTypeLabels = {
+  VEHICLE_BREAKDOWN: "Quebra ou pane de viatura",
+  WORK_ACCIDENT: "Acidente de trabalho",
+  MEDICAL_ASSISTANCE: "Atendimento médico",
+  EQUIPMENT_OR_MATERIAL: "Problema com equipamento ou material",
+  ACTIVITY_INTERRUPTION: "Interrupção da atividade",
+  SECURITY_INCIDENT: "Ocorrência de segurança",
+  SEVERE_WEATHER: "Condição climática grave",
+  OTHER: "Outro",
+};
+
+const exceptionalOccurrenceImpactLabels = {
+  NO_IMPACT: "Sem prejuízo",
+  PARTIAL: "Prejudicada parcialmente",
+  INTERRUPTED: "Interrompida",
+};
+
+function getExceptionalOccurrenceStyle(impact) {
+  const palette = {
+    NO_IMPACT: {
+      border: "1px solid #facc15",
+      background: "#fefce8",
+      color: "#854d0e",
+    },
+    PARTIAL: {
+      border: "1px solid #fb923c",
+      background: "#fff7ed",
+      color: "#9a3412",
+    },
+    INTERRUPTED: {
+      border: "1px solid #f87171",
+      background: "#fef2f2",
+      color: "#991b1b",
+    },
+  };
+
+  return {
+    borderRadius: 12,
+    padding: "12px 14px",
+    display: "grid",
+    gap: 8,
+    ...(palette[String(impact || "").toUpperCase()] || {
+      border: "1px solid var(--line)",
+      background: "var(--surface-2)",
+      color: "var(--text)",
+    }),
+  };
+}
+
 function dateToInputValue(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -621,6 +670,35 @@ function OperationDayPanel({ operations = [] }) {
                       <TextList label={"Institui\u00e7\u00e3o/local informado"} value={report.occurrence_observation} />
                       <TextList label={"Observa\u00e7\u00f5es gerais"} value={report.general_observations} />
                     </div>
+                    {report?.has_exceptional_occurrence === true ? (
+                      <div style={getExceptionalOccurrenceStyle(report.exceptional_occurrence_impact)}>
+                        <strong style={{ fontSize: 13, textTransform: "uppercase" }}>{"Ocorrência excepcional"}</strong>
+                        <div style={{ fontSize: 13 }}>
+                          <strong>Tipo:</strong>{" "}
+                          {exceptionalOccurrenceTypeLabels[report.exceptional_occurrence_type]
+                            || report.exceptional_occurrence_type
+                            || "-"}
+                        </div>
+                        <div style={{ fontSize: 13 }}>
+                          <strong>Impacto:</strong>{" "}
+                          {exceptionalOccurrenceImpactLabels[report.exceptional_occurrence_impact]
+                            || report.exceptional_occurrence_impact
+                            || "-"}
+                        </div>
+                        {report.exceptional_occurrence_description ? (
+                          <div style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                            <strong>Descrição:</strong>
+                            <div style={{ whiteSpace: "pre-wrap" }}>{report.exceptional_occurrence_description}</div>
+                          </div>
+                        ) : null}
+                        {report.exceptional_occurrence_actions_taken ? (
+                          <div style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                            <strong>Providências adotadas:</strong>
+                            <div style={{ whiteSpace: "pre-wrap" }}>{report.exceptional_occurrence_actions_taken}</div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {report.actions?.length ? (
                       <div style={{ display: "grid", gap: 8 }}>
                         <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>{"A\u00e7\u00f5es relatadas"}</strong>
