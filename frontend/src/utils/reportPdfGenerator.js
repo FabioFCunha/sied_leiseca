@@ -1,6 +1,25 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDateBR } from "./date.js";
+import logoUrl from "../assets/operacao-lei-seca-logo.png";
+
+// ── Helper: Load image as base64 for jsPDF ───────────────────────────────
+function loadImageAsBase64(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
 export async function generateTechnicalReportPdf(form, selectedAgenda, attendanceForm) {
   const doc = new jsPDF({
@@ -120,33 +139,45 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
   };
 
   // ════════════════════════════════════════════════════════════════════════
-  //  PAGE 1 — DOCUMENT HEADER
+  //  PAGE 1 — DOCUMENT HEADER WITH LOGO
   // ════════════════════════════════════════════════════════════════════════
+
+  // Load logo
+  let logoBase64;
+  try {
+    logoBase64 = await loadImageAsBase64(logoUrl);
+  } catch (_) {
+    logoBase64 = null;
+  }
 
   let startY = 12;
 
-  // Top accent line
+  // Navy banner background for logo
+  const bannerH = 22;
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pageWidth, 2, "F");
+  doc.rect(0, 0, pageWidth, bannerH, "F");
 
-  // Gold thin line accent
+  // Gold accent line under banner
   doc.setFillColor(...ACCENT_GOLD);
-  doc.rect(0, 2, pageWidth, 0.6, "F");
+  doc.rect(0, bannerH, pageWidth, 0.8, "F");
 
-  startY = 18;
+  // Logo centered on banner
+  if (logoBase64) {
+    const logoH = 14;
+    const logoW = logoH * 3.3; // approximate aspect ratio of the logo
+    const logoX = (pageWidth - logoW) / 2;
+    const logoY = (bannerH - logoH) / 2;
+    doc.addImage(logoBase64, "PNG", logoX, logoY, logoW, logoH);
+  }
 
-  // Main title block
+  startY = bannerH + 6;
+
+  // Title block
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...GRAY_600);
-  doc.text("GOVERNO DO ESTADO DO RIO DE JANEIRO", pageWidth / 2, startY, { align: "center" });
-  startY += 5;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(15);
   doc.setTextColor(...NAVY);
   doc.text("LEI SECA EDUCAÇÃO", pageWidth / 2, startY, { align: "center" });
-  startY += 7;
+  startY += 6;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
