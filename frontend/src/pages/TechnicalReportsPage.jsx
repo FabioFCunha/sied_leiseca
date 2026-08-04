@@ -125,21 +125,24 @@ function joinValues(values, fallback = "") {
 function uniqueVehicleValues(...values) {
   const seen = new Set();
 
-  return values.filter((value) => {
-    const text = String(value || "").trim();
-    if (!text) return false;
+  return values
+    .flatMap((value) => String(value || "").split(/\r?\n/))
+    .filter((value) => {
+      const text = String(value || "").trim();
+      if (!text) return false;
 
-    const plate =
-      text.toUpperCase().match(/[A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}[-\s]?\d{4}/)?.[0]
-        ?.replace(/[^A-Z0-9]/g, "")
-      || "";
+      const plate =
+        text.toUpperCase().match(/[A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}[-\s]?\d{4}/)?.[0]
+          ?.replace(/[^A-Z0-9]/g, "")
+        || "";
 
-    const key = plate || text.toLocaleLowerCase("pt-BR");
+      const key = plate || text.toLocaleLowerCase("pt-BR");
 
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((value) => String(value || "").trim());
 }
 
 function formatContactValue(value = "") {
@@ -317,6 +320,10 @@ function protocolDetails(agenda) {
     agenda?.vehicle,
     agenda?.vehicle_name,
   );
+  const requesterEntityTypeLabel =
+    String(agenda?.requester_entity_type) === "6"
+      ? "A\u00e7\u00e3o de Rua"
+      : agenda?.requester_entity_type || "";
 
   return {
     agents: joinValues([
@@ -338,7 +345,7 @@ function protocolDetails(agenda) {
     ]),
     audience: joinValues([
       agenda.audience ? `Público: ${agenda.audience}` : "",
-      agenda.requester_entity_type ? `Tipo de entidade: ${agenda.requester_entity_type}` : "",
+      requesterEntityTypeLabel ? `Tipo de entidade: ${requesterEntityTypeLabel}` : "",
       agenda.age_ranges ? `Faixa etária: ${agenda.age_ranges}` : "",
       agenda.participant_range
         ? `Quantidade prevista: ${agenda.participant_range}`
@@ -672,7 +679,7 @@ export default function TechnicalReportsPage() {
         street_action_details: source.street_action_details?.length ? source.street_action_details : (agenda.street_action_details || []),
         materials_removed: source.materials_removed || materialsFromAgenda(agenda),
         breathalyzers: source.breathalyzers || details.resources,
-        cars: source.cars || joinValues(uniqueVehicleValues(agenda.vehicle, agenda.vehicle_name)),
+        cars: source.cars || joinValues(uniqueVehicleValues(agenda?.vehicle, agenda?.vehicle_name)),
         contact_received: source.contact_received || joinContactValues([
           agenda.external_responsible,
           agenda.external_responsible_phone,
