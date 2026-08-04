@@ -16,6 +16,10 @@ const WEEKDAY_LABELS = [
   "Sáb",
 ];
 
+function isTravelAgenda(agenda) {
+  return agenda?.administrative_demand_type === "TRAVEL";
+}
+
 function serviceTeamLabel(agenda) {
   return agenda.team_name || agenda.sector_name || "Equipe não definida";
 }
