@@ -1505,7 +1505,7 @@ export default function TechnicalReportsPage() {
             />
             <div style={{ display: "grid", gap: "8px", marginTop: "8px", marginBottom: "12px" }}>
               <label className="field-label" htmlFor="select-has-exceptional-occurrence">
-                Ocorr\u00eancia envolvendo viatura ou efetivo?
+                Ocorrência envolvendo viatura ou efetivo?
               </label>
               <select
                 id="select-has-exceptional-occurrence"
