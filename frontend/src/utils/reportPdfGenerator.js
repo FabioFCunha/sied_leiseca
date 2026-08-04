@@ -175,8 +175,8 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
   // Title block
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.setTextColor(...NAVY);
-  doc.text("LEI SECA EDUCAÇÃO", pageWidth / 2, startY, { align: "center" });
+  doc.setTextColor(...ACCENT_GOLD);
+  doc.text("EDUCAÇÃO", pageWidth / 2, startY, { align: "center" });
   startY += 6;
 
   doc.setFont("helvetica", "normal");
