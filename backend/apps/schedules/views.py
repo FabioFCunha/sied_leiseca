@@ -1823,7 +1823,9 @@ class AgendaViewSet(viewsets.ModelViewSet):
         operational_team_names = {row["team"] for row in operation_rows if row["team"] != "Sem equipe"}
         operational_chief_names = {row["chief"] for row in operation_rows if row["chief"] != "Sem chefe"}
         total_agents_scheduled = sum(row["agents_count"] for row in operation_rows)
-        service_orders_today = operational_base.filter(service_order_number__isnull=False).count()
+        service_orders_today = operational_base.filter(service_order_number__isnull=False).exclude(
+            status__in=[Agenda.Status.CANCELLED, "CANCELED", "REJECTED", "REFUSED"]
+        ).count()
         pending_approval_today = operational_base.filter(status=Agenda.Status.PENDING).count()
 
         alerts = []

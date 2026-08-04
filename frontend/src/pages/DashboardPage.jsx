@@ -579,6 +579,12 @@ function buildOperationalInsights(operations = [], cards = {}) {
   const completed = safeOperations.filter((item) => item?.operational_status === "completed").length;
   const inProgress = safeOperations.filter((item) => item?.operational_status === "in_progress").length;
   const upcoming = safeOperations.filter((item) => ["scheduled", "pending_approval"].includes(item?.operational_status)).length;
+  const cancelled = safeOperations.filter((item) => {
+    const status = String(item?.status || "").toUpperCase();
+    const operationalStatus = String(item?.operational_status || "").toUpperCase();
+    return ["CANCELLED", "CANCELED", "REJECTED", "REFUSED"].includes(status)
+      || ["CANCELLED", "CANCELED"].includes(operationalStatus);
+  }).length;
 
   const totalEstimated = safeOperations.reduce((sum, item) => {
     const value = Number(item?.estimated_public || 0);
@@ -598,7 +604,7 @@ function buildOperationalInsights(operations = [], cards = {}) {
     if (!Number.isFinite(reached) || reached <= 0) return currentLargest;
     if (!currentLargest || reached > currentLargest.reached) {
       return {
-        name: item?.location || item?.title || item?.type || "A??o sem identifica??o",
+        name: item?.location || item?.title || item?.type || "Ação sem identificação",
         reached,
       };
     }
@@ -624,73 +630,97 @@ function buildOperationalInsights(operations = [], cards = {}) {
 
   const insights = [];
 
-  const summaryParts = [];
-  if (completed > 0) summaryParts.push(`${formatInsightCount(completed, "conclu?da", "conclu?das")}`);
-  if (inProgress > 0) summaryParts.push(`${inProgress} em andamento`);
-  if (upcoming > 0) summaryParts.push(`${formatInsightCount(upcoming, "pr?xima", "pr?ximas")}`);
-  insights.push({
-    title: "Resumo do dia",
-    body: summaryParts.length
-      ? `O per?odo filtrado teve ${formatInsightCount(total, "a??o", "a??es")}, com ${summaryParts.join(", ")}.`
-      : `O per?odo filtrado teve ${formatInsightCount(total, "a??o", "a??es")}.`,
-  });
+  if (pendingReports > 0) {
+    insights.push({
+      title: "Relatórios pendentes",
+      body: `Existem ${formatInsightCount(pendingReports, "relatório pendente", "relatórios pendentes")} para o período selecionado.`,
+    });
+  }
+
+  if (cancelled > 0) {
+    insights.push({
+      title: "Ações canceladas",
+      body: `${formatInsightCount(cancelled, "ação foi cancelada e ficou fora da contagem de OS emitidas", "ações foram canceladas e ficaram fora da contagem de OS emitidas")}.`,
+    });
+  }
+
+  if (actionsWithStaffChanges > 0) {
+    insights.push({
+      title: "Alterações de efetivo",
+      body: `${formatInsightCount(actionsWithStaffChanges, "ação registrou alteração de efetivo", "ações registraram alterações de efetivo")} no período.`,
+    });
+  }
+
+  if (actionsWithoutEstimate > 0) {
+    insights.push({
+      title: "Público estimado",
+      body: `${formatInsightCount(actionsWithoutEstimate, "ação não informou público estimado", "ações não informaram público estimado")}.`,
+    });
+  }
+
+  if (withoutReport > 0) {
+    insights.push({
+      title: "Cobertura de relatórios",
+      body: `${formatInsightCount(withoutReport, "ação segue sem relatório", "ações seguem sem relatório")}.`,
+    });
+  }
+
+  if (actionsWithAbsences > 0) {
+    insights.push({
+      title: "Faltas registradas",
+      body: `${formatInsightCount(actionsWithAbsences, "ação teve falta registrada", "ações tiveram faltas registradas")} na frequência.`,
+    });
+  }
 
   if (totalEstimated > 0 && totalReached > 0) {
     const reachedPercentage = Math.round((totalReached / totalEstimated) * 100);
-    insights.push({
-      title: "P?blico",
-      body: `Foram alcan?adas ${Number(totalReached).toLocaleString("pt-BR")} pessoas para um p?blico estimado de ${Number(totalEstimated).toLocaleString("pt-BR")} (${reachedPercentage}% do previsto).`,
-    });
+    if (reachedPercentage < 100) {
+      insights.push({
+        title: "Público alcançado",
+        body: `Foram alcançadas ${Number(totalReached).toLocaleString("pt-BR")} pessoas, correspondendo a ${reachedPercentage}% do público estimado.`,
+      });
+    } else if (reachedPercentage > 100) {
+      insights.push({
+        title: "Público alcançado",
+        body: `Foram alcançadas ${Number(totalReached).toLocaleString("pt-BR")} pessoas, acima do público estimado de ${Number(totalEstimated).toLocaleString("pt-BR")}.`,
+      });
+    }
   } else if (totalReached > 0) {
     insights.push({
-      title: "P?blico",
-      body: `As a??es com relat?rio registraram ${Number(totalReached).toLocaleString("pt-BR")} pessoas alcan?adas.`,
-    });
-  } else if (totalEstimated > 0) {
-    insights.push({
-      title: "P?blico",
-      body: `O p?blico estimado para o per?odo ? de ${Number(totalEstimated).toLocaleString("pt-BR")} pessoas.`,
+      title: "Público alcançado",
+      body: `As ações com relatório registraram ${Number(totalReached).toLocaleString("pt-BR")} pessoas alcançadas.`,
     });
   }
 
-  if (withReport > 0 || withoutReport > 0 || pendingReports > 0) {
-    let reportsBody = "";
-    if (withReport === total && total > 0) {
-      reportsBody = `Todas as ${formatInsightCount(total, "a??o possui", "a??es possuem")} relat?rio enviado ou aprovado.`;
-    } else if (withReport > 0 && withoutReport > 0) {
-      reportsBody = `${formatInsightCount(withReport, "a??o possui", "a??es possuem")} relat?rio, enquanto ${formatInsightCount(withoutReport, "segue sem relat?rio", "seguem sem relat?rio")}.`;
-    } else if (withReport > 0) {
-      reportsBody = `${formatInsightCount(withReport, "a??o possui", "a??es possuem")} relat?rio enviado ou aprovado.`;
-    } else {
-      reportsBody = "Nenhuma a??o possui relat?rio enviado at? o momento.";
-    }
-    if (pendingReports > 0) {
-      reportsBody += ` H? ${formatInsightCount(pendingReports, "pend?ncia", "pend?ncias")} de relat?rio no per?odo.`;
-    }
-    insights.push({ title: "Relat?rios", body: reportsBody });
-  }
-
-  const highlightParts = [];
   if (largestAction) {
-    highlightParts.push(`A a??o ${largestAction.name} teve o maior alcance, com ${Number(largestAction.reached).toLocaleString("pt-BR")} pessoas.`);
-  }
-  if (topTeams.length === 1) {
-    highlightParts.push(`A equipe ${topTeams[0]} liderou a atua??o, com ${formatInsightCount(topTeamCount, "a??o", "a??es")}.`);
-  } else if (topTeams.length > 1 && topTeamCount > 0) {
-    highlightParts.push(`Houve empate de atua??o entre ${topTeams.join(", ")}, com ${formatInsightCount(topTeamCount, "a??o", "a??es")} cada.`);
-  }
-  if (highlightParts.length) {
-    insights.push({ title: "Destaque", body: highlightParts.join(" ") });
+    insights.push({
+      title: "Destaque",
+      body: `A ação ${largestAction.name} teve o maior alcance, com ${Number(largestAction.reached).toLocaleString("pt-BR")} pessoas.`,
+    });
   }
 
-  const alertParts = [];
-  if (actionsWithoutEstimate > 0) alertParts.push(`${formatInsightCount(actionsWithoutEstimate, "a??o n?o informou p?blico estimado", "a??es n?o informaram p?blico estimado")}`);
-  if (withoutReport > 0) alertParts.push(`${formatInsightCount(withoutReport, "a??o segue sem relat?rio", "a??es seguem sem relat?rio")}`);
-  if (actionsWithStaffChanges > 0) alertParts.push(`${formatInsightCount(actionsWithStaffChanges, "a??o registrou altera??o de efetivo", "a??es registraram altera??es de efetivo")}`);
-  if (actionsWithAbsences > 0) alertParts.push(`${formatInsightCount(actionsWithAbsences, "a??o teve falta registrada", "a??es tiveram faltas registradas")}`);
-  if (alertParts.length) {
-    insights.push({ title: "Aten??o", body: `${alertParts.join(". ")}.` });
+  if (topTeams.length === 1) {
+    insights.push({
+      title: "Equipe com maior atuação",
+      body: `A equipe ${topTeams[0]} concentrou o maior número de ações do período, com ${formatInsightCount(topTeamCount, "ação", "ações")}.`,
+    });
+  } else if (topTeams.length > 1 && topTeamCount > 0) {
+    insights.push({
+      title: "Equipes em destaque",
+      body: `Houve empate entre ${topTeams.join(", ")}, com ${formatInsightCount(topTeamCount, "ação", "ações")} cada.`,
+    });
   }
+
+  const summaryParts = [];
+  if (completed > 0) summaryParts.push(`${formatInsightCount(completed, "concluída", "concluídas")}`);
+  if (inProgress > 0) summaryParts.push(`${inProgress} em andamento`);
+  if (upcoming > 0) summaryParts.push(`${formatInsightCount(upcoming, "próxima", "próximas")}`);
+  insights.push({
+    title: "Resumo do período",
+    body: summaryParts.length
+      ? `O período filtrado teve ${formatInsightCount(total, "ação", "ações")}, com ${summaryParts.join(", ")}.`
+      : `O período filtrado teve ${formatInsightCount(total, "ação", "ações")}.`,
+  });
 
   return insights.slice(0, 5);
 }
@@ -1070,7 +1100,7 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: "grid", gap: "24px" }}>
-            <SectionCard icon={Activity} title={"Insights autom?ticos"} subtitle={"Leitura r?pida para gest?o"}>
+            <SectionCard icon={Activity} title={"Insights autom\u00e1ticos"} subtitle={"Leitura r\u00e1pida para gest\u00e3o"}>
               {(() => {
                 const operations = dashboard?.operations?.field_operations || [];
                 const cards = dashboard?.operations?.cards || {};
@@ -1079,7 +1109,7 @@ export default function DashboardPage() {
                 if (!insights.length) {
                   return (
                     <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>
-                      N?o h? dados suficientes para gerar insights para os filtros selecionados.
+                      N\u00e3o h\u00e1 dados suficientes para gerar insights para os filtros selecionados.
                     </p>
                   );
                 }
