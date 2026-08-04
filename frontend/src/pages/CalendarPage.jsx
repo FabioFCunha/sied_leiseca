@@ -212,12 +212,19 @@ export default function CalendarPage() {
                 <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-soft)" }}>{weekdayLabel}</span>
                 <span>{day.getDate()}</span>
               </div>
-              {dayAgendas.map((agenda) => (
-                <button key={agenda.id} className={`event-pill ${statusClass[agenda.status]}`} onClick={() => setSelected(agenda)}>
-                  <strong>{agenda.start_time?.slice(0, 5) || ""}{!isVisitor && ` - ${serviceTeamLabel(agenda)}`}</strong>
-                  <small>{valueOrDash(agenda.title)}</small>
-                </button>
-              ))}
+              {dayAgendas.map((agenda) => {
+                const eventClass = agenda.status === "CANCELLED"
+                  ? statusClass[agenda.status]
+                  : isTravelAgenda(agenda)
+                    ? "travel"
+                    : statusClass[agenda.status];
+                return (
+                  <button key={agenda.id} className={`event-pill ${eventClass}`} onClick={() => setSelected(agenda)}>
+                    <strong>{agenda.start_time?.slice(0, 5) || ""}{!isVisitor && ` - ${serviceTeamLabel(agenda)}`}</strong>
+                    <small>{isTravelAgenda(agenda) ? `VIAGEM • ${valueOrDash(agenda.title)}` : valueOrDash(agenda.title)}</small>
+                  </button>
+                );
+              })}
             </article>
           );
         })}

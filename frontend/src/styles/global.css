@@ -3413,6 +3413,12 @@ button.stat-card.active {
   opacity: .82;
 }
 
+.event-pill.travel {
+  background: #ede9fe;
+  border-left: 4px solid #7c3aed;
+  color: #5b21b6;
+}
+
 .app-shell.dark-mode .calendar-grid {
   background: #223747;
   border: 1px solid #2f4858;
