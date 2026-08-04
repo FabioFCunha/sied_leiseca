@@ -122,6 +122,26 @@ function joinValues(values, fallback = "") {
   return values.filter(Boolean).join("\n") || fallback;
 }
 
+function uniqueVehicleValues(...values) {
+  const seen = new Set();
+
+  return values.filter((value) => {
+    const text = String(value || "").trim();
+    if (!text) return false;
+
+    const plate =
+      text.toUpperCase().match(/[A-Z]{3}[-\s]?\d[A-Z0-9]\d{2}|[A-Z]{3}[-\s]?\d{4}/)?.[0]
+        ?.replace(/[^A-Z0-9]/g, "")
+      || "";
+
+    const key = plate || text.toLocaleLowerCase("pt-BR");
+
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function formatContactValue(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
@@ -293,6 +313,11 @@ function extractMaterialCategories(agenda) {
 }
 
 function protocolDetails(agenda) {
+  const agendaVehicles = uniqueVehicleValues(
+    agenda?.vehicle,
+    agenda?.vehicle_name,
+  );
+
   return {
     agents: joinValues([
       chiefFromAgenda(agenda) ? `Chefe responsável: ${chiefFromAgenda(agenda)}` : "",
@@ -302,8 +327,7 @@ function protocolDetails(agenda) {
       agenda.support_2 ? `Apoio 2: ${agenda.support_2}` : "",
     ]),
     resources: joinValues([
-      agenda.vehicle ? `Viatura: ${agenda.vehicle}` : "",
-      agenda.vehicle_name ? `Viatura cadastrada: ${agenda.vehicle_name}` : "",
+      agendaVehicles.map((vehicle, index) => `${index === 0 ? "Viatura" : "Viatura cadastrada"}: ${vehicle}`).join("\n"),
       materialsFromAgenda(agenda) ? `Kits e materiais:\n${materialsFromAgenda(agenda)}` : "",
       agenda.media_equipment ? `Recursos do local:\n${agenda.media_equipment}` : "",
     ]),
@@ -648,7 +672,7 @@ export default function TechnicalReportsPage() {
         street_action_details: source.street_action_details?.length ? source.street_action_details : (agenda.street_action_details || []),
         materials_removed: source.materials_removed || materialsFromAgenda(agenda),
         breathalyzers: source.breathalyzers || details.resources,
-        cars: source.cars || joinValues([agenda.vehicle, agenda.vehicle_name]),
+        cars: source.cars || joinValues(uniqueVehicleValues(agenda.vehicle, agenda.vehicle_name)),
         contact_received: source.contact_received || joinContactValues([
           agenda.external_responsible,
           agenda.external_responsible_phone,
