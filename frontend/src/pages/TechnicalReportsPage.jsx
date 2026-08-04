@@ -63,6 +63,11 @@ const empty = {
 
   status: "DRAFT",
   general_observations: "",
+  has_exceptional_occurrence: false,
+  exceptional_occurrence_type: "",
+  exceptional_occurrence_description: "",
+  exceptional_occurrence_actions_taken: "",
+  exceptional_occurrence_impact: "",
   actions: [{ ...emptyAction }],
 };
 
@@ -77,6 +82,23 @@ const fieldLabels = {
 };
 
 const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
+
+const exceptionalOccurrenceTypeOptions = [
+  { value: "VEHICLE_BREAKDOWN", label: "Quebra ou pane de viatura" },
+  { value: "WORK_ACCIDENT", label: "Acidente de trabalho" },
+  { value: "MEDICAL_ASSISTANCE", label: "Atendimento m\u00e9dico" },
+  { value: "EQUIPMENT_OR_MATERIAL", label: "Problema com equipamento ou material" },
+  { value: "ACTIVITY_INTERRUPTION", label: "Interrup\u00e7\u00e3o da atividade" },
+  { value: "SECURITY_INCIDENT", label: "Ocorr\u00eancia de seguran\u00e7a" },
+  { value: "SEVERE_WEATHER", label: "Condi\u00e7\u00e3o clim\u00e1tica grave" },
+  { value: "OTHER", label: "Outro" },
+];
+
+const exceptionalOccurrenceImpactOptions = [
+  { value: "NO_IMPACT", label: "Sem preju\u00edzo" },
+  { value: "PARTIAL", label: "Prejudicada parcialmente" },
+  { value: "INTERRUPTED", label: "Interrompida" },
+];
 
 function normalizeTypeLabel(value) {
   return String(value || "").trim().toLocaleLowerCase("pt-BR");
@@ -421,6 +443,11 @@ function hydrateForm(report, agenda) {
     ...report,
     cars: dedupeVehicleText(report?.cars),
     breathalyzers: removeVehicleLinesFromResources(report?.breathalyzers),
+    has_exceptional_occurrence: Boolean(report?.has_exceptional_occurrence),
+    exceptional_occurrence_type: report?.exceptional_occurrence_type || "",
+    exceptional_occurrence_description: report?.exceptional_occurrence_description || "",
+    exceptional_occurrence_actions_taken: report?.exceptional_occurrence_actions_taken || "",
+    exceptional_occurrence_impact: report?.exceptional_occurrence_impact || "",
     approximate_public: numericApproximatePublic(report?.approximate_public),
     request_details: buildRequestDetails(report, agenda),
     actions: report.actions?.length
@@ -454,6 +481,11 @@ function normalizePayload(form) {
     lat: nullable(form.lat),
     lng: nullable(form.lng),
     general_observations: form.general_observations || "",
+    has_exceptional_occurrence: Boolean(form.has_exceptional_occurrence),
+    exceptional_occurrence_type: form.has_exceptional_occurrence ? (form.exceptional_occurrence_type || "") : "",
+    exceptional_occurrence_description: form.has_exceptional_occurrence ? (form.exceptional_occurrence_description || "") : "",
+    exceptional_occurrence_actions_taken: form.has_exceptional_occurrence ? (form.exceptional_occurrence_actions_taken || "") : "",
+    exceptional_occurrence_impact: form.has_exceptional_occurrence ? (form.exceptional_occurrence_impact || "") : "",
     actions: getValidatableActions(form.actions).map(({ action }) => buildActionPayload(action, form.agenda)),
   };
 }
@@ -488,6 +520,7 @@ export default function TechnicalReportsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
   const requestFieldsReadOnly = Boolean(form.agenda);
+  const isEditableTechnicalReport = form.status === "DRAFT" || form.status === "RETURNED";
 
   const selectedAgenda = useMemo(
     () => agendas.find((agenda) => String(agenda.id) === String(form.agenda)),
@@ -654,6 +687,28 @@ export default function TechnicalReportsPage() {
   }, [form.operation_date, form.team, selectedAgenda, form.id]);
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+
+  const updateExceptionalOccurrence = (enabled) => {
+    setForm((current) => ({
+      ...current,
+      has_exceptional_occurrence: enabled,
+      exceptional_occurrence_type: enabled ? current.exceptional_occurrence_type : "",
+      exceptional_occurrence_description: enabled ? current.exceptional_occurrence_description : "",
+      exceptional_occurrence_actions_taken: enabled ? current.exceptional_occurrence_actions_taken : "",
+      exceptional_occurrence_impact: enabled ? current.exceptional_occurrence_impact : "",
+    }));
+  };
+
+  const getExceptionalOccurrenceMissingFields = () => {
+    if (!form.has_exceptional_occurrence) return [];
+
+    const missingFields = [];
+    if (!form.exceptional_occurrence_type) missingFields.push({ name: "Tipo de ocorrência excepcional", id: "select-exceptional-occurrence-type" });
+    if (!String(form.exceptional_occurrence_description || "").trim()) missingFields.push({ name: "Descrição da ocorrência excepcional", id: "input-exceptional-occurrence-description" });
+    if (!String(form.exceptional_occurrence_actions_taken || "").trim()) missingFields.push({ name: "Providências adotadas", id: "input-exceptional-occurrence-actions" });
+    if (!form.exceptional_occurrence_impact) missingFields.push({ name: "Impacto na atividade", id: "select-exceptional-occurrence-impact" });
+    return missingFields;
+  };
 
   const applyAgenda = (agenda, { preserveCurrent = true } = {}) => {
     const details = protocolDetails(agenda);
@@ -912,6 +967,11 @@ export default function TechnicalReportsPage() {
           markReported: status === "SUBMITTED",
           successMessage: status === "SUBMITTED" ? "Frequência salva com sucesso." : "",
         });
+      }
+
+      const occurrenceMissingFields = getExceptionalOccurrenceMissingFields();
+      if (occurrenceMissingFields.length > 0) {
+        throw new Error(`Preencha os campos obrigatórios da Ocorrência excepcional: ${occurrenceMissingFields.map((field) => field.name).join(", ")}.`);
       }
 
       const payload = normalizePayload({ ...form, status });
@@ -1449,6 +1509,75 @@ export default function TechnicalReportsPage() {
               onBlur={(event) => update("contact_received", formatContactValue(event.target.value))}
               readOnly={requestFieldsReadOnly}
             />
+            <div style={{ display: "grid", gap: "8px", marginTop: "8px", marginBottom: "12px" }}>
+              <label className="field-label" htmlFor="select-has-exceptional-occurrence">
+                Ocorrência excepcional durante a atividade?
+              </label>
+              <select
+                id="select-has-exceptional-occurrence"
+                value={form.has_exceptional_occurrence ? "true" : "false"}
+                onChange={(event) => updateExceptionalOccurrence(event.target.value === "true")}
+                disabled={!isEditableTechnicalReport}
+              >
+                <option value="false">Não</option>
+                <option value="true">Sim</option>
+              </select>
+              <small style={{ color: "var(--text-soft)", lineHeight: 1.4 }}>
+                Preencher somente em situações excepcionais que tenham afetado ou colocado em risco a execução da atividade. Não utilizar para observações rotineiras.
+              </small>
+            </div>
+            {form.has_exceptional_occurrence && (
+              <div style={{ display: "grid", gap: "12px", marginBottom: "12px" }}>
+                <label className="field-label">
+                  Tipo de ocorrência
+                  <select
+                    id="select-exceptional-occurrence-type"
+                    value={form.exceptional_occurrence_type || ""}
+                    onChange={(event) => update("exceptional_occurrence_type", event.target.value)}
+                    disabled={!isEditableTechnicalReport}
+                  >
+                    <option value="">Selecione</option>
+                    {exceptionalOccurrenceTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field-label">
+                  Descrição da ocorrência
+                  <textarea
+                    id="input-exceptional-occurrence-description"
+                    className="chief-highlight-input"
+                    value={form.exceptional_occurrence_description || ""}
+                    onChange={(event) => update("exceptional_occurrence_description", event.target.value)}
+                    readOnly={!isEditableTechnicalReport}
+                  />
+                </label>
+                <label className="field-label">
+                  Providências adotadas
+                  <textarea
+                    id="input-exceptional-occurrence-actions"
+                    className="chief-highlight-input"
+                    value={form.exceptional_occurrence_actions_taken || ""}
+                    onChange={(event) => update("exceptional_occurrence_actions_taken", event.target.value)}
+                    readOnly={!isEditableTechnicalReport}
+                  />
+                </label>
+                <label className="field-label">
+                  Impacto na atividade
+                  <select
+                    id="select-exceptional-occurrence-impact"
+                    value={form.exceptional_occurrence_impact || ""}
+                    onChange={(event) => update("exceptional_occurrence_impact", event.target.value)}
+                    disabled={!isEditableTechnicalReport}
+                  >
+                    <option value="">Selecione</option>
+                    {exceptionalOccurrenceImpactOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
             <textarea className="chief-highlight-input" placeholder="Dados e Observações" value={form.general_observations || ""} onChange={(event) => update("general_observations", event.target.value)} />
             <textarea className="chief-highlight-input" placeholder="Observação de ocorrência" value={form.occurrence_observation || ""} onChange={(event) => update("occurrence_observation", event.target.value)} />
           </div>
