@@ -1,4 +1,5 @@
 import { Clipboard, MapPin, Plus, Save, Search, Trash2, Eye, X, Check, Edit3 } from "lucide-react";
+import logoUrl from "../assets/operacao-lei-seca-logo.png";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
@@ -1940,20 +1941,263 @@ export default function TechnicalReportsPage() {
       </aside>
     </section>
 
-    {showPreviewModal && (
+    {showPreviewModal && (() => {
+      const chief = form.education_agents ? form.education_agents.match(/Chefe(?: respons[áa]vel)?:\s*([^\n]+)/i)?.[1]?.trim() : "";
+      const agentsMatch = form.education_agents ? form.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() : "";
+      const supportsMatch = form.education_agents ? form.education_agents.match(/Apoio?:\s*([^\n]+)/i)?.[1]?.trim() : "";
+      const absences = Object.values(attendanceForm || {}).filter(d => d.is_absent === true);
+      const actions = form.actions || [];
+      let totalsEstimado = 0;
+      let totalsAlcancado = 0;
+      actions.forEach(a => { totalsEstimado += Number(a.approach || 0); totalsAlcancado += Number(a.approached_actions || 0); });
+      const taxa = totalsEstimado > 0 ? ((totalsAlcancado / totalsEstimado) * 100).toFixed(1) + "%" : "N/A";
+
+      // Style tokens
+      const NAVY = "#0a1e44";
+      const NAVY_LIGHT = "#143770";
+      const GOLD = "#b4963c";
+      const GRAY_100 = "#f2f3f5";
+      const GRAY_600 = "#646464";
+
+      const sectionStyle = (num, title) => (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px", marginTop: "16px" }}>
+          <span style={{ background: NAVY, color: "#fff", fontWeight: 700, fontSize: "10px", borderRadius: "4px", padding: "2px 7px", minWidth: "22px", textAlign: "center" }}>{String(num).padStart(2, "0")}</span>
+          <span style={{ fontWeight: 700, fontSize: "12px", color: NAVY, letterSpacing: "0.5px" }}>{title}</span>
+        </div>
+      );
+
+      const tableRow = (label, value, idx) => (
+        <div key={label} style={{ display: "flex", fontSize: "11px", padding: "5px 8px", background: idx % 2 === 0 ? GRAY_100 : "#fff" }}>
+          <span style={{ fontWeight: 700, color: NAVY_LIGHT, minWidth: "140px", flexShrink: 0 }}>{label}</span>
+          <span style={{ color: "#1e1e1e" }}>{value || "—"}</span>
+        </div>
+      );
+
+      const identData = [
+        ["Protocolo", form.agenda ? `#${form.agenda}` : null],
+        ["Ordem de Serviço", selectedAgenda?.service_order_number],
+        ["Data da Operação", form.operation_date ? formatDateBR(form.operation_date) : null],
+        ["Horário Programado", selectedAgenda ? `${selectedAgenda.start_time?.slice(0,5) || "--"} às ${selectedAgenda.end_time?.slice(0,5) || "--"}` : null],
+        ["Natureza da Atividade", form.agenda_title],
+        ["Instituição / Local", form.agenda_location],
+        ["Endereço", selectedAgenda?.address],
+        ["Município", selectedAgenda?.city || selectedAgenda?.municipality_ref_name],
+      ].filter(r => r[1] && r[1] !== "-" && r[1] !== "null" && r[1] !== "undefined");
+
+      const respData = [];
+      if (form.team) respData.push(["Equipe Designada", form.team]);
+      if (chief) respData.push(["Chefe Responsável", chief]);
+      if (agentsMatch) respData.push(["Agentes de Educação", agentsMatch]);
+      if (supportsMatch) respData.push(["Apoio Operacional", supportsMatch]);
+
+      const recursos = [];
+      if (form.cars) recursos.push(["Viaturas", form.cars.split(",").map(c => c.trim()).filter((v,i,a) => a.indexOf(v)===i).join(", ")]);
+      if (form.breathalyzers) recursos.push(["Etilômetros", form.breathalyzers]);
+
+      return (
       <div className="modal-backdrop">
-        <article className="modal" style={{ maxWidth: "760px", width: "min(760px, 95vw)" }}>
-          <div className="modal-header">
-            <div>
-              <h2>{"Resumo do Relat\u00f3rio"}</h2>
-              <small>{"Consulta r\u00e1pida sem sair do preenchimento."}</small>
+        <article className="modal" style={{ maxWidth: "760px", width: "min(760px, 95vw)", padding: 0, overflow: "hidden" }}>
+          {/* Modal close button */}
+          <button type="button" className="icon-button" onClick={() => setShowPreviewModal(false)} aria-label="Fechar resumo" style={{ position: "absolute", top: "8px", right: "8px", zIndex: 10, background: "rgba(255,255,255,0.15)", color: "#fff", borderRadius: "50%" }}>
+            <X size={18} />
+          </button>
+
+          {/* Scrollable content */}
+          <div style={{ maxHeight: "75vh", overflow: "auto" }}>
+            {/* ── HEADER BANNER ── */}
+            <div style={{ background: NAVY, padding: "14px 0", textAlign: "center" }}>
+              <img src={logoUrl} alt="Logo" style={{ height: "36px", objectFit: "contain" }} />
             </div>
-            <button type="button" className="icon-button" onClick={() => setShowPreviewModal(false)} aria-label="Fechar resumo">
-              <X size={18} />
-            </button>
+            <div style={{ height: "3px", background: GOLD }} />
+
+            {/* ── TITLE ── */}
+            <div style={{ textAlign: "center", padding: "12px 16px 4px" }}>
+              <div style={{ fontWeight: 700, fontSize: "16px", color: GOLD, letterSpacing: "1px" }}>EDUCAÇÃO</div>
+              <div style={{ fontWeight: 400, fontSize: "12px", color: "#1e1e1e", marginTop: "2px" }}>RELATÓRIO TÉCNICO DE ATIVIDADE</div>
+            </div>
+
+            {/* Double rule */}
+            <div style={{ margin: "0 16px", borderTop: `2px solid ${NAVY}` }} />
+            <div style={{ margin: "2px 16px 0", borderTop: `1px solid ${GOLD}` }} />
+
+            {/* Meta line */}
+            <div style={{ textAlign: "center", padding: "6px 16px 2px", fontSize: "10px", color: GRAY_600, letterSpacing: "0.3px" }}>
+              {[
+                form.agenda ? `Protocolo #${form.agenda}` : null,
+                selectedAgenda?.service_order_number ? `OS ${selectedAgenda.service_order_number}` : null,
+                `Data: ${form.operation_date ? formatDateBR(form.operation_date) : "--"}`,
+              ].filter(Boolean).join("   |   ")}
+            </div>
+
+            <div style={{ padding: "0 16px 16px" }}>
+              {/* SECTION 1 */}
+              {sectionStyle(1, "IDENTIFICAÇÃO DA ATIVIDADE")}
+              <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+              <div style={{ borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
+                {identData.map((r, i) => tableRow(r[0], r[1], i))}
+              </div>
+
+              {/* SECTION 2 */}
+              {respData.length > 0 && (<>
+                {sectionStyle(2, "RESPONSABILIDADE OPERACIONAL")}
+                <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+                <div style={{ borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
+                  {respData.map((r, i) => tableRow(r[0], r[1], i))}
+                </div>
+              </>)}
+
+              {/* SECTION 3 */}
+              {sectionStyle(respData.length > 0 ? 3 : 2, "FREQUÊNCIA DOS PARTICIPANTES")}
+              <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+              {absences.length === 0 ? (
+                <div style={{ fontSize: "11px", fontStyle: "italic", color: GRAY_600, padding: "4px 8px" }}>Nenhuma ausência registrada.</div>
+              ) : (
+                <div style={{ borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
+                  <div style={{ display: "flex", fontSize: "10px", fontWeight: 700, padding: "6px 8px", background: NAVY, color: "#fff" }}>
+                    <span style={{ flex: 2 }}>Participante Ausente</span>
+                    <span style={{ flex: 1 }}>Função</span>
+                    <span style={{ flex: 2 }}>Justificativa</span>
+                  </div>
+                  {absences.map((a, i) => (
+                    <div key={i} style={{ display: "flex", fontSize: "10px", padding: "5px 8px", background: i % 2 === 0 ? GRAY_100 : "#fff" }}>
+                      <span style={{ flex: 2 }}>{a.member?.name || "Desconhecido"}</span>
+                      <span style={{ flex: 1 }}>{a.member?.typeLabel || "N/I"}</span>
+                      <span style={{ flex: 2 }}>{(a.reason || "").trim() || "Não informada"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* SECTION 4 — AÇÕES */}
+              {actions.length > 0 && (<>
+                {sectionStyle(respData.length > 0 ? 4 : 3, "AÇÕES EXECUTADAS")}
+                <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+                {actions.map((action, index) => {
+                  const actionData = [
+                    ["Tipo da Ação", action.type_action],
+                    ["Instituição / Local", action.institution_name],
+                    ["Endereço", action.place_action],
+                    ["Horário", `${action.start_time || "--"} às ${action.final_hour || "--"}`],
+                    ["Público Estimado", action.approach],
+                    ["Público Alcançado", action.approached_actions],
+                  ].filter(r => r[1] && r[1] !== "—" && r[1] !== "-- às --" && r[1] !== "0" && r[1] !== "-");
+
+                  // Parse materials
+                  const materials = [];
+                  if (action.distribution_materials_distributed) {
+                    action.distribution_materials_distributed.split("\n").forEach(line => {
+                      const parts = line.split("|");
+                      if (parts.length >= 2) {
+                        const name = parts[0].trim();
+                        const qty = parseInt(parts[1].replace(/\D/g, ""), 10);
+                        if (name && !isNaN(qty) && qty > 0) materials.push([name, qty]);
+                      }
+                    });
+                  }
+
+                  return (
+                    <div key={index} style={{ marginBottom: "10px" }}>
+                      <div style={{ background: NAVY_LIGHT, color: "#fff", fontWeight: 700, fontSize: "10px", padding: "5px 10px", borderRadius: "5px", letterSpacing: "0.5px" }}>
+                        AÇÃO {String(index + 1).padStart(2, "0")} — {(action.type_action || "NÃO ESPECIFICADA").toUpperCase()}
+                      </div>
+                      <div style={{ borderRadius: "0 0 6px 6px", overflow: "hidden", border: "1px solid #e5e5e5", borderTop: "none" }}>
+                        {actionData.map((r, i) => tableRow(r[0], r[1], i))}
+                      </div>
+                      {materials.length > 0 && (
+                        <div style={{ marginTop: "4px", borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
+                          <div style={{ display: "flex", fontSize: "10px", fontWeight: 700, padding: "5px 8px", background: GRAY_100, color: NAVY }}>
+                            <span style={{ flex: 3 }}>Material Distribuído</span>
+                            <span style={{ flex: 1, textAlign: "center" }}>Qtd.</span>
+                          </div>
+                          {materials.map((m, i) => (
+                            <div key={i} style={{ display: "flex", fontSize: "10px", padding: "4px 8px", background: i % 2 === 0 ? "#fafafe" : "#fff" }}>
+                              <span style={{ flex: 3 }}>{m[0]}</span>
+                              <span style={{ flex: 1, textAlign: "center", fontWeight: 600 }}>{m[1]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>)}
+
+              {/* SECTION 5 — PÚBLICO E RESULTADOS */}
+              {sectionStyle(respData.length > 0 ? (actions.length > 0 ? 5 : 4) : (actions.length > 0 ? 4 : 3), "PÚBLICO E RESULTADOS CONSOLIDADOS")}
+              <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+              <div style={{ borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
+                <div style={{ display: "flex", fontSize: "10px", fontWeight: 700, padding: "6px 8px", background: NAVY, color: "#fff" }}>
+                  <span style={{ flex: 3 }}>Indicador</span>
+                  <span style={{ flex: 1, textAlign: "center" }}>Valor</span>
+                </div>
+                {[
+                  ["Público Estimado (total)", totalsEstimado],
+                  ["Público Alcançado (total)", totalsAlcancado],
+                  ["Ações Realizadas", actions.length],
+                  ["Taxa de Alcance", taxa],
+                ].map((r, i) => (
+                  <div key={i} style={{ display: "flex", fontSize: "11px", padding: "5px 8px", background: i % 2 === 0 ? GRAY_100 : "#fff" }}>
+                    <span style={{ flex: 3, color: "#1e1e1e" }}>{r[0]}</span>
+                    <span style={{ flex: 1, textAlign: "center", fontWeight: 700, color: NAVY }}>{r[1]}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* SECTION 6 — RECURSOS */}
+              {recursos.length > 0 && (<>
+                {sectionStyle(respData.length > 0 ? (actions.length > 0 ? 6 : 5) : (actions.length > 0 ? 5 : 4), "RECURSOS OPERACIONAIS")}
+                <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+                <div style={{ borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
+                  {recursos.map((r, i) => tableRow(r[0], r[1], i))}
+                </div>
+              </>)}
+
+              {/* SECTION 7 — OCORRÊNCIAS */}
+              {(() => {
+                const secNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 1;
+                return (<>
+                  {sectionStyle(secNum, "REGISTRO DE OCORRÊNCIAS")}
+                  <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+                  {form.has_exceptional_occurrence ? (
+                    <div style={{ borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
+                      {[
+                        ["Tipo da Ocorrência", form.exceptional_occurrence_type === "VEHICLE_BREAKDOWN" ? "Viatura" : form.exceptional_occurrence_type === "WORK_ACCIDENT" ? "Efetivo" : form.exceptional_occurrence_type],
+                        ["Descrição", form.exceptional_occurrence_description],
+                        ["Providências Adotadas", form.exceptional_occurrence_actions_taken],
+                        ["Impacto na Atividade", form.exceptional_occurrence_impact],
+                      ].map((r, i) => tableRow(r[0], r[1], i))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: "11px", fontStyle: "italic", color: GRAY_600, padding: "4px 8px" }}>Nenhuma ocorrência envolvendo viatura ou efetivo registrada.</div>
+                  )}
+                </>);
+              })()}
+
+              {/* SECTION 8 — CONCLUSÃO */}
+              {(() => {
+                const secNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 2;
+                return (<>
+                  {sectionStyle(secNum, "CONCLUSÃO INSTITUCIONAL")}
+                  <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+                  <div style={{ fontSize: "10.5px", color: "#1e1e1e", lineHeight: "1.55", padding: "4px 8px" }}>
+                    O presente documento consolida as informações registradas no Sistema Integrado da Educação – SIED referentes à atividade identificada, incluindo execução operacional, frequência dos participantes, ações realizadas, público estimado, público alcançado, materiais distribuídos e eventuais ocorrências. Este relatório possui caráter técnico-institucional e integra o acervo documental do programa Lei Seca Educação.
+                  </div>
+                </>);
+              })()}
+
+              {/* Final rules */}
+              <div style={{ marginTop: "12px", borderTop: `2px solid ${NAVY}` }} />
+              <div style={{ marginTop: "2px", borderTop: `1px solid ${GOLD}` }} />
+
+              {/* Footer */}
+              <div style={{ textAlign: "center", padding: "8px 0 2px", fontSize: "8px", color: GRAY_600 }}>
+                SIED — Sistema Integrado da Educação  |  Uso institucional — Lei Seca Educação
+              </div>
+            </div>
           </div>
-          <pre style={{ fontSize: "12px", padding: "12px", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "8px", whiteSpace: "pre-wrap", maxHeight: "65vh", overflow: "auto" }}>{preview}</pre>
-          <div className="modal-actions">
+
+          {/* Modal actions */}
+          <div className="modal-actions" style={{ borderTop: "1px solid #e5e5e5", padding: "12px 16px" }}>
             <button
               className="primary"
               type="button"
@@ -1970,7 +2214,8 @@ export default function TechnicalReportsPage() {
           </div>
         </article>
       </div>
-    )}
+      );
+    })()}
     </>
   );
 }
