@@ -409,6 +409,7 @@ function hydrateForm(report, agenda) {
   const hasAnySourceId = report.actions?.some((a) => a.source_id) ?? false;
   return {
     ...report,
+    cars: dedupeVehicleText(report?.cars),
     approximate_public: numericApproximatePublic(report?.approximate_public),
     request_details: buildRequestDetails(report, agenda),
     actions: report.actions?.length
