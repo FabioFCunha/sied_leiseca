@@ -153,6 +153,17 @@ function dedupeVehicleText(value = "") {
   );
 }
 
+function removeVehicleLinesFromResources(value = "") {
+  return String(value || "")
+    .split(/\r?\n/)
+    .filter((line) => {
+      const text = line.trim();
+      return !/^Viatura(?: cadastrada)?:/i.test(text);
+    })
+    .join("\n")
+    .trim();
+}
+
 function formatContactValue(value = "") {
   const text = String(value || "").trim();
   if (!text) return "";
@@ -409,6 +420,7 @@ function hydrateForm(report, agenda) {
   return {
     ...report,
     cars: dedupeVehicleText(report?.cars),
+    breathalyzers: removeVehicleLinesFromResources(report?.breathalyzers),
     approximate_public: numericApproximatePublic(report?.approximate_public),
     request_details: buildRequestDetails(report, agenda),
     actions: report.actions?.length
@@ -686,7 +698,7 @@ export default function TechnicalReportsPage() {
         request_details: source.request_details || details.audience,
         street_action_details: source.street_action_details?.length ? source.street_action_details : (agenda.street_action_details || []),
         materials_removed: source.materials_removed || materialsFromAgenda(agenda),
-        breathalyzers: source.breathalyzers || details.resources,
+        breathalyzers: removeVehicleLinesFromResources(source.breathalyzers) || details.resources,
         cars: dedupeVehicleText(source.cars) || joinValues(uniqueVehicleValues(agenda?.vehicle, agenda?.vehicle_name)),
         contact_received: source.contact_received || joinContactValues([
           agenda.external_responsible,
