@@ -170,14 +170,14 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
     doc.addImage(logoBase64, "PNG", logoX, logoY, logoW, logoH);
   }
 
-  startY = bannerH + 6;
+  startY = bannerH + 9;
 
   // Title block
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.setTextColor(...ACCENT_GOLD);
   doc.text("EDUCAÇÃO", pageWidth / 2, startY, { align: "center" });
-  startY += 6;
+  startY += 7;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
@@ -227,10 +227,11 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
     startY,
     body: identData,
     theme: "plain",
-    styles: { fontSize: 9, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, textColor: GRAY_900 },
+    margin: { left: MARGIN_L, right: MARGIN_R },
+    tableWidth: CONTENT_W,
+    styles: { fontSize: 9, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, textColor: GRAY_900, overflow: "linebreak" },
     columnStyles: {
       0: { fontStyle: "bold", cellWidth: 48, textColor: NAVY_LIGHT },
-      1: { cellWidth: CONTENT_W - 48 },
     },
     alternateRowStyles: { fillColor: GRAY_100 },
     didDrawPage: () => {},
@@ -258,10 +259,11 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
       startY,
       body: respData,
       theme: "plain",
-      styles: { fontSize: 9, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, textColor: GRAY_900 },
+      margin: { left: MARGIN_L, right: MARGIN_R },
+      tableWidth: CONTENT_W,
+      styles: { fontSize: 9, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, textColor: GRAY_900, overflow: "linebreak" },
       columnStyles: {
         0: { fontStyle: "bold", cellWidth: 48, textColor: NAVY_LIGHT },
-        1: { cellWidth: CONTENT_W - 48 },
       },
       alternateRowStyles: { fillColor: GRAY_100 },
     });
@@ -349,10 +351,11 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
       startY,
       body: actionData,
       theme: "plain",
-      styles: { fontSize: 8.5, cellPadding: { top: 2, bottom: 2, left: 4, right: 4 }, textColor: GRAY_900 },
+      margin: { left: MARGIN_L, right: MARGIN_R },
+      tableWidth: CONTENT_W,
+      styles: { fontSize: 8.5, cellPadding: { top: 2, bottom: 2, left: 4, right: 4 }, textColor: GRAY_900, overflow: "linebreak" },
       columnStyles: {
         0: { fontStyle: "bold", cellWidth: 45, textColor: NAVY_LIGHT },
-        1: { cellWidth: CONTENT_W - 45 },
       },
       alternateRowStyles: { fillColor: GRAY_100 },
     });
@@ -431,7 +434,7 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
 
   const recursos = [];
   if (form.cars) recursos.push(["Viaturas", form.cars.split(",").map(c => c.trim()).filter((v,i,a) => a.indexOf(v)===i).join(", ")]);
-  if (form.breathalyzers) recursos.push(["Etilômetros", form.breathalyzers]);
+
 
   if (recursos.length > 0) {
     if (startY > pageHeight - 40) {
@@ -445,10 +448,11 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
       startY,
       body: recursos,
       theme: "plain",
-      styles: { fontSize: 9, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, textColor: GRAY_900 },
+      margin: { left: MARGIN_L, right: MARGIN_R },
+      tableWidth: CONTENT_W,
+      styles: { fontSize: 9, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, textColor: GRAY_900, overflow: "linebreak" },
       columnStyles: {
         0: { fontStyle: "bold", cellWidth: 48, textColor: NAVY_LIGHT },
-        1: { cellWidth: CONTENT_W - 48 },
       },
       alternateRowStyles: { fillColor: GRAY_100 },
     });
@@ -479,10 +483,11 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
         ["Impacto na Atividade", form.exceptional_occurrence_impact || "—"],
       ],
       theme: "plain",
-      styles: { fontSize: 9, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, textColor: GRAY_900 },
+      margin: { left: MARGIN_L, right: MARGIN_R },
+      tableWidth: CONTENT_W,
+      styles: { fontSize: 9, cellPadding: { top: 2.5, bottom: 2.5, left: 4, right: 4 }, textColor: GRAY_900, overflow: "linebreak" },
       columnStyles: {
         0: { fontStyle: "bold", cellWidth: 48, textColor: NAVY_LIGHT },
-        1: { cellWidth: CONTENT_W - 48 },
       },
       alternateRowStyles: { fillColor: GRAY_100 },
     });

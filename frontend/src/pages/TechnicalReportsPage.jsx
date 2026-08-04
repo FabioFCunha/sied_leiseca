@@ -1992,7 +1992,7 @@ export default function TechnicalReportsPage() {
 
       const recursos = [];
       if (form.cars) recursos.push(["Viaturas", form.cars.split(",").map(c => c.trim()).filter((v,i,a) => a.indexOf(v)===i).join(", ")]);
-      if (form.breathalyzers) recursos.push(["Etilômetros", form.breathalyzers]);
+
 
       return (
       <div className="modal-backdrop">
