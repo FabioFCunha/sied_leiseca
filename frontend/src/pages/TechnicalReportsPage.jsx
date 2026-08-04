@@ -342,7 +342,6 @@ function protocolDetails(agenda) {
       agenda.support_2 ? `Apoio 2: ${agenda.support_2}` : "",
     ]),
     resources: joinValues([
-      agendaVehicles.map((vehicle, index) => `${index === 0 ? "Viatura" : "Viatura cadastrada"}: ${vehicle}`).join("\n"),
       materialsFromAgenda(agenda) ? `Kits e materiais:\n${materialsFromAgenda(agenda)}` : "",
       agenda.media_equipment ? `Recursos do local:\n${agenda.media_equipment}` : "",
     ]),
