@@ -77,7 +77,7 @@ const numberFields = [
 ];
 
 const fieldLabels = {
-  approach: "Público alcançado (Ação/Palestra)",
+  approach: "Público estimado (Ação/Palestra)",
   approached_actions: "Número de abordagens",
 };
 
