@@ -572,11 +572,14 @@ export default function StatisticsPage() {
       analysisParts.push(`Também houve a distribuição de ${integer(distributedMaterials)} materiais educativos, incluindo ${integer(distributedComics)} revistinhas.`);
     }
 
-    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    const printWindow = window.open("", "_blank");
+
     if (!printWindow) {
-      window.alert("Não foi possível abrir a visualização de impressão do relatório.");
+      window.alert("Não foi possível abrir a visualização de impressão do relatório. Verifique se o navegador bloqueou pop-ups.");
       return;
     }
+
+    printWindow.opener = null;
 
     const logoUrl = new URL(leiSecaLogo, window.location.href).href;
     printWindow.document.open();
