@@ -1823,9 +1823,6 @@ class AgendaViewSet(viewsets.ModelViewSet):
         operational_team_names = {row["team"] for row in operation_rows if row["team"] != "Sem equipe"}
         operational_chief_names = {row["chief"] for row in operation_rows if row["chief"] != "Sem chefe"}
         total_agents_scheduled = sum(row["agents_count"] for row in operation_rows)
-        service_orders_today = operational_base.filter(service_order_number__isnull=False).exclude(
-            status__in=[Agenda.Status.CANCELLED, "CANCELED", "REJECTED", "REFUSED"]
-        ).count()
         pending_approval_today = operational_base.filter(status=Agenda.Status.PENDING).count()
 
         alerts = []
@@ -1869,7 +1866,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "in_progress": {"value": in_progress_today_qs.count(), "label": "Em andamento"},
                 "pending_start": {"value": pending_start_today_qs.count(), "label": "Pr\u00f3ximas"},
                 "completed": {"value": completed_today_qs.count(), "label": "Conclu\u00eddas"},
-                "cancelled": {"value": cancelled_today_qs.count(), "label": "Canceladas"},
+                "cancelled": {"value": cancelled_today_qs.count(), "label": "A\u00e7\u00f5es canceladas"},
                 "pending_reports": {"value": pending_report_today_qs.count(), "label": "Relat\u00f3rios aguardando envio"},
                 "estimated_public": {"value": total_estimated_public, "label": "Estimativa de p\u00fablico"},
                 "public_reached": {"value": total_reached_public, "label": "P\u00fablico alcan\u00e7ado informado"},
@@ -1877,7 +1874,6 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "chiefs_active": {"value": len(operational_chief_names), "label": "Chefes"},
                 "agents_scheduled": {"value": total_agents_scheduled, "label": "Agentes"},
                 "supports_scheduled": {"value": total_supports, "label": "Apoios"},
-                "service_orders": {"value": service_orders_today, "label": "OS emitidas"},
             },
             "alerts": alerts[:10],
             "field_operations": operation_rows,

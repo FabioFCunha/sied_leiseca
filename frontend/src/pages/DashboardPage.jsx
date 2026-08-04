@@ -530,7 +530,7 @@ const operationalCardConfig = [
   { key: "chiefs_active", title: "Chefes", hint: "Chefes em opera\u00e7\u00e3o", icon: UserCheck, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
   { key: "agents_scheduled", title: "Agentes", hint: "Agentes em campo", icon: Users, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
   { key: "supports_scheduled", title: "Apoios", hint: "Apoios escalados", icon: Users, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
-  { key: "service_orders", title: "OS emitidas", hint: "Ordens de servi\u00e7o", icon: FileText, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
+  { key: "cancelled", title: "A\u00e7\u00f5es canceladas", hint: "A\u00e7\u00f5es canceladas", icon: FileText, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
 ];
 
 const workforceConfig = [
