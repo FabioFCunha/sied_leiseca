@@ -18,8 +18,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import OperationalMap from "../components/OperationalMap.jsx";
 import { api } from "../api/client.js";
 import { formatDateBR } from "../utils/date.js";
 import { statusLabel } from "../utils/status.js";
@@ -569,6 +567,134 @@ function SectionCard({ icon: Icon, title, subtitle, children }) {
   );
 }
 
+function formatInsightCount(count, singular, plural) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function buildOperationalInsights(operations = [], cards = {}) {
+  const safeOperations = Array.isArray(operations) ? operations : [];
+  if (!safeOperations.length) return [];
+
+  const total = safeOperations.length;
+  const completed = safeOperations.filter((item) => item?.operational_status === "completed").length;
+  const inProgress = safeOperations.filter((item) => item?.operational_status === "in_progress").length;
+  const upcoming = safeOperations.filter((item) => ["scheduled", "pending_approval"].includes(item?.operational_status)).length;
+
+  const totalEstimated = safeOperations.reduce((sum, item) => {
+    const value = Number(item?.estimated_public || 0);
+    return Number.isFinite(value) && value > 0 ? sum + value : sum;
+  }, 0);
+  const totalReached = safeOperations.reduce((sum, item) => {
+    const value = Number(item?.public_reached || 0);
+    return Number.isFinite(value) && value > 0 ? sum + value : sum;
+  }, 0);
+
+  const withReport = safeOperations.filter((item) => item?.report).length;
+  const withoutReport = Math.max(total - withReport, 0);
+  const pendingReports = Number(cards?.pending_reports?.value || 0);
+
+  const largestAction = safeOperations.reduce((currentLargest, item) => {
+    const reached = Number(item?.public_reached || 0);
+    if (!Number.isFinite(reached) || reached <= 0) return currentLargest;
+    if (!currentLargest || reached > currentLargest.reached) {
+      return {
+        name: item?.location || item?.title || item?.type || "A??o sem identifica??o",
+        reached,
+      };
+    }
+    return currentLargest;
+  }, null);
+
+  const teamCounts = new Map();
+  safeOperations.forEach((item) => {
+    const team = String(item?.team || "").trim();
+    if (!team || team === "Sem equipe") return;
+    teamCounts.set(team, (teamCounts.get(team) || 0) + 1);
+  });
+  const rankedTeams = [...teamCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"));
+  const topTeamCount = rankedTeams[0]?.[1] || 0;
+  const topTeams = rankedTeams.filter(([, value]) => value === topTeamCount).map(([team]) => team);
+
+  const actionsWithoutEstimate = safeOperations.filter((item) => {
+    const value = Number(item?.estimated_public || 0);
+    return !Number.isFinite(value) || value <= 0;
+  }).length;
+  const actionsWithStaffChanges = safeOperations.filter((item) => Array.isArray(item?.report?.changes_staff) && item.report.changes_staff.length > 0).length;
+  const actionsWithAbsences = safeOperations.filter((item) => Number(item?.absence_count || 0) > 0).length;
+
+  const insights = [];
+
+  const summaryParts = [];
+  if (completed > 0) summaryParts.push(`${formatInsightCount(completed, "conclu?da", "conclu?das")}`);
+  if (inProgress > 0) summaryParts.push(`${inProgress} em andamento`);
+  if (upcoming > 0) summaryParts.push(`${formatInsightCount(upcoming, "pr?xima", "pr?ximas")}`);
+  insights.push({
+    title: "Resumo do dia",
+    body: summaryParts.length
+      ? `O per?odo filtrado teve ${formatInsightCount(total, "a??o", "a??es")}, com ${summaryParts.join(", ")}.`
+      : `O per?odo filtrado teve ${formatInsightCount(total, "a??o", "a??es")}.`,
+  });
+
+  if (totalEstimated > 0 && totalReached > 0) {
+    const reachedPercentage = Math.round((totalReached / totalEstimated) * 100);
+    insights.push({
+      title: "P?blico",
+      body: `Foram alcan?adas ${Number(totalReached).toLocaleString("pt-BR")} pessoas para um p?blico estimado de ${Number(totalEstimated).toLocaleString("pt-BR")} (${reachedPercentage}% do previsto).`,
+    });
+  } else if (totalReached > 0) {
+    insights.push({
+      title: "P?blico",
+      body: `As a??es com relat?rio registraram ${Number(totalReached).toLocaleString("pt-BR")} pessoas alcan?adas.`,
+    });
+  } else if (totalEstimated > 0) {
+    insights.push({
+      title: "P?blico",
+      body: `O p?blico estimado para o per?odo ? de ${Number(totalEstimated).toLocaleString("pt-BR")} pessoas.`,
+    });
+  }
+
+  if (withReport > 0 || withoutReport > 0 || pendingReports > 0) {
+    let reportsBody = "";
+    if (withReport === total && total > 0) {
+      reportsBody = `Todas as ${formatInsightCount(total, "a??o possui", "a??es possuem")} relat?rio enviado ou aprovado.`;
+    } else if (withReport > 0 && withoutReport > 0) {
+      reportsBody = `${formatInsightCount(withReport, "a??o possui", "a??es possuem")} relat?rio, enquanto ${formatInsightCount(withoutReport, "segue sem relat?rio", "seguem sem relat?rio")}.`;
+    } else if (withReport > 0) {
+      reportsBody = `${formatInsightCount(withReport, "a??o possui", "a??es possuem")} relat?rio enviado ou aprovado.`;
+    } else {
+      reportsBody = "Nenhuma a??o possui relat?rio enviado at? o momento.";
+    }
+    if (pendingReports > 0) {
+      reportsBody += ` H? ${formatInsightCount(pendingReports, "pend?ncia", "pend?ncias")} de relat?rio no per?odo.`;
+    }
+    insights.push({ title: "Relat?rios", body: reportsBody });
+  }
+
+  const highlightParts = [];
+  if (largestAction) {
+    highlightParts.push(`A a??o ${largestAction.name} teve o maior alcance, com ${Number(largestAction.reached).toLocaleString("pt-BR")} pessoas.`);
+  }
+  if (topTeams.length === 1) {
+    highlightParts.push(`A equipe ${topTeams[0]} liderou a atua??o, com ${formatInsightCount(topTeamCount, "a??o", "a??es")}.`);
+  } else if (topTeams.length > 1 && topTeamCount > 0) {
+    highlightParts.push(`Houve empate de atua??o entre ${topTeams.join(", ")}, com ${formatInsightCount(topTeamCount, "a??o", "a??es")} cada.`);
+  }
+  if (highlightParts.length) {
+    insights.push({ title: "Destaque", body: highlightParts.join(" ") });
+  }
+
+  const alertParts = [];
+  if (actionsWithoutEstimate > 0) alertParts.push(`${formatInsightCount(actionsWithoutEstimate, "a??o n?o informou p?blico estimado", "a??es n?o informaram p?blico estimado")}`);
+  if (withoutReport > 0) alertParts.push(`${formatInsightCount(withoutReport, "a??o segue sem relat?rio", "a??es seguem sem relat?rio")}`);
+  if (actionsWithStaffChanges > 0) alertParts.push(`${formatInsightCount(actionsWithStaffChanges, "a??o registrou altera??o de efetivo", "a??es registraram altera??es de efetivo")}`);
+  if (actionsWithAbsences > 0) alertParts.push(`${formatInsightCount(actionsWithAbsences, "a??o teve falta registrada", "a??es tiveram faltas registradas")}`);
+  if (alertParts.length) {
+    insights.push({ title: "Aten??o", body: `${alertParts.join(". ")}.` });
+  }
+
+  return insights.slice(0, 5);
+}
+
 function OperationalCard({ config, data }) {
   const Icon = config.icon;
   return (
@@ -746,7 +872,6 @@ function WorkforcePanel({ cards = {} }) {
 
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState(null);
   const [filters, setFilters] = useState(emptyFilters);
   const [municipalities, setMunicipalities] = useState([]);
@@ -945,7 +1070,32 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: "grid", gap: "24px" }}>
-            <OperationalMap operations={dashboard?.operations?.field_operations || []} onOpenAgenda={(agendaId) => navigate(`/agendas?open=${agendaId}`)} />
+            <SectionCard icon={Activity} title={"Insights autom?ticos"} subtitle={"Leitura r?pida para gest?o"}>
+              {(() => {
+                const operations = dashboard?.operations?.field_operations || [];
+                const cards = dashboard?.operations?.cards || {};
+                const insights = buildOperationalInsights(operations, cards);
+
+                if (!insights.length) {
+                  return (
+                    <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>
+                      N?o h? dados suficientes para gerar insights para os filtros selecionados.
+                    </p>
+                  );
+                }
+
+                return (
+                  <div style={{ display: "grid", gap: "14px" }}>
+                    {insights.map((insight) => (
+                      <div key={insight.title} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px 16px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
+                        <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>{insight.title}</strong>
+                        <p style={{ margin: 0, color: "var(--text)", fontSize: 14, lineHeight: 1.5 }}>{insight.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </SectionCard>
             <OperationDayPanel operations={dashboard?.operations?.field_operations || []} />
             <div style={{ marginTop: "24px" }}>
               <MiniCalendar days={dashboard?.calendar || []} />
