@@ -195,9 +195,13 @@ export default function CalendarPage() {
       <div className={`calendar-grid ${view}`}>
         {days.map((day) => {
           const dayAgendas = agendas.filter((agenda) => agenda.date === formatLocalISODate(day));
+          const weekdayLabel = WEEKDAY_LABELS[day.getDay()];
           return (
             <article key={formatLocalISODate(day)} className="day-cell">
-              <span>{day.getDate()}</span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "4px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-soft)" }}>{weekdayLabel}</span>
+                <span>{day.getDate()}</span>
+              </div>
               {dayAgendas.map((agenda) => (
                 <button key={agenda.id} className={`event-pill ${statusClass[agenda.status]}`} onClick={() => setSelected(agenda)}>
                   <strong>{agenda.start_time?.slice(0, 5) || ""}{!isVisitor && ` - ${serviceTeamLabel(agenda)}`}</strong>
