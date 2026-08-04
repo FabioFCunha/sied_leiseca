@@ -30,7 +30,8 @@ export function buildPreview(report) {
   const actionLines = actions.length
     ? actions.map((action, index) => (
         `${index + 1}. ${action.type_action || "Ação"} - ${action.institution_name || action.place_action || "local não informado"}\n` +
-        `   Local: ${action.place_action || "não informado"}\n` +
+        `   Instituição/Local: ${action.institution_name || "não informado"}\n` +
+        `   Endereço do Local: ${action.place_action || "não informado"}\n` +
         `   Público: ${action.type_audience || "não informado"}\n` +
         `   Horário: ${action.start_time || "--"} às ${action.final_hour || "--"}\n` +
         `   Público alcançado (Ação/Palestra): ${action.approach || 0}\n` +

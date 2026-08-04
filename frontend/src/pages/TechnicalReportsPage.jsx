@@ -858,6 +858,8 @@ export default function TechnicalReportsPage() {
           ...emptyAction,
           agenda: current.agenda,
           __userCreated: true,
+          place_action: baseAction.place_action || "",
+          institution_name: baseAction.institution_name || "",
           approach: baseAction.approach || "",
           approached_actions: baseAction.approached_actions || "",
           equipment_materials_removed: baseAction.equipment_materials_removed || "",
@@ -1398,7 +1400,11 @@ export default function TechnicalReportsPage() {
                       </div>
                       <div className="compact-grid chief-action-grid">
                         <label className={`field-label ${requestFieldsReadOnly && !action.__userCreated ? "" : "chief-highlight-field"}`.trim()}>
-                          <span>Local da ação</span>
+                          <span>Instituição/Local</span>
+                          <input value={action.institution_name || ""} onChange={(event) => updateAction(index, "institution_name", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated} />
+                        </label>
+                        <label className={`field-label ${requestFieldsReadOnly && !action.__userCreated ? "" : "chief-highlight-field"}`.trim()}>
+                          <span>Endereço do Local</span>
                           <input value={action.place_action || ""} onChange={(event) => updateAction(index, "place_action", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated} />
                         </label>
                         <label className={`field-label ${requestFieldsReadOnly && !action.__userCreated ? "" : "chief-highlight-field"}`.trim()}>
