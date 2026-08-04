@@ -3366,6 +3366,7 @@ button.stat-card.active {
 .legend-dot.success { background: #ddf8e8; border: 1px solid #77d69a; }
 .legend-dot.danger { background: #ffe5e1; border: 1px solid #efa29a; }
 .legend-dot.neutral { background: #edf1f4; border: 1px solid #b9c4cc; }
+.legend-dot.travel { background: #ede9fe; border: 1px solid #c4b5fd; }
 
 .calendar-grid {
   display: grid;
@@ -3481,6 +3482,7 @@ button.stat-card.active {
 .app-shell.dark-mode .legend-dot.success { background: #123f34; border-color: #77d69a; }
 .app-shell.dark-mode .legend-dot.danger { background: #4a1d1d; border-color: #efa29a; }
 .app-shell.dark-mode .legend-dot.neutral { background: #243442; border-color: #7a91a5; }
+.app-shell.dark-mode .legend-dot.travel { background: #2e1f52; border-color: #c4b5fd; }
 
 .shift-day-cell {
   cursor: pointer;

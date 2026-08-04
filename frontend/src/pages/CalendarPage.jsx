@@ -205,6 +205,7 @@ export default function CalendarPage() {
         <span><i className="legend-dot warning" /> Pendente / aguardando</span>
         <span><i className="legend-dot success" /> Aprovada / confirmada</span>
         <span><i className="legend-dot danger" /> Cancelada / não confirmada</span>
+        <span><i className="legend-dot travel" /> Deslocamento de viagem</span>
       </div>
       <div className={`calendar-grid ${view}`}>
         {days.map((day) => {
