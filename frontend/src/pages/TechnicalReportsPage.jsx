@@ -84,14 +84,8 @@ const fieldLabels = {
 const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
 
 const exceptionalOccurrenceTypeOptions = [
-  { value: "VEHICLE_BREAKDOWN", label: "Quebra ou pane de viatura" },
-  { value: "WORK_ACCIDENT", label: "Acidente de trabalho" },
-  { value: "MEDICAL_ASSISTANCE", label: "Atendimento m\u00e9dico" },
-  { value: "EQUIPMENT_OR_MATERIAL", label: "Problema com equipamento ou material" },
-  { value: "ACTIVITY_INTERRUPTION", label: "Interrup\u00e7\u00e3o da atividade" },
-  { value: "SECURITY_INCIDENT", label: "Ocorr\u00eancia de seguran\u00e7a" },
-  { value: "SEVERE_WEATHER", label: "Condi\u00e7\u00e3o clim\u00e1tica grave" },
-  { value: "OTHER", label: "Outro" },
+  { value: "VEHICLE_BREAKDOWN", label: "Viatura" },
+  { value: "WORK_ACCIDENT", label: "Efetivo" },
 ];
 
 const exceptionalOccurrenceImpactOptions = [
@@ -1511,7 +1505,7 @@ export default function TechnicalReportsPage() {
             />
             <div style={{ display: "grid", gap: "8px", marginTop: "8px", marginBottom: "12px" }}>
               <label className="field-label" htmlFor="select-has-exceptional-occurrence">
-                Ocorrência excepcional durante a atividade?
+                Ocorr\u00eancia envolvendo viatura ou efetivo?
               </label>
               <select
                 id="select-has-exceptional-occurrence"
