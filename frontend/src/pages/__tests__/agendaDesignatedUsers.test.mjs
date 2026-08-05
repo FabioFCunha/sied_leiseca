@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import {
   buildActiveOperationalUserOptions,
   buildAvailableAgents,
+  buildServiceOrderAgentOptions,
+  buildSupportOptions,
   filterDesignatedCandidates,
   normalizeSelectedAgentIds,
   setSelectedUserChecked,
@@ -122,4 +124,59 @@ test("apoios permanecem elegiveis na montagem operacional", () => {
   });
 
   assert.deepEqual(options.map((item) => [item.id, item.role_label]), [["60", "Agente"], ["50", "Apoio"]]);
+});
+test("OS da equipe ECHO lista agentes ativos de HOTEL e SAO GONCALO", () => {
+  const allAgents = buildServiceOrderAgentOptions([
+    { id: 1, name: "Agente Echo", role: "AGENTE", team_name: "ECHO", is_active: true },
+    { id: 2, name: "Agente Hotel", role: "AGENTE", team_name: "HOTEL", is_active: true },
+    { id: 3, name: "Agente Sao Goncalo", role: "AGENTE", team_name: "SAO GONCALO", is_active: true },
+  ]);
+
+  assert.deepEqual(buildAvailableAgents(allAgents, []).map((agent) => agent.team_name), ["ECHO", "HOTEL", "SAO GONCALO"]);
+});
+
+test("agente ativo de outra equipe selecionado nao duplica e removido volta", () => {
+  const allAgents = buildServiceOrderAgentOptions([
+    { id: 1, name: "Agente Echo", role: "AGENTE", team_name: "ECHO", is_active: true },
+    { id: 2, name: "Agente Hotel", role: "AGENTE", team_name: "HOTEL", is_active: true },
+  ]);
+
+  assert.deepEqual(buildAvailableAgents(allAgents, ["2"]).map((agent) => agent.id), [1]);
+  assert.deepEqual(buildAvailableAgents(allAgents, []).map((agent) => agent.id), [1, 2]);
+});
+
+test("apoio ativo de outra equipe aparece em Apoio 1 e Apoio 2", () => {
+  const supports = [
+    { id: 10, name: "Apoio Hotel", role: "APOIO", team_name: "HOTEL", is_active: true },
+    { id: 20, name: "Apoio Niteroi", role: "APOIO", team_name: "NITEROI", is_active: true },
+  ];
+
+  assert.deepEqual(buildSupportOptions(supports, [], "").map((support) => support.team_name), ["HOTEL", "NITEROI"]);
+  assert.deepEqual(buildSupportOptions(supports, [], "").map((support) => support.id), [10, 20]);
+});
+
+test("apoio escolhido em Apoio 1 nao aparece em Apoio 2 mas permanece no proprio campo", () => {
+  const supports = [
+    { id: 10, name: "Apoio Hotel", role: "APOIO", team_name: "HOTEL", is_active: true },
+    { id: 20, name: "Apoio Niteroi", role: "APOIO", team_name: "NITEROI", is_active: true },
+  ];
+
+  assert.deepEqual(buildSupportOptions(supports, [10, ""], 10).map((support) => support.id), [10, 20]);
+  assert.deepEqual(buildSupportOptions(supports, [10, ""], "").map((support) => support.id), [20]);
+});
+
+test("usuarios inativos e funcoes erradas nao aparecem nos candidatos da OS", () => {
+  const agents = buildServiceOrderAgentOptions([
+    { id: 1, name: "Agente Ativo", role: "AGENTE", team_name: "ECHO", is_active: true },
+    { id: 2, name: "Agente Inativo", role: "AGENTE", team_name: "HOTEL", is_active: false },
+    { id: 3, name: "Apoio Indevido", role: "APOIO", team_name: "HOTEL", is_active: true },
+  ]);
+  const supports = buildSupportOptions([
+    { id: 4, name: "Apoio Ativo", role: "APOIO", team_name: "HOTEL", is_active: true },
+    { id: 5, name: "Apoio Inativo", role: "APOIO", team_name: "HOTEL", is_active: false },
+    { id: 6, name: "Agente Indevido", role: "AGENTE", team_name: "ECHO", is_active: true },
+  ]);
+
+  assert.deepEqual(agents.map((agent) => agent.id), [1]);
+  assert.deepEqual(supports.map((support) => support.id), [4]);
 });

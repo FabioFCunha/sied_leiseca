@@ -99,10 +99,36 @@ export function normalizeSelectedAgentIds(selectedAgents = []) {
     .map((id) => String(id).trim())
     .filter((id) => id !== "");
 }
+function isServiceOrderAgentOption(agent) {
+  const role = String(agent?.role || "").toUpperCase();
+  return !role.includes("APOIO") && role !== "SUPPORT";
+}
+
+function isServiceOrderSupportOption(support) {
+  const role = String(support?.role || "").toUpperCase();
+  return !role || role.includes("APOIO") || role === "SUPPORT";
+}
+
+export function buildServiceOrderAgentOptions(allAgents = []) {
+  return allAgents.filter((agent) => agent?.is_active !== false && isServiceOrderAgentOption(agent));
+}
 
 export function buildAvailableAgents(allAgents = [], selectedAgents = []) {
   const selectedAgentIds = new Set(normalizeSelectedAgentIds(selectedAgents));
-  return allAgents.filter((agent) => !selectedAgentIds.has(String(agent.id)));
+  return allAgents.filter((agent) => agent?.is_active !== false && !selectedAgentIds.has(String(agent.id)));
+}
+
+export function normalizeSelectedSupportIds(selectedSupports = []) {
+  return selectedSupports
+    .filter((id) => id !== null && id !== undefined)
+    .map((id) => String(id).trim())
+    .filter((id) => id !== "");
+}
+
+export function buildSupportOptions(allSupports = [], selectedSupports = [], currentValue = "") {
+  const currentId = normalizeString(currentValue);
+  const selectedSupportIds = new Set(normalizeSelectedSupportIds(selectedSupports).filter((id) => id !== currentId));
+  return allSupports.filter((support) => support?.is_active !== false && isServiceOrderSupportOption(support) && !selectedSupportIds.has(String(support.id)));
 }
 export function setSelectedUserChecked(currentIds = [], value, checked) {
   const id = normalizeString(value);

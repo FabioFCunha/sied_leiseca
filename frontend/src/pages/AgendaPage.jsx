@@ -8,7 +8,7 @@ import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/stre
 import { formatDateBR, normalizeTime, addHoursToTime } from "../utils/date.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { statusClass, statusLabel } from "../utils/status.js";
-import { buildActiveOperationalUserOptions, buildAvailableAgents, filterDesignatedCandidates, normalizeSelectedAgentIds, setSelectedUserChecked } from "./agendaDesignatedUsers.js";
+import { buildActiveOperationalUserOptions, buildAvailableAgents, buildServiceOrderAgentOptions, buildSupportOptions, filterDesignatedCandidates, normalizeSelectedAgentIds, setSelectedUserChecked } from "./agendaDesignatedUsers.js";
 
 const emptyForm = {
   service_order_number: "",
@@ -659,11 +659,10 @@ export default function AgendaPage() {
 
   const isSupportRole = (item) => String(item.role || "").toUpperCase().includes("APOIO");
 
-  const staffLabel = (item) => [item.name, item.role, item.address].filter(Boolean).join(" - ");
+  const staffLabel = (item) => [item.name, item.role, item.team_name].filter(Boolean).join(" - ");
 
   const selectedTeam = lookups.teams.find((team) => String(team.id) === String(form.team_ref));
   const selectedTeamName = selectedTeam?.name || form.team_name;
-  const isEditingApprovedServiceOrder = Boolean(editing && reviewStep === "schedule" && form.status === "APPROVED");
 
   const availableTeams = useMemo(() => {
     if (scheduledShifts && form.date) {
@@ -684,34 +683,7 @@ export default function AgendaPage() {
     return lookups.chiefs.filter((chief) => belongsToTeam(chief, form.team_ref, selectedTeamName));
   }, [lookups.chiefs, form.team_ref, selectedTeamName, selectedShift]);
 
-  const allAgents = useMemo(() => {
-    if (isEditingApprovedServiceOrder) {
-      return lookups.agents.filter((agent) => !isSupportRole(agent));
-    }
-
-    let busyInOtherShifts = new Set();
-    let currentShiftAbsents = new Set();
-    if (scheduledShifts) {
-      scheduledShifts.forEach(shift => {
-        const isCurrentTeam = String(shift.team) === String(form.team_ref);
-        if (shift.members && shift.members.agents) {
-          shift.members.agents.forEach(a => {
-            if (a.is_absent && isCurrentTeam) currentShiftAbsents.add(String(a.id));
-            if (!a.is_absent && !isCurrentTeam) busyInOtherShifts.add(String(a.id));
-          });
-        }
-      });
-    }
-    return lookups.agents.filter(agent => {
-      if (isSupportRole(agent)) return false;
-      
-      const isHistoric = normalizeSelectedAgentIds(form.agents_ref || []).includes(String(agent.id));
-      if (!isHistoric && !belongsToTeam(agent, form.team_ref, selectedTeamName)) return false;
-      
-      const idStr = String(agent.id);
-      return !busyInOtherShifts.has(idStr) && !currentShiftAbsents.has(idStr);
-    });
-  }, [lookups.agents, scheduledShifts, form.team_ref, selectedTeamName, form.agents_ref, isEditingApprovedServiceOrder]);
+  const allAgents = useMemo(() => buildServiceOrderAgentOptions(lookups.agents), [lookups.agents]);
 
   const teamAgents = useMemo(() => {
     if (selectedShift && selectedShift.members) {
@@ -727,33 +699,14 @@ export default function AgendaPage() {
     return lookups.supports.filter((support) => belongsToTeam(support, form.team_ref, selectedTeamName));
   }, [lookups.supports, form.team_ref, selectedTeamName, selectedShift]);
 
-  const supportOptions = useMemo(() => {
-    let busyInOtherShifts = new Set();
-    let currentShiftAbsents = new Set();
-    if (scheduledShifts) {
-      scheduledShifts.forEach(shift => {
-        const isCurrentTeam = String(shift.team) === String(form.team_ref);
-        if (shift.members && shift.members.supports) {
-          shift.members.supports.forEach(a => {
-            if (a.is_absent && isCurrentTeam) currentShiftAbsents.add(String(a.id));
-            if (!a.is_absent && !isCurrentTeam) busyInOtherShifts.add(String(a.id));
-          });
-        }
-      });
-    }
-    return lookups.supports.filter(support => {
-      const isHistoric = String(support.id) === String(form.support_1_ref) || String(support.id) === String(form.support_2_ref);
-      if (!isHistoric && !belongsToTeam(support, form.team_ref, selectedTeamName)) return false;
-      
-      const idStr = String(support.id);
-
-      if (isHistoric) {
-        return true;
-      }
-
-      return !busyInOtherShifts.has(idStr) && !currentShiftAbsents.has(idStr);
-    });
-  }, [lookups.supports, scheduledShifts, form.team_ref, selectedTeamName, form.support_1_ref, form.support_2_ref]);
+  const supportOptions1 = useMemo(
+    () => buildSupportOptions(lookups.supports, [form.support_1_ref, form.support_2_ref], form.support_1_ref),
+    [lookups.supports, form.support_1_ref, form.support_2_ref],
+  );
+  const supportOptions2 = useMemo(
+    () => buildSupportOptions(lookups.supports, [form.support_1_ref, form.support_2_ref], form.support_2_ref),
+    [lookups.supports, form.support_1_ref, form.support_2_ref],
+  );
 
   const selectedAgentIds = normalizeSelectedAgentIds(form.agents_ref || []);
   const selectedAgents = selectedAgentIds
@@ -1637,14 +1590,14 @@ export default function AgendaPage() {
                           <span>Apoio 1</span>
                           <select value={form.support_1_ref || ""} onChange={(e) => selectLookup("support_1_ref", "support_1", lookups.supports, e.target.value)}>
                             <option value="">Sem Apoio</option>
-                            {supportOptions.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
+                            {supportOptions1.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
                           </select>
                         </label>
                         <label className="field-label">
                           <span>Apoio 2</span>
                           <select value={form.support_2_ref || ""} onChange={(e) => selectLookup("support_2_ref", "support_2", lookups.supports, e.target.value)}>
                             <option value="">Sem Apoio</option>
-                            {supportOptions.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
+                            {supportOptions2.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
                           </select>
                         </label>
                       </div>
