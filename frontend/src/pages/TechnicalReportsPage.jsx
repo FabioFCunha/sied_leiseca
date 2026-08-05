@@ -2133,9 +2133,6 @@ export default function TechnicalReportsPage() {
                     const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
                     actionData.push(["Público Alcançado", alcDisplay]);
                   } else {
-                    if (action.approach !== undefined && action.approach !== null && action.approach !== "" && action.approach !== "0" && action.approach !== 0 && action.approach !== "-") {
-                      actionData.push(["Público Estimado", action.approach]);
-                    }
                     const alcVal = action.approached_actions;
                     const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
                     actionData.push(["Público Alcançado", alcDisplay]);
