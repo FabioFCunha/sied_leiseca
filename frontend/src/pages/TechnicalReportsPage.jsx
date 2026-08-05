@@ -237,6 +237,28 @@ function serializeBlankMaterialRows(rows = []) {
     .join("\n");
 }
 
+function sumActionDistributedMaterials(actions, catsKits) {
+  const map = {};
+  catsKits.forEach(item => {
+    map[item.name.toLowerCase()] = { name: item.name, quantity: 0 };
+  });
+
+  actions.forEach(action => {
+    const distStr = action.distribution_materials_distributed || serializeBlankMaterialRows(catsKits);
+    const parsed = parseMaterialRows(distStr);
+    parsed.forEach(item => {
+      const key = item.name.toLowerCase();
+      const qty = parseInt(item.quantity, 10) || 0;
+      if (!map[key]) {
+        map[key] = { name: item.name, quantity: 0 };
+      }
+      map[key].quantity += qty;
+    });
+  });
+
+  return serializeMaterialRows(Object.values(map));
+}
+
 function MaterialSummary({ title, value }) {
   const rows = parseMaterialRows(value);
   return (
@@ -848,12 +870,21 @@ export default function TechnicalReportsPage() {
   };
 
   const updateAction = (index, field, value) => {
-    setForm((current) => ({
-      ...current,
-      actions: current.actions.map((action, actionIndex) => (
+    setForm((current) => {
+      const nextActions = current.actions.map((action, actionIndex) => (
         actionIndex === index ? { ...action, [field]: value } : action
-      )),
-    }));
+      ));
+      const nextForm = {
+        ...current,
+        actions: nextActions
+      };
+      if (field === "distribution_materials_distributed") {
+        const safeAgenda = selectedAgenda || {};
+        const cats = extractMaterialCategories(safeAgenda);
+        nextForm.distribution_materials_distributed = sumActionDistributedMaterials(nextActions, cats.kits);
+      }
+      return nextForm;
+    });
   };
 
   const updateAllActionsField = (field, value) => {
@@ -887,12 +918,18 @@ export default function TechnicalReportsPage() {
   };
 
   const removeAction = (index) => {
-    setForm((current) => ({
-      ...current,
-      actions: current.actions.length === 1
+    setForm((current) => {
+      const nextActions = current.actions.length === 1
         ? [{ ...emptyAction, agenda: current.agenda }]
-        : current.actions.filter((_, actionIndex) => actionIndex !== index),
-    }));
+        : current.actions.filter((_, actionIndex) => actionIndex !== index);
+      const safeAgenda = selectedAgenda || {};
+      const cats = extractMaterialCategories(safeAgenda);
+      return {
+        ...current,
+        actions: nextActions,
+        distribution_materials_distributed: sumActionDistributedMaterials(nextActions, cats.kits)
+      };
+    });
   };
 
   const saveAttendance = async ({ closeModal = true, markReported = false, successMessage = "Frequência salva com sucesso." } = {}) => {
@@ -1098,7 +1135,7 @@ export default function TechnicalReportsPage() {
 
     if (missingFields.length > 0) {
       setMessage(`⚠️ Não foi possível salvar o relatório\n\nMotivo:\nExistem campos obrigatórios não preenchidos:\n${missingFields.map(f => `- ${f.name}`).join('\n')}`);
-      
+
       const firstMissingId = missingFields[0].id;
       const el = document.getElementById(firstMissingId);
       if (el) {
@@ -1551,16 +1588,44 @@ export default function TechnicalReportsPage() {
                       {(() => {
                         const safeAgenda = selectedAgenda || {};
                         const cats = extractMaterialCategories(safeAgenda);
-                        if (!cats.kits.length) return null;
-                        const actionDistributedValue = action.distribution_materials_distributed || serializeBlankMaterialRows(cats.kits);
+
+                        let removedItems = [];
+                        if (cats.kits.length > 0) {
+                          removedItems = cats.kits.filter(k => (parseInt(k.quantity, 10) || 0) > 0);
+                        } else {
+                          const baseAction = form.actions[0] || {};
+                          const removedStr = baseAction.distribution_materials_removed || "";
+                          removedItems = parseMaterialRows(removedStr).filter(k => (parseInt(k.quantity, 10) || 0) > 0);
+                        }
+
+                        if (!removedItems.length) return null;
+
+                        const actionDistributedValue = action.distribution_materials_distributed || serializeBlankMaterialRows(removedItems);
+
                         return (
-                          <div className="report-material-grid chief-material-grid" style={{ marginTop: 8 }}>
-                            <div className="field-label report-text-box chief-highlight-field">
-                              <span>Material distribuído nesta ação</span>
-                              <MaterialQuantityEditor
-                                value={actionDistributedValue}
-                                onChange={(value) => updateAction(index, "distribution_materials_distributed", value)}
-                              />
+                          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: "10px" }}>
+                            <div className="field-label report-text-box">
+                              <span>Material retirado para esta Ordem de Serviço (OS)</span>
+                              <div className="material-entry-card material-entry-card-readonly" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
+                                <div className="material-entry-list">
+                                  {removedItems.map((row, rowIndex) => (
+                                    <div key={`${row.name}-${rowIndex}`} style={{ padding: "6px 0", borderBottom: rowIndex === removedItems.length - 1 ? "none" : "1px solid var(--line-light)", display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: "600" }}>
+                                      <span>{row.name}</span>
+                                      <span>{row.quantity}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="report-material-grid chief-material-grid">
+                              <div className="field-label report-text-box chief-highlight-field">
+                                <span>Material distribuído nesta ação</span>
+                                <MaterialQuantityEditor
+                                  value={actionDistributedValue}
+                                  onChange={(value) => updateAction(index, "distribution_materials_distributed", value)}
+                                />
+                              </div>
                             </div>
                           </div>
                         );
@@ -1573,22 +1638,28 @@ export default function TechnicalReportsPage() {
               {(() => {
                 const safeAgenda = selectedAgenda || {};
                 const cats = extractMaterialCategories(safeAgenda);
-                const baseAction = form.actions[0] || emptyAction;
-                const isEditableReport = form.status === "DRAFT" || form.status === "RETURNED";
-                const removedValue = isEditableReport
-                  ? serializeMaterialRows(cats.kits)
-                  : (baseAction.distribution_materials_removed || serializeMaterialRows(cats.kits));
-                // distributedValue reads from report-level field (stock/OS tracking), not from individual actions
-                const distributedValue = form.distribution_materials_distributed || serializeBlankMaterialRows(cats.kits);
 
-                if (!cats.kits.length) return null;
+                let removedItems = [];
+                if (cats.kits.length > 0) {
+                  removedItems = cats.kits.filter(k => (parseInt(k.quantity, 10) || 0) > 0);
+                } else {
+                  const baseAction = form.actions[0] || emptyAction;
+                  const removedStr = baseAction.distribution_materials_removed || "";
+                  removedItems = parseMaterialRows(removedStr).filter(k => (parseInt(k.quantity, 10) || 0) > 0);
+                }
+
+                if (!removedItems.length) return null;
+
+                const removedValue = serializeMaterialRows(removedItems);
+                const distributedValue = form.distribution_materials_distributed || serializeBlankMaterialRows(removedItems);
+                const distributedItems = parseMaterialRows(distributedValue);
 
                 return (
                   <div className="chief-flow-group">
                     <div className="chief-flow-header chief-flow-header-inline">
                       <div>
                         <h5>Materiais para Distribuição</h5>
-                        <p>Os itens retirados seguem a Ordem de Serviço. Informe apenas o que foi realmente distribuído.</p>
+                        <p>Visualização consolidada de materiais retirados e distribuídos nesta Ordem de Serviço.</p>
                       </div>
                     </div>
                     <div className="report-material-grid chief-material-grid">
@@ -1596,9 +1667,43 @@ export default function TechnicalReportsPage() {
                         <span>Material para Distribuição retirado</span>
                         <MaterialSummary value={removedValue} />
                       </div>
-                      <div className="field-label report-text-box chief-highlight-field">
+                      <div className="field-label report-text-box">
                         <span>Material distribuído (total retirado / OS)</span>
-                        <MaterialQuantityEditor value={distributedValue} onChange={(value) => update("distribution_materials_distributed", value)} />
+                        <MaterialSummary value={distributedValue} />
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 12, padding: "12px", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "8px" }}>
+                      <strong style={{ fontSize: "11px", color: "var(--text-soft)", textTransform: "uppercase", display: "block", marginBottom: "8px", fontWeight: "700" }}>Indicadores de Distribuição</strong>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {removedItems.map((row, rowIndex) => {
+                          const removedQty = parseInt(row.quantity, 10) || 0;
+                          const distRow = distributedItems.find(item => item.name.toLowerCase() === row.name.toLowerCase());
+                          const distributedQty = distRow ? (parseInt(distRow.quantity, 10) || 0) : 0;
+                          const difference = removedQty - distributedQty;
+
+                          return (
+                            <div key={`${row.name}-${rowIndex}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "6px", borderBottom: "1px dashed var(--line-light)" }}>
+                              <strong style={{ fontSize: "14px", color: "var(--text)" }}>{row.name}</strong>
+                              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                                {distributedQty === removedQty ? (
+                                  <span style={{ fontSize: "12px", color: "var(--success)", fontWeight: "700" }}>
+                                    Distribuído: {distributedQty} / {removedQty} ✔
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: "12px", color: "var(--text-soft)", fontWeight: "600" }}>
+                                    Distribuído: {distributedQty} / {removedQty}
+                                  </span>
+                                )}
+                                {difference > 0 ? (
+                                  <span style={{ fontSize: "12px", color: "var(--warning)", fontWeight: "700" }}>
+                                    Restam: {difference}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
