@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDateBR } from "./date.js";
 import logoUrl from "../assets/operacao-lei-seca-logo.png";
+import { getSupports } from "./reportPreview.js";
 
 // ── Helper: Load image as base64 for jsPDF ───────────────────────────────
 function loadImageAsBase64(url) {
@@ -244,13 +245,14 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
 
   const chief = form.education_agents ? form.education_agents.match(/Chefe(?: respons[áa]vel)?:\s*([^\n]+)/i)?.[1]?.trim() : "";
   const agents = form.education_agents ? form.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() : "";
-  const supports = form.education_agents ? form.education_agents.match(/Apoio?:\s*([^\n]+)/i)?.[1]?.trim() : "";
+  const supportsList = getSupports(form, selectedAgenda);
+  const supports = supportsList.join(" - ");
 
   const respData = [];
   if (form.team) respData.push(["Equipe Designada", form.team]);
   if (chief) respData.push(["Chefe Responsável", chief]);
   if (agents) respData.push(["Agentes de Educação", agents]);
-  if (supports) respData.push(["Apoio Operacional", supports]);
+  if (supports) respData.push(["Apoios", supports]);
 
   if (respData.length) {
     startY = drawSectionHeader("RESPONSABILIDADE OPERACIONAL", startY);
@@ -317,8 +319,16 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
   }
 
   actions.forEach((action, index) => {
-    totalsEstimado += Number(action.approach || 0);
-    totalsAlcancado += Number(action.approached_actions || 0);
+    const isFirstAction = index === 0;
+
+    // Público Estimado: apenas Ação 1
+    if (isFirstAction) {
+      totalsEstimado += Number(action.approach ?? 0);
+    }
+    // Público Alcançado: approached_lectures na Ação 1, approached_actions nas extras
+    const alcVal = isFirstAction ? action.approached_lectures : action.approached_actions;
+    const alcNum = Number(alcVal);
+    totalsAlcancado += (alcVal !== "" && alcVal !== null && alcVal !== undefined && Number.isFinite(alcNum)) ? alcNum : 0;
 
     // Sub-header for each action
     if (startY > pageHeight - 50) {
@@ -338,14 +348,22 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
     doc.text(`AÇÃO ${actionNum} — ${actionLabel}`, MARGIN_L + 4, startY + 0.5);
     startY += 8;
 
+    const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
+
     const actionData = [
-      ["Tipo da Ação", action.type_action || "—"],
-      ["Instituição / Local", action.institution_name || "—"],
-      ["Endereço", action.place_action || "—"],
+      ["Tipo da Ação", action.type_action || "NÃO ESPECIFICADA"],
+      ["Instituição / Local", action.institution_name || "Não informado"],
+      ["Endereço", action.place_action || "Não informado"],
       ["Horário", `${action.start_time || "--"} às ${action.final_hour || "--"}`],
-      ["Público Estimado", action.approach || "0"],
-      ["Público Alcançado", action.approached_actions || "0"],
-    ].filter(r => r[1] && r[1] !== "—" && r[1] !== "-- às --" && r[1] !== "0" && r[1] !== "-");
+    ];
+
+    // Público Estimado: somente Ação 1
+    if (isFirstAction) {
+      const estimadoDisplay = (action.approach && Number(action.approach) > 0) ? String(action.approach) : "Não informado";
+      actionData.push(["Público Estimado", estimadoDisplay]);
+    }
+
+    actionData.push(["Público Alcançado", alcDisplay]);
 
     autoTable(doc, {
       startY,
@@ -391,10 +409,18 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
         });
         startY = doc.lastAutoTable.finalY + 8;
       } else {
-        startY += 4;
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...GRAY_600);
+        doc.text("Nenhum material distribuído nesta ação.", MARGIN_L + 4, startY);
+        startY += 8;
       }
     } else {
-      startY += 4;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...GRAY_600);
+      doc.text("Nenhum material distribuído nesta ação.", MARGIN_L + 4, startY);
+      startY += 8;
     }
   });
 
@@ -498,6 +524,27 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
     doc.setTextColor(...GRAY_600);
     doc.text("Nenhuma ocorrência envolvendo viatura ou efetivo registrada.", MARGIN_L + 4, startY);
     startY += 10;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  SECTION — RELATO OPERACIONAL DO CHEFE
+  // ════════════════════════════════════════════════════════════════════════
+
+  if (form.general_observations) {
+    if (startY > pageHeight - 40) {
+      doc.addPage();
+      startY = 20;
+    }
+
+    startY = drawSectionHeader("RELATO OPERACIONAL DO CHEFE", startY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY_900);
+    const relatoText = form.general_observations;
+    const splitRelato = doc.splitTextToSize(relatoText, CONTENT_W);
+    doc.text(splitRelato, MARGIN_L + 4, startY);
+    startY += splitRelato.length * 4.5 + 8;
   }
 
   // ════════════════════════════════════════════════════════════════════════

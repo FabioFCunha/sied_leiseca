@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
 
-import { buildPreview, chiefFromReport, reportName } from "../utils/reportPreview.js";
+import { buildPreview, chiefFromReport, reportName, getSupports } from "../utils/reportPreview.js";
 import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
 import { getValidatableActions } from "./technicalReportsActionHelpers.js";
 
@@ -29,6 +29,7 @@ const emptyAction = {
   start_time: "",
   final_hour: "",
   approach: "",
+  approached_lectures: "",
   approached_actions: "",
   equipment_materials_removed: "",
   equipment_materials_distributed: "",
@@ -55,6 +56,8 @@ const empty = {
   accessibility_conditions_met: "",
   materials_removed: "",
   materials_spent: "",
+  distribution_materials_removed: "",
+  distribution_materials_distributed: "",
   breathalyzers: "",
   cars: "",
   changes_general: "",
@@ -75,7 +78,6 @@ const empty = {
 
 const numberFields = [
   "approach",
-  "approached_actions",
 ];
 
 const fieldLabels = {
@@ -462,6 +464,8 @@ function buildActionPayload(action, formAgenda) {
     agenda: nullable(action.agenda || formAgenda),
     source_id: nullable(action.source_id),
     ...Object.fromEntries(numberFields.map((field) => [field, Number(action[field] || 0)])),
+    approached_lectures: Number(action.approached_lectures || 0),
+    approached_actions: (action.approached_actions === "" || action.approached_actions === null || action.approached_actions === undefined) ? 0 : Number(action.approached_actions),
   };
 }
 
@@ -726,7 +730,8 @@ export default function TechnicalReportsPage() {
         start_time: currentAction.start_time || agenda.start_time?.slice(0, 5) || "",
         final_hour: currentAction.final_hour || agenda.end_time?.slice(0, 5) || "",
         approach: currentAction.approach || agenda.quantity || 0,
-        approached_actions: currentAction.approached_actions || agenda.quantity || 0,
+        approached_lectures: currentAction.approached_lectures ?? "",
+        approached_actions: (currentAction.approached_actions === 0 || currentAction.approached_actions === "0" || !currentAction.approached_actions) ? "" : currentAction.approached_actions,
         equipment_materials_removed: currentAction.equipment_materials_removed || initialEquipment,
         equipment_materials_distributed: currentAction.equipment_materials_distributed || initialEquipment,
         distribution_materials_removed: currentAction.distribution_materials_removed || initialKits,
@@ -862,12 +867,13 @@ export default function TechnicalReportsPage() {
           __userCreated: true,
           place_action: baseAction.place_action || "",
           institution_name: baseAction.institution_name || "",
-          approach: baseAction.approach || "",
-          approached_actions: baseAction.approached_actions || "",
+          approach: "",
+          approached_lectures: "",
+          approached_actions: "",
           equipment_materials_removed: baseAction.equipment_materials_removed || "",
-          equipment_materials_distributed: baseAction.equipment_materials_distributed || "",
+          equipment_materials_distributed: "",
           distribution_materials_removed: baseAction.distribution_materials_removed || "",
-          distribution_materials_distributed: baseAction.distribution_materials_distributed || "",
+          distribution_materials_distributed: "",
         }],
       };
     });
@@ -1417,6 +1423,16 @@ export default function TechnicalReportsPage() {
                           <span>Horário final</span>
                           <input value={action.final_hour || ""} onChange={(event) => updateAction(index, "final_hour", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated} />
                         </label>
+                        <label className="field-label chief-highlight-field">
+                          <span>Número de abordagens</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={action.approached_actions ?? ""}
+                            onChange={(e) => updateAction(index, "approached_actions", e.target.value)}
+                          />
+                        </label>
                         {isStreetAction ? (
                           <label className={`field-label chief-action-select ${shouldHighlightChiefTypeAction(action, index) ? "chief-highlight-field" : ""}`.trim()}>
                             <span>Ação Definida pelo Chefe</span>
@@ -1441,6 +1457,23 @@ export default function TechnicalReportsPage() {
                           </label>
                         ) : null}
                       </div>
+                      {(() => {
+                        const safeAgenda = selectedAgenda || {};
+                        const cats = extractMaterialCategories(safeAgenda);
+                        if (!cats.kits.length) return null;
+                        const actionDistributedValue = action.distribution_materials_distributed || serializeBlankMaterialRows(cats.kits);
+                        return (
+                          <div className="report-material-grid chief-material-grid" style={{ marginTop: 8 }}>
+                            <div className="field-label report-text-box chief-highlight-field">
+                              <span>Material distribuído nesta ação</span>
+                              <MaterialQuantityEditor
+                                value={actionDistributedValue}
+                                onChange={(value) => updateAction(index, "distribution_materials_distributed", value)}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
@@ -1454,7 +1487,8 @@ export default function TechnicalReportsPage() {
                 const removedValue = isEditableReport
                   ? serializeMaterialRows(cats.kits)
                   : (baseAction.distribution_materials_removed || serializeMaterialRows(cats.kits));
-                const distributedValue = baseAction.distribution_materials_distributed || serializeBlankMaterialRows(cats.kits);
+                // distributedValue reads from report-level field (stock/OS tracking), not from individual actions
+                const distributedValue = form.distribution_materials_distributed || serializeBlankMaterialRows(cats.kits);
 
                 if (!cats.kits.length) return null;
 
@@ -1472,8 +1506,8 @@ export default function TechnicalReportsPage() {
                         <MaterialSummary value={removedValue} />
                       </div>
                       <div className="field-label report-text-box chief-highlight-field">
-                        <span>Material distribuído</span>
-                        <MaterialQuantityEditor value={distributedValue} onChange={(value) => updateAllActionsField("distribution_materials_distributed", value)} />
+                        <span>Material distribuído (total retirado / OS)</span>
+                        <MaterialQuantityEditor value={distributedValue} onChange={(value) => update("distribution_materials_distributed", value)} />
                       </div>
                     </div>
                   </div>
@@ -1944,12 +1978,20 @@ export default function TechnicalReportsPage() {
     {showPreviewModal && (() => {
       const chief = form.education_agents ? form.education_agents.match(/Chefe(?: respons[áa]vel)?:\s*([^\n]+)/i)?.[1]?.trim() : "";
       const agentsMatch = form.education_agents ? form.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() : "";
-      const supportsMatch = form.education_agents ? form.education_agents.match(/Apoio?:\s*([^\n]+)/i)?.[1]?.trim() : "";
+      const supportsList = getSupports(form, selectedAgenda);
+      const supportsStr = supportsList.join(" - ");
       const absences = Object.values(attendanceForm || {}).filter(d => d.is_absent === true);
       const actions = form.actions || [];
       let totalsEstimado = 0;
       let totalsAlcancado = 0;
-      actions.forEach(a => { totalsEstimado += Number(a.approach || 0); totalsAlcancado += Number(a.approached_actions || 0); });
+      actions.forEach((a, index) => {
+        if (index === 0) {
+          totalsEstimado += Number(a.approach || 0);
+        }
+        const alcVal = index === 0 ? a.approached_lectures : a.approached_actions;
+        const alcNum = Number(alcVal);
+        totalsAlcancado += (alcVal !== "" && alcVal !== null && alcVal !== undefined && Number.isFinite(alcNum)) ? alcNum : 0;
+      });
       const taxa = totalsEstimado > 0 ? ((totalsAlcancado / totalsEstimado) * 100).toFixed(1) + "%" : "N/A";
 
       // Style tokens
@@ -1988,7 +2030,7 @@ export default function TechnicalReportsPage() {
       if (form.team) respData.push(["Equipe Designada", form.team]);
       if (chief) respData.push(["Chefe Responsável", chief]);
       if (agentsMatch) respData.push(["Agentes de Educação", agentsMatch]);
-      if (supportsMatch) respData.push(["Apoio Operacional", supportsMatch]);
+      if (supportsStr) respData.push(["Apoios", supportsStr]);
 
       const recursos = [];
       if (form.cars) recursos.push(["Viaturas", form.cars.split(",").map(c => c.trim()).filter((v,i,a) => a.indexOf(v)===i).join(", ")]);
@@ -2073,14 +2115,31 @@ export default function TechnicalReportsPage() {
                 {sectionStyle(respData.length > 0 ? 4 : 3, "AÇÕES EXECUTADAS")}
                 <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
                 {actions.map((action, index) => {
+                  const isFirstAction = index === 0;
                   const actionData = [
                     ["Tipo da Ação", action.type_action],
                     ["Instituição / Local", action.institution_name],
                     ["Endereço", action.place_action],
                     ["Horário", `${action.start_time || "--"} às ${action.final_hour || "--"}`],
-                    ["Público Estimado", action.approach],
-                    ["Público Alcançado", action.approached_actions],
                   ].filter(r => r[1] && r[1] !== "—" && r[1] !== "-- às --" && r[1] !== "0" && r[1] !== "-");
+
+                  if (isFirstAction) {
+                    if (action.approach !== undefined && action.approach !== null && action.approach !== "" && action.approach !== "0" && action.approach !== 0 && action.approach !== "-") {
+                      actionData.push(["Público Estimado", action.approach]);
+                    } else {
+                      actionData.push(["Público Estimado", "Não informado"]);
+                    }
+                    const alcVal = action.approached_lectures;
+                    const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
+                    actionData.push(["Público Alcançado", alcDisplay]);
+                  } else {
+                    if (action.approach !== undefined && action.approach !== null && action.approach !== "" && action.approach !== "0" && action.approach !== 0 && action.approach !== "-") {
+                      actionData.push(["Público Estimado", action.approach]);
+                    }
+                    const alcVal = action.approached_actions;
+                    const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
+                    actionData.push(["Público Alcançado", alcDisplay]);
+                  }
 
                   // Parse materials
                   const materials = [];
@@ -2173,9 +2232,21 @@ export default function TechnicalReportsPage() {
                 </>);
               })()}
 
-              {/* SECTION 8 — CONCLUSÃO */}
+              {/* SECTION — RELATO OPERACIONAL DO CHEFE */}
+              {form.general_observations ? (() => {
+                const relatoSecNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 2;
+                return (<>
+                  {sectionStyle(relatoSecNum, "RELATO OPERACIONAL DO CHEFE")}
+                  <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+                  <div style={{ fontSize: "10.5px", color: "#1e1e1e", lineHeight: "1.55", padding: "4px 8px", whiteSpace: "pre-wrap" }}>
+                    {form.general_observations}
+                  </div>
+                </>);
+              })() : null}
+
+              {/* SECTION — CONCLUSÃO */}
               {(() => {
-                const secNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 2;
+                const secNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 2 + (form.general_observations ? 1 : 0);
                 return (<>
                   {sectionStyle(secNum, "CONCLUSÃO INSTITUCIONAL")}
                   <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
