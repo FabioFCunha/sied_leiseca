@@ -92,6 +92,18 @@ export function filterDesignatedCandidates(options = [], search = "") {
   });
 }
 
+export function normalizeSelectedAgentIds(selectedAgents = []) {
+  return selectedAgents
+    .map((agent) => agent?.id ?? agent)
+    .filter((id) => id !== null && id !== undefined)
+    .map((id) => String(id).trim())
+    .filter((id) => id !== "");
+}
+
+export function buildAvailableAgents(allAgents = [], selectedAgents = []) {
+  const selectedAgentIds = new Set(normalizeSelectedAgentIds(selectedAgents));
+  return allAgents.filter((agent) => !selectedAgentIds.has(String(agent.id)));
+}
 export function setSelectedUserChecked(currentIds = [], value, checked) {
   const id = normalizeString(value);
   const normalizedIds = currentIds.map((item) => normalizeString(item)).filter(Boolean);

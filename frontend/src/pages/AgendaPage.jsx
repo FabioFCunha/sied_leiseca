@@ -8,7 +8,7 @@ import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/stre
 import { formatDateBR, normalizeTime, addHoursToTime } from "../utils/date.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { statusClass, statusLabel } from "../utils/status.js";
-import { buildActiveOperationalUserOptions, filterDesignatedCandidates, setSelectedUserChecked } from "./agendaDesignatedUsers.js";
+import { buildActiveOperationalUserOptions, buildAvailableAgents, filterDesignatedCandidates, normalizeSelectedAgentIds, setSelectedUserChecked } from "./agendaDesignatedUsers.js";
 
 const emptyForm = {
   service_order_number: "",
@@ -705,7 +705,7 @@ export default function AgendaPage() {
     return lookups.agents.filter(agent => {
       if (isSupportRole(agent)) return false;
       
-      const isHistoric = (form.agents_ref || []).map(String).includes(String(agent.id));
+      const isHistoric = normalizeSelectedAgentIds(form.agents_ref || []).includes(String(agent.id));
       if (!isHistoric && !belongsToTeam(agent, form.team_ref, selectedTeamName)) return false;
       
       const idStr = String(agent.id);
@@ -755,11 +755,11 @@ export default function AgendaPage() {
     });
   }, [lookups.supports, scheduledShifts, form.team_ref, selectedTeamName, form.support_1_ref, form.support_2_ref]);
 
-  const selectedAgentIds = (form.agents_ref || []).map(String);
+  const selectedAgentIds = normalizeSelectedAgentIds(form.agents_ref || []);
   const selectedAgents = selectedAgentIds
     .map((id) => lookups.agents.find((agent) => String(agent.id) === id))
     .filter(Boolean);
-  const availableAgents = allAgents.filter((agent) => !selectedAgentIds.includes(String(agent.id)));
+  const availableAgents = buildAvailableAgents(allAgents, selectedAgentIds);
   const selectedDesignatedIds = (form.designated_users || []).map(String);
   const selectedDesignatedUsers = selectedDesignatedIds
     .map((id) => activeUserOptions.find((option) => String(option.id) === id))

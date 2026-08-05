@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   buildActiveOperationalUserOptions,
+  buildAvailableAgents,
   filterDesignatedCandidates,
+  normalizeSelectedAgentIds,
   setSelectedUserChecked,
 } from "../agendaDesignatedUsers.js";
 
@@ -53,4 +55,71 @@ test("lookups operacionais entram por source_id e pesquisa encontra por equipe",
   assert.equal(found.length, 1);
   assert.equal(found[0].id, "11");
   assert.equal(found[0].role_label, "Chefe");
+});
+
+test("slot vazio nao entra nos IDs selecionados e nao bloqueia agentes disponiveis", () => {
+  const selectedAgents = [
+    { id: 10, name: "Diogo" },
+    { id: 20, name: "Leonardo" },
+    null,
+    "",
+    undefined,
+    { id: 30, name: "Marcio" },
+  ];
+  const allAgents = [
+    { id: 10, name: "Diogo" },
+    { id: 20, name: "Leonardo" },
+    { id: 30, name: "Marcio" },
+    { id: 40, name: "Agente Disponivel" },
+  ];
+
+  assert.deepEqual(normalizeSelectedAgentIds(selectedAgents), ["10", "20", "30"]);
+  assert.deepEqual(buildAvailableAgents(allAgents, selectedAgents).map((agent) => agent.id), [40]);
+});
+
+test("agente ja selecionado nao aparece duplicado na lista disponivel", () => {
+  const allAgents = [
+    { id: 1, name: "Agente Um" },
+    { id: 2, name: "Agente Dois" },
+  ];
+
+  assert.deepEqual(buildAvailableAgents(allAgents, [{ id: 1, name: "Agente Um" }]).map((agent) => agent.id), [2]);
+});
+
+test("IDs numericos e strings sao tratados como equivalentes", () => {
+  const allAgents = [
+    { id: 10, name: "Agente Numerico" },
+    { id: "20", name: "Agente String" },
+    { id: 30, name: "Agente Livre" },
+  ];
+
+  const available = buildAvailableAgents(allAgents, ["10", { id: 20, name: "Agente String" }]);
+
+  assert.deepEqual(available.map((agent) => String(agent.id)), ["30"]);
+});
+
+test("agente removido volta a aparecer como disponivel", () => {
+  const allAgents = [
+    { id: 1, name: "Agente Um" },
+    { id: 2, name: "Agente Dois" },
+    { id: 3, name: "Agente Tres" },
+  ];
+  const selectedBeforeRemoval = [1, 2];
+  const selectedAfterRemoval = selectedBeforeRemoval.filter((id) => String(id) !== "2");
+
+  assert.deepEqual(buildAvailableAgents(allAgents, selectedBeforeRemoval).map((agent) => agent.id), [3]);
+  assert.deepEqual(buildAvailableAgents(allAgents, selectedAfterRemoval).map((agent) => agent.id), [2, 3]);
+});
+
+test("apoios permanecem elegiveis na montagem operacional", () => {
+  const options = buildActiveOperationalUserOptions({
+    supports: [
+      { source_id: "user:50", name: "Apoio Ativo", role: "SUPPORT", team_name: "HOTEL", is_active: true },
+    ],
+    agents: [
+      { source_id: "user:60", name: "Agente Ativo", role: "USER", team_name: "HOTEL", is_active: true },
+    ],
+  });
+
+  assert.deepEqual(options.map((item) => [item.id, item.role_label]), [["60", "Agente"], ["50", "Apoio"]]);
 });
