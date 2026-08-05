@@ -1,4 +1,4 @@
-from apps.accounts.models import User
+﻿from apps.accounts.models import User
 from django.db.models import Q
 
 def get_effective_members(obj):
@@ -23,6 +23,7 @@ def get_effective_members(obj):
         absence = absence_records.get((member_type, item.id))
         return {
             "id": item.id,
+            "source_id": getattr(item, "source_id", None),
             "name": item.name,
             "role": item.role,
             "cpf": item.cpf,
@@ -67,21 +68,101 @@ def get_effective_members(obj):
     agents = [row(item, is_absent=item.id in absent_agent_ids) for item in agent_objs]
     supports = [row(item, is_absent=item.id in absent_support_ids) for item in support_objs]
 
-    for item in obj.extra_chiefs.filter(is_active=True, source_id__startswith="user:"):
+    for item in obj.extra_chiefs.filter(is_active=True, source_id__startswith="user:").select_related("team"):
         if not any(m["id"] == item.id for m in chiefs):
             chiefs.append(row(item, is_extra=True, is_absent=item.id in absent_chief_ids))
-    for item in obj.extra_agents.filter(is_active=True, source_id__startswith="user:"):
+    for item in obj.extra_agents.filter(is_active=True, source_id__startswith="user:").select_related("team"):
         if not any(m["id"] == item.id for m in agents):
             agents.append(row(item, is_extra=True, is_absent=item.id in absent_agent_ids))
-    for item in obj.extra_supports.filter(is_active=True, source_id__startswith="user:"):
+    for item in obj.extra_supports.filter(is_active=True, source_id__startswith="user:").select_related("team"):
         if not any(m["id"] == item.id for m in supports):
             supports.append(row(item, is_extra=True, is_absent=item.id in absent_support_ids))
 
+    def normalize_cpf(value):
+        return "".join(character for character in str(value or "") if character.isdigit())
+
+    def get_keys(item):
+        cpf = item.get("cpf")
+        source_id = item.get("source_id")
+        normalized_cpf = normalize_cpf(cpf)
+        cpf_key = f"cpf:{normalized_cpf}" if normalized_cpf else None
+        source_key = f"source:{source_id}" if source_id else None
+        return cpf_key, source_key
+
+    def cpf_variants(value):
+        normalized = normalize_cpf(value)
+        variants = {value, normalized} if value else {normalized}
+        if len(normalized) == 11:
+            variants.add(f"{normalized[:3]}.{normalized[3:6]}.{normalized[6:9]}-{normalized[9:]}")
+        return {variant for variant in variants if variant}
+
+    user_ids = set()
+    cpf_values = set()
+    for member in agents + supports:
+        cpf_key, source_key = get_keys(member)
+        if source_key and source_key.startswith("source:user:"):
+            try:
+                user_ids.add(int(source_key.split(":")[-1]))
+            except ValueError:
+                pass
+        if cpf_key:
+            cpf_values.update(cpf_variants(member.get("cpf")))
+
+    active_user_filter = Q()
+    if user_ids:
+        active_user_filter |= Q(id__in=user_ids)
+    if cpf_values:
+        active_user_filter |= Q(cpf__in=cpf_values)
+
+    active_users = User.objects.filter(active_user_filter, is_active=True) if active_user_filter else User.objects.none()
+    role_by_source = {f"source:user:{user.id}": user.role for user in active_users}
+    role_by_cpf = {
+        f"cpf:{normalize_cpf(user.cpf)}": user.role
+        for user in active_users
+        if normalize_cpf(user.cpf)
+    }
+
+    def get_active_role(member):
+        cpf_key, source_key = get_keys(member)
+        if source_key and source_key in role_by_source:
+            return role_by_source[source_key]
+        if cpf_key and cpf_key in role_by_cpf:
+            return role_by_cpf[cpf_key]
+        return None
+
+    def is_agent_role(role):
+        return role == User.Role.USER
+
+    def is_support_role(role):
+        return role == User.Role.SUPPORT
+
+    def deduplicate_group(group_items):
+        final = []
+        keys = set()
+        for item in group_items:
+            cpf_key, source_key = get_keys(item)
+            if (cpf_key and cpf_key in keys) or (source_key and source_key in keys):
+                continue
+            final.append(item)
+            if cpf_key:
+                keys.add(cpf_key)
+            if source_key:
+                keys.add(source_key)
+        return final
+
+    supports = deduplicate_group([
+        support for support in supports
+        if not is_agent_role(get_active_role(support))
+    ])
+    agents = deduplicate_group([
+        agent for agent in agents
+        if not is_support_role(get_active_role(agent))
+    ])
     manual_inclusions = [
         {
             "id": m.member_id,
             "name": m.member_name,
-            "role": "Incluído manualmente",
+            "role": "Inclu\u00eddo manualmente",
             "member_type": m.member_type,
             "is_manual": True,
             "is_absent": absence_records.get((m.member_type, m.member_id)) is not None,
