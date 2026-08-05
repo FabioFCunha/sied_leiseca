@@ -273,6 +273,36 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
   }
 
   // ════════════════════════════════════════════════════════════════════════
+  //  ALTERAÇÕES DE EFETIVO
+  // ════════════════════════════════════════════════════════════════════════
+  if (form.changes_staff && form.changes_staff.trim()) {
+    if (startY > pageHeight - 35) {
+      doc.addPage();
+      startY = 20;
+    }
+
+    startY = drawSectionHeader("ALTERAÇÕES DE EFETIVO", startY);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY_900);
+
+    const staffText = form.changes_staff;
+    const splitStaff = doc.splitTextToSize(staffText, CONTENT_W - 8);
+    const lineHeight = 4.5;
+
+    for (let i = 0; i < splitStaff.length; i++) {
+      if (startY > pageHeight - 22) {
+        doc.addPage();
+        startY = 20;
+      }
+      doc.text(splitStaff[i], MARGIN_L + 4, startY);
+      startY += lineHeight;
+    }
+    startY += 10;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
   //  SECTION 3 — FREQUÊNCIA DOS PARTICIPANTES
   // ════════════════════════════════════════════════════════════════════════
 

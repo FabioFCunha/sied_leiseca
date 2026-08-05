@@ -135,10 +135,12 @@ export function buildPreview(report) {
     `EFETIVO E ESTRUTURA\n` +
     `Agentes de educação: ${agentsMatch || "não informado"}\n` +
     `Apoios: ${supportsStr || "Não informado"}\n` +
-    `Alterações de efetivo: ${report.changes_staff || "não informado"}\n` +
     `Etilômetros: ${report.breathalyzers || "não informado"}\n` +
     `Viaturas: ${report.cars || "não informado"}\n` +
     `Alterações gerais: ${report.changes_general || "não informado"}\n\n` +
+    (report.changes_staff && report.changes_staff.trim()
+      ? `ALTERAÇÕES DE EFETIVO\n${report.changes_staff}\n\n`
+      : "") +
     `AÇÕES\n${actionLines}\n\n` +
     `TOTAIS\n` +
     `Público estimado (total): ${totalsEstimado}\n` +

@@ -1982,6 +1982,8 @@ export default function TechnicalReportsPage() {
       const supportsStr = supportsList.join(" - ");
       const absences = Object.values(attendanceForm || {}).filter(d => d.is_absent === true);
       const actions = form.actions || [];
+      const hasStaffChanges = !!(form.changes_staff && form.changes_staff.trim());
+      const staffOffset = hasStaffChanges ? 1 : 0;
       let totalsEstimado = 0;
       let totalsAlcancado = 0;
       actions.forEach((a, index) => {
@@ -2088,8 +2090,19 @@ export default function TechnicalReportsPage() {
                 </div>
               </>)}
 
+              {/* ALTERAÇÕES DE EFETIVO */}
+              {hasStaffChanges && (
+                <>
+                  {sectionStyle(respData.length > 0 ? 3 : 2, "ALTERAÇÕES DE EFETIVO")}
+                  <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
+                  <div style={{ fontSize: "10.5px", color: "#1e1e1e", lineHeight: "1.55", padding: "4px 8px", whiteSpace: "pre-wrap" }}>
+                    {form.changes_staff}
+                  </div>
+                </>
+              )}
+
               {/* SECTION 3 */}
-              {sectionStyle(respData.length > 0 ? 3 : 2, "FREQUÊNCIA DOS PARTICIPANTES")}
+              {sectionStyle((respData.length > 0 ? 3 : 2) + staffOffset, "FREQUÊNCIA DOS PARTICIPANTES")}
               <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
               {absences.length === 0 ? (
                 <div style={{ fontSize: "11px", fontStyle: "italic", color: GRAY_600, padding: "4px 8px" }}>Nenhuma ausência registrada.</div>
@@ -2112,7 +2125,7 @@ export default function TechnicalReportsPage() {
 
               {/* SECTION 4 — AÇÕES */}
               {actions.length > 0 && (<>
-                {sectionStyle(respData.length > 0 ? 4 : 3, "AÇÕES EXECUTADAS")}
+                {sectionStyle((respData.length > 0 ? 4 : 3) + staffOffset, "AÇÕES EXECUTADAS")}
                 <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
                 {actions.map((action, index) => {
                   const isFirstAction = index === 0;
@@ -2175,7 +2188,7 @@ export default function TechnicalReportsPage() {
               </>)}
 
               {/* SECTION 5 — PÚBLICO E RESULTADOS */}
-              {sectionStyle(respData.length > 0 ? (actions.length > 0 ? 5 : 4) : (actions.length > 0 ? 4 : 3), "PÚBLICO E RESULTADOS CONSOLIDADOS")}
+              {sectionStyle((respData.length > 0 ? (actions.length > 0 ? 5 : 4) : (actions.length > 0 ? 4 : 3)) + staffOffset, "PÚBLICO E RESULTADOS CONSOLIDADOS")}
               <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
               <div style={{ borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
                 <div style={{ display: "flex", fontSize: "10px", fontWeight: 700, padding: "6px 8px", background: NAVY, color: "#fff" }}>
@@ -2197,7 +2210,7 @@ export default function TechnicalReportsPage() {
 
               {/* SECTION 6 — RECURSOS */}
               {recursos.length > 0 && (<>
-                {sectionStyle(respData.length > 0 ? (actions.length > 0 ? 6 : 5) : (actions.length > 0 ? 5 : 4), "RECURSOS OPERACIONAIS")}
+                {sectionStyle((respData.length > 0 ? (actions.length > 0 ? 6 : 5) : (actions.length > 0 ? 5 : 4)) + staffOffset, "RECURSOS OPERACIONAIS")}
                 <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
                 <div style={{ borderRadius: "6px", overflow: "hidden", border: "1px solid #e5e5e5" }}>
                   {recursos.map((r, i) => tableRow(r[0], r[1], i))}
@@ -2206,7 +2219,7 @@ export default function TechnicalReportsPage() {
 
               {/* SECTION 7 — OCORRÊNCIAS */}
               {(() => {
-                const secNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 1;
+                const secNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 1 + staffOffset;
                 return (<>
                   {sectionStyle(secNum, "REGISTRO DE OCORRÊNCIAS")}
                   <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
@@ -2227,7 +2240,7 @@ export default function TechnicalReportsPage() {
 
               {/* SECTION — RELATO OPERACIONAL DO CHEFE */}
               {form.general_observations ? (() => {
-                const relatoSecNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 2;
+                const relatoSecNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 2 + staffOffset;
                 return (<>
                   {sectionStyle(relatoSecNum, "RELATO OPERACIONAL DO CHEFE")}
                   <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
@@ -2239,7 +2252,7 @@ export default function TechnicalReportsPage() {
 
               {/* SECTION — CONCLUSÃO */}
               {(() => {
-                const secNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 2 + (form.general_observations ? 1 : 0);
+                const secNum = (respData.length > 0 ? 3 : 2) + (actions.length > 0 ? 1 : 0) + 1 + (recursos.length > 0 ? 1 : 0) + 2 + (form.general_observations ? 1 : 0) + staffOffset;
                 return (<>
                   {sectionStyle(secNum, "CONCLUSÃO INSTITUCIONAL")}
                   <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
