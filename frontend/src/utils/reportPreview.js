@@ -10,6 +10,24 @@ export function chiefFromReport(report) {
   return match?.[1]?.trim() || "";
 }
 
+export function getReachedAudienceForAction(action, index) {
+  if (!action) return undefined;
+  if (index === 0) {
+    const lectures = action.approached_lectures;
+    const hasLectures =
+      lectures !== "" &&
+      lectures !== null &&
+      lectures !== undefined &&
+      Number(lectures) > 0;
+
+    if (hasLectures) {
+      return lectures;
+    }
+    return action.approached_actions;
+  }
+  return action.approached_actions;
+}
+
 export function getSupports(report, selectedAgenda) {
   const supportsList = [];
   
@@ -68,7 +86,7 @@ export function buildPreview(report) {
       totalsEstimado += Number(action.approach || 0);
     }
     // Público Alcançado: approached_lectures na Ação 1, approached_actions nas extras
-    const alcVal = index === 0 ? action.approached_lectures : action.approached_actions;
+    const alcVal = getReachedAudienceForAction(action, index);
     const alcNum = Number(alcVal);
     totalsAlcancado += (alcVal !== "" && alcVal !== null && alcVal !== undefined && Number.isFinite(alcNum)) ? alcNum : 0;
   });
@@ -80,7 +98,7 @@ export function buildPreview(report) {
   const actionLines = actions.length
     ? actions.map((action, index) => {
         const isFirstAction = index === 0;
-        const alcVal = isFirstAction ? action.approached_lectures : action.approached_actions;
+        const alcVal = getReachedAudienceForAction(action, index);
         const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined)
           ? alcVal
           : "Não informado";

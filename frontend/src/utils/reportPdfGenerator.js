@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDateBR } from "./date.js";
 import logoUrl from "../assets/operacao-lei-seca-logo.png";
-import { getSupports } from "./reportPreview.js";
+import { getSupports, getReachedAudienceForAction } from "./reportPreview.js";
 
 // ── Helper: Load image as base64 for jsPDF ───────────────────────────────
 function loadImageAsBase64(url) {
@@ -326,7 +326,7 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
       totalsEstimado += Number(action.approach ?? 0);
     }
     // Público Alcançado: approached_lectures na Ação 1, approached_actions nas extras
-    const alcVal = isFirstAction ? action.approached_lectures : action.approached_actions;
+    const alcVal = getReachedAudienceForAction(action, index);
     const alcNum = Number(alcVal);
     totalsAlcancado += (alcVal !== "" && alcVal !== null && alcVal !== undefined && Number.isFinite(alcNum)) ? alcNum : 0;
 

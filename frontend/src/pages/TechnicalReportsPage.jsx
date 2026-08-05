@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
 
-import { buildPreview, chiefFromReport, reportName, getSupports } from "../utils/reportPreview.js";
+import { buildPreview, chiefFromReport, reportName, getSupports, getReachedAudienceForAction } from "../utils/reportPreview.js";
 import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
 import { getValidatableActions } from "./technicalReportsActionHelpers.js";
 
@@ -1988,7 +1988,7 @@ export default function TechnicalReportsPage() {
         if (index === 0) {
           totalsEstimado += Number(a.approach || 0);
         }
-        const alcVal = index === 0 ? a.approached_lectures : a.approached_actions;
+        const alcVal = getReachedAudienceForAction(a, index);
         const alcNum = Number(alcVal);
         totalsAlcancado += (alcVal !== "" && alcVal !== null && alcVal !== undefined && Number.isFinite(alcNum)) ? alcNum : 0;
       });
@@ -2129,14 +2129,10 @@ export default function TechnicalReportsPage() {
                     } else {
                       actionData.push(["Público Estimado", "Não informado"]);
                     }
-                    const alcVal = action.approached_lectures;
-                    const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
-                    actionData.push(["Público Alcançado", alcDisplay]);
-                  } else {
-                    const alcVal = action.approached_actions;
-                    const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
-                    actionData.push(["Público Alcançado", alcDisplay]);
                   }
+                  const alcVal = getReachedAudienceForAction(action, index);
+                  const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
+                  actionData.push(["Público Alcançado", alcDisplay]);
 
                   // Parse materials
                   const materials = [];
