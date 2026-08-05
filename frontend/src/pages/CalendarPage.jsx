@@ -158,6 +158,7 @@ export default function CalendarPage() {
       ...scopedFilters,
       date_from: formatLocalISODate(days[0]),
       date_to: formatLocalISODate(days[days.length - 1]),
+      calendar_view: "1",
     }).toString();
     const seq = requestSeq.current + 1;
     requestSeq.current = seq;

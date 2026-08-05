@@ -153,6 +153,14 @@ class AgendaPermission(BasePermission):
         if user.role == User.Role.ALMOXARIFADO:
             return True
         if request.method in SAFE_METHODS:
+            is_calendar_view = request.query_params.get("calendar_view") == "1"
+            if (
+                user.role == User.Role.SUPERVISOR
+                and is_calendar_view
+                and getattr(view, "basename", "") == "agendas"
+            ):
+                return True
+
             if user.role == User.Role.SUPERVISOR:
                 return supervisor_can_read_agenda(user, obj)
             return user_can_read_agenda(user, obj)

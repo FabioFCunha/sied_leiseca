@@ -785,6 +785,9 @@ class AgendaViewSet(viewsets.ModelViewSet):
             "satisfaction_surveys",
             "designated_users",
         ).annotate(linked_requests_count_annotated=Count('linked_requests', distinct=True))
+
+        is_calendar_view = self.request.query_params.get("calendar_view") == "1"
+
         if user.is_admin_role:
             return queryset
         elif user.role == User.Role.ALMOXARIFADO:
@@ -792,6 +795,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
         elif user.role == User.Role.VISITOR:
             return queryset.exclude(status__in=[Agenda.Status.PENDING, Agenda.Status.CANCELLED])
         elif user.role == User.Role.SUPERVISOR:
+            if is_calendar_view:
+                return queryset
             supervisor_filter = supervisor_agenda_filter(user)
             return queryset.filter(supervisor_filter).distinct()
         return queryset.filter(agent_agenda_filter(user)).distinct()
