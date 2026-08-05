@@ -119,6 +119,19 @@ def user_can_read_agenda(user, agenda):
 
     return False
 
+class VisitorReadOnly(BasePermission):
+    """
+    Bloqueia qualquer método de escrita para o perfil VISITOR.
+    Para todos os outros perfis, é transparente (sempre permite).
+    """
+    message = "O perfil Visitante possui apenas permissão de consulta."
+
+    def has_permission(self, request, view):
+        if request.user and request.user.is_authenticated and request.user.role == User.Role.VISITOR:
+            return request.method in SAFE_METHODS
+        return True
+
+
 class AgendaPermission(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
@@ -131,13 +144,20 @@ class AgendaPermission(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         user = request.user
-        if user.is_admin_role or user.role in [User.Role.VISITOR, User.Role.ALMOXARIFADO]:
+        if user.is_admin_role:
+            return True
+        # VISITOR: acesso somente a agendas não-PENDING e não-CANCELLED
+        if user.role == User.Role.VISITOR:
+            from apps.schedules.models import Agenda
+            return obj.status not in (Agenda.Status.PENDING, Agenda.Status.CANCELLED)
+        if user.role == User.Role.ALMOXARIFADO:
             return True
         if request.method in SAFE_METHODS:
             if user.role == User.Role.SUPERVISOR:
                 return supervisor_can_read_agenda(user, obj)
             return user_can_read_agenda(user, obj)
         return False
+
 
 
 class AdminOrReadSectorPermission(BasePermission):

@@ -48,7 +48,7 @@ export function canAccessRoute(user, allowedRoles = [], moduleName = null) {
   if (user?.role === "VISITOR") {
     const sector = user?.sector_name;
     if (sector === "Subsecretaria") {
-      const allowedModules = ["DASHBOARD", "AGENDAS", "CALENDARIO", "ESCALA", "RELATORIOS", "ESTATISTICAS", "AVALIACOES"];
+      const allowedModules = ["DASHBOARD", "CALENDARIO", "ESCALA", "RELATORIOS", "ESTATISTICAS", "AVALIACOES"];
       if (allowedModules.includes(moduleName)) return true;
     }
     if (sector === "OLS/CooAdm" && ["ESTATISTICAS", "CALENDARIO"].includes(moduleName)) {

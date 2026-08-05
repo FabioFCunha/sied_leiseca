@@ -71,7 +71,7 @@ from .models import (
     Team,
     Vehicle,
 )
-from .permissions import AdminOrReadSectorPermission, AgendaPermission, ShiftSchedulePermission, agent_agenda_filter, supervisor_agenda_filter
+from .permissions import AdminOrReadSectorPermission, AgendaPermission, ShiftSchedulePermission, VisitorReadOnly, agent_agenda_filter, supervisor_agenda_filter
 from .emails import (
     PUBLIC_REQUEST_SALT,
     available_dates_message,
@@ -703,7 +703,6 @@ class ShiftSwapRequestViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
-        self._block_visitor_write()
         return self._decide(request, pk, ShiftSwapRequest.Status.APPROVED)
 
     @decorators.action(detail=True, methods=["post"])
@@ -788,8 +787,10 @@ class AgendaViewSet(viewsets.ModelViewSet):
         ).annotate(linked_requests_count_annotated=Count('linked_requests', distinct=True))
         if user.is_admin_role:
             return queryset
-        elif user.role in [User.Role.VISITOR, User.Role.ALMOXARIFADO]:
+        elif user.role == User.Role.ALMOXARIFADO:
             return queryset
+        elif user.role == User.Role.VISITOR:
+            return queryset.exclude(status__in=[Agenda.Status.PENDING, Agenda.Status.CANCELLED])
         elif user.role == User.Role.SUPERVISOR:
             supervisor_filter = supervisor_agenda_filter(user)
             return queryset.filter(supervisor_filter).distinct()
@@ -2072,13 +2073,12 @@ class AgendaViewSet(viewsets.ModelViewSet):
 
 class EventReportViewSet(viewsets.ModelViewSet):
     serializer_class = EventReportSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, VisitorReadOnly]
 
     def get_queryset(self):
         user = self.request.user
         queryset = EventReport.objects.select_related("agenda", "agenda__sector", "created_by").order_by("-updated_at")
-        if user.is_admin_role:
-            scoped = queryset
+        scoped = queryset
         if user.role == User.Role.SUPERVISOR:
             scoped = queryset.filter(chief_agenda_filter(user, prefix="agenda__")).distinct()
         if user.is_agent_role:
@@ -3362,7 +3362,7 @@ class EducationGoalViewSet(viewsets.ModelViewSet):
 
 class AccessibilityBlocklistViewSet(viewsets.ModelViewSet):
     serializer_class = AccessibilityBlocklistSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, VisitorReadOnly]
 
     def get_queryset(self):
         user = self.request.user
@@ -3645,9 +3645,9 @@ class InternalAgendaRequestView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        allowed_visitors = ["OLS/CooAdm", "Subsecretaria"]
-        is_allowed_visitor = request.user.role == User.Role.VISITOR and request.user.sector and request.user.sector.name in allowed_visitors
-        if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR or is_allowed_visitor):
+        if request.user.role == User.Role.VISITOR:
+            raise PermissionDenied("O perfil Visitante não possui acesso ao módulo Solicitações.")
+        if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR):
             raise PermissionDenied("Apenas Chefes, Gestores e Administração podem criar solicitações internas.")
         serializer = PublicAgendaRequestSerializer(data=request.data, context={"is_internal_request": True})
         serializer.is_valid(raise_exception=True)
@@ -4038,7 +4038,7 @@ class ReportViewSet(viewsets.ViewSet):
 class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
     queryset = SatisfactionSurvey.objects.all()
     serializer_class = SatisfactionSurveySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, VisitorReadOnly]
 
     def get_queryset(self):
         user = self.request.user

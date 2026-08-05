@@ -497,6 +497,7 @@ export default function TechnicalReportsPage() {
   const [reports, setReports] = useState([]);
   const [techFilters, setTechFilters] = useState({ q: "", team: "", date: "", status: isVisitor ? "APPROVED" : "" });
   const [pendingTechFilters, setPendingTechFilters] = useState({ q: "", team: "", date: "", status: isVisitor ? "APPROVED" : "" });
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
   const [pendingDateFilter, setPendingDateFilter] = useState("");
   const [pendingChiefFilter, setPendingChiefFilter] = useState("");
   const [pendingChiefQuery, setPendingChiefQuery] = useState("");
@@ -555,7 +556,7 @@ export default function TechnicalReportsPage() {
 
   const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(r.agenda))), [reports]);
   const pendingAgendas = useMemo(() => agendas.filter(a => !completedAgendaIds.has(String(a.id))), [agendas, completedAgendaIds]);
-  const pendingReviewReportsCount = useMemo(() => reports.filter((report) => report.status === "PENDING_REVIEW").length, [reports]);
+  const pendingReviewReportsCount = pendingReviewCount;
 
   const filteredPendingAgendas = useMemo(() => {
     let list = pendingAgendas;
@@ -574,9 +575,10 @@ export default function TechnicalReportsPage() {
     });
     if (isVisitor) params.set("status", "APPROVED");
 
-    const [agendasResult, reportsResult] = await Promise.allSettled([
+    const [agendasResult, reportsResult, pendingCountResult] = await Promise.allSettled([
       api(`/agendas/?page_size=50&reportable=true&pending_report=true${pendingChiefQuery ? `&chief=${encodeURIComponent(pendingChiefQuery)}` : ''}`),
       api(`/education-reports/?${params.toString()}`),
+      isVisitor ? Promise.resolve({ count: 0 }) : api("/education-reports/?status=PENDING_REVIEW&page_size=1"),
     ]);
 
     if (agendasResult.status === "fulfilled") {
@@ -587,6 +589,9 @@ export default function TechnicalReportsPage() {
       const data = reportsResult.value;
       const results = data?.results || data;
       setReports(Array.isArray(results) ? results : []);
+    }
+    if (pendingCountResult.status === "fulfilled") {
+      setPendingReviewCount(pendingCountResult.value?.count || 0);
     }
 
     const failures = [agendasResult, reportsResult]

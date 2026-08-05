@@ -101,6 +101,7 @@ function teamColorStyle(teamName) {
 
 export default function ShiftSchedulePage() {
   const { user } = useAuth();
+  const isVisitor = user?.role === "VISITOR";
   const [cursor, setCursor] = useState(new Date());
   const [schedules, setSchedules] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -608,7 +609,9 @@ export default function ShiftSchedulePage() {
         <strong>{cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</strong>
         <button className="icon-button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} aria-label="Próximo mês"><ChevronRight size={18} /></button>
         <input className="jump-date" type="date" value={formatLocalISODate(cursor)} onChange={(event) => setCursor(new Date(`${event.target.value}T12:00:00`))} />
-        <button type="button" className="secondary" onClick={() => openSwapModal()}><Repeat2 size={17} /> Solicitar troca</button>
+        {!isVisitor && (
+          <button type="button" className="secondary" onClick={() => openSwapModal()}><Repeat2 size={17} /> Solicitar troca</button>
+        )}
         <button type="button" className="secondary" onClick={() => openReportModal()} style={{ marginLeft: 8 }}><CalendarDays size={17} /> Relatório RH</button>
       </div>
 
@@ -700,7 +703,9 @@ export default function ShiftSchedulePage() {
 
             <div className="modal-actions">
               <button className="secondary" type="button" onClick={() => setSelectedDate(null)}>Cancelar</button>
-              <button type="button" onClick={saveDayTeams} disabled={loading}><CalendarDays size={17} /> Salvar escala</button>
+              {!isVisitor && (
+                <button type="button" onClick={saveDayTeams} disabled={loading}><CalendarDays size={17} /> Salvar escala</button>
+              )}
             </div>
           </article>
         </div>
