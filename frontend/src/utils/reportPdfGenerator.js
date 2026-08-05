@@ -22,7 +22,7 @@ function loadImageAsBase64(url) {
   });
 }
 
-export async function generateTechnicalReportPdf(form, selectedAgenda, attendanceForm) {
+export async function generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, openInNewTab = false) {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -610,6 +610,12 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
   // ── Generate & Download ────────────────────────────────────────────────
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
+
+  if (openInNewTab) {
+    window.open(url, "_blank");
+    return;
+  }
+
   const a = document.createElement("a");
   a.href = url;
 

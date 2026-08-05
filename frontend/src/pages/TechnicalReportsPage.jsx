@@ -491,15 +491,17 @@ function normalizePayload(form) {
 }
 
 export default function TechnicalReportsPage() {
+  const { user } = useAuth();
+  const isVisitor = user?.role === "VISITOR";
   const [agendas, setAgendas] = useState([]);
   const [reports, setReports] = useState([]);
-  const [techFilters, setTechFilters] = useState({ q: "", team: "", date: "", status: "" });
-  const [pendingTechFilters, setPendingTechFilters] = useState({ q: "", team: "", date: "", status: "" });
+  const [techFilters, setTechFilters] = useState({ q: "", team: "", date: "", status: isVisitor ? "APPROVED" : "" });
+  const [pendingTechFilters, setPendingTechFilters] = useState({ q: "", team: "", date: "", status: isVisitor ? "APPROVED" : "" });
   const [pendingDateFilter, setPendingDateFilter] = useState("");
   const [pendingChiefFilter, setPendingChiefFilter] = useState("");
   const [pendingChiefQuery, setPendingChiefQuery] = useState("");
   const [reportsPreviewModal, setReportsPreviewModal] = useState(null);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState(isVisitor ? "completed" : "pending");
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [protocolSearch, setProtocolSearch] = useState("");
   const [form, setForm] = useState(empty);
@@ -517,7 +519,6 @@ export default function TechnicalReportsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingAttendance, setIsSavingAttendance] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
-  const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN" || user?.role === "MANAGER";
   const requestFieldsReadOnly = Boolean(form.agenda);
   const isEditableTechnicalReport = form.status === "DRAFT" || form.status === "RETURNED";
@@ -571,6 +572,7 @@ export default function TechnicalReportsPage() {
     Object.entries(techFilters).forEach(([key, value]) => {
       if (value) params.set(key, value);
     });
+    if (isVisitor) params.set("status", "APPROVED");
 
     const [agendasResult, reportsResult] = await Promise.allSettled([
       api(`/agendas/?page_size=50&reportable=true&pending_report=true${pendingChiefQuery ? `&chief=${encodeURIComponent(pendingChiefQuery)}` : ''}`),
@@ -1116,6 +1118,90 @@ export default function TechnicalReportsPage() {
     }
   };
 
+  const loadAttendanceForReportContext = async (reportAgenda, hydratedReport) => {
+    if (reportAgenda?.service_order_mode === "DESIGNATED") {
+      const formObj = {};
+      const absentIds = reportAgenda.absent_designated_users || [];
+      (reportAgenda.designated_users_details || []).forEach((designatedUser) => {
+        const memberKey = `DESIGNATED_${designatedUser.id}`;
+        formObj[memberKey] = {
+          is_absent: absentIds.includes(designatedUser.id),
+          reason: "",
+          attachment: null,
+          member: {
+            id: designatedUser.id,
+            name: designatedUser.full_name || designatedUser.first_name || designatedUser.username || "Participante",
+            typeLabel: "Participante Individual",
+          },
+        };
+      });
+      setReportSchedule(null);
+      setAttendanceForm(formObj);
+      return;
+    }
+
+    if (!hydratedReport.operation_date || !hydratedReport.team) {
+      setReportSchedule(null);
+      setAttendanceForm({});
+      return;
+    }
+
+    try {
+      const res = await api(`/shift-schedules/?date=${hydratedReport.operation_date}`);
+      const schedules = res.results || res;
+      const scheduleInfo = schedules.find((schedule) =>
+        String(schedule.team) === String(hydratedReport.team) ||
+        String(schedule.team_name) === String(hydratedReport.team) ||
+        (reportAgenda && String(schedule.team) === String(reportAgenda.team_ref)) ||
+        (reportAgenda && String(schedule.team_name) === String(reportAgenda.sector_name))
+      );
+
+      if (scheduleInfo) {
+        await loadScheduleAttendance(scheduleInfo.id);
+      } else {
+        setReportSchedule(null);
+        setAttendanceForm({});
+      }
+    } catch {
+      setReportSchedule(null);
+      setAttendanceForm({});
+    }
+  };
+
+  const viewReport = async (report) => {
+    if (isEditingLoading) return;
+    setIsEditingLoading(true);
+    try {
+      const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(report.agenda));
+      let reportAgenda = reportAgendaLocal;
+
+      if (report.agenda && !reportAgendaLocal) {
+        reportAgenda = await api(`/agendas/${report.agenda}/`);
+        setAgendas((current) => {
+          if (!current.some((agenda) => String(agenda.id) === String(reportAgenda.id))) {
+            return [...current, reportAgenda];
+          }
+          return current;
+        });
+      }
+
+      const resolvedDetails = report.street_action_details?.length
+        ? report.street_action_details
+        : (reportAgenda?.street_action_details || []);
+      const hydrated = hydrateForm({ ...report, street_action_details: resolvedDetails }, reportAgenda);
+
+      setEditing(null);
+      setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : report.agenda ? String(report.agenda) : "");
+      setForm(hydrated);
+      setMessage("");
+      await loadAttendanceForReportContext(reportAgenda, hydrated);
+      setShowPreviewModal(true);
+    } catch (err) {
+      setMessage(`Nao foi possivel carregar o resumo do relatorio\n\nMotivo:\n${err.message}`);
+    } finally {
+      setIsEditingLoading(false);
+    }
+  };
   const edit = async (report) => {
     if (isEditingLoading) return;
     setIsEditingLoading(true);
@@ -1214,7 +1300,7 @@ export default function TechnicalReportsPage() {
   return (
     <>
     <section className="page two-column report-editor">
-      {activeTab !== "completed" && (
+      {activeTab !== "completed" && !isVisitor && (
       <div className="main-column">
         <div className="page-title">
           <div>
@@ -1748,18 +1834,20 @@ export default function TechnicalReportsPage() {
                 <span>Data</span>
                 <input type="date" value={pendingTechFilters.date} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, date: e.target.value })} />
               </div>
-              <div className="filter-field">
-                <span>Status</span>
-                <select value={pendingTechFilters.status} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, status: e.target.value })}>
-                  <option value="">Todos</option>
-                  <option value="PENDING_REVIEW">Pendente</option>
-                  <option value="APPROVED">Aprovado</option>
-                  <option value="DRAFT">Rascunho</option>
-                  <option value="RETURNED">Devolvido</option>
-                </select>
-              </div>
+              {!isVisitor && (
+                <div className="filter-field">
+                  <span>Status</span>
+                  <select value={pendingTechFilters.status} onChange={(e) => setPendingTechFilters({ ...pendingTechFilters, status: e.target.value })}>
+                    <option value="">Todos</option>
+                    <option value="PENDING_REVIEW">Pendente</option>
+                    <option value="APPROVED">Aprovado</option>
+                    <option value="DRAFT">Rascunho</option>
+                    <option value="RETURNED">Devolvido</option>
+                  </select>
+                </div>
+              )}
               <div style={{ alignSelf: 'flex-end' }}>
-                <button onClick={() => setTechFilters(pendingTechFilters)}>Pesquisar</button>
+                <button onClick={() => setTechFilters(isVisitor ? { ...pendingTechFilters, status: "APPROVED" } : pendingTechFilters)}>Pesquisar</button>
               </div>
             </div>
 
@@ -1799,26 +1887,34 @@ export default function TechnicalReportsPage() {
                       </td>
                       <td>{r.actions_count || r.actions?.length || 0} a√ß√µes</td>
                       <td style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                        <button className="secondary icon-button" onClick={() => { setReportsPreviewModal(r); }} title="Visualizar">
-                          <Eye size={16} />
-                        </button>
-                        {["DRAFT", "RETURNED"].includes(r.status) ? (
-                          <button className="secondary" onClick={() => edit(r)} title="Corrigir relat√≥rio" disabled={isEditingLoading}>
-                            <Edit3 size={16} /> Corrigir
+                        {isVisitor ? (
+                          <button className="secondary" onClick={() => viewReport(r)} title="Visualizar Resumo" disabled={isEditingLoading}>
+                            <Eye size={16} /> Visualizar Resumo
                           </button>
                         ) : (
-                          <button className="secondary icon-button" onClick={() => edit(r)} title="Editar" disabled={isEditingLoading}>
-                            <Clipboard size={16} />
-                          </button>
-                        )}
-                        {isAdmin && r.status === "PENDING_REVIEW" && (
                           <>
-                            <button className="primary icon-button" onClick={() => approveReport(r.id)} title="Aprovar" disabled={isApproving}>
-                              <Check size={16} />
+                            <button className="secondary icon-button" onClick={() => { setReportsPreviewModal(r); }} title="Visualizar">
+                              <Eye size={16} />
                             </button>
-                            <button className="danger icon-button" onClick={() => returnReport(r.id)} title="Devolver para corre√ß√£o" style={{ background: "var(--danger)", color: "#fff", border: "none" }} disabled={isApproving}>
-                              <X size={16} />
-                            </button>
+                            {["DRAFT", "RETURNED"].includes(r.status) ? (
+                              <button className="secondary" onClick={() => edit(r)} title="Corrigir relatÛrio" disabled={isEditingLoading}>
+                                <Edit3 size={16} /> Corrigir
+                              </button>
+                            ) : (
+                              <button className="secondary icon-button" onClick={() => edit(r)} title="Editar" disabled={isEditingLoading}>
+                                <Clipboard size={16} />
+                              </button>
+                            )}
+                            {isAdmin && r.status === "PENDING_REVIEW" && (
+                              <>
+                                <button className="primary icon-button" onClick={() => approveReport(r.id)} title="Aprovar" disabled={isApproving}>
+                                  <Check size={16} />
+                                </button>
+                                <button className="danger icon-button" onClick={() => returnReport(r.id)} title="Devolver para correÁ„o" style={{ background: "var(--danger)", color: "#fff", border: "none" }} disabled={isApproving}>
+                                  <X size={16} />
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
                       </td>
@@ -1872,6 +1968,7 @@ export default function TechnicalReportsPage() {
           )}
         </div>
       )}
+      {!isVisitor && (
       <aside className="side-panel report-sidebar">
         <div className="sidebar-tabs" style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px", borderBottom: "1px solid var(--line)", paddingBottom: "12px" }}>
           <button type="button" className={activeTab === "pending" ? "active" : "secondary"} onClick={() => setActiveTab("pending")} style={{ width: "100%", fontSize: "12px", padding: "8px 10px", fontWeight: "700" }}>Pendentes ({pendingAgendas.length})</button>
@@ -1973,6 +2070,7 @@ export default function TechnicalReportsPage() {
           </div>
         )}
       </aside>
+      )}
     </section>
 
     {showPreviewModal && (() => {
@@ -2275,19 +2373,36 @@ export default function TechnicalReportsPage() {
 
           {/* Modal actions */}
           <div className="modal-actions" style={{ borderTop: "1px solid #e5e5e5", padding: "12px 16px" }}>
-            <button
-              className="primary"
-              type="button"
-              onClick={() =>
-                generateTechnicalReportPdf(form, selectedAgenda, attendanceForm)
-              }
-            >
-              Baixar PDF t√©cnico
-            </button>
-            <button className="secondary" type="button" onClick={copyPreview}>
-              <Clipboard size={14} /> Copiar
-            </button>
-            <button type="button" onClick={() => setShowPreviewModal(false)}>Voltar ao preenchimento</button>
+            {isVisitor ? (
+              <>
+                <button type="button" onClick={() => setShowPreviewModal(false)}>Fechar</button>
+                <button
+                  className="primary"
+                  type="button"
+                  onClick={() =>
+                    generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, true)
+                  }
+                >
+                  Visualizar PDF
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="primary"
+                  type="button"
+                  onClick={() =>
+                    generateTechnicalReportPdf(form, selectedAgenda, attendanceForm)
+                  }
+                >
+                  Baixar PDF tÈcnico
+                </button>
+                <button className="secondary" type="button" onClick={copyPreview}>
+                  <Clipboard size={14} /> Copiar
+                </button>
+                <button type="button" onClick={() => setShowPreviewModal(false)}>Voltar ao preenchimento</button>
+              </>
+            )}
           </div>
         </article>
       </div>

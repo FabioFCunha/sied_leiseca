@@ -1,0 +1,55 @@
+entidade,id,nome,cpf,email,grupos_perfis,classificacao,motivo
+User,2,Admin Test,,admin@test.com,ADMIN,MANTER_SEM_LOOKUP,Papel administrativo/visitante (ADMIN)
+User,3,Ronaldo X,11111111111,s1@test.com,SUPPORT,NECESSITA_ANALISE_MANUAL,"Papel operacional, mas sem equipe definida (Coringa/Reserva?)"
+User,5,Apoio 1,33333333333,sp1@test.com,SUPPORT,NECESSITA_ANALISE_MANUAL,"Papel operacional, mas sem equipe definida (Coringa/Reserva?)"
+User,6,Apoio Colisao,44444444444,support500@test.com,SUPPORT,CRIAR_LOOKUP,Papel operacional ativo com equipe definida.
+User,7,Apoio Colisao 546322,91546322001,trace_support_546322@test.com,SUPPORT,CRIAR_LOOKUP,Papel operacional ativo com equipe definida.
+User,8,Runner,,test_runner@example.com,SUPERVISOR,NECESSITA_ANALISE_MANUAL,"Papel operacional, mas sem equipe definida (Coringa/Reserva?)"
+User,9,Test,,test500@ex.com,AGENT,NECESSITA_ANALISE_MANUAL,"Papel operacional, mas sem equipe definida (Coringa/Reserva?)"
+Agent,1,ALESSANDRO LUIZ ALLEN LACOLLA MONTANO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:BRAVO:ALESSANDRO LUIZ ALLEN LACOLLA MONTANO').
+Agent,2,BRUNO ROBERTO FLORIDO DUTRA,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:FOX:BRUNO ROBERTO FLORIDO DUTRA').
+Agent,3,CLAUDIO ROMULO DE ARAUJO PINTO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:ALFA:CLAUDIO ROMULO DE ARAUJO PINTO').
+Agent,4,DANIELE FERNANDES DA COSTA,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:CHARLIE:DANIELE FERNANDES DA COSTA').
+Agent,5,DIOGO DE FARIAS GONÇALVES,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:ECHO:DIOGO DE FARIAS GONCALVES').
+Agent,6,DOUGLAS JUNIOR LISBOA MAZZONI,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:BRAVO:DOUGLAS JUNIOR LISBOA MAZZONI').
+Agent,7,ELAINE CRISTINA CORDEIRO DUTRA,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:ALFA:ELAINE CRISTINA CORDEIRO DUTRA').
+Agent,8,ELOI MANDARINO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:FOX:ELOI MANDARINO').
+Agent,9,FERNANDA CARLOS DA SILVA,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:HOTEL:FERNANDA CARLOS DA SILVA').
+Agent,10,IRAPUÃ DA CUNHA MAGALHÃES,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:DELTA:IRAPUA DA CUNHA MAGALHAES').
+Agent,11,JADIR ANTUNES,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:ALFA:JADIR ANTUNES').
+Agent,12,JORGE VINICIUS PINTO DE CARVALHO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:CHARLIE:JORGE VINICIUS PINTO DE CARVALHO').
+Agent,13,JULIO CESAR DA SILVA SANTOS,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:FOX:JULIO CESAR DA SILVA SANTOS').
+Agent,14,LEANDRO GABRIEL RODRIGUES RITO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:GOLF:LEANDRO GABRIEL RODRIGUES RITO').
+Agent,15,LEONARDO DE PAULA SILVA DO NASCIMENTO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:GOLF:LEONARDO DE PAULA SILVA DO NASCIMENTO').
+Agent,16,LEONARDO DE VELASCO SILVA,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:HOTEL:LEONARDO DE VELASCO SILVA').
+Agent,17,LEONARDO TAVARES MARTINS,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:ECHO:LEONARDO TAVARES MARTINS').
+Agent,18,LUIZ HENRIQUE PEREGRINO GOMES,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:ECHO:LUIZ HENRIQUE PEREGRINO GOMES').
+Agent,19,MARAJO SANT ANGELO DO NASCIMENTO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:DELTA:MARAJO SANT ANGELO DO NASCIMENTO').
+Agent,20,MARCIO DA SILVA ALCANTARA,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:HOTEL:MARCIO DA SILVA ALCANTARA').
+Agent,21,MARCOS FRANCISCO DE JESUS BORGES,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:CHARLIE:MARCOS FRANCISCO DE JESUS BORGES').
+Agent,22,ORLANDO DA SILVA,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:BRAVO:ORLANDO DA SILVA').
+Agent,23,PEDRO PAULO PAIVA GARDONI DOS SANTOS,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:BRAVO:PEDRO PAULO PAIVA GARDONI DOS SANTOS').
+Agent,24,THAYRONE AMARAL DE SOUZA,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:HOTEL:THAYRONE AMARAL DE SOUZA').
+Agent,25,VALDIR FIGUEIREDO FILHO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:DELTA:VALDIR FIGUEIREDO FILHO').
+Agent,26,WELLINGTON DO ESPIRITO SANTO,,,AGENTE,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:agent:GOLF:WELLINGTON DO ESPIRITO SANTO').
+Chief,1,ALDOMIR TORRES DE OLIVEIRA,,,CHEFE DE CIVIL,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:chief:BRAVO:ALDOMIR TORRES DE OLIVEIRA').
+Chief,2,DOUGLAS VIEIRA AMADOR,,,CHEFE. CIVIL,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:chief:FOX:DOUGLAS VIEIRA AMADOR').
+Chief,3,ELENI MARTINS,,,CHEFE. CIVIL,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:chief:CHARLIE:ELENI MARTINS').
+Chief,4,ELISANGELA CUNHA MONTEIRO,,,CHEFE. CIVIL,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:chief:HOTEL:ELISANGELA CUNHA MONTEIRO').
+Chief,5,MARCELO GOMES DE ARAUJO,,,CHEFE. CIVIL,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:chief:ECHO:MARCELO GOMES DE ARAUJO').
+Chief,6,RAFAELLA GOMES SILVA,,,CHEFE. CIVIL,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:chief:DELTA:RAFAELLA GOMES SILVA').
+Chief,7,VITOR PARADIZZO CELESTINO,,,CHEFE DE CIVIL,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:chief:ALFA:VITOR PARADIZZO CELESTINO').
+Chief,8,WALLACE ABREU DOS SANTOS,,,CHEFE. CIVIL,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:chief:GOLF:WALLACE ABREU DOS SANTOS').
+Support,6,ALEXANDRE PEREIRA SANTIAGO,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:BRAVO:ALEXANDRE PEREIRA SANTIAGO').
+Support,7,ANA BEATRIZ NAVARRO DE ANDRADE AMARAL,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:DELTA:ANA BEATRIZ NAVARRO DE ANDRADE AMARAL').
+Support,8,ANTÔNIO CARLOS DA SILVA PITTA,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:GOLF:ANTONIO CARLOS DA SILVA PITTA').
+Support,3,Apoio Colisao,55555555555,,APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='').
+Support,5,Apoio Colisao 546322,93546322003,,APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='').
+Support,9,FERNANDA BUSTILHO,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:HOTEL:FERNANDA BUSTILHO').
+Support,10,FLAVIO LUIZ DA SILVA SIQUEIRA,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:FOX:FLAVIO LUIZ DA SILVA SIQUEIRA').
+Support,11,GILSIMAR VIEIRA DA FONSECA,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:DELTA:GILSIMAR VIEIRA DA FONSECA').
+Support,12,HELIO JORGE BARBOSA DA SILVA,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:CHARLIE:HELIO JORGE BARBOSA DA SILVA').
+Support,13,MARCELO SANTOS DA SILVA,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:ALFA:MARCELO SANTOS DA SILVA').
+Support,14,MARCOS PIQUET DE MEDEIROS,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:ECHO:MARCOS PIQUET DE MEDEIROS').
+Support,15,RAFAEL GALVÃO MOTTA,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:HOTEL:RAFAEL GALVAO MOTTA').
+Support,16,RONALDO DA CONCEIÇÃO FERREIRA LIMA,,,AGENTE APOIO,DESATIVAR_LOOKUP,Registro legado orfão sem usuário vinculado (source_id='education-staff:support:BRAVO:RONALDO DA CONCEICAO FERREIRA LIMA').

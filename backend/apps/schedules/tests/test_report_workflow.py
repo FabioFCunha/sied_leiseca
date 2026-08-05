@@ -305,3 +305,89 @@ class EducationReportWorkflowTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         report.refresh_from_db()
         self.assertEqual(report.status, EducationReport.ReportStatus.PENDING_REVIEW)
+
+    # ------------------------------------------------------------------
+    # VISITOR profile tests (new — constraint #2)
+    # ------------------------------------------------------------------
+
+    def test_visitor_can_only_see_approved_reports(self):
+        """VISITOR deve visualizar apenas relatórios com status APPROVED na listagem."""
+        # Create a draft report (must be invisible to VISITOR)
+        draft_report = EducationReport.objects.create(
+            agenda=self.agenda,
+            created_by=self.admin,
+            status=EducationReport.ReportStatus.DRAFT,
+            team="Team VISITOR-Draft",
+            operation_date="2026-07-01",
+        )
+        # Create an approved report (must be visible to VISITOR)
+        approved_report = EducationReport.objects.create(
+            agenda=self.agenda,
+            created_by=self.admin,
+            status=EducationReport.ReportStatus.APPROVED,
+            team="Team VISITOR-Approved",
+            operation_date="2026-07-01",
+        )
+
+        self.client.force_authenticate(user=self.visitor)
+        response = self.client.get("/api/education-reports/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        result_ids = [r["id"] for r in response.data.get("results", response.data)]
+        self.assertIn(approved_report.id, result_ids, "VISITOR deve ver relatório APPROVED")
+        self.assertNotIn(draft_report.id, result_ids, "VISITOR não deve ver relatório DRAFT")
+
+        # Retrieve of a non-approved report must return 404
+        response_draft = self.client.get(f"/api/education-reports/{draft_report.id}/")
+        self.assertEqual(
+            response_draft.status_code,
+            status.HTTP_404_NOT_FOUND,
+            "VISITOR deve receber 404 ao tentar recuperar relatório não aprovado",
+        )
+
+        # Retrieve of an approved report must return 200
+        response_approved = self.client.get(f"/api/education-reports/{approved_report.id}/")
+        self.assertEqual(
+            response_approved.status_code,
+            status.HTTP_200_OK,
+            "VISITOR deve conseguir recuperar relatório APPROVED",
+        )
+
+    def test_visitor_cannot_perform_any_writes(self):
+        """VISITOR deve receber 403 em todas as ações de escrita do EducationReportViewSet."""
+        # Create an approved report to use as target for actions
+        approved_report = EducationReport.objects.create(
+            agenda=self.agenda,
+            created_by=self.admin,
+            status=EducationReport.ReportStatus.APPROVED,
+            team="Team VISITOR-Write",
+            operation_date="2026-07-01",
+        )
+
+        self.client.force_authenticate(user=self.visitor)
+
+        # Standard write actions
+        response = self.client.post("/api/education-reports/", {"team": "X", "operation_date": "2026-07-01"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, "create deve retornar 403 para VISITOR")
+
+        response = self.client.put(f"/api/education-reports/{approved_report.id}/", {"team": "X"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, "update deve retornar 403 para VISITOR")
+
+        response = self.client.patch(f"/api/education-reports/{approved_report.id}/", {"team": "X"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, "partial_update deve retornar 403 para VISITOR")
+
+        response = self.client.delete(f"/api/education-reports/{approved_report.id}/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, "destroy deve retornar 403 para VISITOR")
+
+        # Custom write actions
+        response = self.client.post(f"/api/education-reports/{approved_report.id}/submit-for-review/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, "submit-for-review deve retornar 403 para VISITOR")
+
+        response = self.client.post(f"/api/education-reports/{approved_report.id}/approve/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, "approve deve retornar 403 para VISITOR")
+
+        response = self.client.post(f"/api/education-reports/{approved_report.id}/return-for-correction/", {"notes": "x"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, "return-for-correction deve retornar 403 para VISITOR")
+
+        response = self.client.post(f"/api/education-reports/{approved_report.id}/process-statistics/")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN, "process-statistics deve retornar 403 para VISITOR")
