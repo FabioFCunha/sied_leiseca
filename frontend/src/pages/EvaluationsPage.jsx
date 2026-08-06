@@ -547,8 +547,8 @@ export default function EvaluationsPage() {
   const availableTeams = data?.teams || [];
 
   const cardConfig = [
-    { key: "total_surveys", label: "Avalia??es Recebidas", icon: BarChart3, tone: "blue", format: "int" },
-    { key: "satisfaction_index", label: "?ndice de Satisfa??o", icon: ThumbsUp, tone: "green", format: "percent" },
+    { key: "total_surveys", label: "Avaliações Recebidas", icon: BarChart3, tone: "blue", format: "int" },
+    { key: "satisfaction_index", label: "Índice de Satisfação", icon: ThumbsUp, tone: "green", format: "percent" },
     { key: "speaker_avg", label: "Nota Palestrante", icon: Mic, tone: "violet", format: "decimal" },
     { key: "resources_avg", label: "Recursos Audiovisuais", icon: BookOpen, tone: "teal", format: "decimal" },
     { key: "punctuality_avg", label: "Pontualidade", icon: Clock3, tone: "blue", format: "decimal" },
@@ -557,7 +557,7 @@ export default function EvaluationsPage() {
     { key: "support_material_avg", label: "Material de Apoio", icon: HeartHandshake, tone: "green", format: "decimal" },
     { key: "wheelchair_avg", label: "Depoimento Cadeirantes", icon: Accessibility, tone: "violet", format: "decimal" },
     { key: "best_criteria", label: "Melhor Criterio", icon: Award, tone: "green", format: "criteria" },
-    { key: "worst_criteria", label: "Menor Avalia??o", icon: TrendingDown, tone: "red", format: "criteria" },
+    { key: "worst_criteria", label: "Menor Avaliação", icon: TrendingDown, tone: "red", format: "criteria" },
     { key: "most_improved", label: "Maior Aumento", icon: TrendingUp, tone: "green", format: "criteria" },
   ];
 
