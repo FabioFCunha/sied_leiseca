@@ -4,6 +4,16 @@ import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR, formatLocalISODate } from "../utils/date.js";
 
+const WEEKDAY_LABELS = [
+  "Dom",
+  "Seg",
+  "Ter",
+  "Qua",
+  "Qui",
+  "Sex",
+  "Sáb",
+];
+
 function memberRows(members = {}) {
   return [
     ...(members.chiefs || []).map((item) => ({ ...item, type: "CHIEF", typeLabel: "Chefe" })),
@@ -639,7 +649,7 @@ export default function ShiftSchedulePage() {
           const daySchedules = schedules.filter((item) => item.date === iso);
           return (
             <article key={iso} className="day-cell shift-day-cell" onClick={() => openDay(day)}>
-              <span>{day.getDate()}</span>
+              <span>{WEEKDAY_LABELS[day.getDay()]} {day.getDate()}</span>
               {daySchedules.map((schedule) => (
                 <button key={schedule.id} className="shift-team-pill" type="button" onClick={(event) => { event.stopPropagation(); openTeamDetail(schedule); }}>
                   <span>
