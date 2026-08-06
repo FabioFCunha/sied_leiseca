@@ -147,6 +147,7 @@ export function buildStatisticsViewModel({
     approved,
     cancelled,
     refused,
+    cancelledOrRefused: Number(cancelled || 0) + Number(refused || 0),
     executed: totalActions,
   };
 

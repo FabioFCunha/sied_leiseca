@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+ï»¿import { useEffect, useMemo, useRef, useState } from "react";
 import { Activity, AlertTriangle, ArrowRight, BarChart3, BookOpen, Building2, CalendarDays, Download, FileImage, FileSpreadsheet, Filter, Lightbulb, MapPin, Printer, TrendingDown, TrendingUp, Users, X } from "lucide-react";
 import { Bar, CartesianGrid, ComposedChart, LabelList, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toPng } from "html-to-image";
@@ -532,28 +532,15 @@ export default function StatisticsPage() {
     link.click();
     URL.revokeObjectURL(link.href);
   };
-  const exportPdf = () => {
+  const exportPdf = async () => {
     try {
-      const issuedAt = formatReportDateTime(new Date());
-      const logoUrl = new URL(leiSecaLogo, window.location.href).href;
-      
-      const html = generateStatisticsPdf({
+      await generateStatisticsPdf({
         viewModel,
         filters,
-        issuedAt,
-        logoUrl
+        issuedAt: new Date(),
+        logoUrl: new URL(leiSecaLogo, window.location.href).href,
+        openInNewTab: true,
       });
-      
-      const printWindow = window.open("", "_blank");
-      if (!printWindow) {
-        window.alert("Não foi possível abrir a visualização de impressão do relatório. Verifique se o navegador bloqueou pop-ups.");
-        return;
-      }
-      
-      printWindow.opener = null;
-      printWindow.document.open();
-      printWindow.document.write(html);
-      printWindow.document.close();
     } catch (err) {
       window.alert(err.message);
     }
