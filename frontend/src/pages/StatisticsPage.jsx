@@ -7,6 +7,9 @@ import leiSecaLogo from "../assets/operacao-lei-seca-logo.png";
 import { formatLocalISODate } from "../utils/date.js";
 import "./StatisticsPage.css";
 import { streetActionTypeLabel } from "../utils/streetActionTypes.js";
+import { buildStatisticsViewModel } from "../utils/statisticsViewModel.js";
+import { generateStatisticsPdf } from "../utils/statisticsPdfGenerator.js";
+
 
 const MIN_DATE = "2026-07-01";
 const COLORS = ["#0048d7", "#059669", "#dc2626", "#7c3aed", "#ea580c", "#db2777", "#0891b2", "#ca8a04", "#64748b", "#16a34a"];
@@ -467,11 +470,40 @@ export default function StatisticsPage() {
   const [filters, setFilters] = useState(defaultFilters); const [pending, setPending] = useState(defaultFilters); const [options, setOptions] = useState({ municipalities: [], teams: [], action_types: [], entities: [], institutions: [] }); const [data, setData] = useState(null); const [agendas, setAgendas] = useState([]); const [futureAgendas, setFutureAgendas] = useState([]); const [pendingRequests, setPendingRequests] = useState(0); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [drilldown, setDrilldown] = useState(null);
   useEffect(() => { api("/statistics/dashboard/filters/").then(setOptions).catch(() => {}); }, []);
   useEffect(() => { const safeFilters = { ...filters, date_from: clampStart(filters.date_from) };  setLoading(true); setError(""); Promise.all([api(`/statistics/dashboard/?${queryString(safeFilters)}`), api(`/agendas/?date_from=${safeFilters.date_from}&date_to=${safeFilters.date_to}&page_size=500`), api(`/agendas/?date_from=${safeFilters.date_from}&date_to=${safeFilters.date_to}&status=APPROVED&source=public&page_size=500`), api(`/agendas/?status=PENDING&source=requests&page_size=1`)]).then(([stats, agendaResult, futureResult, pendingResult]) => { setData(stats); setAgendas(agendaResult.results || agendaResult || []); setFutureAgendas(futureResult.results || futureResult || []); setPendingRequests(pendingResult.count ?? (pendingResult.results || pendingResult || []).length); }).catch(err => setError(err.message)).finally(() => setLoading(false)); }, [filters]);
-  const annual = useMemo(() => (data?.annual || []).map(row => ({ year: row.year, ...row.values })), [data]); const dailySeries = useMemo(() => (data?.daily || []).map(row => ({ day: row.day_label || row.date, actions: Number(row.values["ACTION - Geral"] || 0), audience: Number(row.values["AUDIENCE - Geral"] || 0) })), [data]); const categoryData = useMemo(() => (data?.categories || []).map((row, index) => ({ ...row, label: streetActionTypeLabel(row.label), value: Number(row.value || 0), actions: Number(row.value || 0), audience: Number(row.audience || 0), color: COLORS[index % COLORS.length] })).sort((a,b) => b.value - a.value), [data]);
-  const filteredAgendas = useMemo(() => agendas.filter(agenda => agendaMatchesFilters(agenda, filters)), [agendas, filters]); const filteredFutureAgendas = useMemo(() => futureAgendas.filter(agenda => agendaMatchesFilters(agenda, filters)), [futureAgendas, filters]);
-  const totalActions = Number(data?.summary?.["ACTION - Geral"] || 0); const demand = useMemo(() => { const total = filteredAgendas.length; const publicForm = filteredAgendas.filter(a => a.origin === "PUBLIC_FORM").length; const internal = filteredAgendas.filter(a => a.origin !== "PUBLIC_FORM").length; const approved = filteredAgendas.filter(a => ["APPROVED", "COMPLETED"].includes(a.status)).length; const cancelled = filteredAgendas.filter(a => a.status === "CANCELLED").length; const refused = filteredAgendas.filter(a => ["REJECTED", "REFUSED"].includes(a.status)).length; return { total, publicForm, internal, approved, cancelled, refused, executed: totalActions }; }, [filteredAgendas, totalActions]);
-  const publicRequests = filteredAgendas.filter(a => a.origin === "PUBLIC_FORM").length; const internalRequests = filteredAgendas.filter(a => a.origin !== "PUBLIC_FORM").length; const awaitingExecution = Math.max(0, demand.approved - demand.executed); const futurePublic = filteredAgendas.filter(a => !["COMPLETED", "CANCELLED"].includes(a.status)).reduce((sum, agenda) => sum + parseExpected(agenda.audience, agenda.participant_range), 0); const displaySummary = { ...(data?.summary || {}), FUTURE_PUBLIC: futurePublic, INTERNAL_REQUESTS: internalRequests, PUBLIC_REQUESTS: publicRequests }; const displayPrevious = { ...(data?.previous || {}), FUTURE_PUBLIC: 0, INTERNAL_REQUESTS: 0, PUBLIC_REQUESTS: 0 }; const displayComparisons = { ...(data?.comparisons || {}), FUTURE_PUBLIC: { percentage: null }, INTERNAL_REQUESTS: { percentage: null }, PUBLIC_REQUESTS: { percentage: null } };
-  const ageRows = useMemo(() => groupBy(filteredAgendas.filter(a => ageGroupLabel(a.age_ranges)), a => ageGroupLabel(a.age_ranges)), [filteredAgendas]); const requesterRows = useMemo(() => groupBy(filteredAgendas.filter(a => requesterTypeLabel(a.requester_entity_type)), a => requesterTypeLabel(a.requester_entity_type)), [filteredAgendas]); const administrativeDemandRows = useMemo(() => { const items = data?.administrative_demands?.items || []; const itemByCode = Object.fromEntries(items.map(item => [item.code, item])); return ["TRAVEL", "INTERVIEW", "MEETING"].map((code, index) => ({ label: itemByCode[code]?.label || ADMINISTRATIVE_DEMAND_LABELS[code], actions: Number(itemByCode[code]?.value || 0), audience: 0, color: COLORS[index % COLORS.length] })); }, [data]); const heatmapRows = data?.heatmap || []; const municipalities = useMemo(() => mergeRowsByLabel(data?.municipalities || [], "agenda__city", municipalityLabel), [data]); const teams = useMemo(() => [...(data?.teams || [])].sort((a, b) => Number(b.actions || 0) - Number(a.actions || 0) || Number(b.audience || 0) - Number(a.audience || 0)), [data]); const bestTeam = teams[0] || {}; const leastTeam = [...teams].reverse().find(row => Number(row.actions || 0) > 0) || {}; const audienceLeader = [...teams].sort((a, b) => Number(b.audience || 0) - Number(a.audience || 0))[0] || {}; const averageLeader = [...teams].filter(row => Number(row.actions || 0) > 0).sort((a, b) => Number(b.average || 0) - Number(a.average || 0))[0] || {}; const insights = [`${bestTeam.team || "Equipe"} fez mais relatórios técnicos: ${integer(bestTeam.actions)} ações registradas.`, `${leastTeam.team || "Equipe"} teve o menor volume entre as equipes com produção: ${integer(leastTeam.actions)} a\u00e7\u00f5es.`, `${audienceLeader.team || "Equipe"} alcançou mais público: ${integer(audienceLeader.audience)} pessoas.`, `${averageLeader.team || "Equipe"} tem a maior m\u00e9dia por a\u00e7\u00e3o: ${number(averageLeader.average)} pessoas por registro.`, `${integer(data?.summary?.REPORTS_WITHOUT_PUBLIC)} relatórios aprovados estão sem público informado.`];
+  const filteredAgendas = useMemo(() => agendas.filter(agenda => agendaMatchesFilters(agenda, filters)), [agendas, filters]);
+  const filteredFutureAgendas = useMemo(() => futureAgendas.filter(agenda => agendaMatchesFilters(agenda, filters)), [futureAgendas, filters]);
+
+  const viewModel = useMemo(
+    () =>
+      buildStatisticsViewModel({
+        dashboardData: data,
+        filteredAgendas,
+        futureAgendas: filteredFutureAgendas,
+      }),
+    [data, filteredAgendas, filteredFutureAgendas]
+  );
+
+  const {
+    annual,
+    dailySeries,
+    categoryData,
+    demand,
+    awaitingExecution,
+    displaySummary,
+    displayPrevious,
+    displayComparisons,
+    ageRows,
+    requesterRows,
+    administrativeDemandRows,
+    heatmapRows,
+    municipalities,
+    teams,
+    insights,
+    bestTeam,
+    leastTeam,
+    audienceLeader,
+    averageLeader,
+  } = viewModel;
   const reset = () => { setPending(defaultFilters); setFilters(defaultFilters); };
   const apply = () => setFilters(current => ({ ...current, ...pending, date_from: clampStart(pending.date_from) }));
   const exportExcel = () => {
@@ -501,108 +533,30 @@ export default function StatisticsPage() {
     URL.revokeObjectURL(link.href);
   };
   const exportPdf = () => {
-    const issuedAt = new Date();
-    const expectedAudience = filteredAgendas.reduce((sum, agenda) => sum + parseExpected(agenda.audience, agenda.participant_range, agenda.quantity), 0);
-    const reachedAudience = Number(displaySummary["AUDIENCE - Geral"] || 0);
-    const lectures = Number(displaySummary["LECTURES - Geral"] || 0);
-    const streetActions = Number(displaySummary["STREET_ACTIONS - Geral"] || 0);
-    const distributedMaterials = Number(displaySummary["MATERIAL - Geral"] || 0);
-    const distributedComics = Number(displaySummary["MATERIAL - Soprinho"] || 0);
-    const totalDifference = reachedAudience - expectedAudience;
-    const municipalityValue = filters.municipality || "Todos";
-    const teamValue = filters.team || "Todos";
-    const categoryValue = filters.entity || "Todos";
-    const summaryRows = [
-      { label: "Público alcançado", value: integer(reachedAudience) },
-      { label: "Público previsto", value: integer(expectedAudience) },
-      { label: "Palestras realizadas", value: integer(lectures) },
-      { label: "Ações de rua", value: integer(streetActions) },
-      { label: "Materiais distribuídos", value: integer(distributedMaterials) },
-      { label: "Revistinhas distribuídas", value: integer(distributedComics) },
-      { label: "Solicitações internas", value: integer(internalRequests) },
-      { label: "Solicitações públicas", value: integer(publicRequests) },
-    ];
-    const productionRows = [
-      { label: "Solicitações recebidas", value: integer(demand.total) },
-      { label: "Solicitações aprovadas", value: integer(demand.approved) },
-      { label: "Ações executadas", value: integer(demand.executed) },
-      { label: "Aguardando execução", value: integer(awaitingExecution) },
-      { label: "Aguardando aprovação", value: integer(pendingRequests) },
-      { label: "Canceladas/Recusadas", value: integer(demand.cancelled + demand.refused) },
-    ];
-    const educationRows = [
-      { label: "Palestras", value: integer(lectures) },
-      { label: "Ações de Rua", value: integer(streetActions) },
-      { label: "Solicitações Públicas", value: integer(publicRequests) },
-      { label: "Solicitações Internas", value: integer(internalRequests) },
-    ];
-    const publicRows = [
-      { label: "Público previsto", value: integer(expectedAudience) },
-      { label: "Público alcançado", value: integer(reachedAudience) },
-      { label: "Diferença", value: `${totalDifference > 0 ? "+" : ""}${integer(totalDifference)}` },
-    ];
-    const materialRows = [
-      { label: "Materiais distribuídos", value: integer(distributedMaterials) },
-      { label: "Revistinhas distribuídas", value: integer(distributedComics) },
-    ];
-    const executiveSummary = demand.total > 0
-      ? `O período filtrado registrou ${integer(demand.executed)} ações executadas a partir de ${integer(demand.total)} solicitações, com ${integer(reachedAudience)} pessoas alcançadas e ${integer(distributedMaterials)} materiais distribuídos.`
-      : `Não há dados suficientes para produção no período filtrado. O relatório foi gerado com base nos filtros aplicados e apresenta os totais atualmente disponíveis.`;
-    const analysisParts = [];
-    if (demand.total > 0) {
-      analysisParts.push(`Durante o período analisado foram registradas ${integer(demand.total)} solicitações, das quais ${integer(demand.approved)} foram aprovadas, resultando em ${integer(demand.executed)} ações executadas.`);
-    } else {
-      analysisParts.push("Não houve produção consolidada para os filtros selecionados no período analisado.");
+    try {
+      const issuedAt = formatReportDateTime(new Date());
+      const logoUrl = new URL(leiSecaLogo, window.location.href).href;
+      
+      const html = generateStatisticsPdf({
+        viewModel,
+        filters,
+        issuedAt,
+        logoUrl
+      });
+      
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) {
+        window.alert("N�o foi poss�vel abrir a visualiza��o de impress�o do relat�rio. Verifique se o navegador bloqueou pop-ups.");
+        return;
+      }
+      
+      printWindow.opener = null;
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } catch (err) {
+      window.alert(err.message);
     }
-    if (expectedAudience > 0) {
-      analysisParts.push(
-        reachedAudience > expectedAudience
-          ? `As atividades alcançaram ${integer(reachedAudience)} pessoas, superando o público inicialmente previsto (${integer(expectedAudience)}).`
-          : `As atividades alcançaram ${integer(reachedAudience)} pessoas, diante de um público inicialmente previsto de ${integer(expectedAudience)}.`
-      );
-    } else if (reachedAudience > 0) {
-      analysisParts.push(`As atividades alcançaram ${integer(reachedAudience)} pessoas no período analisado, sem base válida de público previsto para comparação.`);
-    } else {
-      analysisParts.push("Não há público alcançado registrado para o período filtrado.");
-    }
-    if (lectures > 0 || streetActions > 0) {
-      analysisParts.push(`Foram realizadas ${integer(lectures)} palestras e ${integer(streetActions)} ações de rua.`);
-    }
-    if (distributedMaterials > 0 || distributedComics > 0) {
-      analysisParts.push(`Também houve a distribuição de ${integer(distributedMaterials)} materiais educativos, incluindo ${integer(distributedComics)} revistinhas.`);
-    }
-
-    const printWindow = window.open("", "_blank");
-
-    if (!printWindow) {
-      window.alert("Não foi possível abrir a visualização de impressão do relatório. Verifique se o navegador bloqueou pop-ups.");
-      return;
-    }
-
-    printWindow.opener = null;
-
-    const logoUrl = new URL(leiSecaLogo, window.location.href).href;
-    printWindow.document.open();
-    printWindow.document.write(buildExecutiveReportHtml({
-      logoUrl,
-      periodFrom: formatReportDate(filters.date_from),
-      periodTo: formatReportDate(filters.date_to),
-      issuedAt: formatReportDateTime(issuedAt),
-      appliedFilters: [
-        { label: "Período", value: `${formatReportDate(filters.date_from)} a ${formatReportDate(filters.date_to)}` },
-        { label: "Município", value: municipalityValue },
-        { label: "Equipe", value: teamValue },
-        { label: "Categoria", value: categoryValue },
-      ],
-      executiveSummary,
-      summaryRows,
-      productionRows,
-      educationRows,
-      publicRows,
-      materialRows,
-      analysis: analysisParts.join(" "),
-    }));
-    printWindow.document.close();
   };
   if (loading) return <section className="stats-dashboard"><div className="stats-loading">Carregando painel executivo...</div></section>; if (error) return <section className="stats-dashboard"><div className="alert">N\u00e3o foi poss\u00edvel carregar o dashboard: {error}</div></section>;
   return <section className="stats-dashboard" ref={dashboardRef}><header className="stats-hero"><div><span>{"Inteligência institucional"}</span><h1>Dashboard Executivo SIED</h1><p>{"Indicadores oficiais a partir de 09/07/2026, quando o sistema passou a operar."}</p></div><div className="stats-export"><button onClick={exportPdf}><Printer size={16}/>PDF</button><button onClick={exportExcel}><FileSpreadsheet size={16}/>Excel</button><button onClick={exportCsv}><Download size={16}/>CSV</button><button onClick={exportImage}><FileImage size={16}/>Imagem</button></div></header>
@@ -618,3 +572,4 @@ export default function StatisticsPage() {
     {drilldown && <div className="stats-drilldown"><div><button onClick={() => setDrilldown(null)}><X size={18}/></button><span>Detalhamento</span><h3>{drilldown.label}</h3><p>Total no período: <strong>{number(drilldown.value)}</strong></p><p>Público: <strong>{number(drilldown.audience)}</strong></p></div></div>}
     <footer className="stats-methodology">Fonte: banco de dados SIED • demanda das agendas + produção dos relatórios aprovados.</footer></section>;
 }
+
