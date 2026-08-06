@@ -17,7 +17,7 @@ const WEEKDAY_LABELS = [
 ];
 
 function isTravelAgenda(agenda) {
-  return agenda?.administrative_demand_type === "TRAVEL";
+  return agenda?.travel_displacement === true;
 }
 
 function serviceTeamLabel(agenda) {

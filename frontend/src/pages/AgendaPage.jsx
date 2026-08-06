@@ -59,6 +59,7 @@ const emptyForm = {
   requester_role: "",
   requester_entity_type: "",
   administrative_demand_type: "",
+  travel_displacement: false,
   audience: "",
   age_ranges: "",
   accessibility_access: "",
@@ -139,7 +140,6 @@ const internalRequesterTypeOptions = [
 ];
 
 const administrativeDemandTypeOptions = [
-  { value: "TRAVEL", label: "Deslocamento de viagem" },
   { value: "INTERVIEW", label: "Entrevista" },
   { value: "MEETING", label: "ReuniÃ£o" },
 ];

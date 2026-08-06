@@ -99,7 +99,6 @@ const internalRequesterTypeOptions = [
 ];
 
 const administrativeDemandTypeOptions = [
-  { value: "TRAVEL", label: "Deslocamento de viagem" },
   { value: "INTERVIEW", label: "Entrevista" },
   { value: "MEETING", label: "Reuni\u00e3o" },
 ];

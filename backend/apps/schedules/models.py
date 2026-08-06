@@ -416,6 +416,10 @@ class Agenda(models.Model):
         blank=True,
         default="",
     )
+    travel_displacement = models.BooleanField(
+        default=False,
+        verbose_name="Deslocamento de viagem",
+    )
     age_ranges = models.CharField(max_length=220, blank=True)
     accessibility_access = models.CharField(max_length=80, blank=True)
     accessibility_block = models.ForeignKey(

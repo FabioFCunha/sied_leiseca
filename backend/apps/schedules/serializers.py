@@ -527,6 +527,7 @@ class AgendaSerializer(serializers.ModelSerializer):
             "audience",
             "requester_entity_type",
             "administrative_demand_type",
+            "travel_displacement",
             "age_ranges",
             "accessibility_access",
             "has_ramps",
