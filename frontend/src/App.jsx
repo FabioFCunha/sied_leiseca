@@ -20,6 +20,20 @@ import SatisfactionSurveyPage from "./pages/SatisfactionSurveyPage.jsx";
 import ReleaseNotesPage from "./pages/ReleaseNotesPage.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 
+// PWA Mobile Components
+import MobileLayout from "./components/mobile/MobileLayout.jsx";
+import MobileHomePage from "./pages/mobile/MobileHomePage.jsx";
+import MobileMorePage from "./pages/mobile/MobileMorePage.jsx";
+import MobileAgendasPage from "./pages/mobile/MobileAgendasPage.jsx";
+import MobileAgendaDetailsPage from "./pages/mobile/MobileAgendaDetailsPage.jsx";
+import MobileShiftSchedulesPage from "./pages/mobile/MobileShiftSchedulesPage.jsx";
+import MobileShiftScheduleDetailsPage from "./pages/mobile/MobileShiftScheduleDetailsPage.jsx";
+import MobileAttendancePage from "./pages/mobile/MobileAttendancePage.jsx";
+import MobileShiftAttendancePage from "./pages/mobile/MobileShiftAttendancePage.jsx";
+import MobileDesignatedAttendancePage from "./pages/mobile/MobileDesignatedAttendancePage.jsx";
+import MobileReportsPage from "./pages/mobile/MobileReportsPage.jsx";
+import MobileReportDetailsPage from "./pages/mobile/MobileReportDetailsPage.jsx";
+
 function HomeRoute() {
   return <Navigate to="/calendario" replace />;
 }
@@ -55,6 +69,30 @@ export default function App() {
         <Route path="auditoria" element={<ProtectedRoute roles={["CREATOR"]} moduleName="AUDITORIA"><AuditLogsPage /></ProtectedRoute>} />
         <Route path="novidades" element={<ReleaseNotesPage />} />
       </Route>
+
+      {/* PWA Mobile Routes */}
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute>
+            <MobileLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/app/inicio" replace />} />
+        <Route path="inicio" element={<MobileHomePage />} />
+        <Route path="agendas" element={<MobileAgendasPage />} />
+        <Route path="agendas/:id" element={<MobileAgendaDetailsPage />} />
+        <Route path="escala" element={<MobileShiftSchedulesPage />} />
+        <Route path="escala/:id" element={<MobileShiftScheduleDetailsPage />} />
+        <Route path="frequencia" element={<MobileAttendancePage />} />
+        <Route path="frequencia/escala/:id" element={<MobileShiftAttendancePage />} />
+        <Route path="frequencia/agenda/:id" element={<MobileDesignatedAttendancePage />} />
+        <Route path="relatorios" element={<MobileReportsPage />} />
+        <Route path="relatorios/:id" element={<MobileReportDetailsPage />} />
+        <Route path="mais" element={<MobileMorePage />} />
+      </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

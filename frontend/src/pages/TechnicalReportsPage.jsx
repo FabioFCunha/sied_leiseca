@@ -1,6 +1,7 @@
 import { Clipboard, MapPin, Plus, Save, Search, Trash2, Eye, X, Check, Edit3 } from "lucide-react";
 import logoUrl from "../assets/operacao-lei-seca-logo.png";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -514,6 +515,9 @@ function normalizePayload(form) {
 
 export default function TechnicalReportsPage() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openReportId = searchParams.get("openReport");
+  const processedOpenReport = useRef(false);
   const isVisitor = user?.role === "VISITOR";
   const [agendas, setAgendas] = useState([]);
   const [reports, setReports] = useState([]);
@@ -625,6 +629,90 @@ export default function TechnicalReportsPage() {
     }
   };
   useEffect(() => { load(); }, [techFilters, pendingChiefQuery]);
+
+  useEffect(() => {
+    if (!openReportId || processedOpenReport.current) return;
+    let active = true;
+    const controller = new AbortController();
+
+    const reportId = Number(openReportId);
+    const removeOpenReportParam = () => {
+      if (!active) return;
+      setSearchParams((currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+        nextParams.delete("openReport");
+        return nextParams;
+      }, { replace: true });
+    };
+
+    if (!Number.isInteger(reportId) || reportId <= 0 || String(reportId) !== String(openReportId).trim()) {
+      processedOpenReport.current = true;
+      setLoadError("Parâmetro openReport inválido.");
+      removeOpenReportParam();
+      return () => {
+        active = false;
+        processedOpenReport.current = false;
+        controller.abort();
+      };
+    }
+
+    const fetchDirectReport = async () => {
+      processedOpenReport.current = true;
+      try {
+        setLoadError("");
+        const report = await api(`/education-reports/${reportId}/`, {
+          redirectOnUnauthorized: false,
+          signal: controller.signal,
+        });
+        if (!active || !report?.id) return;
+
+        if (isVisitor) {
+          await viewReport(report);
+        } else {
+          await edit(report);
+        }
+      } catch (err) {
+        if (!active) return;
+        const message = String(err.message || "");
+        const normalizedMessage = message.toLocaleLowerCase("pt-BR");
+        if (
+          message.includes("Sessão expirada") ||
+          message.includes("Sessao expirada") ||
+          message.includes("401") ||
+          normalizedMessage.includes("token") ||
+          normalizedMessage.includes("authentication") ||
+          normalizedMessage.includes("credenciais")
+        ) {
+          setLoadError("Sessão expirada. Entre novamente para abrir o Relatório Técnico.");
+        } else if (normalizedMessage.includes("permiss")) {
+          setLoadError("Você não possui permissão para consultar este Relatório Técnico.");
+        } else if (
+          normalizedMessage.includes("não foi encontrado") ||
+          normalizedMessage.includes("nao foi encontrado") ||
+          normalizedMessage.includes("not found") ||
+          message.includes("404")
+        ) {
+          setLoadError("Relatório Técnico não encontrado.");
+        } else if (normalizedMessage.includes("conectar") || normalizedMessage.includes("online") || normalizedMessage.includes("conex")) {
+          setLoadError("Não foi possível conectar à API. Verifique sua conexão e tente novamente.");
+        } else {
+          setLoadError("Não foi possível abrir o Relatório Técnico informado.");
+        }
+      } finally {
+        if (active) {
+          removeOpenReportParam();
+        }
+        processedOpenReport.current = false;
+      }
+    };
+
+    fetchDirectReport();
+    return () => {
+      active = false;
+      processedOpenReport.current = false;
+      controller.abort();
+    };
+  }, [openReportId, setSearchParams, isVisitor]);
 
   const buildAttendanceForm = (detailSchedule) => {
     const formObj = {};
@@ -2007,7 +2095,7 @@ export default function TechnicalReportsPage() {
                               <Eye size={16} />
                             </button>
                             {["DRAFT", "RETURNED"].includes(r.status) ? (
-                              <button className="secondary" onClick={() => edit(r)} title="Corrigir relat�rio" disabled={isEditingLoading}>
+                              <button className="secondary" onClick={() => edit(r)} title="Corrigir relatório" disabled={isEditingLoading}>
                                 <Edit3 size={16} /> Corrigir
                               </button>
                             ) : (
@@ -2020,7 +2108,7 @@ export default function TechnicalReportsPage() {
                                 <button className="primary icon-button" onClick={() => approveReport(r.id)} title="Aprovar" disabled={isApproving}>
                                   <Check size={16} />
                                 </button>
-                                <button className="danger icon-button" onClick={() => returnReport(r.id)} title="Devolver para corre��o" style={{ background: "var(--danger)", color: "#fff", border: "none" }} disabled={isApproving}>
+                                <button className="danger icon-button" onClick={() => returnReport(r.id)} title="Devolver para correção" style={{ background: "var(--danger)", color: "#fff", border: "none" }} disabled={isApproving}>
                                   <X size={16} />
                                 </button>
                               </>
@@ -2505,7 +2593,7 @@ export default function TechnicalReportsPage() {
                     generateTechnicalReportPdf(form, selectedAgenda, attendanceForm)
                   }
                 >
-                  Baixar PDF t�cnico
+                  Baixar PDF técnico
                 </button>
                 <button className="secondary" type="button" onClick={copyPreview}>
                   <Clipboard size={14} /> Copiar
