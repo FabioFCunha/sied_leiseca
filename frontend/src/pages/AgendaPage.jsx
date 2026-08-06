@@ -128,20 +128,20 @@ const agendaFields = Object.keys(emptyForm);
 const administrativeDemandTypeLabels = {
   TRAVEL: "Deslocamento de viagem",
   INTERVIEW: "Entrevista",
-  MEETING: "ReuniÃ£o",
+  MEETING: "Reunião",
 };
 
 const internalRequesterTypeOptions = [
-  "InstituiÃ§Ã£o de Ensino",
+  "Instituição de Ensino",
   "Empresa/ÃrgÃ£o",
   "OrganizaÃ§Ã£o de Evento",
-  "AÃ§Ã£o de Rua",
+  "Ação de Rua",
   "Demanda Administrativa",
 ];
 
 const administrativeDemandTypeOptions = [
   { value: "INTERVIEW", label: "Entrevista" },
-  { value: "MEETING", label: "ReuniÃ£o" },
+  { value: "MEETING", label: "Reunião" },
 ];
 
 const isAdministrativeDemandValue = (value) => String(value || "").trim() === "Demanda Administrativa";
@@ -471,13 +471,13 @@ export default function AgendaPage() {
         const hasOperationalData = Boolean(
           current.team_ref || current.team_name || current.chief_ref || current.chief_name || current.team_phone || (current.agents_ref || []).length || current.agents || current.support_1_ref || current.support_1 || current.support_2_ref || current.support_2,
         );
-        if (hasOperationalData && !window.confirm("Ao mudar para Participantes selecionados, a composição da equipe operacional será removida. Deseja continuar?")) {
+        if (hasOperationalData && !window.confirm("Ação mudar para Participantes selecionados, a composição da equipe operacional será removida. Deseja continuar?")) {
           return current;
         }
         return { ...current, service_order_mode: nextMode, ...clearOperationalComposition() };
       }
 
-      if ((current.designated_users || []).length && !window.confirm("Ao voltar para Equipe operacional, os participantes selecionados serão removidos. Deseja continuar?")) {
+      if ((current.designated_users || []).length && !window.confirm("Ação voltar para Equipe operacional, os participantes selecionados serão removidos. Deseja continuar?")) {
         return current;
       }
       return { ...current, service_order_mode: nextMode, ...clearDesignatedParticipants() };
@@ -1316,6 +1316,7 @@ export default function AgendaPage() {
                 <span><b>Tipo da demanda</b>{administrativeDemandTypeLabels[form.administrative_demand_type] || "-"}</span>
               ) : null}
               <span><b>Modalidade</b>{form.action_type || "-"}</span>
+                <span><b>Deslocamento de viagem</b>{form.travel_displacement ? "Sim" : "Não"}</span>
               <span><b>Data e horário</b>{form.date ? formatDateBR(form.date) : "-"} às {form.start_time || "-"}</span>
               <span><b>Ações</b>{
                 isStreetActionForm(form)
@@ -1476,7 +1477,7 @@ export default function AgendaPage() {
                         <input value={internalResponsibleName || ""} readOnly />
                       ) : (
                         <select value={form.responsible || ""} onChange={(e) => update("responsible", e.target.value)} required>
-                          <option value="">Selecione o respons?vel</option>
+                          <option value="">Selecione o responsável</option>
                           {responsibleOptions.map((option) => <option key={option.id} value={option.id}>{option.full_name}</option>)}
                         </select>
                       )}
@@ -1507,6 +1508,16 @@ export default function AgendaPage() {
                         <option value="TEAM">Equipe operacional</option>
                         <option value="DESIGNATED">Participantes selecionados</option>
                       </select>
+                    </label>
+                    <label className="checkbox-option">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(form.travel_displacement)}
+                        onChange={(event) =>
+                          update("travel_displacement", event.target.checked)
+                        }
+                      />
+                      <span>Deslocamento de viagem</span>
                     </label>
                     <label className="field-label">
                       <span>Viatura</span>
@@ -1753,11 +1764,11 @@ export default function AgendaPage() {
             </label>
             ) : null}
             <div className="compact-grid">
-              <input placeholder="Telefone do respons?vel" value={form.external_responsible_phone} onChange={(e) => update("external_responsible_phone", e.target.value)} />
+              <input placeholder="Telefone do responsável" value={form.external_responsible_phone} onChange={(e) => update("external_responsible_phone", e.target.value)} />
               <input type="email" placeholder="E-mail" value={form.external_email} onChange={(e) => update("external_email", e.target.value)} />
             </div>
             <div className="compact-grid">
-              <input placeholder="Cargo/fun??o" value={form.requester_role} onChange={(e) => update("requester_role", e.target.value)} />
+              <input placeholder="Cargo/função" value={form.requester_role} onChange={(e) => update("requester_role", e.target.value)} />
               {editing && form.origin === "INTERNAL" ? (
                 <select value={form.requester_entity_type || ""} onChange={(e) => updateRequesterEntityType(e.target.value)}>
                   <option value="">Tipo de entidade</option>

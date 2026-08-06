@@ -381,10 +381,10 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 <strong>Tipo de solicitante: <b>*</b></strong>
                 <div className="radio-list" role="radiogroup" aria-label="Tipo de solicitante">
                   {(internalRequest ? internalRequesterTypeOptions.map((label) => ({ id: label, label })) : [
-                    { id: "InstituiÃ§Ã£o de Ensino", label: "InstituiÃ§Ã£o de Ensino" },
+                    { id: "Instituição de Ensino", label: "Instituição de Ensino" },
                     { id: "Empresa/ÃrgÃ£o", label: "Empresa/ÃrgÃ£o" },
                     { id: "OrganizaÃ§Ã£o de evento", label: "OrganizaÃ§Ã£o de evento" },
-                    { id: STREET_ACTION_ID, label: "AÃ§Ã£o de Rua" },
+                    { id: STREET_ACTION_ID, label: "Ação de Rua" },
                   ]).map((option) => (
                     <label className="radio-option compact-radio option-tile" key={option.id}>
                       <input
@@ -435,7 +435,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                     </label>
                   ) : isStreetRequesterType(form.requester_entity_kind) ? (
                     <label className="field-label" style={{ marginBottom: 0 }}>
-                      <strong>Nome do evento / AÃ§Ã£o: <b>*</b></strong>
+                      <strong>Nome do evento / Ação: <b>*</b></strong>
                       <input
                         type="text"
                         value={form.institution_location || ""}
@@ -472,7 +472,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               ) : (
                 <div className="field-card" style={{ flex: 1 }}>
                   <label className="field-label" style={{ marginBottom: 0 }}>
-                    <strong>Nome do evento / AÃ§Ã£o: <b>*</b></strong>
+                    <strong>Nome do evento / Ação: <b>*</b></strong>
                     <input
                       type="text"
                       value={form.institution_location || ""}
