@@ -20,7 +20,7 @@ export default function MobileHomePage() {
   const abortAgendasRef = useRef(null);
   const abortSchedulesRef = useRef(null);
   
-  const isOperational = ["USER", "SUPERVISOR", "SUPPORT"].includes(user?.role);
+  const isOperational = ["USER", "SUPERVISOR", "SUPPORT", "MANAGER"].includes(user?.role);
 
   useEffect(() => {
     if (!isOperational) {
