@@ -978,7 +978,7 @@ export default function AgendaPage() {
     try {
       await api(`/agendas/${agenda.id}/`, { method: "DELETE" });
       setMessage("Solicitação excluída com sucesso.");
-      loadAgendas();
+      setAgendas((prev) => prev.filter((item) => item.id !== agenda.id));
     } catch (err) {
       setMessage(err.message);
     }
