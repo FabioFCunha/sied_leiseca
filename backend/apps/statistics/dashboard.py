@@ -279,18 +279,25 @@ def _annual_series(filters):
         'reference_year',
     )
     years = set(grouped)
-    if not _has_dimension_filters(filters):
-        years.update(HISTORICAL_BASELINE)
-    return [
-        {
+    years.update(HISTORICAL_BASELINE.keys())
+    
+    has_dim_filters = _has_dimension_filters(filters)
+    
+    result = []
+    for year in sorted(year for year in years if year):
+        if year < 2026:
+            baseline = HISTORICAL_BASELINE.get(year, {})
+        else:
+            baseline = {} if has_dim_filters else HISTORICAL_BASELINE.get(year, {})
+            
+        result.append({
             'year': year,
             'values': derived_totals(_add_totals(
-                {} if _has_dimension_filters(filters) else HISTORICAL_BASELINE.get(year, {}),
+                baseline,
                 aggregate_official_rows(grouped.get(year, [])),
             )),
-        }
-        for year in sorted(year for year in years if year)
-    ]
+        })
+    return result
 
 
 def _monthly_series(year, filters):
