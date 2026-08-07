@@ -1,4 +1,4 @@
-﻿from apps.accounts.models import User
+from apps.accounts.models import User
 from django.db.models import Q
 
 def get_effective_members(obj):
@@ -69,13 +69,13 @@ def get_effective_members(obj):
     supports = [row(item, is_absent=item.id in absent_support_ids) for item in support_objs]
 
     for item in obj.extra_chiefs.filter(is_active=True, source_id__startswith="user:").select_related("team"):
-        if not any(m["id"] == item.id for m in chiefs):
+        if item.id not in removed_chief_ids and not any(m["id"] == item.id for m in chiefs):
             chiefs.append(row(item, is_extra=True, is_absent=item.id in absent_chief_ids))
     for item in obj.extra_agents.filter(is_active=True, source_id__startswith="user:").select_related("team"):
-        if not any(m["id"] == item.id for m in agents):
+        if item.id not in removed_agent_ids and not any(m["id"] == item.id for m in agents):
             agents.append(row(item, is_extra=True, is_absent=item.id in absent_agent_ids))
     for item in obj.extra_supports.filter(is_active=True, source_id__startswith="user:").select_related("team"):
-        if not any(m["id"] == item.id for m in supports):
+        if item.id not in removed_support_ids and not any(m["id"] == item.id for m in supports):
             supports.append(row(item, is_extra=True, is_absent=item.id in absent_support_ids))
 
     def normalize_cpf(value):
