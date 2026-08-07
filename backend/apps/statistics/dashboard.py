@@ -272,23 +272,25 @@ def _add_totals(base, addition):
     return values
 
 
-def _annual_series(filters):
-    current_year = date.today().year
+def _annual_series(date_from, date_to, filters):
     grouped = _grouped_statistics(
-        filtered_statistics(date(2011, 1, 1), date(current_year, 12, 31), filters).filter(methodology='SIED_OPERATIONAL'),
+        filtered_statistics(date_from, date_to, filters).filter(methodology='SIED_OPERATIONAL'),
         'reference_year',
     )
     years = set(grouped)
     years.update(HISTORICAL_BASELINE.keys())
     
     has_dim_filters = _has_dimension_filters(filters)
+    # Consideramos "sem filtro de período" quando as datas abrangem todo o histórico/hoje
+    # No painel, o date_from default é max(..., DASHBOARD_OPERATIONAL_START) (2026-07-01).
+    has_period_filter = not (date_from <= DASHBOARD_OPERATIONAL_START and date_to >= date.today())
     
     result = []
     for year in sorted(year for year in years if year):
         if year < 2026:
             baseline = HISTORICAL_BASELINE.get(year, {})
         else:
-            baseline = {} if has_dim_filters else HISTORICAL_BASELINE.get(year, {})
+            baseline = {} if (has_dim_filters or has_period_filter) else HISTORICAL_BASELINE.get(year, {})
             
         result.append({
             'year': year,
@@ -476,7 +478,7 @@ def dashboard_payload(date_from, date_to, filters):
     previous['REPORTS_WITHOUT_PUBLIC'] = _reports_without_public_total(previous_from, previous_to, filters)
     keys = set(current) | set(previous)
     comparisons = {key: variation(current.get(key, 0), previous.get(key, 0)) for key in keys}
-    annual = _annual_series(filters)
+    annual = _annual_series(date_from, date_to, filters)
     monthly = _monthly_series(date_to.year, filters)
     visual_monthly = _visual_monthly_series(date_to.year, filters)
     daily = _daily_series(date_from, date_to, filters)

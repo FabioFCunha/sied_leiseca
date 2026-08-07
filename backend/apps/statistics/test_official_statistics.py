@@ -126,9 +126,7 @@ class OfficialStatisticsTests(TestCase):
 
     def test_dashboard_annual_series_includes_spreadsheet_history(self):
         self.stat('AUDIENCE', 100, reference_date=date(2026, 7, 10), trace='sied')
-        request = APIRequestFactory().get('/statistics/dashboard/', {
-            'date_from': '2026-07-09', 'date_to': '2026-07-24',
-        })
+        request = APIRequestFactory().get('/statistics/dashboard/')
         force_authenticate(request, user=self.user)
         response = StatisticsDashboardView.as_view()(request)
         self.assertEqual(response.status_code, 200)
