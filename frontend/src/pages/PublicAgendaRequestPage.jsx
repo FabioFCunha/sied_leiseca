@@ -453,9 +453,9 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 </div>
               ) : !isStreetRequesterType(form.requester_entity_kind) ? (
                 <div className="field-card" style={{ flex: 1 }}>
-                  <strong>P?blico ou Privado? <b>*</b></strong>
+                  <strong>Público ou Privado? <b>*</b></strong>
                   <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
-                    {["P?blico", "Privado"].map((option) => (
+                    {["Público", "Privado"].map((option) => (
                       <label className="radio-option compact-radio option-tile" key={option}>
                         <input
                           type="radio"
@@ -570,9 +570,9 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 <strong>Tipo de solicitante: <b>*</b></strong>
                 <div className="radio-list" role="radiogroup" aria-label="Tipo de solicitante">
                   {(internalRequest ? internalRequesterTypeOptions.map((label) => ({ id: label, label })) : [
-                    { id: "Institui??o de Ensino", label: "Institui??o de Ensino" },
-                    { id: "Empresa/?rg?o", label: "Empresa/?rg?o" },
-                    { id: "Organiza??o de evento", label: "Organiza??o de evento" },
+                    { id: "Instituição de Ensino", label: "Instituição de Ensino" },
+                    { id: "Empresa/Órgão", label: "Empresa/Órgão" },
+                    { id: "Organização de evento", label: "Organização de evento" },
                     { id: STREET_ACTION_ID, label: "A\u00e7\u00e3o de Rua" },
                   ]).map((option) => (
                     <label className="radio-option compact-radio option-tile" key={option.id}>
@@ -593,7 +593,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                               external_responsible: user.full_name || "",
                               external_email: user.email || "",
                               external_responsible_phone: user.phone ? String(user.phone).replace(/\D/g, "") : "",
-                              institution_location: user.sector_name || user.sector?.name || "Opera??o Lei Seca RJ",
+                              institution_location: user.sector_name || user.sector?.name || "Operação Lei Seca RJ",
                               requester_role: user.role || "Agente",
                             } : {}),
                           }));
@@ -624,12 +624,12 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                     </label>
                   ) : isStreetRequesterType(form.requester_entity_kind) ? (
                     <label className="field-label" style={{ marginBottom: 0 }}>
-                      <strong>Nome do evento / A??o: <b>*</b></strong>
+                      <strong>Nome do evento / Ação: <b>*</b></strong>
                       <input
                         type="text"
                         value={form.institution_location || ""}
                         onChange={(e) => update("institution_location", e.target.value)}
-                        placeholder="Ex: Opera??o na Praia de Copacabana"
+                        placeholder="Ex: Operação na Praia de Copacabana"
                         required
                         style={{ marginTop: "0.5rem" }}
                       />
@@ -638,9 +638,9 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 </div>
               ) : !isStreetRequesterType(form.requester_entity_kind) ? (
                 <div className="field-card" style={{ flex: 1 }}>
-                  <strong>P?blico ou Privado? <b>*</b></strong>
+                  <strong>Público ou Privado? <b>*</b></strong>
                   <div className="radio-list" role="radiogroup" aria-label="Natureza da entidade">
-                    {["P?blico", "Privado"].map((option) => (
+                    {["Público", "Privado"].map((option) => (
                       <label className="radio-option compact-radio option-tile" key={option}>
                         <input
                           type="radio"
@@ -657,12 +657,12 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               ) : (
                 <div className="field-card" style={{ flex: 1 }}>
                   <label className="field-label" style={{ marginBottom: 0 }}>
-                    <strong>Nome do evento / A??o: <b>*</b></strong>
+                    <strong>Nome do evento / Ação: <b>*</b></strong>
                     <input
                       type="text"
                       value={form.institution_location || ""}
                       onChange={(e) => update("institution_location", e.target.value)}
-                      placeholder="Ex: Opera??o na Praia de Copacabana"
+                      placeholder="Ex: Operação na Praia de Copacabana"
                       required
                       style={{ marginTop: "0.5rem" }}
                     />
