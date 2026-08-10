@@ -480,8 +480,7 @@ const operationalCardConfig = [
   { key: "cancelled", title: "Canceladas", hint: "A\u00e7\u00f5es canceladas", icon: XCircle, color: "#7f8c8d", gradient: "linear-gradient(135deg, #7f8c8d, #5f6b6d)" },
   { key: "pending_reports", title: "Relat\u00f3rios pendentes", hint: "A\u00e7\u00f5es j\u00e1 report\u00e1veis", icon: AlertTriangle, color: "#dc6b16", gradient: "linear-gradient(135deg, #f97316, #c2410c)" },
   { key: "pending_attendance", title: "Frequ\u00eancias pendentes", hint: "Aguardando fechamento da frequ\u00eancia", icon: Activity, color: "#b45309", gradient: "linear-gradient(135deg, #f59e0b, #b45309)" },
-  { key: "estimated_public", title: "P\u00fablico previsto", hint: "Estimativa total do dia", icon: Users, color: "#0f766e", gradient: "linear-gradient(135deg, #14b8a6, #0f766e)" },
-  { key: "public_reached", title: "P\u00fablico informado", hint: "Somente relatado quando existente", icon: Flag, color: "#7c3aed", gradient: "linear-gradient(135deg, #8b5cf6, #6d28d9)" },
+    { key: "public_reached", title: "P\u00fablico informado", hint: "Somente relatado quando existente", icon: Flag, color: "#7c3aed", gradient: "linear-gradient(135deg, #8b5cf6, #6d28d9)" },
 ];
 
 const workforceConfig = [
@@ -628,7 +627,7 @@ function OperationalSummaryPanel({ summary = {} }) {
 
 function OperationDashboardTable({ operations = [] }) {
   return (
-    <SectionCard icon={MapPin} title={"Operação do dia"} subtitle={"Horário, local, efetivo, frequência, relatório e relato do chefe em leitura operacional."}>
+    <SectionCard icon={MapPin} title={"OperaÃ§Ã£o do dia"} subtitle={"HorÃ¡rio, local, efetivo, frequÃªncia, relatÃ³rio e relato do chefe em leitura operacional."}>
       {operations.length ? (
         <div style={{ display: "grid", gap: 12 }}>
           {operations.map((item) => (
@@ -660,16 +659,16 @@ function OperationDashboardTable({ operations = [] }) {
                         {item.service_order_mode === "DESIGNATED"
                           ? item.designated_users_names?.length
                             ? item.designated_users_names.join(", ")
-                            : "Participantes ainda não informados"
-                          : `Equipe ${item.team} · Chefe: ${item.chief}`}
+                            : "Participantes ainda nÃ£o informados"
+                          : `Equipe ${item.team} â€¢ Chefe: ${item.chief}`}
                       </span>
                     </div>
                     <div style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: "12px 14px", display: "grid", gap: 5 }}>
-                      <strong style={{ color: "var(--text)", fontSize: 12, textTransform: "uppercase" }}>Público previsto</strong>
+                      <strong style={{ color: "var(--text)", fontSize: 12, textTransform: "uppercase" }}>PÃºblico previsto</strong>
                       <span style={{ color: "var(--text)", fontSize: 13.5 }}>{formatAudienceValue(item.estimated_public)}</span>
                     </div>
                     <div style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: "12px 14px", display: "grid", gap: 5 }}>
-                      <strong style={{ color: "var(--text)", fontSize: 12, textTransform: "uppercase" }}>Público alcançado</strong>
+                      <strong style={{ color: "var(--text)", fontSize: 12, textTransform: "uppercase" }}>PÃºblico alcanÃ§ado</strong>
                       <span style={{ color: "var(--text)", fontSize: 13.5 }}>{formatAudienceValue(item.latest_public_reached || item.public_reached)}</span>
                     </div>
                   </div>
@@ -678,12 +677,12 @@ function OperationDashboardTable({ operations = [] }) {
               <ChiefNarrative text={item.chief_report_text} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <small style={{ color: "var(--text-soft)" }}>
-                  <strong style={{ color: "var(--text)" }}>Frequência:</strong> {item.attendance_status_label} {" · "}
-                  <strong style={{ color: "var(--text)" }}>Relatório:</strong> {item.report_status_label}
+                  <strong style={{ color: "var(--text)" }}>FrequÃªncia:</strong> {item.attendance_status_label} {" â€¢ "}
+                  <strong style={{ color: "var(--text)" }}>RelatÃ³rio:</strong> {item.report_status_label}
                 </small>
                 {item.href ? (
                   <a href={item.href} style={{ color: "var(--primary)", fontSize: 12, fontWeight: 800, textDecoration: "none" }}>
-                    Abrir operação
+                    Abrir operaÃ§Ã£o
                   </a>
                 ) : null}
               </div>
@@ -691,7 +690,7 @@ function OperationDashboardTable({ operations = [] }) {
           ))}
         </div>
       ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>{"Nenhuma ação programada para hoje."}</p>
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>{"Nenhuma aÃ§Ã£o programada para hoje."}</p>
       )}
     </SectionCard>
   );
@@ -700,7 +699,7 @@ function OperationDashboardTable({ operations = [] }) {
 function buildOperationalAttentionItems(alerts = []) {
   const safeAlerts = Array.isArray(alerts) ? alerts : [];
   return safeAlerts.map((item, index) => ({
-    title: item?.title || `Pendência ${index + 1}`,
+    title: item?.title || `PendÃªncia ${index + 1}`,
     body: item?.description || "",
     severity: item?.severity || "info",
     href: item?.href || "",
@@ -712,7 +711,7 @@ function AttentionPanel({ alerts = [] }) {
   const insights = buildOperationalAttentionItems(alerts);
 
   return (
-    <SectionCard icon={Activity} title={"Pendências e atenção"} subtitle={"Pendências objetivas do período com acesso rápido às operações afetadas."}>
+    <SectionCard icon={Activity} title={"PendÃªncias e atenÃ§Ã£o"} subtitle={"PendÃªncias objetivas do perÃ­odo com acesso rÃ¡pido Ã s operaÃ§Ãµes afetadas."}>
       {insights.length ? (
         <div style={{ display: "grid", gap: 12 }}>
           {insights.map((insight) => {
@@ -732,7 +731,7 @@ function AttentionPanel({ alerts = [] }) {
                         href={item.href}
                         style={{ borderRadius: 999, padding: "6px 10px", background: "#fff", border: `1px solid ${tone.border}`, color: "var(--text)", fontSize: 11.5, fontWeight: 700, textDecoration: "none" }}
                       >
-                        {item.time_range || "--:--"}{item.service_order_number ? ` · OS ${item.service_order_number}` : ""} · {item.title}
+                        {item.time_range || "--:--"}{item.service_order_number ? ` â€¢ OS ${item.service_order_number}` : ""} â€¢ {item.title}
                       </a>
                     ))}
                   </div>
@@ -742,7 +741,7 @@ function AttentionPanel({ alerts = [] }) {
           })}
         </div>
       ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Não há pendências para os filtros selecionados.</p>
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>NÃ£o hÃ¡ pendÃªncias para os filtros selecionados.</p>
       )}
     </SectionCard>
   );
@@ -750,20 +749,20 @@ function AttentionPanel({ alerts = [] }) {
 
 function NextOperationsPanel({ operations = [] }) {
   return (
-    <SectionCard icon={CalendarClock} title={"Próximas operações"} subtitle={"Ações já classificadas como próximas dentro do mesmo conjunto filtrado."}>
+    <SectionCard icon={CalendarClock} title={"PrÃ³ximas operaÃ§Ãµes"} subtitle={"AÃ§Ãµes jÃ¡ classificadas como prÃ³ximas dentro do mesmo conjunto filtrado."}>
       {operations.length ? (
         <div style={{ display: "grid", gap: 10 }}>
           {operations.map((item) => (
             <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px 16px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
-              <strong style={{ color: "var(--primary)", fontSize: 14 }}>{item.time_range || item.time || "--:--"}{item.service_order_number ? ` · OS ${item.service_order_number}` : ""}</strong>
+              <strong style={{ color: "var(--primary)", fontSize: 14 }}>{item.time_range || item.time || "--:--"}{item.service_order_number ? ` â€¢ OS ${item.service_order_number}` : ""}</strong>
               <span style={{ color: "var(--text)", fontWeight: 800 }}>{item.type || item.title}</span>
-              <small style={{ color: "var(--text-soft)" }}>{item.location} · {item.municipality}</small>
+              <small style={{ color: "var(--text-soft)" }}>{item.location} â€¢ {item.municipality}</small>
               <small style={{ color: "var(--text-soft)" }}>{item.effective_summary}</small>
             </article>
           ))}
         </div>
       ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhuma próxima operação para os filtros selecionados.</p>
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhuma prÃ³xima operaÃ§Ã£o para os filtros selecionados.</p>
       )}
     </SectionCard>
   );
@@ -775,14 +774,14 @@ function OperationalClosingPanel({ closing = {} }) {
   const publicData = closing.public || {};
 
   return (
-    <SectionCard icon={FileText} title={"Fechamento operacional"} subtitle={"Consolidação operacional do período filtrado, sem transformar o dashboard em estatística institucional."}>
+    <SectionCard icon={FileText} title={"Fechamento operacional"} subtitle={"ConsolidaÃ§Ã£o operacional do perÃ­odo filtrado, sem transformar o dashboard em estatÃ­stica institucional."}>
       <div style={{ display: "grid", gap: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
           {[
-            ["Ações programadas", closing.scheduled_today],
+            ["AÃ§Ãµes programadas", closing.scheduled_today],
             ["Realizadas", closing.completed],
             ["Em andamento", closing.in_progress],
-            ["Próximas", closing.pending_start],
+            ["PrÃ³ximas", closing.pending_start],
             ["Canceladas", closing.cancelled],
           ].map(([label, value]) => (
             <div key={label} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", background: "var(--surface-2)", display: "grid", gap: 4 }}>
@@ -793,17 +792,17 @@ function OperationalClosingPanel({ closing = {} }) {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
           <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
-            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Frequências</strong>
-            <span style={{ color: "var(--text)", fontSize: 14 }}>Concluídas: {Number(attendance.completed || 0).toLocaleString("pt-BR")}/{Number(attendance.total || 0).toLocaleString("pt-BR")}</span>
-            <span style={{ color: "var(--text-soft)", fontSize: 13 }}>Pendentes: {Number(attendance.pending || 0).toLocaleString("pt-BR")} · Reportadas: {Number(attendance.reported || 0).toLocaleString("pt-BR")} · Conferidas: {Number(attendance.approved || 0).toLocaleString("pt-BR")}</span>
+            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>FrequÃªncias</strong>
+            <span style={{ color: "var(--text)", fontSize: 14 }}>ConcluÃ­das: {Number(attendance.completed || 0).toLocaleString("pt-BR")}/{Number(attendance.total || 0).toLocaleString("pt-BR")}</span>
+            <span style={{ color: "var(--text-soft)", fontSize: 13 }}>Pendentes: {Number(attendance.pending || 0).toLocaleString("pt-BR")} â€¢ Reportadas: {Number(attendance.reported || 0).toLocaleString("pt-BR")} â€¢ Conferidas: {Number(attendance.approved || 0).toLocaleString("pt-BR")}</span>
           </div>
           <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
-            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Relatórios</strong>
-            <span style={{ color: "var(--text)", fontSize: 14 }}>Sem relatório: {Number(reports.none || 0).toLocaleString("pt-BR")} · Rascunho: {Number(reports.draft || 0).toLocaleString("pt-BR")}</span>
-            <span style={{ color: "var(--text-soft)", fontSize: 13 }}>Conferência: {Number(reports.pending_review || 0).toLocaleString("pt-BR")} · Devolvidos: {Number(reports.returned || 0).toLocaleString("pt-BR")} · Aprovados: {Number(reports.approved || 0).toLocaleString("pt-BR")}</span>
+            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>RelatÃ³rios</strong>
+            <span style={{ color: "var(--text)", fontSize: 14 }}>Sem relatÃ³rio: {Number(reports.none || 0).toLocaleString("pt-BR")} â€¢ Rascunho: {Number(reports.draft || 0).toLocaleString("pt-BR")}</span>
+            <span style={{ color: "var(--text-soft)", fontSize: 13 }}>ConferÃªncia: {Number(reports.pending_review || 0).toLocaleString("pt-BR")} â€¢ Devolvidos: {Number(reports.returned || 0).toLocaleString("pt-BR")} â€¢ Aprovados: {Number(reports.approved || 0).toLocaleString("pt-BR")}</span>
           </div>
           <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
-            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Público</strong>
+            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>PÃºblico</strong>
             <span style={{ color: "var(--text)", fontSize: 14 }}>Previsto: {formatAudienceValue(publicData.estimated)}</span>
             <span style={{ color: "var(--text-soft)", fontSize: 13 }}>Informado: {formatAudienceValue(publicData.reported)}</span>
           </div>
@@ -955,6 +954,18 @@ export default function DashboardPage() {
 
   return (
     <section className="page dashboard-page">
+      <style>{`
+        @media (max-width: 1100px) {
+          .operational-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+        @media (max-width: 640px) {
+          .operational-summary-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
       <div className="dashboard-hero" style={{ background: "linear-gradient(135deg, #001338 0%, #002d72 100%)", padding: "28px", borderRadius: "16px", color: "#ffffff", marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 8px 32px 0 rgba(0, 19, 56, 0.15)" }}>
         <div>
           <span style={{ fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1.5px", color: "#f6bd16", opacity: 0.95, display: "block", marginBottom: "2px" }}>VisÃ£o operacional</span>
@@ -1025,7 +1036,7 @@ export default function DashboardPage() {
         <div className="alert">NÃ£o foi possÃ­vel carregar o Dashboard: {error}</div>
       ) : (
         <>
-          <div className="metric-grid operational-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+          <div className="metric-grid operational-summary-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px", marginBottom: "24px" }}>
             {operationalCardConfig.map((config) => (
               <OperationalCard config={config} data={dashboard?.operations?.cards?.[config.key]} key={config.key} />
             ))}
