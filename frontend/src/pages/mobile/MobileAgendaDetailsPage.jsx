@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../../api/client.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { ArrowLeft, Clock, MapPin, Phone, Users, User, FileText, Calendar as CalendarIcon, Package } from "lucide-react";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
@@ -13,24 +14,56 @@ export default function MobileAgendaDetailsPage() {
   const [agenda, setAgenda] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [report, setReport] = useState(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [reportError, setReportError] = useState(null);
+
+  const { user } = useAuth();
   const abortControllerRef = useRef(null);
 
   const fetchAgenda = async () => {
-    if (abortControllerRef.current) abortControllerRef.current.abort();
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
     setLoading(true);
     setError(null);
     try {
-      const data = await api(`/agendas/${id}/`, { signal });
+      abortControllerRef.current = new AbortController();
+      const data = await api(`/agendas/${id}/`, { signal: abortControllerRef.current.signal });
       setAgenda(data);
     } catch (err) {
       if (err.name !== "AbortError") {
-        setError(err.message || "Não foi possível carregar os detalhes da agenda.");
+        setError("Não foi possível carregar os detalhes da agenda.");
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReport = async (fetchedAgenda) => {
+    setLoadingReport(true);
+    setReportError(null);
+    try {
+      const res = await api(`/education-reports/?protocol=${id}`, { signal: abortControllerRef.current?.signal });
+      const results = Array.isArray(res?.results) ? res.results : Array.isArray(res) ? res : [];
+      if (results.length === 1) {
+        setReport(results[0]);
+      } else if (results.length > 1) {
+        const agendaTeam = fetchedAgenda?.team_name || fetchedAgenda?.team_ref_name || fetchedAgenda?.sector_name;
+        const matching = agendaTeam ? results.find(r => String(r.team) === String(agendaTeam)) : null;
+        if (matching) {
+          setReport(matching);
+        } else {
+          setReportError("Não foi possível identificar com segurança o relatório desta equipe.");
+          setReport(null);
+        }
+      } else {
+        setReport(null);
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        setReportError("Não foi possível verificar o relatório associado.");
+      }
+    } finally {
+      setLoadingReport(false);
     }
   };
 
@@ -41,15 +74,21 @@ export default function MobileAgendaDetailsPage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    if (agenda) {
+      fetchReport(agenda);
+    }
+  }, [agenda?.id]);
+
   const handleBack = () => {
     navigate(-1);
   };
 
   const getBadgeColor = (cls) => {
-    if (cls.includes("green")) return { bg: "#dcfce7", text: "#166534" };
-    if (cls.includes("yellow") || cls.includes("amber")) return { bg: "#fef3c7", text: "#92400e" };
-    if (cls.includes("red")) return { bg: "#fee2e2", text: "#991b1b" };
-    if (cls.includes("blue")) return { bg: "#dbeafe", text: "#1e40af" };
+    if (cls === "success") return { bg: "#dcfce7", text: "#166534" };
+    if (cls === "warning" || cls === "amber") return { bg: "#fef3c7", text: "#92400e" };
+    if (cls === "danger") return { bg: "#fee2e2", text: "#991b1b" };
+    if (cls === "info") return { bg: "#dbeafe", text: "#1e40af" };
     return { bg: "#f1f5f9", text: "#475569" };
   };
 
@@ -57,8 +96,8 @@ export default function MobileAgendaDetailsPage() {
   if (error) return <MobileErrorState message={error} onRetry={fetchAgenda} />;
   if (!agenda) return <MobileErrorState message="Agenda não encontrada." />;
 
-  const statusInfo = statusLabel(agenda.status) || "Desconhecido";
-  const badgeStyle = getBadgeColor(statusClass(agenda.status) || "");
+  const statusInfo = statusLabel[agenda.status] || "Desconhecido";
+  const badgeStyle = getBadgeColor(statusClass[agenda.status] || "");
   const timeStr = normalizeTime(agenda.start_time);
   const endTimeStr = normalizeTime(agenda.end_time);
   const fullAddress = [agenda.address, agenda.neighborhood, agenda.city].filter(Boolean).join(" - ");
@@ -99,6 +138,80 @@ export default function MobileAgendaDetailsPage() {
           </button>
         </div>
       )}
+
+      {/* Botões contextuais do Relatório Técnico */}
+      <div style={{ marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {loadingReport ? (
+          <div style={{ textAlign: 'center', color: '#64748b', fontSize: '13px', padding: '8px' }}>Verificando relatório...</div>
+        ) : reportError ? (
+          <div style={{ textAlign: 'center', color: '#991b1b', fontSize: '13px', padding: '8px' }}>{reportError}</div>
+        ) : (
+          (() => {
+            const isVisitor = user?.role === 'VISITOR';
+
+            if (!report) {
+              if (isVisitor) return null;
+              return (
+                <button
+                  onClick={() => navigate(`/app/relatorios/novo/${agenda.id}`)}
+                  className="mobile-btn mobile-btn-primary"
+                >
+                  <FileText size={18} />
+                  Preencher relatório
+                </button>
+              );
+            }
+
+            if (report.status === "DRAFT") {
+              if (isVisitor) return null;
+              return (
+                <button
+                  onClick={() => navigate(`/app/relatorios/${report.id}/editar`)}
+                  className="mobile-btn mobile-btn-primary"
+                >
+                  <FileText size={18} />
+                  Continuar relatório
+                </button>
+              );
+            }
+
+            if (report.status === "RETURNED") {
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div className="mobile-alert" style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '12px', borderRadius: '8px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px', border: '1px solid #fca5a5' }}>
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FileText size={14}/> Relatório devolvido</strong>
+                    <span>{report.review_notes || "Necessita correções."}</span>
+                  </div>
+                  {!isVisitor && (
+                    <button
+                      onClick={() => navigate(`/app/relatorios/${report.id}/editar`)}
+                      className="mobile-btn mobile-btn-primary"
+                      style={{ backgroundColor: '#dc2626' }}
+                    >
+                      <FileText size={18} />
+                      Corrigir relatório
+                    </button>
+                  )}
+                </div>
+              );
+            }
+
+            if (report.status === "PENDING_REVIEW" || report.status === "APPROVED") {
+               return (
+                <button
+                  onClick={() => navigate(`/app/relatorios/${report.id}`)}
+                  className="mobile-btn mobile-btn-outline"
+                >
+                  <FileText size={18} />
+                  Ver relatório
+                </button>
+              );
+            }
+
+            return null;
+          })()
+        )}
+      </div>
 
       {/* Info Card: Data e Local */}
       <div className="mobile-card">
