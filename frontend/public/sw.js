@@ -1,9 +1,8 @@
-const CACHE_NAME = 'sied-mobile-cache-v1';
+const CACHE_NAME = 'sied-mobile-cache-v2';
 
 // Recursos essenciais para carregar a interface (shell)
 const STATIC_ASSETS = [
-  '/offline.html',
-  '/manifest.json'
+  '/offline.html'
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,6 +34,12 @@ self.addEventListener('fetch', (event) => {
 
   // Regra 1: Bypassar completamente a API e rotas de auth
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Regra 1.5: Bypassar cache para manifest e version.json para garantir que as atualizações funcionem
+  if (url.pathname.endsWith('manifest.json') || url.pathname.endsWith('version.json')) {
     event.respondWith(fetch(event.request));
     return;
   }
