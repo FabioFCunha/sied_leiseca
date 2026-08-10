@@ -4,15 +4,15 @@ import { statusLabel, statusClass } from "../../utils/status.js";
 import { normalizeTime } from "../../utils/date.js";
 
 export default function MobileAgendaCard({ agenda }) {
-  const statusInfo = statusLabel(agenda.status) || "Desconhecido";
-  const statusColorClass = statusClass(agenda.status) || "";
+  const statusInfo = statusLabel[agenda.status] || "Desconhecido";
+  const statusColorClass = statusClass[agenda.status] || "";
 
   // Helper local para mapear a classe Desktop para cor CSS inline simplificada
   const getBadgeColor = (cls) => {
-    if (cls.includes("green")) return { bg: "#dcfce7", text: "#166534" };
-    if (cls.includes("yellow") || cls.includes("amber")) return { bg: "#fef3c7", text: "#92400e" };
-    if (cls.includes("red")) return { bg: "#fee2e2", text: "#991b1b" };
-    if (cls.includes("blue")) return { bg: "#dbeafe", text: "#1e40af" };
+    if (cls === "success") return { bg: "#dcfce7", text: "#166534" };
+    if (cls === "warning" || cls === "amber") return { bg: "#fef3c7", text: "#92400e" };
+    if (cls === "danger") return { bg: "#fee2e2", text: "#991b1b" };
+    if (cls === "info") return { bg: "#dbeafe", text: "#1e40af" };
     return { bg: "#f1f5f9", text: "#475569" };
   };
 
