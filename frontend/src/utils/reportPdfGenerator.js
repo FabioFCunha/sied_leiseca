@@ -22,7 +22,7 @@ function loadImageAsBase64(url) {
   });
 }
 
-export async function generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, openInNewTab = false) {
+export async function generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, openInNewTab = false, showEstimatedPublic = true) {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -388,7 +388,7 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
     ];
 
     // Público Estimado: somente Ação 1
-    if (isFirstAction) {
+    if (isFirstAction && showEstimatedPublic) {
       const estimadoDisplay = (action.approach && Number(action.approach) > 0) ? String(action.approach) : "Não informado";
       actionData.push(["Público Estimado", estimadoDisplay]);
     }
@@ -465,15 +465,18 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
 
   startY = drawSectionHeader("PÚBLICO E RESULTADOS CONSOLIDADOS", startY);
 
+  const taxaText = totalsEstimado > 0 ? `${((totalsAlcancado / totalsEstimado) * 100).toFixed(1)}%` : "N/A";
+  const consolidadoData = [
+    ...(showEstimatedPublic ? [["Público Estimado (total)", totalsEstimado.toLocaleString("pt-BR")]] : []),
+    ["Público Alcançado (total)", totalsAlcancado.toLocaleString("pt-BR")],
+    ["Ações Realizadas", String(actions.length)],
+    ["Taxa de Alcance", taxaText],
+  ];
+
   autoTable(doc, {
     startY,
     head: [["Indicador", "Valor"]],
-    body: [
-      ["Público Estimado (total)", totalsEstimado.toLocaleString("pt-BR")],
-      ["Público Alcançado (total)", totalsAlcancado.toLocaleString("pt-BR")],
-      ["Ações Realizadas", actions.length.toString()],
-      ["Taxa de Alcance", totalsEstimado > 0 ? `${((totalsAlcancado / totalsEstimado) * 100).toFixed(1)}%` : "N/A"],
-    ],
+    body: consolidadoData,
     theme: "grid",
     headStyles: { fillColor: NAVY, textColor: WHITE, fontStyle: "bold", fontSize: 8.5, cellPadding: 3 },
     styles: { fontSize: 9, cellPadding: 3, textColor: GRAY_900 },
@@ -591,11 +594,7 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...GRAY_900);
-  const concText =
-    "O presente documento consolida as informações registradas no Sistema Integrado da Educação – SIED " +
-    "referentes à atividade identificada, incluindo execução operacional, frequência dos participantes, " +
-    "ações realizadas, público estimado, público alcançado, materiais distribuídos e eventuais ocorrências. " +
-    "Este relatório possui caráter técnico-institucional e integra o acervo documental do programa Lei Seca Educação.";
+  const concText = `O presente documento consolida as informações registradas no Sistema Integrado da Educação – SIED referentes à atividade identificada, incluindo execução operacional, frequência dos participantes, ações realizadas, ${showEstimatedPublic ? "público estimado, " : ""}público alcançado, materiais distribuídos e eventuais ocorrências. Este relatório possui caráter técnico-institucional e integra o acervo documental do programa Lei Seca Educação.`;
   const splitConc = doc.splitTextToSize(concText, CONTENT_W);
   doc.text(splitConc, MARGIN_L + 4, startY);
   startY += splitConc.length * 4 + 8;

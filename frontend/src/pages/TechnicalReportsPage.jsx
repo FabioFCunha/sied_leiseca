@@ -528,6 +528,9 @@ export default function TechnicalReportsPage() {
   const [pendingChiefFilter, setPendingChiefFilter] = useState("");
   const [pendingChiefQuery, setPendingChiefQuery] = useState("");
   const [reportsPreviewModal, setReportsPreviewModal] = useState(null);
+  const [resolvedHistoricalAgenda, setResolvedHistoricalAgenda] = useState(null);
+  const [isLoadingHistoricalAgenda, setIsLoadingHistoricalAgenda] = useState(false);
+  const [historicalAgendaError, setHistoricalAgendaError] = useState("");
   const [activeTab, setActiveTab] = useState(isVisitor ? "completed" : "pending");
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [protocolSearch, setProtocolSearch] = useState("");
@@ -581,7 +584,7 @@ export default function TechnicalReportsPage() {
     if (!originalType) return false;
     return normalizeTypeLabel(action?.type_action) !== normalizeTypeLabel(originalType);
   };
-  const preview = useMemo(() => buildPreview(form), [form]);
+  const preview = useMemo(() => buildPreview(form, showEstimatedPublic), [form, showEstimatedPublic]);
 
   const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(r.agenda))), [reports]);
   const pendingAgendas = useMemo(() => agendas.filter(a => !completedAgendaIds.has(String(a.id))), [agendas, completedAgendaIds]);
@@ -1430,6 +1433,28 @@ export default function TechnicalReportsPage() {
     setMessage("Relatório copiado para a área de transferência.");
   };
 
+  const openHistoricalReportPreview = async (r) => {
+    setReportsPreviewModal(r);
+    setResolvedHistoricalAgenda(null);
+    setHistoricalAgendaError("");
+    setIsLoadingHistoricalAgenda(false);
+
+    const localAgenda = agendas.find((a) => String(a.id) === String(r.agenda));
+    if (localAgenda) {
+      setResolvedHistoricalAgenda(localAgenda);
+    } else {
+      setIsLoadingHistoricalAgenda(true);
+      try {
+        const data = await api(`/agendas/${r.agenda}/`);
+        setResolvedHistoricalAgenda(data);
+      } catch (err) {
+        setHistoricalAgendaError("Não foi possível carregar os dados da Agenda deste relatório.");
+      } finally {
+        setIsLoadingHistoricalAgenda(false);
+      }
+    }
+  };
+
   return (
     <>
     <section className="page two-column report-editor">
@@ -1559,7 +1584,9 @@ export default function TechnicalReportsPage() {
                     <div key={idx} className="street-action-summary-card">
                       <div>
                         <strong>{detail.type ? streetActionTypeLabel(detail.type) : `Ação ${idx + 1}`}</strong>
-                        <small>{detail.public ? `Público estimado: ${detail.public}` : "Público estimado não informado"}</small>
+                        {showEstimatedPublic && (
+                          <small>{detail.public ? `Público estimado: ${detail.public}` : "Público estimado não informado"}</small>
+                        )}
                       </div>
                     </div>
                   ))
@@ -2099,7 +2126,7 @@ export default function TechnicalReportsPage() {
                           </button>
                         ) : (
                           <>
-                            <button className="secondary icon-button" onClick={() => { setReportsPreviewModal(r); }} title="Visualizar">
+                            <button className="secondary icon-button" onClick={() => openHistoricalReportPreview(r)} title="Visualizar">
                               <Eye size={16} />
                             </button>
                             {["DRAFT", "RETURNED"].includes(r.status) ? (
@@ -2132,14 +2159,35 @@ export default function TechnicalReportsPage() {
           </div>
 
           {reportsPreviewModal && (
-            <div className="modal-overlay" onClick={() => setReportsPreviewModal(null)}>
+            <div className="modal-overlay" onClick={() => {
+              setReportsPreviewModal(null);
+              setResolvedHistoricalAgenda(null);
+              setIsLoadingHistoricalAgenda(false);
+              setHistoricalAgendaError("");
+            }}>
               <div className="premium-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header-premium">
                   <h2>Detalhes do Relatório</h2>
-                  <button className="secondary icon-button" onClick={() => setReportsPreviewModal(null)}><X size={20} /></button>
+                  <button className="secondary icon-button" onClick={() => {
+                    setReportsPreviewModal(null);
+                    setResolvedHistoricalAgenda(null);
+                    setIsLoadingHistoricalAgenda(false);
+                    setHistoricalAgendaError("");
+                  }}><X size={20} /></button>
                 </div>
                 <div className="modal-body-premium">
-                  <pre>{buildPreview(reportsPreviewModal)}</pre>
+                  {isLoadingHistoricalAgenda ? (
+                    <div style={{ padding: "20px", textAlign: "center", color: "var(--text-soft)" }}>Carregando dados da Agenda...</div>
+                  ) : historicalAgendaError ? (
+                    <div style={{ padding: "20px", textAlign: "center", color: "var(--danger)" }}>{historicalAgendaError}</div>
+                  ) : resolvedHistoricalAgenda ? (
+                    (() => {
+                      const isHistoricalPublicRequest = resolvedHistoricalAgenda?.origin === "PUBLIC_FORM";
+                      const isHistoricalStreetAction = isStreetActionAgenda(resolvedHistoricalAgenda) || Boolean(reportsPreviewModal?.street_action_details?.length);
+                      const showHistoricalEstimatedPublic = !isHistoricalStreetAction || isHistoricalPublicRequest;
+                      return <pre>{buildPreview(reportsPreviewModal, showHistoricalEstimatedPublic)}</pre>;
+                    })()
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -2440,7 +2488,7 @@ export default function TechnicalReportsPage() {
                     ["Horário", `${action.start_time || "--"} às ${action.final_hour || "--"}`],
                   ].filter(r => r[1] && r[1] !== "—" && r[1] !== "-- às --" && r[1] !== "0" && r[1] !== "-");
 
-                  if (isFirstAction) {
+                  if (isFirstAction && showEstimatedPublic) {
                     if (action.approach !== undefined && action.approach !== null && action.approach !== "" && action.approach !== "0" && action.approach !== 0 && action.approach !== "-") {
                       actionData.push(["Público Estimado", action.approach]);
                     } else {
@@ -2500,7 +2548,7 @@ export default function TechnicalReportsPage() {
                   <span style={{ flex: 1, textAlign: "center" }}>Valor</span>
                 </div>
                 {[
-                  ["Público Estimado (total)", totalsEstimado],
+                  ...(showEstimatedPublic ? [["Público Estimado (total)", totalsEstimado]] : []),
                   ["Público Alcançado (total)", totalsAlcancado],
                   ["Ações Realizadas", actions.length],
                   ["Taxa de Alcance", taxa],
@@ -2561,7 +2609,7 @@ export default function TechnicalReportsPage() {
                   {sectionStyle(secNum, "CONCLUSÃO INSTITUCIONAL")}
                   <div style={{ borderTop: `1.5px solid ${NAVY_LIGHT}`, marginBottom: "4px" }} />
                   <div style={{ fontSize: "10.5px", color: "#1e1e1e", lineHeight: "1.55", padding: "4px 8px" }}>
-                    O presente documento consolida as informações registradas no Sistema Integrado da Educação – SIED referentes à atividade identificada, incluindo execução operacional, frequência dos participantes, ações realizadas, público estimado, público alcançado, materiais distribuídos e eventuais ocorrências. Este relatório possui caráter técnico-institucional e integra o acervo documental do programa Lei Seca Educação.
+                    O presente documento consolida as informações registradas no Sistema Integrado da Educação – SIED referentes à atividade identificada, incluindo execução operacional, frequência dos participantes, ações realizadas, {showEstimatedPublic ? "público estimado, " : ""}público alcançado, materiais distribuídos e eventuais ocorrências. Este relatório possui caráter técnico-institucional e integra o acervo documental do programa Lei Seca Educação.
                   </div>
                 </>);
               })()}
@@ -2586,7 +2634,7 @@ export default function TechnicalReportsPage() {
                   className="primary"
                   type="button"
                   onClick={() =>
-                    generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, true)
+                    generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, true, showEstimatedPublic)
                   }
                 >
                   Visualizar PDF
@@ -2598,7 +2646,7 @@ export default function TechnicalReportsPage() {
                   className="primary"
                   type="button"
                   onClick={() =>
-                    generateTechnicalReportPdf(form, selectedAgenda, attendanceForm)
+                    generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, false, showEstimatedPublic)
                   }
                 >
                   Baixar PDF técnico

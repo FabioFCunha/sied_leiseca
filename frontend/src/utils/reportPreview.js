@@ -69,7 +69,7 @@ export function getSupports(report, selectedAgenda) {
   return unique;
 }
 
-export function buildPreview(report) {
+export function buildPreview(report, showEstimatedPublic = true) {
   const actions = report.actions || [];
   const selectedChief = chiefFromReport(report);
   
@@ -103,7 +103,7 @@ export function buildPreview(report) {
           ? alcVal
           : "Não informado";
 
-        const estimadoLine = isFirstAction
+        const estimadoLine = (isFirstAction && showEstimatedPublic)
           ? `   Público estimado: ${action.approach || 0}\n`
           : "";
 
@@ -143,7 +143,7 @@ export function buildPreview(report) {
       : "") +
     `AÇÕES\n${actionLines}\n\n` +
     `TOTAIS\n` +
-    `Público estimado (total): ${totalsEstimado}\n` +
+    (showEstimatedPublic ? `Público estimado (total): ${totalsEstimado}\n` : "") +
     `Público alcançado (total): ${totalsAlcancado}\n` +
     `Taxa de Alcance: ${taxaText}\n` +
     `Ações Realizadas: ${actions.length}\n\n` +
