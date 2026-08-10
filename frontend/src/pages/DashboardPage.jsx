@@ -497,6 +497,21 @@ const operationStatusStyle = {
 };
 
 
+const attendanceStatusStyle = {
+  pending: { label: "Pendente", color: "#b45309", bg: "#fef3c7" },
+  reported: { label: "Reportada", color: "#1d4ed8", bg: "#dbeafe" },
+  approved: { label: "Conferida", color: "#047857", bg: "#dcfce7" },
+};
+
+const reportStatusStyle = {
+  none: { label: "Sem relatório", color: "#6b7280", bg: "#f3f4f6" },
+  draft: { label: "Rascunho", color: "#b45309", bg: "#fef3c7" },
+  pending_review: { label: "Aguardando conferência", color: "#1d4ed8", bg: "#dbeafe" },
+  returned: { label: "Devolvido", color: "#b91c1c", bg: "#fee2e2" },
+  approved: { label: "Aprovado", color: "#047857", bg: "#dcfce7" },
+  submitted: { label: "Enviado", color: "#1d4ed8", bg: "#dbeafe" },
+};
+
 function SectionCard({ icon: Icon, title, subtitle, children }) {
   return (
     <section style={{ border: "1px solid var(--line)", borderRadius: "16px", background: "var(--surface)", overflow: "hidden", boxShadow: "0 4px 18px rgba(0,0,0,0.025)" }}>
