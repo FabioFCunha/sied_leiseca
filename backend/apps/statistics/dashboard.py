@@ -37,26 +37,13 @@ def _shift_month(value, months):
 
 
 def comparison_period(date_from, date_to):
-    if date_to < date(OPERATIONAL_COMPARISON_START.year + 1, OPERATIONAL_COMPARISON_START.month, OPERATIONAL_COMPARISON_START.day):
-        return {
-            'from': _shift_month(date_from, -1),
-            'to': _shift_month(date_to, -1),
-            'type': 'previous_month',
-            'label': 'm\u00eas anterior',
-        }
-    try:
-        previous_from = date_from.replace(year=date_from.year - 1)
-    except ValueError:
-        previous_from = date(date_from.year - 1, 2, 28)
-    try:
-        previous_to = date_to.replace(year=date_to.year - 1)
-    except ValueError:
-        previous_to = date(date_to.year - 1, 2, 28)
+    previous_from = _shift_month(date_from, -1)
+    previous_to = _shift_month(date_to, -1)
     return {
         'from': previous_from,
         'to': previous_to,
-        'type': 'previous_year',
-        'label': 'mesmo per\u00edodo do ano anterior',
+        'type': 'previous_month',
+        'label': f"vs. {previous_from.strftime('%d/%m/%Y')} a {previous_to.strftime('%d/%m/%Y')}",
     }
 
 CATEGORY_LABELS = {

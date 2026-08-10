@@ -7,7 +7,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.schedules.models import ActionType, Agenda, EducationAction, EducationReport, Sector
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import _parse_materials, aggregate_official_statistics, generate_statistics_for_report
-from apps.statistics.dashboard import _category_audience, comparison_period
+from apps.statistics.dashboard import _category_audience, comparison_period, variation
 from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardFiltersView, StatisticsDashboardView, get_hybrid_queryset
 
 
@@ -135,19 +135,46 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(annual[2025]['ACTION - Geral'], 1541)
         self.assertEqual(annual[2026]['AUDIENCE - Geral'], 84803)
 
-    def test_comparison_period_uses_previous_month_before_first_operational_year(self):
-        period = comparison_period(date(2026, 7, 1), date(2026, 7, 24))
-
-        self.assertEqual(period['from'], date(2026, 6, 1))
-        self.assertEqual(period['to'], date(2026, 6, 24))
+    def test_comparison_period_agosto_completo(self):
+        period = comparison_period(date(2026, 8, 1), date(2026, 8, 31))
+        self.assertEqual(period['from'], date(2026, 7, 1))
+        self.assertEqual(period['to'], date(2026, 7, 31))
         self.assertEqual(period['type'], 'previous_month')
+        self.assertEqual(period['label'], 'vs. 01/07/2026 a 31/07/2026')
 
-    def test_comparison_period_uses_previous_year_after_first_operational_year(self):
-        period = comparison_period(date(2027, 7, 10), date(2027, 7, 24))
+    def test_comparison_period_agosto_parcial(self):
+        period = comparison_period(date(2026, 8, 1), date(2026, 8, 10))
+        self.assertEqual(period['from'], date(2026, 7, 1))
+        self.assertEqual(period['to'], date(2026, 7, 10))
+        self.assertEqual(period['type'], 'previous_month')
+        self.assertEqual(period['label'], 'vs. 01/07/2026 a 10/07/2026')
 
-        self.assertEqual(period['from'], date(2026, 7, 10))
-        self.assertEqual(period['to'], date(2026, 7, 24))
-        self.assertEqual(period['type'], 'previous_year')
+    def test_comparison_period_intervalo_parcial(self):
+        period = comparison_period(date(2026, 8, 5), date(2026, 8, 10))
+        self.assertEqual(period['from'], date(2026, 7, 5))
+        self.assertEqual(period['to'], date(2026, 7, 10))
+
+    def test_comparison_period_virada_de_ano(self):
+        period = comparison_period(date(2026, 1, 1), date(2026, 1, 31))
+        self.assertEqual(period['from'], date(2025, 12, 1))
+        self.assertEqual(period['to'], date(2025, 12, 31))
+        self.assertEqual(period['label'], 'vs. 01/12/2025 a 31/12/2025')
+
+    def test_comparison_period_dia_31(self):
+        period = comparison_period(date(2026, 3, 31), date(2026, 3, 31))
+        self.assertEqual(period['from'], date(2026, 2, 28))
+        self.assertEqual(period['to'], date(2026, 2, 28))
+        self.assertEqual(period['label'], 'vs. 28/02/2026 a 28/02/2026')
+
+    def test_variation_anterior_0_atual_maior_que_0(self):
+        var = variation(10, 0)
+        self.assertEqual(var['status'], 'NEW')
+        self.assertIsNone(var['percentage'])
+
+    def test_variation_anterior_0_atual_0(self):
+        var = variation(0, 0)
+        self.assertEqual(var['status'], 'STABLE')
+        self.assertEqual(var['percentage'], 0)
 
     def test_legacy_street_action_uses_report_type_action_subcategory(self):
         agenda = SimpleNamespace(
