@@ -89,7 +89,7 @@ export default function AppLayout() {
     window.addEventListener("shift-swaps:changed", loadPendingShiftSwaps);
 
     if (user && canAccessRoute(user, ["ADMIN", "MANAGER", "SUPERVISOR"])) {
-      api("/dashboard/")
+      api("/agendas/dashboard/")
         .then((data) => {
           setPendingTechnicalReports(data.pending_technical_reports_count || 0);
         })
