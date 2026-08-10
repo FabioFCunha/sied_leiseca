@@ -562,6 +562,9 @@ export default function TechnicalReportsPage() {
     [form.street_action_details]
   );
   const isStreetAction = Boolean(isStreetActionSelectedAgenda || predefinedStreetActionTypes.length > 0);
+  const isPublicRequest = selectedAgenda?.origin === "PUBLIC_FORM";
+  const isLecture = !isStreetAction;
+  const showEstimatedPublic = isLecture || isPublicRequest;
   const shouldChooseStreetActionType = isStreetActionSelectedAgenda && predefinedStreetActionTypes.length > 1;
   const shouldRequireLegacyStreetActionType = isStreetActionSelectedAgenda && predefinedStreetActionTypes.length === 0;
   const hasValidStreetActionSubtype = (value) => streetActionTypeOptions.includes(value);
@@ -1576,19 +1579,24 @@ export default function TechnicalReportsPage() {
             <div className="chief-required-block chief-required-block-standalone">
               <h4>PREENCHIMENTO OBRIGATÓRIO</h4>
               <div className="compact-grid horus-count-grid">
-                {numberFields.map((field) => (
-                  <label className={`field-label ${field === "approach" ? "" : "chief-highlight-field"}`.trim()} key={field}>
-                    <span>{fieldLabels[field]}</span>
-                    <input
-                      type="number"
-                      value={(form.actions[0] || emptyAction)[field] ?? ""}
-                      className={field === "approach" ? "read-only-field" : ""}
-                      readOnly={field === "approach"}
-                      title={field === "approach" ? "Preenchido automaticamente a partir da solicitação" : ""}
-                      onChange={(e) => updateAllActionsField(field, e.target.value)}
-                    />
-                  </label>
-                ))}
+                {numberFields.map((field) => {
+                  if (field === "approach" && !showEstimatedPublic) {
+                    return null;
+                  }
+                  return (
+                    <label className={`field-label ${field === "approach" ? "" : "chief-highlight-field"}`.trim()} key={field}>
+                      <span>{fieldLabels[field]}</span>
+                      <input
+                        type="number"
+                        value={(form.actions[0] || emptyAction)[field] ?? ""}
+                        className={field === "approach" ? "read-only-field" : ""}
+                        readOnly={field === "approach"}
+                        title={field === "approach" ? "Preenchido automaticamente a partir da solicitação" : ""}
+                        onChange={(e) => updateAllActionsField(field, e.target.value)}
+                      />
+                    </label>
+                  );
+                })}
                 <label className="field-label chief-highlight-field">
                   <span>O local atendeu às condições de acessibilidade para cadeirantes?</span>
                   <select
