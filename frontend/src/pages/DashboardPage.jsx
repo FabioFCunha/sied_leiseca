@@ -479,6 +479,9 @@ const operationalCardConfig = [
   { key: "completed", title: "Realizadas", hint: "Hor\u00e1rio operacional encerrado", icon: CheckCheck, color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0057a8)" },
   { key: "cancelled", title: "Canceladas", hint: "A\u00e7\u00f5es canceladas", icon: XCircle, color: "#7f8c8d", gradient: "linear-gradient(135deg, #7f8c8d, #5f6b6d)" },
   { key: "pending_reports", title: "Relat\u00f3rios pendentes", hint: "A\u00e7\u00f5es j\u00e1 report\u00e1veis", icon: AlertTriangle, color: "#dc6b16", gradient: "linear-gradient(135deg, #f97316, #c2410c)" },
+  { key: "pending_attendance", title: "Frequ\u00eancias pendentes", hint: "Aguardando fechamento da frequ\u00eancia", icon: Activity, color: "#b45309", gradient: "linear-gradient(135deg, #f59e0b, #b45309)" },
+  { key: "estimated_public", title: "P\u00fablico previsto", hint: "Estimativa total do dia", icon: Users, color: "#0f766e", gradient: "linear-gradient(135deg, #14b8a6, #0f766e)" },
+  { key: "public_reached", title: "P\u00fablico informado", hint: "Somente relatado quando existente", icon: Flag, color: "#7c3aed", gradient: "linear-gradient(135deg, #8b5cf6, #6d28d9)" },
 ];
 
 const workforceConfig = [
@@ -548,42 +551,147 @@ function DimensionPill({ label, tone }) {
   return <span style={{ borderRadius: 999, padding: "5px 10px", background: tone.bg, color: tone.color, fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>{label}</span>;
 }
 
+const attentionTone = {
+  warning: { border: "#fdba74", background: "#fff7ed", accent: "#c2410c" },
+  info: { border: "#93c5fd", background: "#eff6ff", accent: "#1d4ed8" },
+  danger: { border: "#fca5a5", background: "#fef2f2", accent: "#b91c1c" },
+  success: { border: "#86efac", background: "#f0fdf4", accent: "#15803d" },
+};
+
+function formatAudienceValue(value) {
+  return Number(value || 0) > 0
+    ? `${Number(value).toLocaleString("pt-BR")} pessoas`
+    : "Ainda nÃ£o informado";
+}
+
+function ChiefNarrative({ text }) {
+  const narrative = String(text || "").trim() || "Relato ainda nÃ£o informado.";
+  const [expanded, setExpanded] = useState(false);
+  const canExpand = narrative.length > 180 || narrative.includes("\n");
+
+  return (
+    <div style={{ border: "1px solid var(--line)", borderRadius: 14, background: "var(--surface)", padding: "14px 16px", display: "grid", gap: 8 }}>
+      <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Relato do chefe</strong>
+      <div
+        style={{
+          color: "var(--text)",
+          fontSize: 13.5,
+          lineHeight: 1.55,
+          whiteSpace: expanded ? "pre-wrap" : "normal",
+          display: expanded ? "block" : "-webkit-box",
+          WebkitLineClamp: expanded ? "unset" : 3,
+          WebkitBoxOrient: expanded ? "unset" : "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {narrative}
+      </div>
+      {canExpand ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          style={{ justifySelf: "start", border: "none", background: "transparent", color: "var(--primary)", fontSize: 12, fontWeight: 800, padding: 0, cursor: "pointer" }}
+        >
+          {expanded ? "Recolher" : "Ver relato completo"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function OperationalSummaryPanel({ summary = {} }) {
+  const items = [
+    { label: "AÃ§Ãµes programadas", value: summary.scheduled_today },
+    { label: "Realizadas", value: summary.completed },
+    { label: "Em andamento", value: summary.in_progress },
+    { label: "PrÃ³ximas", value: summary.pending_start },
+    { label: "Canceladas", value: summary.cancelled },
+    { label: "Equipes", value: summary.teams_active },
+    { label: "Chefes", value: summary.chiefs_active },
+    { label: "Agentes", value: summary.agents_scheduled },
+    { label: "Apoios", value: summary.supports_scheduled },
+  ];
+
+  return (
+    <SectionCard icon={Flag} title={"Resumo operacional do dia"} subtitle={"Leitura direta do volume programado, andamento e mobilizaÃ§Ã£o do perÃ­odo."}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+        {items.map((item) => (
+          <div key={item.label} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
+            <strong style={{ fontSize: 24, lineHeight: 1, color: "var(--text)", fontWeight: 900 }}>{Number(item.value || 0).toLocaleString("pt-BR")}</strong>
+            <small style={{ color: "var(--text-soft)", fontWeight: 800 }}>{item.label}</small>
+          </div>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
 function OperationDashboardTable({ operations = [] }) {
   return (
-    <SectionCard icon={MapPin} title={"Opera\u00e7\u00e3o do dia"} subtitle={"Hor\u00e1rio, equipe, situa\u00e7\u00e3o operacional, frequ\u00eancia e relat\u00f3rio em leitura direta."}>
+    <SectionCard icon={MapPin} title={"Operação do dia"} subtitle={"Horário, local, efetivo, frequência, relatório e relato do chefe em leitura operacional."}>
       {operations.length ? (
         <div style={{ display: "grid", gap: 12 }}>
           {operations.map((item) => (
-            <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 16, padding: "16px 18px", background: "var(--surface-2)", display: "grid", gap: 10 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "120px minmax(0, 1fr)", gap: 14, alignItems: "start" }}>
-                <div style={{ display: "grid", gap: 4 }}>
+            <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 16, padding: "18px", background: "var(--surface-2)", display: "grid", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "120px minmax(0, 1fr)", gap: 16, alignItems: "start" }}>
+                <div style={{ display: "grid", gap: 6 }}>
                   <strong style={{ color: "var(--primary)", fontSize: 15, fontWeight: 900 }}>{item.time_range || item.time || "--:--"}</strong>
                   <span style={{ color: "var(--text-soft)", fontSize: 12, fontWeight: 800 }}>{item.service_order_number ? `OS ${item.service_order_number}` : "Sem OS"}</span>
                 </div>
-                <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ display: "grid", gap: 12 }}>
                   <div style={{ display: "grid", gap: 4 }}>
                     <strong style={{ color: "var(--text)", fontSize: 15, fontWeight: 900 }}>{item.type || item.title}</strong>
                     <span style={{ color: "var(--text)", fontSize: 13.5, fontWeight: 700 }}>{item.location}</span>
-                    <small style={{ color: "var(--text-soft)" }}>Equipe {item.team}</small>
+                    <small style={{ color: "var(--text-soft)" }}>{item.municipality}</small>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <DimensionPill label={item.operational_status_label} tone={operationStatusStyle[item.operational_status] || operationStatusStyle.scheduled} />
                     <DimensionPill label={item.attendance_status_label} tone={attendanceStatusStyle[item.attendance_status] || attendanceStatusStyle.pending} />
                     <DimensionPill label={item.report_status_label} tone={reportStatusStyle[item.report_status] || reportStatusStyle.none} />
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 8 }}>
-                    <small style={{ color: "var(--text-soft)" }}><strong style={{ color: "var(--text)" }}>MunicÃ­pio:</strong> {item.municipality}</small>
-                    <small style={{ color: "var(--text-soft)" }}><strong style={{ color: "var(--text)" }}>Chefe:</strong> {item.chief}</small>
-                    <small style={{ color: "var(--text-soft)" }}><strong style={{ color: "var(--text)" }}>FrequÃªncia:</strong> {item.attendance_status_label}</small>
-                    <small style={{ color: "var(--text-soft)" }}><strong style={{ color: "var(--text)" }}>RelatÃ³rio:</strong> {item.report_status_label}</small>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 }}>
+                    <div style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: "12px 14px", display: "grid", gap: 5 }}>
+                      <strong style={{ color: "var(--text)", fontSize: 12, textTransform: "uppercase" }}>{item.service_order_mode === "DESIGNATED" ? "Participantes" : "Efetivo"}</strong>
+                      <span style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.45 }}>{item.effective_summary}</span>
+                    </div>
+                    <div style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: "12px 14px", display: "grid", gap: 5 }}>
+                      <strong style={{ color: "var(--text)", fontSize: 12, textTransform: "uppercase" }}>Chefia e equipe</strong>
+                      <span style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.45 }}>
+                        {item.service_order_mode === "DESIGNATED"
+                          ? item.designated_users_names?.length
+                            ? item.designated_users_names.join(", ")
+                            : "Participantes ainda não informados"
+                          : `Equipe ${item.team} · Chefe: ${item.chief}`}
+                      </span>
+                    </div>
+                    <div style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: "12px 14px", display: "grid", gap: 5 }}>
+                      <strong style={{ color: "var(--text)", fontSize: 12, textTransform: "uppercase" }}>Público previsto</strong>
+                      <span style={{ color: "var(--text)", fontSize: 13.5 }}>{formatAudienceValue(item.estimated_public)}</span>
+                    </div>
+                    <div style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: "12px 14px", display: "grid", gap: 5 }}>
+                      <strong style={{ color: "var(--text)", fontSize: 12, textTransform: "uppercase" }}>Público alcançado</strong>
+                      <span style={{ color: "var(--text)", fontSize: 13.5 }}>{formatAudienceValue(item.latest_public_reached || item.public_reached)}</span>
+                    </div>
                   </div>
                 </div>
+              </div>
+              <ChiefNarrative text={item.chief_report_text} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <small style={{ color: "var(--text-soft)" }}>
+                  <strong style={{ color: "var(--text)" }}>Frequência:</strong> {item.attendance_status_label} {" · "}
+                  <strong style={{ color: "var(--text)" }}>Relatório:</strong> {item.report_status_label}
+                </small>
+                {item.href ? (
+                  <a href={item.href} style={{ color: "var(--primary)", fontSize: 12, fontWeight: 800, textDecoration: "none" }}>
+                    Abrir operação
+                  </a>
+                ) : null}
               </div>
             </article>
           ))}
         </div>
       ) : (
-        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>{"Nenhuma a\u00e7\u00e3o programada para hoje."}</p>
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>{"Nenhuma ação programada para hoje."}</p>
       )}
     </SectionCard>
   );
@@ -592,11 +700,117 @@ function OperationDashboardTable({ operations = [] }) {
 function buildOperationalAttentionItems(alerts = []) {
   const safeAlerts = Array.isArray(alerts) ? alerts : [];
   return safeAlerts.map((item, index) => ({
-    title: item?.title || `PendÃªncia ${index + 1}`,
+    title: item?.title || `Pendência ${index + 1}`,
     body: item?.description || "",
     severity: item?.severity || "info",
     href: item?.href || "",
+    items: Array.isArray(item?.items) ? item.items : [],
   }));
+}
+
+function AttentionPanel({ alerts = [] }) {
+  const insights = buildOperationalAttentionItems(alerts);
+
+  return (
+    <SectionCard icon={Activity} title={"Pendências e atenção"} subtitle={"Pendências objetivas do período com acesso rápido às operações afetadas."}>
+      {insights.length ? (
+        <div style={{ display: "grid", gap: 12 }}>
+          {insights.map((insight) => {
+            const tone = attentionTone[insight.severity] || attentionTone.info;
+            return (
+              <div key={insight.title} style={{ border: `1px solid ${tone.border}`, borderRadius: 12, padding: "12px 14px", background: tone.background, display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                  <strong style={{ fontSize: 12, color: tone.accent, textTransform: "uppercase" }}>{insight.title}</strong>
+                  {insight.href ? <a href={insight.href} style={{ color: tone.accent, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>Abrir</a> : null}
+                </div>
+                <p style={{ margin: 0, color: "var(--text)", fontSize: 13.5, lineHeight: 1.45 }}>{insight.body}</p>
+                {insight.items.length ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {insight.items.map((item) => (
+                      <a
+                        key={`${insight.title}-${item.id}`}
+                        href={item.href}
+                        style={{ borderRadius: 999, padding: "6px 10px", background: "#fff", border: `1px solid ${tone.border}`, color: "var(--text)", fontSize: 11.5, fontWeight: 700, textDecoration: "none" }}
+                      >
+                        {item.time_range || "--:--"}{item.service_order_number ? ` · OS ${item.service_order_number}` : ""} · {item.title}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Não há pendências para os filtros selecionados.</p>
+      )}
+    </SectionCard>
+  );
+}
+
+function NextOperationsPanel({ operations = [] }) {
+  return (
+    <SectionCard icon={CalendarClock} title={"Próximas operações"} subtitle={"Ações já classificadas como próximas dentro do mesmo conjunto filtrado."}>
+      {operations.length ? (
+        <div style={{ display: "grid", gap: 10 }}>
+          {operations.map((item) => (
+            <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px 16px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
+              <strong style={{ color: "var(--primary)", fontSize: 14 }}>{item.time_range || item.time || "--:--"}{item.service_order_number ? ` · OS ${item.service_order_number}` : ""}</strong>
+              <span style={{ color: "var(--text)", fontWeight: 800 }}>{item.type || item.title}</span>
+              <small style={{ color: "var(--text-soft)" }}>{item.location} · {item.municipality}</small>
+              <small style={{ color: "var(--text-soft)" }}>{item.effective_summary}</small>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>Nenhuma próxima operação para os filtros selecionados.</p>
+      )}
+    </SectionCard>
+  );
+}
+
+function OperationalClosingPanel({ closing = {} }) {
+  const reports = closing.reports || {};
+  const attendance = closing.attendance || {};
+  const publicData = closing.public || {};
+
+  return (
+    <SectionCard icon={FileText} title={"Fechamento operacional"} subtitle={"Consolidação operacional do período filtrado, sem transformar o dashboard em estatística institucional."}>
+      <div style={{ display: "grid", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10 }}>
+          {[
+            ["Ações programadas", closing.scheduled_today],
+            ["Realizadas", closing.completed],
+            ["Em andamento", closing.in_progress],
+            ["Próximas", closing.pending_start],
+            ["Canceladas", closing.cancelled],
+          ].map(([label, value]) => (
+            <div key={label} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", background: "var(--surface-2)", display: "grid", gap: 4 }}>
+              <strong style={{ color: "var(--text)", fontSize: 22, lineHeight: 1 }}>{Number(value || 0).toLocaleString("pt-BR")}</strong>
+              <small style={{ color: "var(--text-soft)", fontWeight: 800 }}>{label}</small>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
+            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Frequências</strong>
+            <span style={{ color: "var(--text)", fontSize: 14 }}>Concluídas: {Number(attendance.completed || 0).toLocaleString("pt-BR")}/{Number(attendance.total || 0).toLocaleString("pt-BR")}</span>
+            <span style={{ color: "var(--text-soft)", fontSize: 13 }}>Pendentes: {Number(attendance.pending || 0).toLocaleString("pt-BR")} · Reportadas: {Number(attendance.reported || 0).toLocaleString("pt-BR")} · Conferidas: {Number(attendance.approved || 0).toLocaleString("pt-BR")}</span>
+          </div>
+          <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
+            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Relatórios</strong>
+            <span style={{ color: "var(--text)", fontSize: 14 }}>Sem relatório: {Number(reports.none || 0).toLocaleString("pt-BR")} · Rascunho: {Number(reports.draft || 0).toLocaleString("pt-BR")}</span>
+            <span style={{ color: "var(--text-soft)", fontSize: 13 }}>Conferência: {Number(reports.pending_review || 0).toLocaleString("pt-BR")} · Devolvidos: {Number(reports.returned || 0).toLocaleString("pt-BR")} · Aprovados: {Number(reports.approved || 0).toLocaleString("pt-BR")}</span>
+          </div>
+          <div style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
+            <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>Público</strong>
+            <span style={{ color: "var(--text)", fontSize: 14 }}>Previsto: {formatAudienceValue(publicData.estimated)}</span>
+            <span style={{ color: "var(--text-soft)", fontSize: 13 }}>Informado: {formatAudienceValue(publicData.reported)}</span>
+          </div>
+        </div>
+      </div>
+    </SectionCard>
+  );
 }
 
 function WorkforcePanel({ cards = {} }) {
@@ -818,31 +1032,15 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: "grid", gap: "24px" }}>
-            <SectionCard icon={Activity} title={"Pend\u00eancias e aten\u00e7\u00e3o"} subtitle={"Pend\u00eancias objetivas do per\u00edodo."}>
-              {(() => {
-                const insights = buildOperationalAttentionItems(dashboard?.operations?.alerts || []);
-
-                if (!insights.length) {
-                  return (
-                    <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>
-                      N\u00e3o h\u00e1 pend\u00eancias para os filtros selecionados.
-                    </p>
-                  );
-                }
-
-                return (
-                  <div style={{ display: "grid", gap: "14px" }}>
-                    {insights.map((insight) => (
-                      <div key={insight.title} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px 16px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
-                        <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>{insight.title}</strong>
-                        <p style={{ margin: 0, color: "var(--text)", fontSize: 14, lineHeight: 1.5 }}>{insight.body}</p>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </SectionCard>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
+              <OperationalSummaryPanel summary={dashboard?.operations?.summary || {}} />
+              <AttentionPanel alerts={dashboard?.operations?.alerts || []} />
+            </div>
             <OperationDashboardTable operations={dashboard?.operations?.field_operations || []} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
+              <NextOperationsPanel operations={dashboard?.operations?.next_operations || []} />
+              <OperationalClosingPanel closing={dashboard?.operations?.closing || {}} />
+            </div>
           </div>
         </>
       )}

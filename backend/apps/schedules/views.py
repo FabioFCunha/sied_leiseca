@@ -1630,7 +1630,12 @@ class AgendaViewSet(viewsets.ModelViewSet):
             "municipality_ref",
             "sector",
             "responsible",
-        ).prefetch_related("agents_ref", "technical_reports__actions")
+        ).prefetch_related(
+            "agents_ref",
+            "designated_users",
+            "absent_designated_users",
+            "technical_reports__actions",
+        )
         today_schedules = list(
             ShiftSchedule.objects.filter(date=operational_date)
             .select_related("team")
@@ -1712,6 +1717,53 @@ class AgendaViewSet(viewsets.ModelViewSet):
         def agenda_supports_count(agenda):
             return len(agenda_supports_names(agenda))
 
+        def agenda_designated_names(agenda):
+            names = []
+            for user in agenda.designated_users.filter(is_active=True):
+                label = user.full_name or user.get_full_name() or user.username or user.email
+                if label:
+                    names.append(str(label).strip())
+            return names
+
+        def agenda_staffing_payload(agenda, chief_label, agents_names, supports_names):
+            service_order_mode = getattr(agenda, "service_order_mode", Agenda.ServiceOrderMode.TEAM)
+            if service_order_mode == Agenda.ServiceOrderMode.DESIGNATED:
+                designated_names = agenda_designated_names(agenda)
+                designated_count = len(designated_names)
+                return {
+                    "service_order_mode": service_order_mode,
+                    "service_order_mode_label": agenda.get_service_order_mode_display(),
+                    "chiefs_count": 0,
+                    "designated_users_count": designated_count,
+                    "designated_users_names": designated_names,
+                    "effective_total_count": designated_count,
+                    "effective_summary": (
+                        f"{designated_count} participante(s) designado(s)"
+                        if designated_count
+                        else "Nenhum participante designado"
+                    ),
+                }
+
+            chiefs_count = 0 if chief_label == "Sem chefe" else 1
+            agents_count = len(agents_names)
+            supports_count = len(supports_names)
+            effective_parts = []
+            if chiefs_count:
+                effective_parts.append(f"{chiefs_count} chefe")
+            if agents_count:
+                effective_parts.append(f"{agents_count} agente{'s' if agents_count != 1 else ''}")
+            if supports_count:
+                effective_parts.append(f"{supports_count} apoio{'s' if supports_count != 1 else ''}")
+            return {
+                "service_order_mode": service_order_mode,
+                "service_order_mode_label": agenda.get_service_order_mode_display(),
+                "chiefs_count": chiefs_count,
+                "designated_users_count": 0,
+                "designated_users_names": [],
+                "effective_total_count": chiefs_count + agents_count + supports_count,
+                "effective_summary": " · ".join(effective_parts) if effective_parts else "Efetivo ainda não informado",
+            }
+
         def numeric_public_estimate(agenda):
             if agenda.quantity:
                 return int(agenda.quantity or 0)
@@ -1746,15 +1798,41 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 for record in schedule.absence_records.all()
             ]
 
-        def latest_report_for_agenda(agenda):
-            reports = list(agenda.technical_reports.all())
-            reports.sort(key=lambda report: report.updated_at or report.created_at, reverse=True)
-            return reports[0] if reports else None
+        def agenda_report_team_candidates(agenda):
+            values = [
+                agenda.team_name,
+                agenda.team_ref.name if agenda.team_ref else "",
+                agenda.sector.name if agenda.sector else "",
+            ]
+            seen = set()
+            candidates = []
+            for value in values:
+                label = str(value or "").strip()
+                if not label:
+                    continue
+                key = label.casefold()
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidates.append(label)
+            return candidates
 
-        def legacy_report_for_agenda(agenda):
-            reports = [report for report in agenda.technical_reports.all() if report.status != EducationReport.ReportStatus.DRAFT]
+        def resolved_report_for_agenda(agenda):
+            reports = list(agenda.technical_reports.all())
+            if not reports:
+                return None
             reports.sort(key=lambda report: report.updated_at or report.created_at, reverse=True)
-            return reports[0] if reports else None
+
+            candidates = {value.casefold() for value in agenda_report_team_candidates(agenda)}
+            if candidates:
+                matched_reports = [
+                    report
+                    for report in reports
+                    if str(getattr(report, "team", "") or "").strip().casefold() in candidates
+                ]
+                return matched_reports[0] if matched_reports else (reports[0] if len(reports) == 1 else None)
+
+            return reports[0] if len(reports) == 1 else None
 
         def report_status_payload(report):
             meta_key, badge_label, label = REPORT_STATUS_META.get(getattr(report, "status", None), REPORT_STATUS_META[None])
@@ -1840,15 +1918,19 @@ class AgendaViewSet(viewsets.ModelViewSet):
             status_key, operational_badge_label, status_text = operational_status(agenda)
             agents_names = agenda_agents_names(agenda)
             supports_names = agenda_supports_names(agenda)
-            report = latest_report_for_agenda(agenda)
-            legacy_report = legacy_report_for_agenda(agenda)
+            report = resolved_report_for_agenda(agenda)
             schedule = schedule_for_agenda(agenda)
             report_status = report_status_payload(report)
             attendance_status = attendance_status_payload(schedule, agenda)
             absences = absence_payload(schedule)
-            report_payload = report_details_payload(legacy_report)
+            latest_report_payload = report_details_payload(report)
+            report_payload = latest_report_payload
             estimated_public = numeric_public_estimate(agenda)
             reached_public = report_payload["public_reached"] if report_payload else 0
+            latest_reached_public = latest_report_payload["public_reached"] if latest_report_payload else 0
+            chief_label = operational_chief_label(agenda)
+            staffing = agenda_staffing_payload(agenda, chief_label, agents_names, supports_names)
+            chief_report_text = str((latest_report_payload or {}).get("general_observations") or "").strip()
             total_estimated_public += estimated_public
             total_reached_public += reached_public
             supports_count = len(supports_names)
@@ -1874,7 +1956,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "neighborhood": agenda.neighborhood_ref.name if agenda.neighborhood_ref else agenda.neighborhood or "",
                 "municipality": operational_city(agenda),
                 "team": operational_team_label(agenda),
-                "chief": operational_chief_label(agenda),
+                "chief": chief_label,
                 "status": agenda.status,
                 "operational_status": status_key,
                 "operational_status_badge_label": operational_badge_label,
@@ -1894,14 +1976,27 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "attendance_expected_members_count": attendance_status["expected_members_count"],
                 "attendance_has_partial_checks": attendance_status["has_partial_checks"],
                 "service_order_number": agenda.service_order_number,
+                "service_order_mode": staffing["service_order_mode"],
+                "service_order_mode_label": staffing["service_order_mode_label"],
+                "chiefs_count": staffing["chiefs_count"],
                 "agents_count": len(agents_names),
                 "agents_names": agents_names,
                 "supports_count": supports_count,
                 "supports_names": supports_names,
+                "designated_users_count": staffing["designated_users_count"],
+                "designated_users_names": staffing["designated_users_names"],
+                "effective_total_count": staffing["effective_total_count"],
+                "effective_summary": staffing["effective_summary"],
                 "absences": absences,
                 "absence_count": len(absences),
                 "estimated_public": estimated_public,
                 "public_reached": reached_public,
+                "latest_public_reached": latest_reached_public,
+                "has_report": bool(report),
+                "latest_report_id": report.id if report else None,
+                "latest_report_updated_at": (report.updated_at or report.created_at).isoformat() if report else "",
+                "chief_report_text": chief_report_text,
+                "chief_report_available": bool(chief_report_text),
                 "report": report_payload,
                 "href": f"/agendas?q={agenda.service_order_number or agenda.id}",
             })
@@ -1909,6 +2004,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         operational_team_names = {row["team"] for row in operation_rows if row["team"] != "Sem equipe"}
         operational_chief_names = {row["chief"] for row in operation_rows if row["chief"] != "Sem chefe"}
         total_agents_scheduled = sum(row["agents_count"] for row in operation_rows)
+        service_orders_count = sum(1 for row in operation_rows if row["service_order_number"])
         completed_operational_count = sum(1 for row in operation_rows if row["operational_status"] == "completed")
         in_progress_operational_count = sum(1 for row in operation_rows if row["operational_status"] == "in_progress")
         scheduled_operational_count = sum(1 for row in operation_rows if row["operational_status"] == "scheduled")
@@ -1925,6 +2021,43 @@ class AgendaViewSet(viewsets.ModelViewSet):
         )
         returned_reports_count = sum(1 for row in operation_rows if row["report_status"] == "returned")
         missing_team_count = sum(1 for row in operation_rows if row["team"] == "Sem equipe")
+        reported_attendance_count = sum(1 for row in operation_rows if row["attendance_status"] == "reported")
+        approved_attendance_count = sum(1 for row in operation_rows if row["attendance_status"] == "approved")
+        report_status_counts = {
+            "none": sum(1 for row in operation_rows if row["report_status"] == "none"),
+            "draft": sum(1 for row in operation_rows if row["report_status"] == "draft"),
+            "pending_review": sum(1 for row in operation_rows if row["report_status"] == "pending_review"),
+            "returned": sum(1 for row in operation_rows if row["report_status"] == "returned"),
+            "approved": sum(1 for row in operation_rows if row["report_status"] == "approved"),
+            "submitted": sum(1 for row in operation_rows if row["report_status"] == "submitted"),
+        }
+
+        def compact_operation_reference(row):
+            return {
+                "id": row["id"],
+                "href": row["href"],
+                "time_range": row["time_range"],
+                "service_order_number": row["service_order_number"],
+                "title": row["type"] or row["title"],
+                "location": row["location"],
+                "team": row["team"],
+                "operational_status": row["operational_status"],
+                "operational_status_label": row["operational_status_label"],
+                "attendance_status_label": row["attendance_status_label"],
+                "report_status_label": row["report_status_label"],
+            }
+
+        pending_report_rows = [
+            row for row in operation_rows
+            if row["operational_status"] == "completed" and row["report_status"] in {"none", "draft", "returned"}
+        ]
+        pending_attendance_rows = [
+            row for row in operation_rows
+            if row["operational_status"] != "cancelled" and row["attendance_status"] == "pending"
+        ]
+        returned_report_rows = [row for row in operation_rows if row["report_status"] == "returned"]
+        missing_team_rows = [row for row in operation_rows if row["team"] == "Sem equipe"]
+        scheduled_operation_rows = [row for row in operation_rows if row["operational_status"] == "scheduled"]
         operations = {
             "date": operational_date.isoformat(),
             "cards": {
@@ -1934,15 +2067,50 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "completed": {"value": completed_operational_count, "label": "Realizadas"},
                 "cancelled": {"value": cancelled_operational_count, "label": "A\u00e7\u00f5es canceladas"},
                 "pending_reports": {"value": pending_reports_count, "label": "Relat\u00f3rios pendentes"},
+                "pending_attendance": {"value": pending_attendance_count, "label": "Frequ\u00eancias pendentes"},
                 "estimated_public": {"value": total_estimated_public, "label": "Estimativa de p\u00fablico"},
                 "public_reached": {"value": total_reached_public, "label": "P\u00fablico alcan\u00e7ado informado"},
                 "teams_active": {"value": len(operational_team_names), "label": "Equipes"},
                 "chiefs_active": {"value": len(operational_chief_names), "label": "Chefes"},
                 "agents_scheduled": {"value": total_agents_scheduled, "label": "Agentes"},
                 "supports_scheduled": {"value": total_supports, "label": "Apoios"},
+                "service_orders": {"value": service_orders_count, "label": "OS emitidas"},
             },
             "alerts": [],
             "field_operations": operation_rows,
+            "next_operations": scheduled_operation_rows[:6],
+            "summary": {
+                "scheduled_today": operational_base.count(),
+                "in_progress": in_progress_operational_count,
+                "pending_start": scheduled_operational_count,
+                "completed": completed_operational_count,
+                "cancelled": cancelled_operational_count,
+                "teams_active": len(operational_team_names),
+                "chiefs_active": len(operational_chief_names),
+                "agents_scheduled": total_agents_scheduled,
+                "supports_scheduled": total_supports,
+                "pending_reports": pending_reports_count,
+                "pending_attendance": pending_attendance_count,
+            },
+            "closing": {
+                "scheduled_today": operational_base.count(),
+                "completed": completed_operational_count,
+                "in_progress": in_progress_operational_count,
+                "pending_start": scheduled_operational_count,
+                "cancelled": cancelled_operational_count,
+                "attendance": {
+                    "completed": reported_attendance_count + approved_attendance_count,
+                    "total": sum(1 for row in operation_rows if row["operational_status"] != "cancelled"),
+                    "pending": pending_attendance_count,
+                    "reported": reported_attendance_count,
+                    "approved": approved_attendance_count,
+                },
+                "reports": report_status_counts,
+                "public": {
+                    "estimated": total_estimated_public,
+                    "reported": total_reached_public,
+                },
+            },
             "timeline": operation_rows,
         }
         operational_attention = []
@@ -1952,6 +2120,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "title": "Relatórios pendentes",
                 "description": f"{pending_reports_count} atividade(s) realizada(s) aguardam relatório.",
                 "href": "/relatorio-tecnico",
+                "items": [compact_operation_reference(row) for row in pending_report_rows[:5]],
             })
         if pending_attendance_count:
             operational_attention.append({
@@ -1959,6 +2128,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "title": "Frequência pendente",
                 "description": f"{pending_attendance_count} frequência(s) ainda precisa(m) ser concluída(s).",
                 "href": "/shift-schedules",
+                "items": [compact_operation_reference(row) for row in pending_attendance_rows[:5]],
             })
         if returned_reports_count:
             operational_attention.append({
@@ -1966,6 +2136,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "title": "Relatórios devolvidos",
                 "description": f"{returned_reports_count} relatório(s) foi(foram) devolvido(s) para correção.",
                 "href": "/relatorio-tecnico",
+                "items": [compact_operation_reference(row) for row in returned_report_rows[:5]],
             })
         if missing_team_count:
             operational_attention.append({
@@ -1973,6 +2144,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "title": "Equipe não definida",
                 "description": f"{missing_team_count} atividade(s) ainda não possui(em) equipe definida.",
                 "href": "/agendas",
+                "items": [compact_operation_reference(row) for row in missing_team_rows[:5]],
             })
         else:
             operational_attention.append({
@@ -1980,6 +2152,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "title": "Equipe definida",
                 "description": "Todas as atividades possuem equipe definida.",
                 "href": "/agendas",
+                "items": [],
             })
         operations["alerts"] = operational_attention[:10]
 
