@@ -4,7 +4,7 @@ import logging
 logger = logging.getLogger(__name__)
 import re
 from collections import Counter, defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -18,6 +18,58 @@ def normalize_name(name):
     for prep in [" Da ", " De ", " Do ", " Das ", " Dos "]:
         t = t.replace(prep, prep.lower())
     return t
+
+
+OPERATIONAL_STATUS_META = {
+    "scheduled": ("PRÓXIMA", "Próxima"),
+    "in_progress": ("EM ANDAMENTO", "Em andamento"),
+    "completed": ("REALIZADA", "Realizada"),
+    "cancelled": ("CANCELADA", "Cancelada"),
+}
+
+REPORT_STATUS_META = {
+    None: ("none", "SEM RELATÓRIO", "Sem relatório"),
+    "DRAFT": ("draft", "RASCUNHO", "Rascunho"),
+    "PENDING_REVIEW": ("pending_review", "AGUARDANDO CONFERÊNCIA", "Aguardando conferência"),
+    "RETURNED": ("returned", "DEVOLVIDO", "Devolvido"),
+    "APPROVED": ("approved", "APROVADO", "Aprovado"),
+    "SUBMITTED": ("submitted", "ENVIADO", "Enviado"),
+}
+
+ATTENDANCE_STATUS_META = {
+    "pending": ("PENDENTE", "Pendente"),
+    "reported": ("REPORTADA", "Reportada"),
+    "approved": ("CONFERIDA", "Conferida"),
+}
+
+
+def build_agenda_operational_window(*, agenda_date, start_time, end_time, tz=None):
+    tz = tz or timezone.get_current_timezone()
+    start_dt = timezone.make_aware(datetime.combine(agenda_date, start_time), tz)
+    end_date = agenda_date if end_time > start_time else agenda_date + timedelta(days=1)
+    end_dt = timezone.make_aware(datetime.combine(end_date, end_time), tz)
+    return start_dt, end_dt
+
+
+def classify_operational_status(*, agenda_date, start_time, end_time, agenda_status, now_dt=None, tz=None):
+    status_value = str(agenda_status or "").upper()
+    if status_value == Agenda.Status.CANCELLED:
+        return "cancelled", *OPERATIONAL_STATUS_META["cancelled"]
+
+    tz = tz or timezone.get_current_timezone()
+    now_value = timezone.localtime(now_dt or timezone.now(), tz)
+    start_dt, end_dt = build_agenda_operational_window(
+        agenda_date=agenda_date,
+        start_time=start_time,
+        end_time=end_time,
+        tz=tz,
+    )
+
+    if now_value < start_dt:
+        return "scheduled", *OPERATIONAL_STATUS_META["scheduled"]
+    if start_dt <= now_value < end_dt:
+        return "in_progress", *OPERATIONAL_STATUS_META["in_progress"]
+    return "completed", *OPERATIONAL_STATUS_META["completed"]
 
 
 from django.db import OperationalError, ProgrammingError, transaction
@@ -1584,40 +1636,13 @@ class AgendaViewSet(viewsets.ModelViewSet):
             .select_related("team")
             .prefetch_related("absence_records")
         )
+        from apps.schedules.services import get_expected_attendance_member_keys
         schedule_by_team_id = {schedule.team_id: schedule for schedule in today_schedules if schedule.team_id}
         schedule_by_team_name = {
             str(schedule.team.name).strip().upper(): schedule
             for schedule in today_schedules
             if schedule.team and schedule.team.name
         }
-        submitted_report_statuses = [
-            EducationReport.ReportStatus.PENDING_REVIEW,
-            EducationReport.ReportStatus.SUBMITTED,
-            EducationReport.ReportStatus.APPROVED,
-            EducationReport.ReportStatus.RETURNED,
-        ]
-        submitted_report_filter = Q(technical_reports__status__in=submitted_report_statuses)
-        completed_today_qs = operational_base.filter(
-            Q(status=Agenda.Status.COMPLETED) | submitted_report_filter
-        ).distinct()
-        completed_today_ids = list(completed_today_qs.values_list("id", flat=True))
-        cancelled_today_qs = operational_base.filter(status=Agenda.Status.CANCELLED)
-        in_progress_today_qs = operational_base.filter(
-            start_time__lte=now,
-            end_time__gte=now,
-        ).exclude(status=Agenda.Status.CANCELLED).exclude(id__in=completed_today_ids).distinct()
-        pending_start_today_qs = operational_base.filter(
-            status=Agenda.Status.APPROVED,
-            start_time__gt=now,
-        ).exclude(id__in=completed_today_ids).distinct()
-        pending_report_today_qs = operational_base.filter(
-            date=operational_date,
-            start_time__lt=now,
-            service_order_number__isnull=False,
-        ).exclude(status__in=[Agenda.Status.CANCELLED, Agenda.Status.COMPLETED]).exclude(
-            id__in=completed_today_ids
-        ).distinct()
-
         allowed_field_teams = {"ALFA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOX", "GOLF", "HOTEL"}
 
         def clean_display(value, fallback="NÃ£o informado"):
@@ -1643,21 +1668,12 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return clean_display(agenda.action_type_ref.name if agenda.action_type_ref else agenda.action_type, "A\u00e7\u00e3o")
 
         def operational_status(agenda):
-            if agenda.status == Agenda.Status.CANCELLED:
-                return "cancelled", "Cancelada"
-            if agenda.status == Agenda.Status.PENDING:
-                return "pending_approval", "Aguardando aprova\u00e7\u00e3o"
-            if agenda.id in completed_today_ids:
-                return "completed", "Conclu\u00edda"
-            if agenda.start_time and agenda.start_time > now:
-                return "scheduled", "Pr\u00f3xima"
-            if agenda.start_time and agenda.end_time and agenda.start_time <= now <= agenda.end_time:
-                return "in_progress", "Em andamento"
-            if agenda.end_time and agenda.end_time < now:
-                return "pending_report", "Aguardando relat\u00f3rio"
-            if agenda.start_time and not agenda.end_time and agenda.start_time <= now:
-                return "in_progress", "Em andamento"
-            return "scheduled", "Pr\u00f3xima"
+            return classify_operational_status(
+                agenda_date=agenda.date,
+                start_time=agenda.start_time,
+                end_time=agenda.end_time,
+                agenda_status=agenda.status,
+            )
 
         def agenda_agents_names(agenda):
             refs = list(agenda.agents_ref.all())
@@ -1731,9 +1747,46 @@ class AgendaViewSet(viewsets.ModelViewSet):
             ]
 
         def latest_report_for_agenda(agenda):
+            reports = list(agenda.technical_reports.all())
+            reports.sort(key=lambda report: report.updated_at or report.created_at, reverse=True)
+            return reports[0] if reports else None
+
+        def legacy_report_for_agenda(agenda):
             reports = [report for report in agenda.technical_reports.all() if report.status != EducationReport.ReportStatus.DRAFT]
             reports.sort(key=lambda report: report.updated_at or report.created_at, reverse=True)
             return reports[0] if reports else None
+
+        def report_status_payload(report):
+            meta_key, badge_label, label = REPORT_STATUS_META.get(getattr(report, "status", None), REPORT_STATUS_META[None])
+            return {
+                "key": meta_key,
+                "badge_label": badge_label,
+                "label": label,
+                "status": getattr(report, "status", None),
+            }
+
+        def attendance_status_payload(schedule, agenda):
+            expected_members = get_expected_attendance_member_keys(agenda, schedule)
+            checked_members = schedule.checked_members if schedule else {}
+            checked_count = len(checked_members.keys()) if isinstance(checked_members, dict) else 0
+            expected_count = len(expected_members)
+            if schedule and schedule.attendance_approved:
+                key = "approved"
+            elif schedule and schedule.attendance_reported:
+                key = "reported"
+            else:
+                key = "pending"
+            badge_label, label = ATTENDANCE_STATUS_META[key]
+            return {
+                "key": key,
+                "badge_label": badge_label,
+                "label": label,
+                "reported": bool(schedule.attendance_reported) if schedule else False,
+                "approved": bool(schedule.attendance_approved) if schedule else False,
+                "checked_members_count": checked_count,
+                "expected_members_count": expected_count,
+                "has_partial_checks": bool(expected_count and 0 < checked_count < expected_count),
+            }
 
         def report_details_payload(report):
             if not report:
@@ -1784,29 +1837,34 @@ class AgendaViewSet(viewsets.ModelViewSet):
         total_estimated_public = 0
         total_reached_public = 0
         for agenda in today_agendas:
-            status_key, status_text = operational_status(agenda)
+            status_key, operational_badge_label, status_text = operational_status(agenda)
             agents_names = agenda_agents_names(agenda)
             supports_names = agenda_supports_names(agenda)
             report = latest_report_for_agenda(agenda)
-            absences = absence_payload(schedule_for_agenda(agenda))
-            if report:
-                if report.status == EducationReport.ReportStatus.APPROVED:
-                    status_key, status_text = "completed", "Conclu\u00edda"
-                else:
-                    status_key, status_text = "submitted", "Relat\u00f3rio enviado"
-            report_payload = report_details_payload(report)
+            legacy_report = legacy_report_for_agenda(agenda)
+            schedule = schedule_for_agenda(agenda)
+            report_status = report_status_payload(report)
+            attendance_status = attendance_status_payload(schedule, agenda)
+            absences = absence_payload(schedule)
+            report_payload = report_details_payload(legacy_report)
             estimated_public = numeric_public_estimate(agenda)
             reached_public = report_payload["public_reached"] if report_payload else 0
             total_estimated_public += estimated_public
             total_reached_public += reached_public
             supports_count = len(supports_names)
             total_supports += supports_count
+            start_dt, end_dt = build_agenda_operational_window(
+                agenda_date=agenda.date,
+                start_time=agenda.start_time,
+                end_time=agenda.end_time,
+            )
             operation_rows.append({
                 "id": agenda.id,
                 "title": agenda.title,
                 "date": agenda.date.isoformat(),
                 "time": agenda.start_time.isoformat(timespec="minutes") if agenda.start_time else "",
                 "end_time": agenda.end_time.isoformat(timespec="minutes") if agenda.end_time else "",
+                "time_range": f"{agenda.start_time.isoformat(timespec='minutes')}–{agenda.end_time.isoformat(timespec='minutes')}" if agenda.start_time and agenda.end_time else (agenda.start_time.isoformat(timespec="minutes") if agenda.start_time else ""),
                 "type": operational_action_type(agenda),
                 "location": operational_location(agenda),
                 "address": agenda.address or "",
@@ -1819,7 +1877,22 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "chief": operational_chief_label(agenda),
                 "status": agenda.status,
                 "operational_status": status_key,
+                "operational_status_badge_label": operational_badge_label,
                 "operational_status_label": status_text,
+                "operational_start": start_dt.isoformat(),
+                "operational_end": end_dt.isoformat(),
+                "report_status": report_status["key"],
+                "report_status_label": report_status["label"],
+                "report_status_badge_label": report_status["badge_label"],
+                "report_status_code": report_status["status"],
+                "attendance_status": attendance_status["key"],
+                "attendance_status_label": attendance_status["label"],
+                "attendance_status_badge_label": attendance_status["badge_label"],
+                "attendance_reported": attendance_status["reported"],
+                "attendance_approved": attendance_status["approved"],
+                "attendance_checked_members_count": attendance_status["checked_members_count"],
+                "attendance_expected_members_count": attendance_status["expected_members_count"],
+                "attendance_has_partial_checks": attendance_status["has_partial_checks"],
                 "service_order_number": agenda.service_order_number,
                 "agents_count": len(agents_names),
                 "agents_names": agents_names,
@@ -1836,51 +1909,31 @@ class AgendaViewSet(viewsets.ModelViewSet):
         operational_team_names = {row["team"] for row in operation_rows if row["team"] != "Sem equipe"}
         operational_chief_names = {row["chief"] for row in operation_rows if row["chief"] != "Sem chefe"}
         total_agents_scheduled = sum(row["agents_count"] for row in operation_rows)
-        pending_approval_today = operational_base.filter(status=Agenda.Status.PENDING).count()
-
-        alerts = []
-        for agenda in operational_base.filter(status=Agenda.Status.APPROVED, service_order_number__isnull=True).order_by("start_time")[:5]:
-            alerts.append({
-                "severity": "warning",
-                "title": "Ordem de ServiÃ§o pendente",
-                "description": f"{agenda.title} ainda nÃ£o possui OS emitida.",
-                "href": f"/agendas?q={agenda.id}",
-                "agenda_id": agenda.id,
-            })
-        for agenda in pending_report_today_qs.order_by("start_time")[:5]:
-            alerts.append({
-                "severity": "info",
-                "title": "Relatório técnico aguardando envio",
-                "description": f"{agenda.title} jÃ¡ passou do horÃ¡rio e ainda nÃ£o tem relatório aprovado.",
-                "href": "/relatorio-tecnico",
-                "agenda_id": agenda.id,
-            })
-        for agenda in operational_base.filter(Q(team_ref__isnull=True) & Q(team_name="")).order_by("start_time")[:3]:
-            alerts.append({
-                "severity": "danger",
-                "title": "Equipe nÃ£o definida",
-                "description": f"{agenda.title} precisa de equipe antes da execuÃ§Ã£o.",
-                "href": f"/agendas?q={agenda.id}",
-                "agenda_id": agenda.id,
-            })
-        for agenda in operational_base.filter(status=Agenda.Status.CANCELLED).order_by("start_time")[:3]:
-            alerts.append({
-                "severity": "muted",
-                "title": "Agenda cancelada hoje",
-                "description": f"{agenda.title} consta como cancelada na operaÃ§Ã£o do dia.",
-                "href": f"/agendas?q={agenda.id}",
-                "agenda_id": agenda.id,
-            })
-
+        completed_operational_count = sum(1 for row in operation_rows if row["operational_status"] == "completed")
+        in_progress_operational_count = sum(1 for row in operation_rows if row["operational_status"] == "in_progress")
+        scheduled_operational_count = sum(1 for row in operation_rows if row["operational_status"] == "scheduled")
+        cancelled_operational_count = sum(1 for row in operation_rows if row["operational_status"] == "cancelled")
+        pending_reports_count = sum(
+            1
+            for row in operation_rows
+            if row["operational_status"] == "completed" and row["report_status"] in {"none", "draft", "returned"}
+        )
+        pending_attendance_count = sum(
+            1
+            for row in operation_rows
+            if row["operational_status"] != "cancelled" and row["attendance_status"] == "pending"
+        )
+        returned_reports_count = sum(1 for row in operation_rows if row["report_status"] == "returned")
+        missing_team_count = sum(1 for row in operation_rows if row["team"] == "Sem equipe")
         operations = {
             "date": operational_date.isoformat(),
             "cards": {
                 "scheduled_today": {"value": operational_base.count(), "label": "A\u00e7\u00f5es do dia"},
-                "in_progress": {"value": in_progress_today_qs.count(), "label": "Em andamento"},
-                "pending_start": {"value": pending_start_today_qs.count(), "label": "Pr\u00f3ximas"},
-                "completed": {"value": completed_today_qs.count(), "label": "Conclu\u00eddas"},
-                "cancelled": {"value": cancelled_today_qs.count(), "label": "A\u00e7\u00f5es canceladas"},
-                "pending_reports": {"value": pending_report_today_qs.count(), "label": "Relat\u00f3rios aguardando envio"},
+                "in_progress": {"value": in_progress_operational_count, "label": "Em andamento"},
+                "pending_start": {"value": scheduled_operational_count, "label": "Pr\u00f3ximas"},
+                "completed": {"value": completed_operational_count, "label": "Realizadas"},
+                "cancelled": {"value": cancelled_operational_count, "label": "A\u00e7\u00f5es canceladas"},
+                "pending_reports": {"value": pending_reports_count, "label": "Relat\u00f3rios pendentes"},
                 "estimated_public": {"value": total_estimated_public, "label": "Estimativa de p\u00fablico"},
                 "public_reached": {"value": total_reached_public, "label": "P\u00fablico alcan\u00e7ado informado"},
                 "teams_active": {"value": len(operational_team_names), "label": "Equipes"},
@@ -1888,10 +1941,47 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "agents_scheduled": {"value": total_agents_scheduled, "label": "Agentes"},
                 "supports_scheduled": {"value": total_supports, "label": "Apoios"},
             },
-            "alerts": alerts[:10],
+            "alerts": [],
             "field_operations": operation_rows,
             "timeline": operation_rows,
         }
+        operational_attention = []
+        if pending_reports_count:
+            operational_attention.append({
+                "severity": "warning",
+                "title": "Relatórios pendentes",
+                "description": f"{pending_reports_count} atividade(s) realizada(s) aguardam relatório.",
+                "href": "/relatorio-tecnico",
+            })
+        if pending_attendance_count:
+            operational_attention.append({
+                "severity": "info",
+                "title": "Frequência pendente",
+                "description": f"{pending_attendance_count} frequência(s) ainda precisa(m) ser concluída(s).",
+                "href": "/shift-schedules",
+            })
+        if returned_reports_count:
+            operational_attention.append({
+                "severity": "warning",
+                "title": "Relatórios devolvidos",
+                "description": f"{returned_reports_count} relatório(s) foi(foram) devolvido(s) para correção.",
+                "href": "/relatorio-tecnico",
+            })
+        if missing_team_count:
+            operational_attention.append({
+                "severity": "danger",
+                "title": "Equipe não definida",
+                "description": f"{missing_team_count} atividade(s) ainda não possui(em) equipe definida.",
+                "href": "/agendas",
+            })
+        else:
+            operational_attention.append({
+                "severity": "success",
+                "title": "Equipe definida",
+                "description": "Todas as atividades possuem equipe definida.",
+                "href": "/agendas",
+            })
+        operations["alerts"] = operational_attention[:10]
 
         status_total = max(qs_base.count(), 1)
         completion_rate = round((completed / status_total) * 100, 1)

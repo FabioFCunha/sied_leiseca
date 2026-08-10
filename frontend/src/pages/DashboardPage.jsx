@@ -416,52 +416,6 @@ function Heatmap({ data = [] }) {
   );
 }
 
-function MiniCalendar({ days = [] }) {
-  const max = Math.max(...days.map((item) => item.total), 1);
-  const monthLabel = days[0]?.date
-    ? new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${days[0].date}T00:00:00Z`))
-    : "mês";
-  return (
-    <div className="chart-card mini-calendar-card" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px" }}>
-      <div className="section-heading" style={{ marginBottom: "16px" }}>
-        <div>
-          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Calendário de {monthLabel}</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Quantidade de agendas por dia.</p>
-        </div>
-      </div>
-      <div className="mini-calendar" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px" }}>
-        {days.map((day) => (
-          <button
-            key={day.date}
-            title={`${formatDateBR(day.date)}: ${day.total} agendas`}
-            type="button"
-            style={{
-              background: "var(--surface-2)",
-              border: "1px solid var(--line)",
-              borderRadius: "10px",
-              padding: "8px 4px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "4px",
-              position: "relative",
-              cursor: "pointer",
-              transition: "transform 0.2s ease, border-color 0.2s ease",
-            }}
-          >
-            <span style={{ fontSize: "12px", fontWeight: "700" }}>{day.day}</span>
-            <strong style={{ fontSize: "11px", color: day.total ? "var(--primary)" : "var(--text-soft)" }}>{day.total}</strong>
-            <i style={{ display: "block", width: "4px", height: "4px", borderRadius: "50%", background: day.total ? "var(--primary)" : "transparent" }} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MiniCalendarWrap({ calendar }) {
-  return <MiniCalendar days={calendar} />;
-}
 
 function ActivityPanel({ activity, advanced, materials }) {
   const distributedMaterials = materials?.distributed || { total: 0, items: [] };
@@ -519,18 +473,12 @@ function ActivityPanel({ activity, advanced, materials }) {
 }
 
 const operationalCardConfig = [
-  { key: "estimated_public", title: "P\u00fablico estimado", hint: "Soma prevista das agendas", icon: Users, color: "#00a676", gradient: "linear-gradient(135deg, #00a676, #007a58)" },
-  { key: "public_reached", title: "P\u00fablico alcan\u00e7ado", hint: "Informado nos relat\u00f3rios", icon: UserCheck, color: "#6c5ce7", gradient: "linear-gradient(135deg, #6c5ce7, #5345b5)" },
   { key: "scheduled_today", title: "A\u00e7\u00f5es do dia", hint: "Agenda operacional da data", icon: CalendarCheck, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
   { key: "in_progress", title: "Em andamento", hint: "A\u00e7\u00f5es no hor\u00e1rio atual", icon: PauseCircle, color: "#00a676", gradient: "linear-gradient(135deg, #00a676, #007a58)" },
   { key: "pending_start", title: "Pr\u00f3ximas", hint: "Ainda v\u00e3o acontecer", icon: Clock3, color: "#f6a700", gradient: "linear-gradient(135deg, #f6bd16, #d98b00)" },
-  { key: "completed", title: "Conclu\u00eddas", hint: "Com relat\u00f3rio enviado", icon: CheckCheck, color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0057a8)" },
+  { key: "completed", title: "Realizadas", hint: "Hor\u00e1rio operacional encerrado", icon: CheckCheck, color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0057a8)" },
+  { key: "cancelled", title: "Canceladas", hint: "A\u00e7\u00f5es canceladas", icon: XCircle, color: "#7f8c8d", gradient: "linear-gradient(135deg, #7f8c8d, #5f6b6d)" },
   { key: "pending_reports", title: "Relat\u00f3rios pendentes", hint: "A\u00e7\u00f5es j\u00e1 report\u00e1veis", icon: AlertTriangle, color: "#dc6b16", gradient: "linear-gradient(135deg, #f97316, #c2410c)" },
-  { key: "teams_active", title: "Equipes", hint: "Equipes escaladas", icon: Shield, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
-  { key: "chiefs_active", title: "Chefes", hint: "Chefes em opera\u00e7\u00e3o", icon: UserCheck, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
-  { key: "agents_scheduled", title: "Agentes", hint: "Agentes em campo", icon: Users, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
-  { key: "supports_scheduled", title: "Apoios", hint: "Apoios escalados", icon: Users, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
-  { key: "cancelled", title: "A\u00e7\u00f5es canceladas", hint: "A\u00e7\u00f5es canceladas", icon: FileText, color: "#0048d7", gradient: "linear-gradient(135deg, #0048d7, #002d72)" },
 ];
 
 const workforceConfig = [
@@ -544,11 +492,8 @@ const workforceConfig = [
 const operationStatusStyle = {
   scheduled: { label: "Pr\u00f3xima", color: "#0048d7", bg: "#edf4ff" },
   in_progress: { label: "Em andamento", color: "#007a58", bg: "#e7f8f1" },
-  completed: { label: "Conclu\u00edda", color: "#047857", bg: "#dcfce7" },
+  completed: { label: "Realizada", color: "#047857", bg: "#dcfce7" },
   cancelled: { label: "Cancelada", color: "#b91c1c", bg: "#fee2e2" },
-  pending_report: { label: "Aguardando relat\u00f3rio", color: "#b45309", bg: "#fff7ed" },
-  submitted: { label: "Relat\u00f3rio enviado", color: "#1d4ed8", bg: "#dbeafe" },
-  pending_approval: { label: "Aguardando aprova\u00e7\u00e3o", color: "#92400e", bg: "#fef3c7" },
 };
 
 
@@ -567,163 +512,6 @@ function SectionCard({ icon: Icon, title, subtitle, children }) {
   );
 }
 
-function formatInsightCount(count, singular, plural) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
-function buildOperationalInsights(operations = [], cards = {}) {
-  const safeOperations = Array.isArray(operations) ? operations : [];
-  if (!safeOperations.length) return [];
-
-  const total = safeOperations.length;
-  const completed = safeOperations.filter((item) => item?.operational_status === "completed").length;
-  const inProgress = safeOperations.filter((item) => item?.operational_status === "in_progress").length;
-  const upcoming = safeOperations.filter((item) => ["scheduled", "pending_approval"].includes(item?.operational_status)).length;
-  const cancelled = safeOperations.filter((item) => {
-    const status = String(item?.status || "").toUpperCase();
-    const operationalStatus = String(item?.operational_status || "").toUpperCase();
-    return ["CANCELLED", "CANCELED", "REJECTED", "REFUSED"].includes(status)
-      || ["CANCELLED", "CANCELED"].includes(operationalStatus);
-  }).length;
-
-  const totalEstimated = safeOperations.reduce((sum, item) => {
-    const value = Number(item?.estimated_public || 0);
-    return Number.isFinite(value) && value > 0 ? sum + value : sum;
-  }, 0);
-  const totalReached = safeOperations.reduce((sum, item) => {
-    const value = Number(item?.public_reached || 0);
-    return Number.isFinite(value) && value > 0 ? sum + value : sum;
-  }, 0);
-
-  const withReport = safeOperations.filter((item) => item?.report).length;
-  const withoutReport = Math.max(total - withReport, 0);
-  const pendingReports = Number(cards?.pending_reports?.value || 0);
-
-  const largestAction = safeOperations.reduce((currentLargest, item) => {
-    const reached = Number(item?.public_reached || 0);
-    if (!Number.isFinite(reached) || reached <= 0) return currentLargest;
-    if (!currentLargest || reached > currentLargest.reached) {
-      return {
-        name: item?.location || item?.title || item?.type || "Ação sem identificação",
-        reached,
-      };
-    }
-    return currentLargest;
-  }, null);
-
-  const teamCounts = new Map();
-  safeOperations.forEach((item) => {
-    const team = String(item?.team || "").trim();
-    if (!team || team === "Sem equipe") return;
-    teamCounts.set(team, (teamCounts.get(team) || 0) + 1);
-  });
-  const rankedTeams = [...teamCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"));
-  const topTeamCount = rankedTeams[0]?.[1] || 0;
-  const topTeams = rankedTeams.filter(([, value]) => value === topTeamCount).map(([team]) => team);
-
-  const actionsWithoutEstimate = safeOperations.filter((item) => {
-    const value = Number(item?.estimated_public || 0);
-    return !Number.isFinite(value) || value <= 0;
-  }).length;
-  const actionsWithStaffChanges = safeOperations.filter((item) => Array.isArray(item?.report?.changes_staff) && item.report.changes_staff.length > 0).length;
-  const actionsWithAbsences = safeOperations.filter((item) => Number(item?.absence_count || 0) > 0).length;
-
-  const insights = [];
-
-  if (pendingReports > 0) {
-    insights.push({
-      title: "Relatórios pendentes",
-      body: `Existem ${formatInsightCount(pendingReports, "relatório pendente", "relatórios pendentes")} para o período selecionado.`,
-    });
-  }
-
-  if (cancelled > 0) {
-    insights.push({
-      title: "Ações canceladas",
-      body: `${formatInsightCount(cancelled, "ação foi cancelada e ficou fora da contagem de OS emitidas", "ações foram canceladas e ficaram fora da contagem de OS emitidas")}.`,
-    });
-  }
-
-  if (actionsWithStaffChanges > 0) {
-    insights.push({
-      title: "Alterações de efetivo",
-      body: `${formatInsightCount(actionsWithStaffChanges, "ação registrou alteração de efetivo", "ações registraram alterações de efetivo")} no período.`,
-    });
-  }
-
-  if (actionsWithoutEstimate > 0) {
-    insights.push({
-      title: "Público estimado",
-      body: `${formatInsightCount(actionsWithoutEstimate, "ação não informou público estimado", "ações não informaram público estimado")}.`,
-    });
-  }
-
-  if (withoutReport > 0) {
-    insights.push({
-      title: "Cobertura de relatórios",
-      body: `${formatInsightCount(withoutReport, "ação segue sem relatório", "ações seguem sem relatório")}.`,
-    });
-  }
-
-  if (actionsWithAbsences > 0) {
-    insights.push({
-      title: "Faltas registradas",
-      body: `${formatInsightCount(actionsWithAbsences, "ação teve falta registrada", "ações tiveram faltas registradas")} na frequência.`,
-    });
-  }
-
-  if (totalEstimated > 0 && totalReached > 0) {
-    const reachedPercentage = Math.round((totalReached / totalEstimated) * 100);
-    if (reachedPercentage < 100) {
-      insights.push({
-        title: "Público alcançado",
-        body: `Foram alcançadas ${Number(totalReached).toLocaleString("pt-BR")} pessoas, correspondendo a ${reachedPercentage}% do público estimado.`,
-      });
-    } else if (reachedPercentage > 100) {
-      insights.push({
-        title: "Público alcançado",
-        body: `Foram alcançadas ${Number(totalReached).toLocaleString("pt-BR")} pessoas, acima do público estimado de ${Number(totalEstimated).toLocaleString("pt-BR")}.`,
-      });
-    }
-  } else if (totalReached > 0) {
-    insights.push({
-      title: "Público alcançado",
-      body: `As ações com relatório registraram ${Number(totalReached).toLocaleString("pt-BR")} pessoas alcançadas.`,
-    });
-  }
-
-  if (largestAction) {
-    insights.push({
-      title: "Destaque",
-      body: `A ação ${largestAction.name} teve o maior alcance, com ${Number(largestAction.reached).toLocaleString("pt-BR")} pessoas.`,
-    });
-  }
-
-  if (topTeams.length === 1) {
-    insights.push({
-      title: "Equipe com maior atuação",
-      body: `A equipe ${topTeams[0]} concentrou o maior número de ações do período, com ${formatInsightCount(topTeamCount, "ação", "ações")}.`,
-    });
-  } else if (topTeams.length > 1 && topTeamCount > 0) {
-    insights.push({
-      title: "Equipes em destaque",
-      body: `Houve empate entre ${topTeams.join(", ")}, com ${formatInsightCount(topTeamCount, "ação", "ações")} cada.`,
-    });
-  }
-
-  const summaryParts = [];
-  if (completed > 0) summaryParts.push(`${formatInsightCount(completed, "concluída", "concluídas")}`);
-  if (inProgress > 0) summaryParts.push(`${inProgress} em andamento`);
-  if (upcoming > 0) summaryParts.push(`${formatInsightCount(upcoming, "próxima", "próximas")}`);
-  insights.push({
-    title: "Resumo do período",
-    body: summaryParts.length
-      ? `O período filtrado teve ${formatInsightCount(total, "ação", "ações")}, com ${summaryParts.join(", ")}.`
-      : `O período filtrado teve ${formatInsightCount(total, "ação", "ações")}.`,
-  });
-
-  return insights.slice(0, 5);
-}
 
 function OperationalCard({ config, data }) {
   const Icon = config.icon;
@@ -740,145 +528,60 @@ function OperationalCard({ config, data }) {
   );
 }
 
-function StatusPill({ status }) {
-  const style = operationStatusStyle[status] || operationStatusStyle.scheduled;
-  return <span style={{ borderRadius: 999, padding: "5px 10px", background: style.bg, color: style.color, fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>{style.label}</span>;
+
+function DimensionPill({ label, tone }) {
+  return <span style={{ borderRadius: 999, padding: "5px 10px", background: tone.bg, color: tone.color, fontSize: 11, fontWeight: 900, whiteSpace: "nowrap" }}>{label}</span>;
 }
 
-function TextList({ label, value }) {
-  if (!value || (Array.isArray(value) && !value.length)) return null;
-  const values = Array.isArray(value) ? value : [value];
+function OperationDashboardTable({ operations = [] }) {
   return (
-    <div style={{ display: "grid", gap: 3 }}>
-      <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>{label}</strong>
-      {values.map((item, index) => <span key={`${label}-${index}`} style={{ fontSize: 13, color: "var(--text)" }}>{item}</span>)}
-    </div>
-  );
-}
-
-function OperationDayPanel({ operations = [] }) {
-  return (
-    <SectionCard icon={MapPin} title={"Operação do dia"} subtitle={"Ações em ordem cronológica, com equipe, efetivo, materiais, público e relatório técnico."}>
+    <SectionCard icon={MapPin} title={"Opera\u00e7\u00e3o do dia"} subtitle={"Hor\u00e1rio, equipe, situa\u00e7\u00e3o operacional, frequ\u00eancia e relat\u00f3rio em leitura direta."}>
       {operations.length ? (
-        <div style={{ display: "grid", gap: 14 }}>
-          {operations.map((item) => {
-            const report = item.report;
-            const materialsUsed = [
-              ...(report?.materials_removed || []),
-              ...(report?.materials_spent || []),
-              ...(report?.equipment_materials_distributed || []),
-            ];
-            const materialsDistributed = [
-              ...(report?.distribution_materials_distributed || []),
-              ...((report?.actions || []).flatMap((action) => action.distribution_materials || [])),
-            ];
-            const accessibilityLabel = {
-              YES: "Sim",
-              NO: "Não",
-              PARTIAL: "Parcial",
-            }[String(report?.accessibility_conditions_met || "").toUpperCase()] || report?.accessibility_conditions_met;
-            return (
-              <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 16, padding: "16px 18px", background: "var(--surface-2)", display: "grid", gap: 12 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "82px minmax(0, 1fr) auto", gap: 14, alignItems: "center" }}>
-                  <strong style={{ color: "var(--primary)", fontSize: 16, fontWeight: 900 }}>{item.time || "--:--"}</strong>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <strong style={{ color: "var(--text)", fontSize: 15, fontWeight: 900 }}>{item.type || item.title}</strong>
-                      {item.service_order_number && <span style={{ color: "var(--text-soft)", fontSize: 12, fontWeight: 800 }}>OS {item.service_order_number}</span>}
-                    </div>
-                    <p style={{ margin: "4px 0 0", color: "var(--text)", fontSize: 13.5, fontWeight: 700 }}>{item.location} <span aria-hidden="true">-</span> {item.municipality}</p>
-                    <small style={{ color: "var(--text-soft)", display: "block", marginTop: 4 }}>Equipe {item.team} <span aria-hidden="true">-</span> Chefe {item.chief}</small>
-                  </div>
-                  <StatusPill status={item.operational_status} />
+        <div style={{ display: "grid", gap: 12 }}>
+          {operations.map((item) => (
+            <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 16, padding: "16px 18px", background: "var(--surface-2)", display: "grid", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "120px minmax(0, 1fr)", gap: 14, alignItems: "start" }}>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <strong style={{ color: "var(--primary)", fontSize: 15, fontWeight: 900 }}>{item.time_range || item.time || "--:--"}</strong>
+                  <span style={{ color: "var(--text-soft)", fontSize: 12, fontWeight: 800 }}>{item.service_order_number ? `OS ${item.service_order_number}` : "Sem OS"}</span>
                 </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, paddingTop: 8, borderTop: "1px solid var(--line)" }}>
-                  <TextList label="Agentes em campo" value={item.agents_names} />
-                  <TextList label="Apoios" value={item.supports_names} />
-                  <TextList label={"P\u00fablico estimado"} value={item.estimated_public ? `${Number(item.estimated_public).toLocaleString("pt-BR")} pessoas` : "N\u00e3o informado"} />
-                  <TextList label={"P\u00fablico alcan\u00e7ado"} value={item.public_reached ? `${Number(item.public_reached).toLocaleString("pt-BR")} pessoas` : "Aguardando relat\u00f3rio"} />
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    <strong style={{ color: "var(--text)", fontSize: 15, fontWeight: 900 }}>{item.type || item.title}</strong>
+                    <span style={{ color: "var(--text)", fontSize: 13.5, fontWeight: 700 }}>{item.location}</span>
+                    <small style={{ color: "var(--text-soft)" }}>Equipe {item.team}</small>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <DimensionPill label={item.operational_status_label} tone={operationStatusStyle[item.operational_status] || operationStatusStyle.scheduled} />
+                    <DimensionPill label={item.attendance_status_label} tone={attendanceStatusStyle[item.attendance_status] || attendanceStatusStyle.pending} />
+                    <DimensionPill label={item.report_status_label} tone={reportStatusStyle[item.report_status] || reportStatusStyle.none} />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 8 }}>
+                    <small style={{ color: "var(--text-soft)" }}><strong style={{ color: "var(--text)" }}>Município:</strong> {item.municipality}</small>
+                    <small style={{ color: "var(--text-soft)" }}><strong style={{ color: "var(--text)" }}>Chefe:</strong> {item.chief}</small>
+                    <small style={{ color: "var(--text-soft)" }}><strong style={{ color: "var(--text)" }}>Frequência:</strong> {item.attendance_status_label}</small>
+                    <small style={{ color: "var(--text-soft)" }}><strong style={{ color: "var(--text)" }}>Relatório:</strong> {item.report_status_label}</small>
+                  </div>
                 </div>
-
-                {item.absences?.length ? (
-                  <div style={{ border: "1px solid #fecaca", background: "#fef2f2", color: "#7f1d1d", borderRadius: 12, padding: "12px 14px", display: "grid", gap: 8 }}>
-                    <strong style={{ fontSize: 13, textTransform: "uppercase" }}>{"Faltas registradas na frequ\u00eancia"}</strong>
-                    {item.absences.map((absence, index) => (
-                      <div key={`${item.id}-absence-${index}`} style={{ fontSize: 13, display: "grid", gap: 3 }}>
-                        <span><strong>{absence.name}</strong> {absence.role ? `(${absence.role})` : ""}</span>
-                        {absence.reason && <span>Justificativa: {absence.reason}</span>}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-
-                {report ? (
-                  <div style={{ display: "grid", gap: 12, padding: 12, borderRadius: 12, background: "var(--surface)", border: "1px solid var(--line)" }}>
-                    <strong style={{ color: "var(--primary)", fontSize: 13, textTransform: "uppercase" }}>{"Informa\u00e7\u00f5es digitadas no relat\u00f3rio"}</strong>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
-                      <TextList label="Efetivo PCD" value={report.education_pcd} />
-                      <TextList label="Agentes informados" value={report.education_agents} />
-                      <TextList label={"Altera\u00e7\u00f5es de efetivo"} value={report.changes_staff} />
-                      <TextList label={"Materiais de apoio/din\u00e2micas utilizados"} value={materialsUsed} />
-                      <TextList label={"Materiais distribu\u00eddos"} value={materialsDistributed} />
-                      <TextList label="Viaturas" value={report.cars} />
-                      <TextList label="Acessibilidade" value={accessibilityLabel} />
-                      <TextList label="Contato recebido" value={report.contact_received} />
-                      <TextList label={"Institui\u00e7\u00e3o/local informado"} value={report.occurrence_observation} />
-                      <TextList label={"Observa\u00e7\u00f5es gerais"} value={report.general_observations} />
-                    </div>
-                    {report?.has_exceptional_occurrence === true ? (
-                      <div style={getExceptionalOccurrenceStyle(report.exceptional_occurrence_impact)}>
-                        <strong style={{ fontSize: 13, textTransform: "uppercase" }}>{"Ocorrência excepcional"}</strong>
-                        <div style={{ fontSize: 13 }}>
-                          <strong>Tipo:</strong>{" "}
-                          {exceptionalOccurrenceTypeLabels[report.exceptional_occurrence_type]
-                            || report.exceptional_occurrence_type
-                            || "-"}
-                        </div>
-                        <div style={{ fontSize: 13 }}>
-                          <strong>Impacto:</strong>{" "}
-                          {exceptionalOccurrenceImpactLabels[report.exceptional_occurrence_impact]
-                            || report.exceptional_occurrence_impact
-                            || "-"}
-                        </div>
-                        {report.exceptional_occurrence_description ? (
-                          <div style={{ display: "grid", gap: 4, fontSize: 13 }}>
-                            <strong>Descrição:</strong>
-                            <div style={{ whiteSpace: "pre-wrap" }}>{report.exceptional_occurrence_description}</div>
-                          </div>
-                        ) : null}
-                        {report.exceptional_occurrence_actions_taken ? (
-                          <div style={{ display: "grid", gap: 4, fontSize: 13 }}>
-                            <strong>Providências adotadas:</strong>
-                            <div style={{ whiteSpace: "pre-wrap" }}>{report.exceptional_occurrence_actions_taken}</div>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {report.actions?.length ? (
-                      <div style={{ display: "grid", gap: 8 }}>
-                        <strong style={{ fontSize: 12, color: "var(--text-soft)", textTransform: "uppercase" }}>{"A\u00e7\u00f5es relatadas"}</strong>
-                        {report.actions.map((action, index) => (
-                          <div key={`${item.id}-action-${index}`} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10 }}>
-                            <strong style={{ fontSize: 13 }}>{action.type || `A\u00e7\u00e3o ${index + 1}`}</strong>
-                            <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>{action.place || "Local n\u00e3o informado"} - {action.start_time || "--"} {"\u00e0s"} {action.final_hour || "--"} - {Number(action.reported_approaches || action.approached_actions || action.approach || 0).toLocaleString("pt-BR")} abordagens</small>
-                                                        {action.support_materials?.length ? <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>Materiais de apoio/dinâmicas: {action.support_materials.join(", ")}</small> : null}
-                            {action.distribution_materials?.length ? <small style={{ display: "block", color: "var(--text-soft)", marginTop: 3 }}>Materiais distribuídos: {action.distribution_materials.join(", ")}</small> : null}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
+              </div>
+            </article>
+          ))}
         </div>
       ) : (
         <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>{"Nenhuma a\u00e7\u00e3o programada para hoje."}</p>
       )}
     </SectionCard>
   );
+}
+
+function buildOperationalAttentionItems(alerts = []) {
+  const safeAlerts = Array.isArray(alerts) ? alerts : [];
+  return safeAlerts.map((item, index) => ({
+    title: item?.title || `Pendência ${index + 1}`,
+    body: item?.description || "",
+    severity: item?.severity || "info",
+    href: item?.href || "",
+  }));
 }
 
 function WorkforcePanel({ cards = {} }) {
@@ -1100,16 +803,14 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: "grid", gap: "24px" }}>
-            <SectionCard icon={Activity} title={"Insights autom\u00e1ticos"} subtitle={"Leitura r\u00e1pida para gest\u00e3o"}>
+            <SectionCard icon={Activity} title={"Pend\u00eancias e aten\u00e7\u00e3o"} subtitle={"Pend\u00eancias objetivas do per\u00edodo."}>
               {(() => {
-                const operations = dashboard?.operations?.field_operations || [];
-                const cards = dashboard?.operations?.cards || {};
-                const insights = buildOperationalInsights(operations, cards);
+                const insights = buildOperationalAttentionItems(dashboard?.operations?.alerts || []);
 
                 if (!insights.length) {
                   return (
                     <p style={{ margin: 0, color: "var(--text-soft)", fontWeight: 700 }}>
-                      N\u00e3o h\u00e1 dados suficientes para gerar insights para os filtros selecionados.
+                      N\u00e3o h\u00e1 pend\u00eancias para os filtros selecionados.
                     </p>
                   );
                 }
@@ -1126,10 +827,7 @@ export default function DashboardPage() {
                 );
               })()}
             </SectionCard>
-            <OperationDayPanel operations={dashboard?.operations?.field_operations || []} />
-            <div style={{ marginTop: "24px" }}>
-              <MiniCalendar days={dashboard?.calendar || []} />
-            </div>
+            <OperationDashboardTable operations={dashboard?.operations?.field_operations || []} />
           </div>
         </>
       )}
