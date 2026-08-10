@@ -195,3 +195,37 @@ class VisitorPermissionsTests(APITestCase):
         # Supervisors can list and retrieve if they are scoped
         response = self.client.get("/api/agendas/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_admin_can_delete_unprotected_agenda(self):
+        self.client.force_authenticate(user=self.admin)
+        
+        response = self.client.delete(f"/api/agendas/{self.pending_agenda.id}/")
+        
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Agenda.objects.filter(id=self.pending_agenda.id).exists())
+
+    def test_visitor_cannot_delete_agenda_explicit(self):
+        self.client.force_authenticate(user=self.visitor)
+        
+        response = self.client.delete(f"/api/agendas/{self.pending_agenda.id}/")
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(Agenda.objects.filter(id=self.pending_agenda.id).exists())
+
+    def test_admin_cannot_delete_protected_agenda(self):
+        from apps.schedules.models import EducationReport
+        
+        self.client.force_authenticate(user=self.admin)
+        
+        EducationReport.objects.create(
+            agenda=self.pending_agenda,
+            created_by=self.admin,
+            status=EducationReport.ReportStatus.SUBMITTED,
+            operation_date="2026-07-10"
+        )
+        
+        response = self.client.delete(f"/api/agendas/{self.pending_agenda.id}/")
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        detail_msg = response.data.get("detail", "").lower()
+        self.assertIn("relatório técnico", detail_msg)

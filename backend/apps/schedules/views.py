@@ -985,6 +985,11 @@ class AgendaViewSet(viewsets.ModelViewSet):
             metadata,
         )
 
+    def _block_visitor_write(self):
+        if self.request.user and self.request.user.is_authenticated and self.request.user.role == User.Role.VISITOR:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("O perfil Visitante possui apenas permissão de consulta neste módulo.")
+
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self._block_visitor_write()
