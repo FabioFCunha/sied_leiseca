@@ -32,6 +32,8 @@ import MobileShiftScheduleDetailsPage from "./pages/mobile/MobileShiftScheduleDe
 import MobileAttendancePage from "./pages/mobile/MobileAttendancePage.jsx";
 import MobileShiftAttendancePage from "./pages/mobile/MobileShiftAttendancePage.jsx";
 import MobileDesignatedAttendancePage from "./pages/mobile/MobileDesignatedAttendancePage.jsx";
+import MobileShiftAttendanceEditPage from "./pages/mobile/MobileShiftAttendanceEditPage.jsx";
+import MobileDesignatedAttendanceEditPage from "./pages/mobile/MobileDesignatedAttendanceEditPage.jsx";
 import MobileReportsPage from "./pages/mobile/MobileReportsPage.jsx";
 import MobileReportDetailsPage from "./pages/mobile/MobileReportDetailsPage.jsx";
 
@@ -88,7 +90,9 @@ export default function App() {
         <Route path="escala/:id" element={<MobileShiftScheduleDetailsPage />} />
         <Route path="frequencia" element={<MobileAttendancePage />} />
         <Route path="frequencia/escala/:id" element={<MobileShiftAttendancePage />} />
+        <Route path="frequencia/escala/:id/editar" element={<MobileShiftAttendanceEditPage />} />
         <Route path="frequencia/agenda/:id" element={<MobileDesignatedAttendancePage />} />
+        <Route path="frequencia/agenda/:id/editar" element={<MobileDesignatedAttendanceEditPage />} />
         <Route path="relatorios" element={<MobileReportsPage />} />
         <Route path="relatorios/novo/:agendaId" element={<MobileReportFormPage />} />
         <Route path="relatorios/:id/editar" element={<MobileReportFormPage />} />
