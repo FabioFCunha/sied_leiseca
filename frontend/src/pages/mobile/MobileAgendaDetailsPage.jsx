@@ -287,12 +287,14 @@ export default function MobileAgendaDetailsPage() {
                 <a href={`tel:${agenda.team_phone.replace(/\D/g, '')}`} style={{ color: '#0a1e44', textDecoration: 'none' }}>{agenda.team_phone}</a>
               </p>
             ) : null}
-            {agenda.agents && agenda.agents.length > 0 && (
+            {Array.isArray(agenda.agents) && agenda.agents.length > 0 && (
               <div style={{ marginTop: '8px' }}>
                 <strong>Agentes:</strong>
                 <ul style={{ margin: '4px 0 0', paddingLeft: '20px', color: '#475569' }}>
                   {agenda.agents.map((ag, idx) => (
-                    <li key={idx} style={{ marginBottom: '4px' }}>{ag.full_name || ag.name || (typeof ag === 'string' ? ag : 'Agente')}</li>
+                    <li key={idx} style={{ marginBottom: '4px' }}>
+                      {typeof ag === 'string' ? ag : (ag.full_name || ag.name || 'Agente')}
+                    </li>
                   ))}
                 </ul>
               </div>
