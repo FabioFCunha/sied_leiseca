@@ -98,6 +98,63 @@ function isStreetActionAgenda(agenda) {
   );
 }
 
+
+function getAgendaActionPlace(agenda = {}) {
+  const fullAddress = [
+    agenda.address,
+    agenda.neighborhood || agenda.neighborhood_ref_name,
+    agenda.city || agenda.municipality_ref_name,
+    agenda.state,
+  ].filter(Boolean).join(", ");
+
+  return fullAddress || agenda.location || agenda.institution_location || "";
+}
+
+function getAgendaContact(agenda = {}) {
+  return [
+    agenda.external_responsible,
+    agenda.external_responsible_phone,
+    agenda.external_email,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function hydrateActionFromAgenda(action = {}, agenda = {}) {
+  return {
+    ...action,
+    agenda: action.agenda || agenda.id || "",
+    source_id: action.source_id || (agenda.id ? `agenda_action:${agenda.id}` : ""),
+    place_action: action.place_action || getAgendaActionPlace(agenda),
+    institution_name:
+      action.institution_name ||
+      agenda.institution_location ||
+      agenda.location ||
+      "",
+    type_action:
+      action.type_action ||
+      agenda.action_type ||
+      agenda.action_type_ref_name ||
+      "",
+    type_audience: action.type_audience || agenda.audience || "",
+    start_time:
+      action.start_time ||
+      agenda.start_time?.slice?.(0, 5) ||
+      "",
+    final_hour:
+      action.final_hour ||
+      agenda.end_time?.slice?.(0, 5) ||
+      "",
+    approach:
+      action.approach !== undefined &&
+      action.approach !== null &&
+      action.approach !== ""
+        ? action.approach
+        : (agenda.quantity || 0),
+  };
+}
+
 export default function MobileReportFormPage() {
   const { agendaId, id } = useParams();
   const navigate = useNavigate();
@@ -141,8 +198,25 @@ export default function MobileReportFormPage() {
 
           setForm({
             ...report,
+            agenda_title: report.agenda_title || repAgenda?.title || "",
+            agenda_date: report.agenda_date || repAgenda?.date || "",
+            agenda_location:
+              report.agenda_location ||
+              repAgenda?.institution_location ||
+              repAgenda?.location ||
+              "",
+            operation_date: report.operation_date || repAgenda?.date || "",
+            contact_received:
+              report.contact_received ||
+              getAgendaContact(repAgenda || {}),
             street_action_details: resolvedDetails,
-            actions: report.actions?.length ? report.actions : [{ ...emptyAction }]
+            actions: (
+              report.actions?.length
+                ? report.actions
+                : [{ ...emptyAction }]
+            ).map((action) =>
+              hydrateActionFromAgenda(action, repAgenda || {})
+            )
           });
         } else {
           const fetchedAgenda = await api(`/agendas/${agendaId}/`, { signal: controller.signal });
@@ -166,10 +240,13 @@ export default function MobileReportFormPage() {
           setForm({
             source: "LOCAL",
             source_id: "",
-            agenda: "",
-            agenda_title: "",
-            agenda_date: "",
-            agenda_location: "",
+            agenda: fetchedAgenda.id || "",
+            agenda_title: fetchedAgenda.title || "",
+            agenda_date: fetchedAgenda.date || "",
+            agenda_location:
+              fetchedAgenda.institution_location ||
+              fetchedAgenda.location ||
+              "",
             management_id: "",
             management_name: "",
             education_agents: "",
@@ -179,7 +256,7 @@ export default function MobileReportFormPage() {
             breathalyzers: "",
             cars: "",
             changes_general: "",
-            contact_received: "",
+            contact_received: getAgendaContact(fetchedAgenda),
             occurrence_observation: "",
             general_observations: "",
             lat: "",
@@ -189,11 +266,11 @@ export default function MobileReportFormPage() {
             operation_date: fetchedAgenda.date || "",
             team: agendaTeam || "",
             street_action_details: fetchedAgenda.street_action_details || [],
-            actions: [{
+            actions: [hydrateActionFromAgenda({
               ...emptyAction,
               approach: fetchedAgenda.quantity || 0,
               type_audience: fetchedAgenda.audience || ""
-            }],
+            }, fetchedAgenda)],
             accessibility_conditions_met: "",
             has_exceptional_occurrence: false,
             exceptional_occurrence_type: "",
@@ -564,8 +641,9 @@ export default function MobileReportFormPage() {
               <input
                 type="text"
                 value={action.institution_name || ""}
-                onChange={e => updateAction(0, "institution_name", e.target.value)}
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                readOnly
+                title="Preenchido automaticamente pela Ordem de Serviço"
+                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#475569' }}
               />
             </label>
           )}
@@ -575,8 +653,9 @@ export default function MobileReportFormPage() {
             <input
               type="text"
               value={action.place_action || ""}
-              onChange={e => updateAction(0, "place_action", e.target.value)}
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+              readOnly
+              title="Preenchido automaticamente pela Ordem de Serviço"
+              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#475569' }}
             />
           </label>
 
@@ -586,8 +665,9 @@ export default function MobileReportFormPage() {
               <input
                 type="time"
                 value={action.start_time || ""}
-                onChange={e => updateAction(0, "start_time", e.target.value)}
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                readOnly
+                title="Preenchido automaticamente pela Ordem de Serviço"
+                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#475569' }}
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
@@ -595,8 +675,9 @@ export default function MobileReportFormPage() {
               <input
                 type="time"
                 value={action.final_hour || ""}
-                onChange={e => updateAction(0, "final_hour", e.target.value)}
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                readOnly
+                title="Preenchido automaticamente pela Ordem de Serviço"
+                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#475569' }}
               />
             </label>
           </div>
@@ -754,11 +835,140 @@ export default function MobileReportFormPage() {
             Contato Recebido
             <textarea
               value={form.contact_received || ""}
-              onChange={e => updateField("contact_received", e.target.value)}
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '60px', fontFamily: 'inherit' }}
+              readOnly
+              title="Preenchido automaticamente pela Ordem de Serviço"
+              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '60px', fontFamily: 'inherit', backgroundColor: '#f1f5f9', color: '#475569' }}
             />
           </label>
         </div>
+      </div>
+
+      <div
+        className="mobile-card"
+        style={{
+          padding: '20px',
+          border: '1px solid #f59e0b',
+          backgroundColor: '#fffbeb'
+        }}
+      >
+        <h4
+          style={{
+            margin: '0 0 6px',
+            color: '#0a1e44',
+            fontSize: '14px',
+            fontWeight: '800'
+          }}
+        >
+          FREQUÊNCIA DA EQUIPE
+        </h4>
+
+        <p
+          style={{
+            margin: '0 0 14px',
+            color: '#64748b',
+            fontSize: '12px'
+          }}
+        >
+          Gerencie as presenças e faltas do efetivo lançado para esta atividade.
+        </p>
+
+        {attendanceError ? (
+          <div
+            style={{
+              padding: '10px',
+              marginBottom: '12px',
+              borderRadius: '8px',
+              backgroundColor: '#fee2e2',
+              color: '#991b1b',
+              fontSize: '12px'
+            }}
+          >
+            {attendanceError}
+          </div>
+        ) : null}
+
+        {attendanceStats.loaded && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '8px',
+              marginBottom: '14px'
+            }}
+          >
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: '#fff' }}>
+              <strong style={{ display: 'block', fontSize: '18px', color: '#0f172a' }}>
+                {attendanceStats.total}
+              </strong>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>Participantes</span>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: '#fff' }}>
+              <strong style={{ display: 'block', fontSize: '18px', color: '#166534' }}>
+                {attendanceStats.present}
+              </strong>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>Presentes</span>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: '#fff' }}>
+              <strong style={{ display: 'block', fontSize: '18px', color: '#991b1b' }}>
+                {attendanceStats.absent}
+              </strong>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>Ausentes</span>
+            </div>
+
+            <div style={{ padding: '10px', borderRadius: '8px', backgroundColor: '#fff' }}>
+              <strong style={{ display: 'block', fontSize: '18px', color: '#92400e' }}>
+                {attendanceStats.pending}
+              </strong>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>Pendentes</span>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="mobile-btn mobile-btn-primary"
+          style={{
+            width: '100%',
+            backgroundColor: '#fbbf24',
+            color: '#0f172a',
+            border: 'none',
+            fontWeight: '800'
+          }}
+          disabled={
+            agenda?.service_order_mode !== "DESIGNATED" &&
+            !reportSchedule?.id
+          }
+          onClick={() => {
+            if (!agenda?.id) return;
+
+            if (agenda.service_order_mode === "DESIGNATED") {
+              navigate(`/app/frequencia/agenda/${agenda.id}/editar`);
+              return;
+            }
+
+            if (reportSchedule?.id) {
+              navigate(`/app/frequencia/escala/${reportSchedule.id}/editar`);
+            }
+          }}
+        >
+          Gerenciar Frequência
+        </button>
+
+        {agenda?.service_order_mode !== "DESIGNATED" &&
+          attendanceStats.loaded &&
+          !reportSchedule?.id && (
+            <p
+              style={{
+                margin: '10px 0 0',
+                fontSize: '11px',
+                color: '#92400e'
+              }}
+            >
+              Não foi possível localizar a escala desta equipe.
+            </p>
+          )}
       </div>
 
       <div className="mobile-card" style={{ padding: '20px' }}>
