@@ -1,5 +1,6 @@
 import { AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Paperclip, Repeat2, Trash2, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR, formatLocalISODate } from "../utils/date.js";
@@ -110,6 +111,10 @@ function teamColorStyle(teamName) {
 }
 
 export default function ShiftSchedulePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openScheduleId = searchParams.get("openSchedule");
+  const processedOpenSchedule = useRef(false);
+
   const { user } = useAuth();
   const isVisitor = user?.role === "VISITOR";
   const [cursor, setCursor] = useState(new Date());
@@ -308,6 +313,86 @@ export default function ShiftSchedulePage() {
   useEffect(() => {
     loadSchedules().catch((err) => setMessage(err.message));
   }, [days]);
+
+  useEffect(() => {
+    if (!openScheduleId || processedOpenSchedule.current) return;
+
+    const scheduleId = Number(openScheduleId);
+
+    const removeOpenScheduleParam = () => {
+      setSearchParams((currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+        nextParams.delete("openSchedule");
+        return nextParams;
+      }, { replace: true });
+    };
+
+    if (
+      !Number.isInteger(scheduleId) ||
+      scheduleId <= 0 ||
+      String(scheduleId) !== String(openScheduleId).trim()
+    ) {
+      processedOpenSchedule.current = true;
+      setMessage("Parâmetro openSchedule inválido.");
+      removeOpenScheduleParam();
+      processedOpenSchedule.current = false;
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    processedOpenSchedule.current = true;
+
+    api(`/shift-schedules/${scheduleId}/`, {
+      signal: controller.signal,
+    })
+      .then((schedule) => {
+        if (!active || !schedule?.id) return;
+
+        if (schedule.date) {
+          const targetDate = new Date(`${schedule.date}T12:00:00`);
+          setCursor(new Date(
+            targetDate.getFullYear(),
+            targetDate.getMonth(),
+            1
+          ));
+          setSelectedDate(schedule.date);
+        }
+
+        setSchedules((current) => {
+          const exists = current.some(
+            (item) => String(item.id) === String(schedule.id)
+          );
+
+          if (exists) {
+            return current.map((item) =>
+              String(item.id) === String(schedule.id) ? schedule : item
+            );
+          }
+
+          return [...current, schedule];
+        });
+
+        setDetailScheduleId(String(schedule.id));
+        setMessage("");
+      })
+      .catch((err) => {
+        if (active && err?.name !== "AbortError") {
+          setMessage(err.message || "Não foi possível abrir a frequência informada.");
+        }
+      })
+      .finally(() => {
+        if (active) {
+          removeOpenScheduleParam();
+          processedOpenSchedule.current = false;
+        }
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [openScheduleId, setSearchParams]);
 
   useEffect(() => {
     setPendingValidationCount(pendingValidationSchedules.length);

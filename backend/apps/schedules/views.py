@@ -1998,7 +1998,19 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "chief_report_text": chief_report_text,
                 "chief_report_available": bool(chief_report_text),
                 "report": report_payload,
-                "href": f"/agendas?q={agenda.service_order_number or agenda.id}",
+                "schedule_id": schedule.id if schedule else None,
+                "agenda_href": f"/agendas?open={agenda.id}",
+                "report_href": (
+                    f"/relatorio-tecnico?openReport={report.id}"
+                    if report
+                    else f"/agendas?open={agenda.id}"
+                ),
+                "attendance_href": (
+                    f"/shift-schedules?openSchedule={schedule.id}"
+                    if agenda.service_order_mode != "DESIGNATED" and schedule
+                    else f"/agendas?open={agenda.id}"
+                ),
+                "href": f"/agendas?open={agenda.id}",
             })
 
         operational_team_names = {row["team"] for row in operation_rows if row["team"] != "Sem equipe"}
@@ -2032,10 +2044,10 @@ class AgendaViewSet(viewsets.ModelViewSet):
             "submitted": sum(1 for row in operation_rows if row["report_status"] == "submitted"),
         }
 
-        def compact_operation_reference(row):
+        def compact_operation_reference(row, href_key="agenda_href"):
             return {
                 "id": row["id"],
-                "href": row["href"],
+                "href": row.get(href_key) or row.get("agenda_href") or row["href"],
                 "time_range": row["time_range"],
                 "service_order_number": row["service_order_number"],
                 "title": row["type"] or row["title"],
@@ -2120,7 +2132,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "title": "Relatórios pendentes",
                 "description": f"{pending_reports_count} atividade(s) realizada(s) aguardam relatório.",
                 "href": "/relatorio-tecnico",
-                "items": [compact_operation_reference(row) for row in pending_report_rows[:5]],
+                "items": [compact_operation_reference(row, "report_href") for row in pending_report_rows[:5]],
             })
         if pending_attendance_count:
             operational_attention.append({
@@ -2128,7 +2140,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "title": "Frequência pendente",
                 "description": f"{pending_attendance_count} frequência(s) ainda precisa(m) ser concluída(s).",
                 "href": "/shift-schedules",
-                "items": [compact_operation_reference(row) for row in pending_attendance_rows[:5]],
+                "items": [compact_operation_reference(row, "attendance_href") for row in pending_attendance_rows[:5]],
             })
         if returned_reports_count:
             operational_attention.append({
@@ -2136,7 +2148,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 "title": "Relatórios devolvidos",
                 "description": f"{returned_reports_count} relatório(s) foi(foram) devolvido(s) para correção.",
                 "href": "/relatorio-tecnico",
-                "items": [compact_operation_reference(row) for row in returned_report_rows[:5]],
+                "items": [compact_operation_reference(row, "report_href") for row in returned_report_rows[:5]],
             })
         if missing_team_count:
             operational_attention.append({

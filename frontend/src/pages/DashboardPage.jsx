@@ -720,7 +720,7 @@ function AttentionPanel({ alerts = [] }) {
               <div key={insight.title} style={{ border: `1px solid ${tone.border}`, borderRadius: 12, padding: "12px 14px", background: tone.background, display: "grid", gap: 8 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
                   <strong style={{ fontSize: 12, color: tone.accent, textTransform: "uppercase" }}>{insight.title}</strong>
-                  {insight.href ? <a href={insight.href} style={{ color: tone.accent, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>Abrir</a> : null}
+                  {insight.href ? <a href={insight.href} style={{ color: tone.accent, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>Ver todos</a> : null}
                 </div>
                 <p style={{ margin: 0, color: "var(--text)", fontSize: 13.5, lineHeight: 1.45 }}>{insight.body}</p>
                 {insight.items.length ? (
