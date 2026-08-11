@@ -478,8 +478,6 @@ const operationalCardConfig = [
   { key: "pending_start", title: "Pr\u00f3ximas", hint: "Ainda v\u00e3o acontecer", icon: Clock3, color: "#f6a700", gradient: "linear-gradient(135deg, #f6bd16, #d98b00)" },
   { key: "completed", title: "Realizadas", hint: "Hor\u00e1rio operacional encerrado", icon: CheckCheck, color: "#0984e3", gradient: "linear-gradient(135deg, #0984e3, #0057a8)" },
   { key: "cancelled", title: "Canceladas", hint: "A\u00e7\u00f5es canceladas", icon: XCircle, color: "#7f8c8d", gradient: "linear-gradient(135deg, #7f8c8d, #5f6b6d)" },
-  { key: "pending_reports", title: "Relat\u00f3rios pendentes", hint: "A\u00e7\u00f5es j\u00e1 report\u00e1veis", icon: AlertTriangle, color: "#dc6b16", gradient: "linear-gradient(135deg, #f97316, #c2410c)" },
-  { key: "pending_attendance", title: "Frequ\u00eancias pendentes", hint: "Aguardando fechamento da frequ\u00eancia", icon: Activity, color: "#b45309", gradient: "linear-gradient(135deg, #f59e0b, #b45309)" },
     { key: "public_reached", title: "P\u00fablico informado", hint: "Somente relatado quando existente", icon: Flag, color: "#7c3aed", gradient: "linear-gradient(135deg, #8b5cf6, #6d28d9)" },
 ];
 
@@ -600,11 +598,6 @@ function ChiefNarrative({ text }) {
 
 function OperationalSummaryPanel({ summary = {} }) {
   const items = [
-    { label: "Ações programadas", value: summary.scheduled_today },
-    { label: "Realizadas", value: summary.completed },
-    { label: "Em andamento", value: summary.in_progress },
-    { label: "Próximas", value: summary.pending_start },
-    { label: "Canceladas", value: summary.cancelled },
     { label: "Equipes", value: summary.teams_active },
     { label: "Chefes", value: summary.chiefs_active },
     { label: "Agentes", value: summary.agents_scheduled },
@@ -612,7 +605,7 @@ function OperationalSummaryPanel({ summary = {} }) {
   ];
 
   return (
-    <SectionCard icon={Flag} title={"Resumo operacional do dia"} subtitle={"Leitura direta do volume programado, andamento e mobilização do período."}>
+    <SectionCard icon={Flag} title={"Mobilização do dia"} subtitle={"Efetivo mobilizado nas ações operacionais do período."}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
         {items.map((item) => (
           <div key={item.label} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: "14px", background: "var(--surface-2)", display: "grid", gap: 6 }}>
@@ -708,7 +701,9 @@ function buildOperationalAttentionItems(alerts = []) {
 }
 
 function AttentionPanel({ alerts = [] }) {
-  const insights = buildOperationalAttentionItems(alerts);
+  const insights = buildOperationalAttentionItems(alerts).filter(
+    (item) => item.severity !== "success"
+  );
 
   return (
     <SectionCard icon={Activity} title={"Pendências e atenção"} subtitle={"Pendências objetivas do período com acesso rápido às operações afetadas."}>
