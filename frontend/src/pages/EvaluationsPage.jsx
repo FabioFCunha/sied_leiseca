@@ -296,10 +296,15 @@ const StackedBarChart = ({ distribution }) => {
   const criteriaList = Object.keys(distribution);
   const colors = {
     "1": "#dc2626",
-    "2": "#f97316",
-    "3": "#f6bd16",
-    "4": "#22c55e",
-    "5": "#047857"
+    "2": "#ea580c",
+    "3": "#f97316",
+    "4": "#f59e0b",
+    "5": "#f6bd16",
+    "6": "#84cc16",
+    "7": "#22c55e",
+    "8": "#16a34a",
+    "9": "#059669",
+    "10": "#047857"
   };
 
   return (
@@ -313,7 +318,7 @@ const StackedBarChart = ({ distribution }) => {
           <div key={idx} style={{ display: "grid", gridTemplateColumns: "140px 1fr 30px", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-soft)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={crit}>{crit}</span>
             <div style={{ height: "16px", display: "flex", borderRadius: "4px", overflow: "hidden", background: "var(--surface-2)" }}>
-              {["1", "2", "3", "4", "5"].map(score => {
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map(score => {
                 const count = Number(counts[score] || 0);
                 if (count === 0) return null;
                 const pct = (count / total) * 100;
@@ -331,7 +336,7 @@ const StackedBarChart = ({ distribution }) => {
         );
       })}
       <div className="stacked-bar-legend">
-        {["1", "2", "3", "4", "5"].map(score => (
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].map(score => (
           <span key={score}><i style={{ background: colors[score] }}></i> Nota {score}</span>
         ))}
       </div>

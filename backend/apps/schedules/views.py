@@ -4471,7 +4471,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
         total_surveys = qs.count()
 
         if total_surveys == 0:
-            empty_distribution = {label: {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0} for _, label in ALL_CRITERIA}
+            empty_distribution = {label: {str(score): 0 for score in range(1, 11)} for _, label in ALL_CRITERIA}
             return response.Response({
                 "cards": {
                     "total_surveys": 0,
@@ -4612,7 +4612,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
         distribution = {}
         dist_agg = {}
         for field, label in ALL_CRITERIA:
-            for score in range(1, 6):
+            for score in range(1, 11):
                 dist_agg[f"{field}_{score}"] = Sum(
                     Case(When(**{field: score}, then=1), default=0, output_field=IntegerField())
                 )
@@ -4620,7 +4620,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
         for field, label in ALL_CRITERIA:
             distribution[label] = {
                 str(score): dist_result.get(f"{field}_{score}", 0) or 0
-                for score in range(1, 6)
+                for score in range(1, 11)
             }
 
         # -- Monthly Evolution ----------------------------------------
