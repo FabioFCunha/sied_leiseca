@@ -32,8 +32,8 @@ function SatisfactionSummaryPanel({ surveys = {}, onModerateSurvey }) {
     <div className="chart-card satisfaction-panel" style={{ border: "1px solid var(--line)", borderRadius: "16px", padding: "20px", marginBottom: "24px" }}>
       <div className="section-heading" style={{ marginBottom: "20px" }}>
         <div>
-          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Indicadores de Satisfa??o</h2>
-          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Avalia??es baseadas nas pesquisas de satisfa??o respondidas.</p>
+          <h2 style={{ fontSize: "15px", fontWeight: "800" }}>Indicadores de Satisfação</h2>
+          <p style={{ fontSize: "12px", color: "var(--text-soft)" }}>Avaliações baseadas nas pesquisas de satisfação respondidas.</p>
         </div>
       </div>
       <div className="satisfaction-grid" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
