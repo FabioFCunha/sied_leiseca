@@ -214,7 +214,13 @@ export default function MobileReportDetailsPage() {
         <button
           type="button"
           className="mobile-btn mobile-btn-primary"
-          onClick={() => navigate(`/relatorio-tecnico?openReport=${encodeURIComponent(report.id)}`)}
+          onClick={() => {
+            if (report.status === "DRAFT" || report.status === "RETURNED") {
+              navigate(`/app/relatorios/${report.id}/editar`);
+              return;
+            }
+            navigate(`/relatorio-tecnico?openReport=${encodeURIComponent(report.id)}`);
+          }}
         >
           <ExternalLink size={18} />
           {fullFormButtonText(report.status)}
