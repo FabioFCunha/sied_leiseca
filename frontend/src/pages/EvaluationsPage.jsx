@@ -189,7 +189,7 @@ const RadarChart = ({ data }) => {
 
   const getPoint = (value, index, radiusScale = 1) => {
     const angle = (Math.PI / 2) - (index * angleStep);
-    const r = (value / 5) * maxRadius * radiusScale;
+    const r = (value / 10) * maxRadius * radiusScale;
     return {
       x: center + r * Math.cos(angle),
       y: center - r * Math.sin(angle)
@@ -205,7 +205,7 @@ const RadarChart = ({ data }) => {
     <div className="radar-chart-wrap" style={{ position: "relative", width: "100%", maxWidth: "400px", margin: "0 auto" }}>
       <svg ref={svgRef} viewBox={`0 0 ${size} ${size}`} style={{ width: "100%", height: "auto", overflow: "visible" }}>
         {/* Background Grids */}
-        {[1, 2, 3, 4, 5].map((level) => {
+        {[2, 4, 6, 8, 10].map((level) => {
           const gridPoints = data.map((_, i) => {
             const p = getPoint(level, i);
             return `${p.x},${p.y}`;
@@ -217,15 +217,15 @@ const RadarChart = ({ data }) => {
               fill={level % 2 === 0 ? "rgba(0,0,0,0.02)" : "none"} 
               stroke="var(--line)" 
               strokeWidth="1" 
-              strokeDasharray={level === 5 ? "none" : "2,2"}
+              strokeDasharray={level === 10 ? "none" : "2,2"}
             />
           );
         })}
 
         {/* Axes and Labels */}
         {data.map((d, i) => {
-          const p = getPoint(5, i);
-          const labelP = getPoint(5, i, 1.15); // Push label out
+          const p = getPoint(10, i);
+          const labelP = getPoint(10, i, 1.15); // Push label out
           let textAnchor = "middle";
           if (Math.abs(Math.cos((Math.PI / 2) - (i * angleStep))) > 0.1) {
             textAnchor = Math.cos((Math.PI / 2) - (i * angleStep)) > 0 ? "start" : "end";
@@ -255,6 +255,15 @@ const RadarChart = ({ data }) => {
                     {line}
                   </tspan>
                 ))}
+            <tspan
+              x={labelP.x}
+              dy="1.3em"
+              fontSize="10"
+              fontWeight="800"
+              fill="var(--text)"
+            >
+              {d.value.toFixed(1)}
+            </tspan>
               </text>
             </g>
           );
@@ -331,7 +340,7 @@ const StackedBarChart = ({ distribution }) => {
                 );
               })}
             </div>
-            <span style={{ fontSize: "11px", fontWeight: "700", textAlign: "right" }}>{total}</span>
+            <span style={{ fontSize: "11px", fontWeight: "700", textAlign: "right", whiteSpace: "nowrap" }}>{total} aval.</span>
           </div>
         );
       })}
@@ -374,7 +383,7 @@ const EvalLineChart = ({ data }) => {
 
   // Min and max for y-axis
   const values = data.map(d => d.value);
-  const max = 5;
+  const max = 10;
   const min = Math.max(1, Math.floor(Math.min(...values)) - 0.5);
 
   const getX = (index) => padding.left + (index * (innerWidth / Math.max(1, data.length - 1)));
@@ -446,7 +455,7 @@ const EvalHeatmap = ({ heatmap }) => {
 
   const getOpacity = (val) => {
     if (!val) return 0.02;
-    return 0.15 + (val / 5) * 0.75; // Map 0-5 to 0.15-0.9
+    return 0.15 + (val / 10) * 0.75; // Map 0-10 to 0.15-0.9
   };
 
   return (
@@ -471,7 +480,7 @@ const EvalHeatmap = ({ heatmap }) => {
                 className="eval-heatmap-cell" 
                 style={{ 
                   background: val ? `rgba(0, 72, 215, ${getOpacity(val)})` : "var(--surface-2)",
-                  color: val > 3 ? "#fff" : "var(--text)"
+                  color: val >= 7 ? "#fff" : "var(--text)"
                 }}
                 title={`${crit} (${m}): ${val ? val.toFixed(1) : '-'}`}
               >
@@ -720,7 +729,7 @@ export default function EvaluationsPage() {
                         <span className="rank-label">{item.criteria}</span>
                         <span className="rank-value">{item.value.toFixed(2)}</span>
                         <div className="rank-bar">
-                          <div className="rank-bar-fill" style={{ width: `${(item.value / 5) * 100}%` }} />
+                          <div className="rank-bar-fill" style={{ width: `${(item.value / 10) * 100}%` }} />
                         </div>
                       </div>
                     );
