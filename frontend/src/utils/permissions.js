@@ -26,6 +26,10 @@ function onlyDigits(value) {
   return String(value || "").replace(/\D/g, "");
 }
 
+function normalizeText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 export function canAccessAudit(user) {
   if (!user) return false;
   if (isCreator(user)) return true;
@@ -64,4 +68,11 @@ export function canAccessRoute(user, allowedRoles = [], moduleName = null) {
   }
 
   return allowedRoles.includes(user?.role);
+}
+
+export function canReviewInspectionStatistics(user) {
+  if (!user) return false;
+  const role = String(user.role || "").trim().toUpperCase();
+  const sectorName = normalizeText(user.sector_name || user.sector?.name);
+  return role === "VISITOR" && sectorName === normalizeText("OLS/CooAdm");
 }

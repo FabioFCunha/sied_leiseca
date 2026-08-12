@@ -9,6 +9,7 @@ import {
 } from "../api/inspection.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR } from "../utils/date.js";
+import { canReviewInspectionStatistics as canReviewInspectionStatisticsUser } from "../utils/permissions.js";
 
 const emptyFilters = {
   date_from: "",
@@ -140,7 +141,7 @@ export default function InspectionReportsPage() {
   const [showExcludeModal, setShowExcludeModal] = useState(false);
   const [excludeReason, setExcludeReason] = useState("");
 
-  const canReviewStatistics = user?.role === "VISITOR" && user?.sector_name === "OLS/CooAdm";
+  const canReviewStatistics = canReviewInspectionStatisticsUser(user);
 
   const loadReports = async (params = filters, pageUrl = null) => {
     setLoading(true);
