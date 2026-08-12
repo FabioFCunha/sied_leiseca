@@ -91,7 +91,7 @@ class Migration(migrations.Migration):
             options={
                 'ordering': ['-reference_date', '-reference_year', '-reference_month', 'team', 'source_sheet', 'source_row'],
                 'indexes': [models.Index(fields=['reference_date', 'team'], name='inspection__referen_4fd341_idx'), models.Index(fields=['reference_year', 'reference_month'], name='inspection__referen_d9b375_idx'), models.Index(fields=['source_type', 'taxonomy_era'], name='inspection__source__40143a_idx'), models.Index(fields=['import_batch'], name='inspection__import__afe7d6_idx')],
-                'constraints': [models.UniqueConstraint(fields=('import_batch', 'source_sheet', 'source_row'), name='uniq_inspection_historical_batch_sheet_row'), models.CheckConstraint(condition=models.Q(('reference_date__isnull', True), ('reference_date__lte', datetime.date(2026, 8, 9)), _connector='OR'), name='inspection_historical_reference_date_cutoff')],
+                'constraints': [models.UniqueConstraint(fields=('import_batch', 'source_sheet', 'source_row'), name='uniq_inspection_historical_batch_sheet_row'), models.CheckConstraint(check=models.Q(('reference_date__isnull', True), ('reference_date__lte', datetime.date(2026, 8, 9)), _connector='OR'), name='inspection_historical_reference_date_cutoff')],
             },
         ),
     ]

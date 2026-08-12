@@ -392,7 +392,7 @@ class InspectionHistoricalStatistic(models.Model):
                 name="uniq_inspection_historical_batch_sheet_row",
             ),
             models.CheckConstraint(
-                condition=models.Q(reference_date__isnull=True) | models.Q(reference_date__lte=HISTORICAL_CUTOFF_DATE),
+                check=models.Q(reference_date__isnull=True) | models.Q(reference_date__lte=HISTORICAL_CUTOFF_DATE),
                 name="inspection_historical_reference_date_cutoff",
             ),
         ]
