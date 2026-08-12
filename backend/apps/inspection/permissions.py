@@ -3,6 +3,10 @@ from apps.accounts.models import User
 from rest_framework.permissions import BasePermission
 
 
+def _normalized_sector_name(user):
+    return str(getattr(getattr(user, "sector", None), "name", "") or "").strip()
+
+
 class HasInspectionSyncToken(BasePermission):
     message = "Autenticacao tecnica invalida."
 
@@ -31,5 +35,21 @@ class CanReviewInspectionStatistics(BasePermission):
         return (
             user.role == User.Role.VISITOR
             and getattr(user, "sector", None) is not None
-            and user.sector.name == "OLS/CooAdm"
+            and _normalized_sector_name(user) == "OLS/CooAdm"
+        )
+
+
+class CanViewInspectionStatisticsDashboard(BasePermission):
+    message = "Voce nao tem permissao para consultar a Estatistica de Fiscalizacao."
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        if user.role in {User.Role.ADMIN, User.Role.MANAGER, User.Role.SUPERVISOR}:
+            return True
+        return (
+            user.role == User.Role.VISITOR
+            and getattr(user, "sector", None) is not None
+            and _normalized_sector_name(user) == "OLS/CooAdm"
         )

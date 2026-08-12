@@ -91,6 +91,19 @@ class InspectionExcludeStatisticsSerializer(serializers.Serializer):
     reason = serializers.CharField(allow_blank=False, trim_whitespace=True)
 
 
+class InspectionStatisticsDashboardQuerySerializer(serializers.Serializer):
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    team = serializers.CharField(required=False, allow_blank=False, trim_whitespace=True)
+
+    def validate(self, attrs):
+        date_from = attrs.get("date_from")
+        date_to = attrs.get("date_to")
+        if date_from and date_to and date_from > date_to:
+            raise serializers.ValidationError({"date_to": "date_to deve ser maior ou igual a date_from."})
+        return attrs
+
+
 class InspectionReviewerSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     full_name = serializers.CharField()

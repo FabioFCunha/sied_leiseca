@@ -55,7 +55,7 @@ export function canAccessRoute(user, allowedRoles = [], moduleName = null) {
       const allowedModules = ["DASHBOARD", "CALENDARIO", "ESCALA", "RELATORIOS", "ESTATISTICAS", "AVALIACOES", "FISCALIZACAO_RELATORIOS"];
       if (allowedModules.includes(moduleName)) return true;
     }
-    if (sector === "OLS/CooAdm" && ["ESTATISTICAS", "CALENDARIO", "RELATORIOS", "FISCALIZACAO_RELATORIOS"].includes(moduleName)) {
+    if (sector === "OLS/CooAdm" && ["ESTATISTICAS", "CALENDARIO", "RELATORIOS", "FISCALIZACAO_RELATORIOS", "FISCALIZACAO_ESTATISTICAS"].includes(moduleName)) {
       return true;
     }
     if (sector === "ASCOM" && moduleName === "CALENDARIO") {
@@ -75,4 +75,13 @@ export function canReviewInspectionStatistics(user) {
   const role = String(user.role || "").trim().toUpperCase();
   const sectorName = normalizeText(user.sector_name || user.sector?.name);
   return role === "VISITOR" && sectorName === normalizeText("OLS/CooAdm");
+}
+
+export function canViewInspectionStatistics(user) {
+  if (!user) return false;
+  const role = String(user.role || "").trim().toUpperCase();
+  if (["ADMIN", "MANAGER", "SUPERVISOR"].includes(role)) {
+    return true;
+  }
+  return canReviewInspectionStatistics(user);
 }
