@@ -743,7 +743,16 @@ class AgendaSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         materials_data = validated_data.pop("materials", None)
         designated_users = validated_data.pop("designated_users", None)
-        if instance.origin == Agenda.Origin.INTERNAL:
+        request = self.context.get("request")
+        next_status = validated_data.get("status")
+        is_decision_transition = (
+            next_status in {Agenda.Status.APPROVED, Agenda.Status.CANCELLED}
+            and next_status != instance.status
+            and getattr(getattr(request, "user", None), "is_authenticated", False)
+        )
+        if is_decision_transition:
+            validated_data["responsible"] = request.user
+        elif instance.origin == Agenda.Origin.INTERNAL:
             validated_data.pop("responsible", None)
         agenda = super().update(instance, validated_data)
         if designated_users is not None:

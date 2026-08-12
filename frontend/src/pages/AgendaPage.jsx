@@ -423,6 +423,9 @@ export default function AgendaPage() {
   const responsibleOptions = useMemo(() => (users.length ? users : [user]).filter(Boolean), [users, user]);
   const editingAgenda = useMemo(() => agendas.find((agenda) => String(agenda.id) === String(editing)), [agendas, editing]);
   const internalResponsibleName = editingAgenda?.created_by_name || "";
+  const isDecisionFlow = Boolean(editingAgenda && editingAgenda.status === "PENDING" && canManageRequests);
+  const authenticatedResponsibleId = user?.id || "";
+  const authenticatedResponsibleName = user?.full_name || "";
   const activeUserOptions = useMemo(
     () => buildActiveOperationalUserOptions({
       users: users.length ? users : [user],
@@ -991,7 +994,7 @@ export default function AgendaPage() {
       return;
     }
     setMessage("");
-    const nextForm = { ...form, status };
+    const nextForm = { ...form, status, responsible: authenticatedResponsibleId };
     if (status === "APPROVED") {
       const isDesignatedMode = (nextForm.service_order_mode || "TEAM") === "DESIGNATED";
       const hasSchedule = nextForm.date && nextForm.start_time && nextForm.end_time;
@@ -1026,7 +1029,7 @@ export default function AgendaPage() {
     try {
       const payload = normalizePayload({ ...nextForm, lookupVehicles: lookups.vehicles });
       const original = agendas.find((a) => String(a.id) === String(editing));
-      if (original?.origin === "INTERNAL") payload.responsible = original.responsible || "";
+      payload.responsible = authenticatedResponsibleId;
       const diffPayload = getDiffPayload(payload, original);
       if (nextForm.status) diffPayload.status = nextForm.status; // Ensure status is sent
       if (nextForm.cancel_reason !== undefined) diffPayload.cancel_reason = nextForm.cancel_reason;
@@ -1473,7 +1476,9 @@ export default function AgendaPage() {
                     </label>
                     <label className="field-label">
                       <span>Responsável interno</span>
-                      {form.origin === "INTERNAL" ? (
+                      {isDecisionFlow ? (
+                        <input value={authenticatedResponsibleName || ""} readOnly />
+                      ) : form.origin === "INTERNAL" ? (
                         <input value={internalResponsibleName || ""} readOnly />
                       ) : (
                         <select value={form.responsible || ""} onChange={(e) => update("responsible", e.target.value)} required>

@@ -31,9 +31,29 @@ class InternalResponsibleLockApiTests(APITestCase):
             role=User.Role.SUPERVISOR,
             full_name="Outro Respons?vel",
         )
+        self.manager_with_sector = User.objects.create_user(
+            email="manager-with-sector@test.com",
+            password="pwd",
+            role=User.Role.MANAGER,
+            full_name="Gestor Com Setor",
+        )
+        self.manager_without_sector = User.objects.create_user(
+            email="manager-without-sector@test.com",
+            password="pwd",
+            role=User.Role.MANAGER,
+            full_name="Gestor Sem Setor",
+        )
+        self.regular_user = User.objects.create_user(
+            email="regular-user@test.com",
+            password="pwd",
+            role=User.Role.USER,
+            full_name="Usuario Sem Permissao",
+        )
         self.internal_url = reverse("internal_agenda_request")
         self.internal_sector, _ = Sector.objects.get_or_create(name="Solicita??es internas")
         self.public_sector = Sector.objects.create(name="Setor Externo")
+        self.manager_with_sector.sector = self.public_sector
+        self.manager_with_sector.save(update_fields=["sector"])
 
     def internal_payload(self):
         return {
@@ -65,6 +85,30 @@ class InternalResponsibleLockApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
         return Agenda.objects.get(id=response.data["protocol"])
 
+    def create_public_agenda(self):
+        return Agenda.objects.create(
+            title="Agenda publica",
+            description="Descri??o",
+            date=date(2026, 8, 13),
+            start_time=time(10, 0),
+            end_time=time(11, 0),
+            location="Local externo",
+            institution_location="Local externo",
+            address="Rua Externa, 20",
+            city="Rio de Janeiro",
+            state="RJ",
+            external_responsible="Jo?o P?blico",
+            external_responsible_phone="21988888888",
+            external_email="joao@example.com",
+            requester_entity_type="Empresa/??rg??o",
+            action_type="Palestra",
+            created_by=self.creator,
+            responsible=self.creator,
+            sector=self.public_sector,
+            origin=Agenda.Origin.PUBLIC_FORM,
+            status=Agenda.Status.PENDING,
+        )
+
     def test_internal_request_starts_with_responsible_equal_to_created_by(self):
         agenda = self.create_internal_agenda()
 
@@ -92,28 +136,7 @@ class InternalResponsibleLockApiTests(APITestCase):
         self.assertEqual(agenda.created_by_id, self.creator.id)
 
     def test_non_internal_agenda_still_allows_responsible_change(self):
-        agenda = Agenda.objects.create(
-            title="Agenda p?blica",
-            description="Descri??o",
-            date=date(2026, 8, 13),
-            start_time=time(10, 0),
-            end_time=time(11, 0),
-            location="Local externo",
-            institution_location="Local externo",
-            address="Rua Externa, 20",
-            city="Rio de Janeiro",
-            state="RJ",
-            external_responsible="Jo?o P?blico",
-            external_responsible_phone="21988888888",
-            external_email="joao@example.com",
-            requester_entity_type="Empresa/??rg??o",
-            action_type="Palestra",
-            created_by=self.creator,
-            responsible=self.creator,
-            sector=self.public_sector,
-            origin=Agenda.Origin.PUBLIC_FORM,
-            status=Agenda.Status.PENDING,
-        )
+        agenda = self.create_public_agenda()
         self.client.force_authenticate(self.editor)
 
         response = self.client.patch(
@@ -126,6 +149,101 @@ class InternalResponsibleLockApiTests(APITestCase):
         agenda.refresh_from_db()
         self.assertEqual(agenda.responsible_id, self.other_responsible.id)
         self.assertEqual(agenda.created_by_id, self.creator.id)
+
+    def test_manager_with_sector_approval_persists_authenticated_user_as_responsible(self):
+        agenda = self.create_public_agenda()
+        self.client.force_authenticate(self.manager_with_sector)
+
+        response = self.client.patch(
+            reverse("agendas-detail", args=[agenda.id]),
+            {"status": Agenda.Status.APPROVED},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        agenda.refresh_from_db()
+        self.assertEqual(agenda.status, Agenda.Status.APPROVED)
+        self.assertEqual(agenda.responsible_id, self.manager_with_sector.id)
+
+    def test_manager_without_sector_approval_persists_authenticated_user_as_responsible(self):
+        agenda = self.create_public_agenda()
+        self.client.force_authenticate(self.manager_without_sector)
+
+        response = self.client.patch(
+            reverse("agendas-detail", args=[agenda.id]),
+            {"status": Agenda.Status.APPROVED},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        agenda.refresh_from_db()
+        self.assertEqual(agenda.responsible_id, self.manager_without_sector.id)
+
+    def test_manager_without_sector_rejection_persists_authenticated_user_as_responsible(self):
+        agenda = self.create_public_agenda()
+        self.client.force_authenticate(self.manager_without_sector)
+
+        response = self.client.patch(
+            reverse("agendas-detail", args=[agenda.id]),
+            {"status": Agenda.Status.CANCELLED, "cancel_reason": "Recusa justificada."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        agenda.refresh_from_db()
+        self.assertEqual(agenda.status, Agenda.Status.CANCELLED)
+        self.assertEqual(agenda.responsible_id, self.manager_without_sector.id)
+
+    def test_decision_ignores_spoofed_responsible_and_uses_authenticated_user(self):
+        agenda = self.create_public_agenda()
+        self.client.force_authenticate(self.manager_with_sector)
+
+        response = self.client.patch(
+            reverse("agendas-detail", args=[agenda.id]),
+            {
+                "status": Agenda.Status.APPROVED,
+                "responsible": self.manager_without_sector.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        agenda.refresh_from_db()
+        self.assertEqual(agenda.responsible_id, self.manager_with_sector.id)
+
+    def test_internal_decision_updates_responsible_to_authenticated_user(self):
+        agenda = self.create_internal_agenda()
+        self.client.force_authenticate(self.manager_without_sector)
+
+        response = self.client.patch(
+            reverse("agendas-detail", args=[agenda.id]),
+            {"status": Agenda.Status.APPROVED},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        agenda.refresh_from_db()
+        self.assertEqual(agenda.status, Agenda.Status.APPROVED)
+        self.assertEqual(agenda.responsible_id, self.manager_without_sector.id)
+        self.assertEqual(agenda.created_by_id, self.creator.id)
+
+    def test_user_without_permission_cannot_approve_or_override_responsible(self):
+        agenda = self.create_public_agenda()
+        self.client.force_authenticate(self.regular_user)
+
+        response = self.client.patch(
+            reverse("agendas-detail", args=[agenda.id]),
+            {
+                "status": Agenda.Status.APPROVED,
+                "responsible": self.manager_with_sector.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        agenda.refresh_from_db()
+        self.assertEqual(agenda.status, Agenda.Status.PENDING)
+        self.assertEqual(agenda.responsible_id, self.creator.id)
 
 
 class InternalResponsibleLockSerializerTests(TestCase):
