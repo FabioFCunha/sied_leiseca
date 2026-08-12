@@ -533,7 +533,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             if member_belongs_to_team:
                 if not in_removed:
                     return response.Response({"detail": "Este integrante titular j? est? ativo na escala."}, status=status.HTTP_400_BAD_REQUEST)
-            elif in_extra:
+            elif in_extra and not in_removed:
                 return response.Response({"detail": "Este integrante extra j? est? na escala."}, status=status.HTTP_400_BAD_REQUEST)
         elif member_belongs_to_team:
             if in_removed:

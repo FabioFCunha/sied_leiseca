@@ -7,6 +7,7 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.models import User
 from apps.schedules.models import Agent, Chief, ShiftSchedule, ShiftScheduleChange, Support, Team
+from apps.schedules.services import get_effective_members
 
 
 class ShiftScheduleMemberChangeTests(APITestCase):
@@ -180,6 +181,136 @@ class ShiftScheduleMemberChangeTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(ShiftScheduleChange.objects.count(), 0)
+
+    def test_reinclude_removed_extra_agent(self):
+        self.schedule.extra_agents.add(self.extra_agent)
+        self.schedule.removed_agents.add(self.extra_agent)
+        removed_record = ShiftScheduleChange.objects.create(
+            schedule=self.schedule,
+            action='REMOVED',
+            member_type='AGENT',
+            member_id=self.extra_agent.id,
+            member_name=self.extra_agent.name,
+            reason='Troca anterior',
+            created_by=self.admin,
+        )
+
+        self.authenticate_admin()
+        response = self.client.post(self.url, {
+            'action': 'EXTRA',
+            'member_type': 'AGENT',
+            'member_id': self.extra_agent.id,
+            'reason': 'Reinclusao operacional',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.schedule.refresh_from_db()
+        self.assertTrue(self.schedule.extra_agents.filter(id=self.extra_agent.id).exists())
+        self.assertFalse(self.schedule.removed_agents.filter(id=self.extra_agent.id).exists())
+        history = ShiftScheduleChange.objects.filter(
+            schedule=self.schedule,
+            member_type='AGENT',
+            member_id=self.extra_agent.id,
+        ).order_by('created_at')
+        self.assertEqual(history.count(), 2)
+        self.assertEqual(history.first().id, removed_record.id)
+        self.assertEqual(list(history.values_list('action', flat=True)), ['REMOVED', 'EXTRA'])
+        members = get_effective_members(self.schedule)
+        self.assertIn(
+            self.extra_agent.id,
+            [member['id'] for member in members['agents'] if member.get('is_extra')],
+        )
+
+    def test_reinclude_removed_extra_chief(self):
+        self.schedule.extra_chiefs.add(self.extra_chief)
+        self.schedule.removed_chiefs.add(self.extra_chief)
+        ShiftScheduleChange.objects.create(
+            schedule=self.schedule,
+            action='REMOVED',
+            member_type='CHIEF',
+            member_id=self.extra_chief.id,
+            member_name=self.extra_chief.name,
+            reason='Troca anterior',
+            created_by=self.admin,
+        )
+
+        self.authenticate_admin()
+        response = self.client.post(self.url, {
+            'action': 'EXTRA',
+            'member_type': 'CHIEF',
+            'member_id': self.extra_chief.id,
+            'reason': 'Reforco de retorno',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.schedule.refresh_from_db()
+        self.assertTrue(self.schedule.extra_chiefs.filter(id=self.extra_chief.id).exists())
+        self.assertFalse(self.schedule.removed_chiefs.filter(id=self.extra_chief.id).exists())
+        members = get_effective_members(self.schedule)
+        self.assertIn(
+            self.extra_chief.id,
+            [member['id'] for member in members['chiefs'] if member.get('is_extra')],
+        )
+
+    def test_reinclude_removed_extra_support(self):
+        self.schedule.extra_supports.add(self.extra_support)
+        self.schedule.removed_supports.add(self.extra_support)
+        ShiftScheduleChange.objects.create(
+            schedule=self.schedule,
+            action='REMOVED',
+            member_type='SUPPORT',
+            member_id=self.extra_support.id,
+            member_name=self.extra_support.name,
+            reason='Troca anterior',
+            created_by=self.admin,
+        )
+
+        self.authenticate_admin()
+        response = self.client.post(self.url, {
+            'action': 'EXTRA',
+            'member_type': 'SUPPORT',
+            'member_id': self.extra_support.id,
+            'reason': 'Apoio recolocado',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.schedule.refresh_from_db()
+        self.assertTrue(self.schedule.extra_supports.filter(id=self.extra_support.id).exists())
+        self.assertFalse(self.schedule.removed_supports.filter(id=self.extra_support.id).exists())
+        members = get_effective_members(self.schedule)
+        self.assertIn(
+            self.extra_support.id,
+            [member['id'] for member in members['supports'] if member.get('is_extra')],
+        )
+
+    def test_reinclude_removed_extra_does_not_change_other_members(self):
+        other_extra = Agent.objects.create(
+            name='Agent Charlie',
+            team=self.other_team,
+            is_active=True,
+            source_id='user:204',
+        )
+        other_removed = Agent.objects.create(
+            name='Agent Delta',
+            team=self.other_team,
+            is_active=True,
+            source_id='user:205',
+        )
+        self.schedule.extra_agents.add(self.extra_agent, other_extra)
+        self.schedule.removed_agents.add(self.extra_agent, other_removed)
+
+        self.authenticate_admin()
+        response = self.client.post(self.url, {
+            'action': 'EXTRA',
+            'member_type': 'AGENT',
+            'member_id': self.extra_agent.id,
+            'reason': 'Reinclusao pontual',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.schedule.refresh_from_db()
+        self.assertTrue(self.schedule.extra_agents.filter(id=other_extra.id).exists())
+        self.assertTrue(self.schedule.removed_agents.filter(id=other_removed.id).exists())
 
     def test_history_is_returned_in_api_ordered_latest_first(self):
         self.authenticate_admin()
