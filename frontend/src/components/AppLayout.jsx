@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Bell, CalendarDays, LayoutDashboard, ListPlus, LogOut, Menu, Search, ShieldCheck, Star, Target, Users, X } from "lucide-react";
+import { Activity, BarChart3, Bell, CalendarDays, ClipboardCheck, LayoutDashboard, ListPlus, LogOut, Menu, Search, ShieldCheck, Star, Target, Users, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import logoOperacaoLeiSeca from "../assets/operacao-lei-seca-logo.png";
@@ -13,6 +13,7 @@ const items = [
   { to: "/calendario", label: "Calendário", icon: CalendarDays, moduleName: "CALENDARIO" },
   { to: "/escala", label: "Escala", icon: CalendarDays, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"], moduleName: "ESCALA" },
   { to: "/relatorio-tecnico", label: "Relatórios Técnicos", icon: BarChart3, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "RELATORIOS" },
+  { to: "/fiscalizacao/relatorios", label: "Relatórios de Fiscalização", icon: ClipboardCheck, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "VISITOR", "ALMOXARIFADO", "CREATOR"], moduleName: "FISCALIZACAO_RELATORIOS" },
   { to: "/estatisticas", label: "Estatísticas", icon: BarChart3, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "ESTATISTICAS" },
   { to: "/avaliacoes", label: "Avaliações", icon: Star, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "AVALIACOES" },
 

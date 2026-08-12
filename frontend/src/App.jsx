@@ -12,6 +12,7 @@ import GoalsPage from "./pages/GoalsPage.jsx";
 import PublicAgendaRequestPage from "./pages/PublicAgendaRequestPage.jsx";
 import SetPasswordPage from "./pages/SetPasswordPage.jsx";
 import ShiftSchedulePage from "./pages/ShiftSchedulePage.jsx";
+import InspectionReportsPage from "./pages/InspectionReportsPage.jsx";
 import TechnicalReportsPage from "./pages/TechnicalReportsPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
 const StatisticsPage = lazy(() => import("./pages/StatisticsPage.jsx"));
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="calendario" element={<CalendarPage />} />
         <Route path="escala" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"]} moduleName="ESCALA"><ShiftSchedulePage /></ProtectedRoute>} />
         <Route path="relatorio-tecnico" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="RELATORIOS"><TechnicalReportsPage /></ProtectedRoute>} />
+        <Route path="fiscalizacao/relatorios" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "VISITOR", "ALMOXARIFADO", "CREATOR"]} moduleName="FISCALIZACAO_RELATORIOS"><InspectionReportsPage /></ProtectedRoute>} />
         <Route path="estatisticas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="ESTATISTICAS"><Suspense fallback={<div className="page">Carregando estatísticas…</div>}><StatisticsPage /></Suspense></ProtectedRoute>} />
         <Route path="avaliacoes" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AVALIACOES"><EvaluationsPage /></ProtectedRoute>} />
         <Route path="metas" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><GoalsPage /></ProtectedRoute>} />

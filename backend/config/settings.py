@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.schedules",
     "apps.statistics",
+    "apps.inspection",
 ]
 
 MIDDLEWARE = [
@@ -234,6 +235,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.schedules",
     "apps.statistics",
+    "apps.inspection",
 ]
 
 MIDDLEWARE = [
@@ -406,4 +408,5 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
+INSPECTION_SYNC_TOKEN = config("INSPECTION_SYNC_TOKEN", default="")
 STATISTICS_CUTOFF_DATE = '2026-07-09'

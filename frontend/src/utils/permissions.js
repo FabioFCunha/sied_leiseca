@@ -48,10 +48,10 @@ export function canAccessRoute(user, allowedRoles = [], moduleName = null) {
   if (user?.role === "VISITOR") {
     const sector = user?.sector_name;
     if (sector === "Subsecretaria") {
-      const allowedModules = ["DASHBOARD", "CALENDARIO", "ESCALA", "RELATORIOS", "ESTATISTICAS", "AVALIACOES"];
+      const allowedModules = ["DASHBOARD", "CALENDARIO", "ESCALA", "RELATORIOS", "ESTATISTICAS", "AVALIACOES", "FISCALIZACAO_RELATORIOS"];
       if (allowedModules.includes(moduleName)) return true;
     }
-    if (sector === "OLS/CooAdm" && ["ESTATISTICAS", "CALENDARIO", "RELATORIOS"].includes(moduleName)) {
+    if (sector === "OLS/CooAdm" && ["ESTATISTICAS", "CALENDARIO", "RELATORIOS", "FISCALIZACAO_RELATORIOS"].includes(moduleName)) {
       return true;
     }
     if (sector === "ASCOM" && moduleName === "CALENDARIO") {
