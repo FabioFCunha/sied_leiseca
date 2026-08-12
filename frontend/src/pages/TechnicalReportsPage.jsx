@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
 
-import { buildPreview, buildSupportsSummary, chiefFromReport, reportName, getSupports, getReachedAudienceForAction } from "../utils/reportPreview.js";
+import { buildEducationAgentsText, buildOperationalResponsibility, buildPreview, chiefFromReport, reportName, getReachedAudienceForAction } from "../utils/reportPreview.js";
 import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
 import { getValidatableActions } from "./technicalReportsActionHelpers.js";
 
@@ -18,6 +18,25 @@ function memberRows(members = {}) {
     ...(members.agents || []).map((item) => ({ ...item, type: "AGENT", typeLabel: "Agente" })),
     ...(members.supports || []).map((item) => ({ ...item, type: "SUPPORT", typeLabel: "Apoio" })),
   ];
+}
+
+function findMatchingScheduleInfo(schedules, teamValue, agenda) {
+  return (schedules || []).find((schedule) =>
+    String(schedule.team) === String(teamValue) ||
+    String(schedule.team_name) === String(teamValue) ||
+    (agenda && String(schedule.team) === String(agenda.team_ref)) ||
+    (agenda && String(schedule.team_name) === String(agenda.sector_name))
+  ) || null;
+}
+
+function buildAgendaForOperationalPreview(agenda, report, effectiveMembers) {
+  if (!agenda) return agenda;
+  const responsibility = buildOperationalResponsibility(report, agenda, effectiveMembers);
+  return {
+    ...agenda,
+    support_1: responsibility.supports[0] || "",
+    support_2: responsibility.supports[1] || "",
+  };
 }
 
 const emptyAction = {
@@ -529,6 +548,7 @@ export default function TechnicalReportsPage() {
   const [pendingChiefQuery, setPendingChiefQuery] = useState("");
   const [reportsPreviewModal, setReportsPreviewModal] = useState(null);
   const [resolvedHistoricalAgenda, setResolvedHistoricalAgenda] = useState(null);
+  const [historicalScheduleMembers, setHistoricalScheduleMembers] = useState(null);
   const [isLoadingHistoricalAgenda, setIsLoadingHistoricalAgenda] = useState(false);
   const [historicalAgendaError, setHistoricalAgendaError] = useState("");
   const [activeTab, setActiveTab] = useState(isVisitor ? "completed" : "pending");
@@ -584,7 +604,18 @@ export default function TechnicalReportsPage() {
     if (!originalType) return false;
     return normalizeTypeLabel(action?.type_action) !== normalizeTypeLabel(originalType);
   };
-  const preview = useMemo(() => buildPreview(form, selectedAgenda, showEstimatedPublic), [form, selectedAgenda, showEstimatedPublic]);
+  const selectedAgendaForPreview = useMemo(
+    () => buildAgendaForOperationalPreview(selectedAgenda, form, reportSchedule?.members),
+    [selectedAgenda, form, reportSchedule]
+  );
+  const operationalResponsibility = useMemo(
+    () => buildOperationalResponsibility(form, selectedAgendaForPreview, reportSchedule?.members),
+    [form, selectedAgendaForPreview, reportSchedule]
+  );
+  const preview = useMemo(
+    () => buildPreview(form, selectedAgendaForPreview, showEstimatedPublic, reportSchedule?.members),
+    [form, selectedAgendaForPreview, showEstimatedPublic, reportSchedule]
+  );
 
   const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(r.agenda))), [reports]);
   const pendingAgendas = useMemo(() => agendas.filter(a => !completedAgendaIds.has(String(a.id))), [agendas, completedAgendaIds]);
@@ -739,11 +770,15 @@ export default function TechnicalReportsPage() {
     return { formObj, staffChanges };
   };
 
-  const loadScheduleAttendance = async (scheduleId) => {
+  const loadScheduleAttendance = async (scheduleId, agendaContext = selectedAgenda) => {
     const detailSchedule = await api(`/shift-schedules/${scheduleId}/`);
     setReportSchedule(detailSchedule);
     const { formObj, staffChanges } = buildAttendanceForm(detailSchedule);
     setAttendanceForm(formObj);
+    setForm((current) => ({
+      ...current,
+      education_agents: buildEducationAgentsText(current, agendaContext, detailSchedule.members),
+    }));
     if (staffChanges.length > 0) {
       setForm((current) => ({
         ...current,
@@ -751,6 +786,22 @@ export default function TechnicalReportsPage() {
       }));
     }
     return detailSchedule;
+  };
+
+  const fetchScheduleMembersForContext = async (operationDate, teamValue, agendaContext) => {
+    if (!operationDate || !teamValue || agendaContext?.service_order_mode === "DESIGNATED") {
+      return null;
+    }
+
+    const res = await api(`/shift-schedules/?date=${operationDate}`);
+    const schedules = res.results || res;
+    const scheduleInfo = findMatchingScheduleInfo(schedules, teamValue, agendaContext);
+    if (!scheduleInfo) {
+      return null;
+    }
+
+    const detailSchedule = await api(`/shift-schedules/${scheduleInfo.id}/`);
+    return detailSchedule?.members || null;
   };
 
   const buildDesignatedAttendanceForm = () => {
@@ -780,14 +831,9 @@ export default function TechnicalReportsPage() {
     if (form.operation_date && form.team && !isDesignated) {
       api(`/shift-schedules/?date=${form.operation_date}`).then(res => {
         const schedules = res.results || res;
-        const scheduleInfo = schedules.find(s =>
-          String(s.team) === String(form.team) ||
-          String(s.team_name) === String(form.team) ||
-          (selectedAgenda && String(s.team) === String(selectedAgenda.team_ref)) ||
-          (selectedAgenda && String(s.team_name) === String(selectedAgenda.sector_name))
-        );
+        const scheduleInfo = findMatchingScheduleInfo(schedules, form.team, selectedAgenda);
         if (scheduleInfo) {
-          loadScheduleAttendance(scheduleInfo.id).catch(() => {
+          loadScheduleAttendance(scheduleInfo.id, selectedAgenda).catch(() => {
             setReportSchedule(null);
             setAttendanceForm({});
           });
@@ -1285,15 +1331,10 @@ export default function TechnicalReportsPage() {
     try {
       const res = await api(`/shift-schedules/?date=${hydratedReport.operation_date}`);
       const schedules = res.results || res;
-      const scheduleInfo = schedules.find((schedule) =>
-        String(schedule.team) === String(hydratedReport.team) ||
-        String(schedule.team_name) === String(hydratedReport.team) ||
-        (reportAgenda && String(schedule.team) === String(reportAgenda.team_ref)) ||
-        (reportAgenda && String(schedule.team_name) === String(reportAgenda.sector_name))
-      );
+      const scheduleInfo = findMatchingScheduleInfo(schedules, hydratedReport.team, reportAgenda);
 
       if (scheduleInfo) {
-        await loadScheduleAttendance(scheduleInfo.id);
+        await loadScheduleAttendance(scheduleInfo.id, reportAgenda);
       } else {
         setReportSchedule(null);
         setAttendanceForm({});
@@ -1436,22 +1477,40 @@ export default function TechnicalReportsPage() {
   const openHistoricalReportPreview = async (r) => {
     setReportsPreviewModal(r);
     setResolvedHistoricalAgenda(null);
+    setHistoricalScheduleMembers(null);
     setHistoricalAgendaError("");
     setIsLoadingHistoricalAgenda(false);
 
     const localAgenda = agendas.find((a) => String(a.id) === String(r.agenda));
-    if (localAgenda) {
-      setResolvedHistoricalAgenda(localAgenda);
-    } else {
+    const resolveHistoricalAgenda = async () => {
+      if (localAgenda) {
+        setResolvedHistoricalAgenda(localAgenda);
+        return localAgenda;
+      }
+
       setIsLoadingHistoricalAgenda(true);
       try {
         const data = await api(`/agendas/${r.agenda}/`);
         setResolvedHistoricalAgenda(data);
+        return data;
       } catch (err) {
         setHistoricalAgendaError("Não foi possível carregar os dados da Agenda deste relatório.");
+        return null;
       } finally {
         setIsLoadingHistoricalAgenda(false);
       }
+    };
+
+    const historicalAgenda = await resolveHistoricalAgenda();
+    if (!historicalAgenda || historicalAgenda.service_order_mode === "DESIGNATED") {
+      return;
+    }
+
+    try {
+      const members = await fetchScheduleMembersForContext(r.operation_date, r.team, historicalAgenda);
+      setHistoricalScheduleMembers(members);
+    } catch {
+      setHistoricalScheduleMembers(null);
     }
   };
 
@@ -1522,7 +1581,7 @@ export default function TechnicalReportsPage() {
             <div className="compact-grid three-cols">
               <label className="field-label">
                 <span>Chefe responsável</span>
-                <input value={selectedAgenda ? chiefFromAgenda(selectedAgenda) || chiefFromReport(form) : chiefFromReport(form)} readOnly />
+                <input value={operationalResponsibility.chief || (selectedAgenda ? chiefFromAgenda(selectedAgenda) || chiefFromReport(form) : chiefFromReport(form))} readOnly />
               </label>
               <label className="field-label">
                 <span>Data</span>
@@ -2162,6 +2221,7 @@ export default function TechnicalReportsPage() {
             <div className="modal-overlay" onClick={() => {
               setReportsPreviewModal(null);
               setResolvedHistoricalAgenda(null);
+              setHistoricalScheduleMembers(null);
               setIsLoadingHistoricalAgenda(false);
               setHistoricalAgendaError("");
             }}>
@@ -2171,6 +2231,7 @@ export default function TechnicalReportsPage() {
                   <button className="secondary icon-button" onClick={() => {
                     setReportsPreviewModal(null);
                     setResolvedHistoricalAgenda(null);
+                    setHistoricalScheduleMembers(null);
                     setIsLoadingHistoricalAgenda(false);
                     setHistoricalAgendaError("");
                   }}><X size={20} /></button>
@@ -2185,7 +2246,8 @@ export default function TechnicalReportsPage() {
                       const isHistoricalPublicRequest = resolvedHistoricalAgenda?.origin === "PUBLIC_FORM";
                       const isHistoricalStreetAction = isStreetActionAgenda(resolvedHistoricalAgenda) || Boolean(reportsPreviewModal?.street_action_details?.length);
                       const showHistoricalEstimatedPublic = !isHistoricalStreetAction || isHistoricalPublicRequest;
-                      return <pre>{buildPreview(reportsPreviewModal, resolvedHistoricalAgenda, showHistoricalEstimatedPublic)}</pre>;
+                      const historicalAgendaForPreview = buildAgendaForOperationalPreview(resolvedHistoricalAgenda, reportsPreviewModal, historicalScheduleMembers);
+                      return <pre>{buildPreview(reportsPreviewModal, historicalAgendaForPreview, showHistoricalEstimatedPublic, historicalScheduleMembers)}</pre>;
                     })()
                   ) : null}
                 </div>
@@ -2328,10 +2390,9 @@ export default function TechnicalReportsPage() {
     </section>
 
     {showPreviewModal && (() => {
-      const chief = form.education_agents ? form.education_agents.match(/Chefe(?: respons[áa]vel)?:\s*([^\n]+)/i)?.[1]?.trim() : "";
-      const agentsMatch = form.education_agents ? form.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() : "";
-      const supportsList = getSupports(form, selectedAgenda);
-      const supportsStr = buildSupportsSummary(form, selectedAgenda);
+      const chief = operationalResponsibility.chief;
+      const agentsMatch = operationalResponsibility.agentsSummary;
+      const supportsStr = operationalResponsibility.supportsSummary;
       const absences = Object.values(attendanceForm || {}).filter(d => d.is_absent === true);
       const actions = form.actions || [];
       const hasStaffChanges = !!(form.changes_staff && form.changes_staff.trim());
@@ -2371,13 +2432,13 @@ export default function TechnicalReportsPage() {
 
       const identData = [
         ["Protocolo", form.agenda ? `#${form.agenda}` : null],
-        ["Ordem de Serviço", selectedAgenda?.service_order_number],
+        ["Ordem de Serviço", selectedAgendaForPreview?.service_order_number],
         ["Data da Operação", form.operation_date ? formatDateBR(form.operation_date) : null],
-        ["Horário Programado", selectedAgenda ? `${selectedAgenda.start_time?.slice(0,5) || "--"} às ${selectedAgenda.end_time?.slice(0,5) || "--"}` : null],
+        ["Horário Programado", selectedAgendaForPreview ? `${selectedAgendaForPreview.start_time?.slice(0,5) || "--"} às ${selectedAgendaForPreview.end_time?.slice(0,5) || "--"}` : null],
         ["Natureza da Atividade", form.agenda_title],
         ["Instituição / Local", form.agenda_location],
-        ["Endereço", selectedAgenda?.address],
-        ["Município", selectedAgenda?.city || selectedAgenda?.municipality_ref_name],
+        ["Endereço", selectedAgendaForPreview?.address],
+        ["Município", selectedAgendaForPreview?.city || selectedAgendaForPreview?.municipality_ref_name],
       ].filter(r => r[1] && r[1] !== "-" && r[1] !== "null" && r[1] !== "undefined");
 
       const respData = [];
@@ -2420,7 +2481,7 @@ export default function TechnicalReportsPage() {
             <div style={{ textAlign: "center", padding: "6px 16px 2px", fontSize: "10px", color: GRAY_600, letterSpacing: "0.3px" }}>
               {[
                 form.agenda ? `Protocolo #${form.agenda}` : null,
-                selectedAgenda?.service_order_number ? `OS ${selectedAgenda.service_order_number}` : null,
+                selectedAgendaForPreview?.service_order_number ? `OS ${selectedAgendaForPreview.service_order_number}` : null,
                 `Data: ${form.operation_date ? formatDateBR(form.operation_date) : "--"}`,
               ].filter(Boolean).join("   |   ")}
             </div>
@@ -2634,7 +2695,7 @@ export default function TechnicalReportsPage() {
                   className="primary"
                   type="button"
                   onClick={() =>
-                    generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, true, showEstimatedPublic)
+                    generateTechnicalReportPdf(form, selectedAgendaForPreview, attendanceForm, true, showEstimatedPublic)
                   }
                 >
                   Visualizar PDF
@@ -2646,7 +2707,7 @@ export default function TechnicalReportsPage() {
                   className="primary"
                   type="button"
                   onClick={() =>
-                    generateTechnicalReportPdf(form, selectedAgenda, attendanceForm, false, showEstimatedPublic)
+                    generateTechnicalReportPdf(form, selectedAgendaForPreview, attendanceForm, false, showEstimatedPublic)
                   }
                 >
                   Baixar PDF técnico

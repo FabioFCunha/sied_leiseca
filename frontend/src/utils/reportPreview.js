@@ -10,6 +10,40 @@ export function chiefFromReport(report) {
   return match?.[1]?.trim() || "";
 }
 
+function agentsFromReport(report) {
+  return report.education_agents ? report.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() || "" : "";
+}
+
+function phoneFromReport(report) {
+  const match = String(report.education_agents || "").match(/Telefone do chefe\/equipe:\s*([^\n]+)/i);
+  return match?.[1]?.trim() || "";
+}
+
+function uniqueNames(values = []) {
+  const unique = [];
+  const normalizedSeen = new Set();
+
+  values.forEach((value) => {
+    const name = String(value || "").trim();
+    const normalized = name.toLocaleLowerCase("pt-BR");
+    if (name && !normalizedSeen.has(normalized)) {
+      normalizedSeen.add(normalized);
+      unique.push(name);
+    }
+  });
+
+  return unique;
+}
+
+function memberNames(items = []) {
+  return uniqueNames(items.map((item) => item?.name));
+}
+
+function hasEffectiveMembers(effectiveMembers) {
+  if (!effectiveMembers) return false;
+  return ["chiefs", "agents", "supports"].some((group) => Array.isArray(effectiveMembers[group]) && effectiveMembers[group].length > 0);
+}
+
 export function getReachedAudienceForAction(action, index) {
   if (!action) return undefined;
   if (index === 0) {
@@ -28,10 +62,13 @@ export function getReachedAudienceForAction(action, index) {
   return action.approached_actions;
 }
 
-export function getSupports(report, selectedAgenda) {
+export function getSupports(report, selectedAgenda, effectiveMembers) {
+  if (hasEffectiveMembers(effectiveMembers)) {
+    return memberNames(effectiveMembers.supports || []);
+  }
+
   const supportsList = [];
-  
-  // 1. Try structured fields from selectedAgenda if available
+
   if (selectedAgenda) {
     if (selectedAgenda.support_1 && selectedAgenda.support_1.trim()) {
       supportsList.push(selectedAgenda.support_1.trim());
@@ -40,11 +77,10 @@ export function getSupports(report, selectedAgenda) {
       supportsList.push(selectedAgenda.support_2.trim());
     }
   }
-  
-  // 2. Fallback to regex if we didn't find any structured supports
-  if (supportsList.length === 0 && report && report.education_agents) {
+
+  if (report && report.education_agents) {
     const lines = String(report.education_agents).split("\n");
-    lines.forEach(line => {
+    lines.forEach((line) => {
       const match = line.match(/^(?:Apoio\s*[12]?|Apoios?)(?:\s*operacional)?:\s*(.+)$/i);
       if (match) {
         const val = match[1].trim();
@@ -55,38 +91,65 @@ export function getSupports(report, selectedAgenda) {
     });
   }
   
-  // Deduplicate
-  const unique = [];
-  const normalizedSeen = new Set();
-  supportsList.forEach(name => {
-    const normalized = name.toLowerCase().trim();
-    if (normalized && !normalizedSeen.has(normalized)) {
-      normalizedSeen.add(normalized);
-      unique.push(name);
-    }
+  return uniqueNames(supportsList);
+}
+
+export function buildEducationAgentsText(report, selectedAgenda, effectiveMembers) {
+  if (!hasEffectiveMembers(effectiveMembers)) {
+    return report?.education_agents || "";
+  }
+
+  const chief = memberNames(effectiveMembers.chiefs || [])[0] || "";
+  const phone = String(selectedAgenda?.team_phone || phoneFromReport(report)).trim();
+  const agents = memberNames(effectiveMembers.agents || []);
+  const supports = memberNames(effectiveMembers.supports || []);
+  const lines = [];
+
+  if (chief) lines.push(`Chefe respons\u00E1vel: ${chief}`);
+  if (phone) lines.push(`Telefone do chefe/equipe: ${phone}`);
+  if (agents.length) lines.push(`Agentes: ${agents.join(" - ")}`);
+  supports.forEach((support, index) => {
+    lines.push(`Apoio ${index + 1}: ${support}`);
   });
-  
-  return unique;
+
+  return lines.join("\n");
 }
 
-export function buildSupportsSummary(report, selectedAgenda) {
-  return getSupports(report, selectedAgenda).join(" - ");
+export function buildOperationalResponsibility(report, selectedAgenda, effectiveMembers) {
+  const chief = hasEffectiveMembers(effectiveMembers)
+    ? memberNames(effectiveMembers.chiefs || [])[0] || ""
+    : chiefFromReport(report);
+  const agentsSummary = hasEffectiveMembers(effectiveMembers)
+    ? memberNames(effectiveMembers.agents || []).join(" - ")
+    : agentsFromReport(report);
+  const supports = getSupports(report, selectedAgenda, effectiveMembers);
+
+  return {
+    chief,
+    agentsSummary,
+    supports,
+    supportsSummary: supports.join(" - "),
+    educationAgentsText: buildEducationAgentsText(report, selectedAgenda, effectiveMembers),
+  };
 }
 
-export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true, maybeShowEstimatedPublic = true) {
+export function buildSupportsSummary(report, selectedAgenda, effectiveMembers) {
+  return getSupports(report, selectedAgenda, effectiveMembers).join(" - ");
+}
+
+export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true, maybeShowEstimatedPublic = true, maybeEffectiveMembers) {
   let selectedAgenda = selectedAgendaOrShowEstimatedPublic;
   let showEstimatedPublic = maybeShowEstimatedPublic;
+  let effectiveMembers = maybeEffectiveMembers;
 
   if (typeof selectedAgendaOrShowEstimatedPublic === "boolean" || selectedAgendaOrShowEstimatedPublic === undefined) {
     selectedAgenda = undefined;
     showEstimatedPublic = selectedAgendaOrShowEstimatedPublic ?? true;
+    effectiveMembers = maybeShowEstimatedPublic;
   }
 
   const actions = report.actions || [];
-  const selectedChief = chiefFromReport(report);
-  
-  const agentsMatch = report.education_agents ? report.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() : "";
-  const supportsStr = buildSupportsSummary(report, selectedAgenda);
+  const responsibility = buildOperationalResponsibility(report, selectedAgenda, effectiveMembers);
 
   let totalsEstimado = 0;
   let totalsAlcancado = 0;
@@ -140,12 +203,12 @@ export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true,
     `Solicita\u00E7\u00E3o: ${report.agenda_title || "n\u00E3o informada"}\n` +
     `Data: ${report.operation_date ? formatDateBR(report.operation_date) : "n\u00E3o informada"}\n` +
     `Equipe: ${report.team || "n\u00E3o informada"}\n` +
-    `Chefe respons\u00E1vel: ${selectedChief || "n\u00E3o informado"}\n` +
+    `Chefe respons\u00E1vel: ${responsibility.chief || "n\u00E3o informado"}\n` +
     `Telefone do solicitante: ${report.agenda_phone || "n\u00E3o informado"}\n` +
     "\n" +
     `EFETIVO E ESTRUTURA\n` +
-    `Agentes de educa\u00E7\u00E3o: ${agentsMatch || "n\u00E3o informado"}\n` +
-    `Apoios: ${supportsStr || "N\u00E3o informado"}\n` +
+    `Agentes de educa\u00E7\u00E3o: ${responsibility.agentsSummary || "n\u00E3o informado"}\n` +
+    `Apoios: ${responsibility.supportsSummary || "N\u00E3o informado"}\n` +
     `Etil\u00F4metros: ${report.breathalyzers || "n\u00E3o informado"}\n` +
     `Viaturas: ${report.cars || "n\u00E3o informado"}\n` +
     `Altera\u00E7\u00F5es gerais: ${report.changes_general || "n\u00E3o informado"}\n\n` +
