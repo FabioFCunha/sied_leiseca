@@ -1,10 +1,11 @@
 import {
   AlertCircle,
-  BarChart3,
   CarFront,
   ClipboardCheck,
   Filter,
   Gauge,
+  HelpCircle,
+  MapPinned,
   ShieldAlert,
   TestTube2,
   Users,
@@ -23,9 +24,29 @@ import {
 } from "recharts";
 import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js";
 import { formatDateBR } from "../utils/date.js";
+import {
+  TAXONOMY_STATUS,
+  buildInspectionExecutiveCards,
+  buildInspectionStatisticsTaxonomy,
+} from "../utils/inspectionStatisticsTaxonomy.js";
 import "./StatisticsPage.css";
 
 const CUTOFF_DATE = "2026-08-10";
+
+const executiveCardMeta = {
+  homologated_reports: { icon: ClipboardCheck, color: "#0048d7" },
+  operations: { icon: ShieldAlert, color: "#0f766e" },
+  approach: { icon: Users, color: "#1d4ed8" },
+  fined: { icon: CarFront, color: "#7c3aed" },
+};
+
+const categoryIconMap = {
+  vehicles: CarFront,
+  driver: Gauge,
+  breathalyzer_results: TestTube2,
+  taxi: MapPinned,
+  events: AlertCircle,
+};
 
 function toIsoDate(value) {
   return value.toISOString().slice(0, 10);
@@ -51,36 +72,17 @@ function displayMetric(value) {
   return value === null || value === undefined ? "Não informado" : integer(value);
 }
 
-function buildCards(summary = {}) {
-  return [
-    { key: "homologated_reports", label: "Relatórios homologados", value: summary.homologated_reports, icon: ClipboardCheck, color: "#0048d7" },
-    { key: "operations", label: "Operações", value: summary.operations, icon: ShieldAlert, color: "#0f766e" },
-    { key: "approach", label: "Abordados", value: summary.approach, icon: Users, color: "#1d4ed8" },
-    { key: "reconductor", label: "Recondutores", value: summary.reconductor, icon: Gauge, color: "#0369a1" },
-    { key: "refusal", label: "Recusas", value: summary.refusal, icon: AlertCircle, color: "#b45309" },
-    { key: "fined", label: "Multados", value: summary.fined, icon: ClipboardCheck, color: "#7c3aed" },
-    { key: "towed", label: "Rebocados", value: summary.towed, icon: CarFront, color: "#0f766e" },
-    { key: "cnh_collected", label: "CNH recolhidas", value: summary.cnh_collected, icon: ShieldAlert, color: "#be123c" },
-    { key: "passive_tests_performed", label: "Testes passivos", value: summary.passive_tests_performed, icon: TestTube2, color: "#0891b2" },
-  ];
-}
-
-function MetricGrid({ items }) {
-  return (
-    <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-      {items.map((item) => (
-        <div key={item.label} className="stats-kpi" style={{ "--kpi": item.color }}>
-          <div className="stats-kpi-top">
-            <span className="stats-kpi-icon">
-              <item.icon size={18} />
-            </span>
-            {item.label}
-          </div>
-          <div className="stats-kpi-value">{displayMetric(item.value)}</div>
-        </div>
-      ))}
-    </div>
-  );
+function statusClassName(status) {
+  switch (status) {
+    case TAXONOMY_STATUS.MAPPED:
+      return "is-mapped";
+    case TAXONOMY_STATUS.PARTIAL:
+      return "is-partial";
+    case TAXONOMY_STATUS.UNMAPPED:
+      return "is-unmapped";
+    default:
+      return "is-needs-definition";
+  }
 }
 
 function Section({ title, subtitle, children }) {
@@ -95,6 +97,45 @@ function Section({ title, subtitle, children }) {
         </div>
       </div>
       <div className="stats-panel-body">{children}</div>
+    </section>
+  );
+}
+
+function TaxonomyGrid({ category }) {
+  const Icon = categoryIconMap[category.key] || HelpCircle;
+
+  return (
+    <section className="inspection-taxonomy">
+      <div className="inspection-taxonomy-header">
+        <div className="inspection-taxonomy-title">
+          <span className="inspection-taxonomy-icon">
+            <Icon size={18} />
+          </span>
+          <div>
+            <h2>{category.title}</h2>
+            <p>{category.subtitle}</p>
+          </div>
+        </div>
+      </div>
+      <div className="inspection-taxonomy-grid">
+        {category.items.map((item) => (
+          <article key={item.key} className="inspection-taxonomy-item">
+            <div className="inspection-taxonomy-item-top">
+              <strong>{item.label}</strong>
+              <span className={`inspection-taxonomy-badge ${statusClassName(item.status)}`}>{item.status}</span>
+            </div>
+            <div className="inspection-taxonomy-value">
+              {item.status === TAXONOMY_STATUS.UNMAPPED || item.status === TAXONOMY_STATUS.NEEDS_DEFINITION
+                ? item.status
+                : displayMetric(item.value)}
+            </div>
+            <div className="inspection-taxonomy-meta">
+              {item.field ? <code>{item.field}</code> : <span>Sem campo homologado</span>}
+            </div>
+            <p>{item.note}</p>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -124,7 +165,8 @@ export default function InspectionStatisticsPage() {
     loadDashboard(filters);
   }, []);
 
-  const cards = useMemo(() => buildCards(dashboard?.summary || {}), [dashboard]);
+  const cards = useMemo(() => buildInspectionExecutiveCards(dashboard?.summary || {}), [dashboard]);
+  const taxonomy = useMemo(() => buildInspectionStatisticsTaxonomy(dashboard || {}), [dashboard]);
   const timeSeries = dashboard?.time_series || [];
   const teamProduction = dashboard?.team_production || [];
   const hasData = Boolean(dashboard?.meta?.has_data);
@@ -161,7 +203,7 @@ export default function InspectionStatisticsPage() {
           Filtros
         </div>
         <label>
-          Data inicial
+          De
           <input
             type="date"
             min={CUTOFF_DATE}
@@ -170,7 +212,7 @@ export default function InspectionStatisticsPage() {
           />
         </label>
         <label>
-          Data final
+          Até
           <input
             type="date"
             min={CUTOFF_DATE}
@@ -212,65 +254,27 @@ export default function InspectionStatisticsPage() {
       ) : (
         <>
           <div className="stats-kpi-grid">
-            {cards.map((card) => (
-              <div key={card.key} className="stats-kpi" style={{ "--kpi": card.color }}>
-                <div className="stats-kpi-top">
-                  <span className="stats-kpi-icon">
-                    <card.icon size={18} />
-                  </span>
-                  {card.label}
+            {cards.map((card) => {
+              const meta = executiveCardMeta[card.key] || executiveCardMeta.homologated_reports;
+              const Icon = meta.icon;
+              return (
+                <div key={card.key} className="stats-kpi" style={{ "--kpi": meta.color }}>
+                  <div className="stats-kpi-top">
+                    <span className="stats-kpi-icon">
+                      <Icon size={18} />
+                    </span>
+                    {card.label}
+                  </div>
+                  <div className="stats-kpi-value">{displayMetric(card.value)}</div>
                 </div>
-                <div className="stats-kpi-value">{displayMetric(card.value)}</div>
-              </div>
+              );
+            })}
+          </div>
+
+          <div className="inspection-taxonomy-stack">
+            {taxonomy.map((category) => (
+              <TaxonomyGrid key={category.key} category={category} />
             ))}
-          </div>
-
-          <div className="stats-two-columns">
-            <Section title="Resultados de Alcoolemia" subtitle="Totais oficiais consolidados no período filtrado.">
-              <MetricGrid
-                items={[
-                  { label: "0,00 a 0,04", value: dashboard.alcohol_results?.four_ml, icon: TestTube2, color: "#0369a1" },
-                  { label: "0,05 a 0,33", value: dashboard.alcohol_results?.thirtythree_ml, icon: TestTube2, color: "#0f766e" },
-                  { label: "Acima de 0,33", value: dashboard.alcohol_results?.thirtyfour_ml, icon: TestTube2, color: "#be123c" },
-                  { label: "Recusas", value: dashboard.alcohol_results?.refusal, icon: AlertCircle, color: "#b45309" },
-                ]}
-              />
-            </Section>
-
-            <Section title="Medidas Administrativas" subtitle="Sem ajuste manual dos quantitativos homologados.">
-              <MetricGrid
-                items={[
-                  { label: "Multados", value: dashboard.administrative_measures?.fined, icon: ClipboardCheck, color: "#7c3aed" },
-                  { label: "Rebocados", value: dashboard.administrative_measures?.towed, icon: CarFront, color: "#0f766e" },
-                  { label: "CNH recolhidas", value: dashboard.administrative_measures?.cnh_collected, icon: ShieldAlert, color: "#be123c" },
-                  { label: "Deliberações de remoção", value: dashboard.administrative_measures?.removal_resolutions, icon: BarChart3, color: "#1d4ed8" },
-                ]}
-              />
-            </Section>
-          </div>
-
-          <div className="stats-two-columns">
-            <Section title="Ocorrências" subtitle="Recorte consolidado das ocorrências homologadas.">
-              <MetricGrid
-                items={[
-                  { label: "Ocorrências criminais", value: dashboard.occurrences?.criminal_occurrences, icon: AlertCircle, color: "#be123c" },
-                  { label: "Art. 307", value: dashboard.occurrences?.art307, icon: ShieldAlert, color: "#b45309" },
-                  { label: "Dirigir com CNH cassada", value: dashboard.occurrences?.driving_canceled_license, icon: CarFront, color: "#0f766e" },
-                  { label: "Prisões por outros meios", value: dashboard.occurrences?.arrests_means_evidence, icon: ClipboardCheck, color: "#7c3aed" },
-                ]}
-              />
-            </Section>
-
-            <Section title="Outros indicadores" subtitle="Campos oficiais adicionais já disponíveis na estatística homologada.">
-              <MetricGrid
-                items={[
-                  { label: "Celebridades/Autoridades", value: dashboard.summary?.celebrities_authorities, icon: Users, color: "#0f766e" },
-                  { label: "Recondutores", value: dashboard.summary?.reconductor, icon: Gauge, color: "#0369a1" },
-                  { label: "Testes passivos", value: dashboard.summary?.passive_tests_performed, icon: TestTube2, color: "#0891b2" },
-                  { label: "Operações", value: dashboard.summary?.operations, icon: ShieldAlert, color: "#0048d7" },
-                ]}
-              />
-            </Section>
           </div>
 
           <div className="stats-two-columns">

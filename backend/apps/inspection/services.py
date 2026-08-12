@@ -507,3 +507,280 @@ class InspectionStatisticsService:
             outcome="excluded",
             detail="Relatorio marcado como nao incluido na estatistica.",
         )
+
+
+
+from django.db.models import Count, Sum, Value, F
+from django.db.models.functions import Coalesce
+from apps.inspection.models import InspectionHistoricalStatistic, INSPECTION_STATISTICS_CUTOFF_DATE
+
+class InspectionStatisticsUnifiedService:
+    def __init__(self, filters):
+        self.filters = filters
+        self.date_from = date.fromisoformat(filters["date_from"]) if filters.get("date_from") else None
+        self.date_to = date.fromisoformat(filters["date_to"]) if filters.get("date_to") else None
+        self.team = filters.get("team")
+
+        self.use_historical = False
+        self.use_operational = False
+
+        # Determine sources based on dates
+        if not self.date_from and not self.date_to:
+            self.use_historical = True
+            self.use_operational = True
+        else:
+            d_from = self.date_from or date.min
+            d_to = self.date_to or date.max
+
+            if d_from < INSPECTION_STATISTICS_CUTOFF_DATE:
+                self.use_historical = True
+            if d_to >= INSPECTION_STATISTICS_CUTOFF_DATE:
+                self.use_operational = True
+
+    def get_dashboard_data(self):
+        hist_agg, hist_ts, hist_tp = self._get_historical_data() if self.use_historical else ({}, [], {})
+        oper_agg, oper_ts, oper_tp = self._get_operational_data() if self.use_operational else ({}, [], {})
+
+        sources_used = []
+        if self.use_historical:
+            sources_used.append("historical")
+        if self.use_operational:
+            sources_used.append("report")
+
+        def sum_nullable(a, b):
+            if a is None and b is None:
+                return None
+            return (a or 0) + (b or 0)
+
+        # Merge summary
+        summary = {
+            "homologated_reports": oper_agg.get("homologated_reports") if self.use_operational else None,
+            "operations": sum_nullable(hist_agg.get("operations"), oper_agg.get("operations")),
+
+            "approach_plus_reconductor": None,
+            "refusal": sum_nullable(hist_agg.get("refusal"), oper_agg.get("refusal")),
+            "fined": sum_nullable(hist_agg.get("fined"), oper_agg.get("fined")),
+            "towed": sum_nullable(hist_agg.get("towed"), oper_agg.get("towed")),
+            "cnh_collected": sum_nullable(hist_agg.get("cnh_collected"), oper_agg.get("cnh_collected")),
+            "passive_tests_performed": sum_nullable(hist_agg.get("passive_tests_performed"), oper_agg.get("passive_tests_performed")),
+            "removal_resolutions": sum_nullable(hist_agg.get("removal_resolutions"), oper_agg.get("removal_resolutions")),
+            "criminal_occurrences": sum_nullable(hist_agg.get("criminal_occurrences"), oper_agg.get("criminal_occurrences")),
+            "art307": sum_nullable(hist_agg.get("art307"), oper_agg.get("art307")),
+            "driving_canceled_license": sum_nullable(hist_agg.get("driving_canceled_license"), oper_agg.get("driving_canceled_license")),
+            "arrests_means_evidence": sum_nullable(hist_agg.get("arrests_means_evidence"), oper_agg.get("arrests_means_evidence")),
+            "celebrities_authorities": oper_agg.get("celebrities_authorities"),
+            "approach": oper_agg.get("sum_approach"),
+            "reconductor": oper_agg.get("sum_reconductor"),
+        }
+
+        if self.use_historical and not self.use_operational:
+            summary["approach_plus_reconductor"] = hist_agg.get("approach_plus_reconductor")
+        elif self.use_operational and not self.use_historical:
+            summary["approach_plus_reconductor"] = oper_agg.get("approach_plus_reconductor")
+        else:
+            summary["approach_plus_reconductor"] = None
+
+        alcohol = {
+            "four_ml": sum_nullable(hist_agg.get("four_ml"), oper_agg.get("four_ml")),
+            "thirtythree_ml": sum_nullable(hist_agg.get("thirtythree_ml"), oper_agg.get("thirtythree_ml")),
+            "thirtyfour_ml": sum_nullable(hist_agg.get("thirtyfour_ml"), oper_agg.get("thirtyfour_ml")),
+            "refusal": sum_nullable(hist_agg.get("refusal"), oper_agg.get("refusal")),
+        }
+
+        admin = {
+            "fined": sum_nullable(hist_agg.get("fined"), oper_agg.get("fined")),
+            "towed": sum_nullable(hist_agg.get("towed"), oper_agg.get("towed")),
+            "cnh_collected": sum_nullable(hist_agg.get("cnh_collected"), oper_agg.get("cnh_collected")),
+            "removal_resolutions": sum_nullable(hist_agg.get("removal_resolutions"), oper_agg.get("removal_resolutions")),
+        }
+
+        occur = {
+            "criminal_occurrences": sum_nullable(hist_agg.get("criminal_occurrences"), oper_agg.get("criminal_occurrences")),
+            "art307": sum_nullable(hist_agg.get("art307"), oper_agg.get("art307")),
+            "driving_canceled_license": sum_nullable(hist_agg.get("driving_canceled_license"), oper_agg.get("driving_canceled_license")),
+            "arrests_means_evidence": sum_nullable(hist_agg.get("arrests_means_evidence"), oper_agg.get("arrests_means_evidence")),
+            "rain": hist_agg.get("rain") if self.use_historical and not self.use_operational else None,
+            "planned_actions": hist_agg.get("planned_actions") if self.use_historical and not self.use_operational else None,
+        }
+
+        if self.use_historical and self.use_operational:
+            occur["rain"] = hist_agg.get("rain")
+            occur["planned_actions"] = hist_agg.get("planned_actions")
+
+        # Merge time series
+        ts_dict = {}
+        for row in hist_ts:
+            d = row["operation_date"]
+            ts_dict[d] = row
+
+        for row in oper_ts:
+            d = row["operation_date"]
+            if d in ts_dict:
+                for k in ["reports", "operations", "approach", "refusal", "fined"]:
+                    ts_dict[d][k] = sum_nullable(ts_dict[d].get(k), row.get(k))
+            else:
+                ts_dict[d] = row
+
+        time_series = [ts_dict[k] for k in sorted(ts_dict.keys())]
+        for row in time_series:
+            if isinstance(row["operation_date"], date):
+                row["operation_date"] = row["operation_date"].isoformat()
+
+        # Merge team production
+        tp_dict = {}
+        for team, row in hist_tp.items():
+            tp_dict[team] = row
+
+        for team, row in oper_tp.items():
+            if team in tp_dict:
+                for k in ["reports", "operations", "approach", "refusal", "fined", "towed"]:
+                    tp_dict[team][k] = sum_nullable(tp_dict[team].get(k), row.get(k))
+            else:
+                tp_dict[team] = row
+
+        team_production = list(tp_dict.values())
+        team_production.sort(key=lambda x: (- (x.get("approach") or 0), x.get("team", "")))
+
+        # Metadata coverage
+        coverage = {
+            "summary.homologated_reports": "CURRENT_ONLY",
+            "summary.operations": "PARTIAL",
+            "summary.approach_plus_reconductor": "DIRECT" if (self.use_historical ^ self.use_operational) else "PARTIAL",
+            "alcohol_results.four_ml": "DIRECT",
+            "occurrences.rain": "HISTORICAL_ONLY",
+        }
+
+        normalized_filters = {
+            "date_from": self.filters.get("date_from"),
+            "date_to": self.filters.get("date_to"),
+            "team": self.filters.get("team"),
+        }
+
+        return {
+            "filters": normalized_filters,
+            "summary": summary,
+            "alcohol_results": alcohol,
+            "administrative_measures": admin,
+            "occurrences": occur,
+            "team_production": team_production,
+            "time_series": time_series,
+            "meta": {
+                "has_data": bool(time_series),
+                "cutoff_date": INSPECTION_STATISTICS_CUTOFF_DATE.isoformat(),
+                "sources_used": sources_used,
+            },
+            "coverage": coverage,
+        }
+
+    def _get_historical_data(self):
+        qs = InspectionHistoricalStatistic.objects.all()
+        if self.date_from:
+            qs = qs.filter(reference_date__gte=self.date_from)
+        if self.date_to:
+            qs = qs.filter(reference_date__lte=self.date_to)
+        if self.team:
+            qs = qs.filter(team__iexact=self.team)
+
+        agg = qs.aggregate(
+            approach_plus_reconductor=Sum(Coalesce('four_ml', Value(0)) + Coalesce('refusal', Value(0))),
+            refusal=Sum("refusal"),
+            fined=Sum("fined"),
+            towed=Sum("towed"),
+            cnh_collected=Sum("cnh_collected"),
+            passive_tests_performed=Sum("passive_tests_performed"),
+            removal_resolutions=Sum("removal_resolutions"),
+            criminal_occurrences=Sum("criminal_art_306") + Sum("criminal_art_306_other_evidence"), # approximation
+            arrests_means_evidence=Sum("arrests_means_evidence"),
+            four_ml=Sum("four_ml"),
+            thirtythree_ml=Sum("thirtythree_ml"),
+            thirtyfour_ml=Sum("thirtyfour_ml"),
+            rain=Sum("rain"),
+            planned_actions=Sum("planned_actions"),
+            operations=Sum("historical_operations"),
+        )
+
+        hist_ts = list(
+            qs.values("reference_date")
+            .annotate(
+                operation_date=F("reference_date"),
+                approach=Sum(Coalesce('four_ml', Value(0)) + Coalesce('refusal', Value(0))),
+                refusal=Sum("refusal"),
+                fined=Sum("fined"),
+                operations=Sum("historical_operations"),
+            )
+            .order_by("reference_date")
+        )
+        for row in hist_ts:
+            del row["reference_date"]
+
+        hist_tp_qs = list(
+            qs.values("team")
+            .annotate(
+                approach=Sum(Coalesce('four_ml', Value(0)) + Coalesce('refusal', Value(0))),
+                refusal=Sum("refusal"),
+                fined=Sum("fined"),
+                towed=Sum("towed"),
+                operations=Sum("historical_operations"),
+            )
+        )
+        hist_tp = {row["team"]: row for row in hist_tp_qs}
+
+        return agg, hist_ts, hist_tp
+
+    def _get_operational_data(self):
+        qs = InspectionStatistic.objects.all()
+        if self.date_from:
+            qs = qs.filter(operation_date__gte=self.date_from)
+        if self.date_to:
+            qs = qs.filter(operation_date__lte=self.date_to)
+        if self.team:
+            qs = qs.filter(team__iexact=self.team)
+
+        agg = qs.aggregate(
+            homologated_reports=Count("id"),
+            operations=Sum("operations_count"),
+            sum_approach=Sum("approach"),
+            sum_reconductor=Sum("reconductor"),
+            approach_plus_reconductor=Sum(Coalesce('approach', Value(0)) + Coalesce('reconductor', Value(0))),
+            refusal=Sum("refusal"),
+            fined=Sum("fined"),
+            towed=Sum("towed"),
+            cnh_collected=Sum("cnh_collected"),
+            passive_tests_performed=Sum("passive_tests_performed"),
+            removal_resolutions=Sum("removal_resolutions"),
+            criminal_occurrences=Sum("criminal_occurrences"),
+            art307=Sum("art307"),
+            driving_canceled_license=Sum("driving_canceled_license"),
+            arrests_means_evidence=Sum("arrests_means_evidence"),
+            celebrities_authorities=Sum("celebrities_authorities"),
+            four_ml=Sum("four_ml"),
+            thirtythree_ml=Sum("thirtythree_ml"),
+            thirtyfour_ml=Sum("thirtyfour_ml"),
+        )
+
+        oper_ts = list(
+            qs.values("operation_date")
+            .annotate(
+                reports=Count("id"),
+                operations=Sum("operations_count"),
+                approach=Sum("approach"),
+                refusal=Sum("refusal"),
+                fined=Sum("fined"),
+            )
+            .order_by("operation_date")
+        )
+
+        oper_tp_qs = list(
+            qs.values("team")
+            .annotate(
+                reports=Count("id"),
+                operations=Sum("operations_count"),
+                approach=Sum("approach"),
+                refusal=Sum("refusal"),
+                fined=Sum("fined"),
+                towed=Sum("towed"),
+            )
+        )
+        oper_tp = {row["team"]: row for row in oper_tp_qs}
+
+        return agg, oper_ts, oper_tp

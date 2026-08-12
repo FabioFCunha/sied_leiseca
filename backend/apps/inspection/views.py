@@ -17,7 +17,7 @@ from apps.inspection.serializers import (
     InspectionReportIngestionSerializer,
     InspectionReportListSerializer,
 )
-from apps.inspection.services import InspectionStatisticsService, InspectionSyncService
+from apps.inspection.services import InspectionStatisticsService, InspectionSyncService, InspectionStatisticsUnifiedService
 
 
 SUMMARY_FIELDS = (
@@ -208,87 +208,9 @@ class InspectionStatisticsDashboardView(APIView):
         serializer.is_valid(raise_exception=True)
         filters = serializer.validated_data
 
-        queryset = InspectionStatistic.objects.all()
-        if filters.get("date_from"):
-            queryset = queryset.filter(operation_date__gte=filters["date_from"])
-        if filters.get("date_to"):
-            queryset = queryset.filter(operation_date__lte=filters["date_to"])
-        if filters.get("team"):
-            queryset = queryset.filter(team__iexact=filters["team"])
-
         normalized_filters = {
             "date_from": filters.get("date_from").isoformat() if filters.get("date_from") else None,
             "date_to": filters.get("date_to").isoformat() if filters.get("date_to") else None,
             "team": filters.get("team") or None,
         }
-
-        if not queryset.exists():
-            return Response(_empty_dashboard(normalized_filters))
-
-        aggregate_data = queryset.aggregate(
-            homologated_reports=Count("id"),
-            operations=Sum("operations_count"),
-            **{field: Sum(field) for field in SUMMARY_FIELDS},
-        )
-
-        team_production = list(
-            queryset.values("team")
-            .annotate(
-                reports=Count("id"),
-                operations=Sum("operations_count"),
-                approach=Sum("approach"),
-                refusal=Sum("refusal"),
-                fined=Sum("fined"),
-                towed=Sum("towed"),
-            )
-            .order_by("-approach", "team")
-        )
-
-        time_series = list(
-            queryset.values("operation_date")
-            .annotate(
-                reports=Count("id"),
-                operations=Sum("operations_count"),
-                approach=Sum("approach"),
-                refusal=Sum("refusal"),
-                fined=Sum("fined"),
-            )
-            .order_by("operation_date")
-        )
-        for row in time_series:
-            row["operation_date"] = row["operation_date"].isoformat()
-
-        return Response(
-            {
-                "filters": normalized_filters,
-                "summary": aggregate_data,
-                "alcohol_results": {
-                    "four_ml": aggregate_data["four_ml"],
-                    "thirtythree_ml": aggregate_data["thirtythree_ml"],
-                    "thirtyfour_ml": aggregate_data["thirtyfour_ml"],
-                    "refusal": aggregate_data["refusal"],
-                },
-                "administrative_measures": {
-                    "fined": aggregate_data["fined"],
-                    "towed": aggregate_data["towed"],
-                    "cnh_collected": aggregate_data["cnh_collected"],
-                    "removal_resolutions": aggregate_data["removal_resolutions"],
-                },
-                "occurrences": {
-                    "criminal_occurrences": aggregate_data["criminal_occurrences"],
-                    "art307": aggregate_data["art307"],
-                    "driving_canceled_license": aggregate_data["driving_canceled_license"],
-                    "arrests_means_evidence": aggregate_data["arrests_means_evidence"],
-                },
-                "team_production": team_production,
-                "time_series": time_series,
-                "meta": {
-                    "has_data": True,
-                    "cutoff_date": "2026-08-10",
-                    "null_aggregation_rule": (
-                        "Com registros homologados, a API consolida SUM ignorando NULL. "
-                        "Se todos os valores do indicador forem NULL, o resultado permanece null."
-                    ),
-                },
-            }
-        )
+        return Response(InspectionStatisticsUnifiedService(normalized_filters).get_dashboard_data())
