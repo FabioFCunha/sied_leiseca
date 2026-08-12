@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDateBR } from "./date.js";
 import logoUrl from "../assets/operacao-lei-seca-logo.png";
-import { getSupports, getReachedAudienceForAction } from "./reportPreview.js";
+import { buildSupportsSummary, getReachedAudienceForAction } from "./reportPreview.js";
 
 // ── Helper: Load image as base64 for jsPDF ───────────────────────────────
 function loadImageAsBase64(url) {
@@ -245,8 +245,7 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
 
   const chief = form.education_agents ? form.education_agents.match(/Chefe(?: respons[áa]vel)?:\s*([^\n]+)/i)?.[1]?.trim() : "";
   const agents = form.education_agents ? form.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() : "";
-  const supportsList = getSupports(form, selectedAgenda);
-  const supports = supportsList.join(" - ");
+  const supports = buildSupportsSummary(form, selectedAgenda);
 
   const respData = [];
   if (form.team) respData.push(["Equipe Designada", form.team]);

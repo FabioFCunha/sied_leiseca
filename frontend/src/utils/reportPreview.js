@@ -2,11 +2,11 @@ import { formatDateBR } from "./date.js";
 
 
 export function reportName(report) {
-  return `Relatório - ${report.team || "Equipe"}`;
+  return `Relat\u00F3rio - ${report.team || "Equipe"}`;
 }
 
 export function chiefFromReport(report) {
-  const match = String(report.education_agents || "").match(/Chefe(?: respons[áa]vel)?:\s*([^\n]+)/i);
+  const match = String(report.education_agents || "").match(/Chefe(?: respons[\u00E1a]vel)?:\s*([^\n]+)/i);
   return match?.[1]?.trim() || "";
 }
 
@@ -43,7 +43,7 @@ export function getSupports(report, selectedAgenda) {
   
   // 2. Fallback to regex if we didn't find any structured supports
   if (supportsList.length === 0 && report && report.education_agents) {
-    const lines = String(report.education_agents).split('\n');
+    const lines = String(report.education_agents).split("\n");
     lines.forEach(line => {
       const match = line.match(/^(?:Apoio\s*[12]?|Apoios?)(?:\s*operacional)?:\s*(.+)$/i);
       if (match) {
@@ -69,23 +69,34 @@ export function getSupports(report, selectedAgenda) {
   return unique;
 }
 
-export function buildPreview(report, showEstimatedPublic = true) {
+export function buildSupportsSummary(report, selectedAgenda) {
+  return getSupports(report, selectedAgenda).join(" - ");
+}
+
+export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true, maybeShowEstimatedPublic = true) {
+  let selectedAgenda = selectedAgendaOrShowEstimatedPublic;
+  let showEstimatedPublic = maybeShowEstimatedPublic;
+
+  if (typeof selectedAgendaOrShowEstimatedPublic === "boolean" || selectedAgendaOrShowEstimatedPublic === undefined) {
+    selectedAgenda = undefined;
+    showEstimatedPublic = selectedAgendaOrShowEstimatedPublic ?? true;
+  }
+
   const actions = report.actions || [];
   const selectedChief = chiefFromReport(report);
   
   const agentsMatch = report.education_agents ? report.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() : "";
-  const supportsList = getSupports(report, undefined);
-  const supportsStr = supportsList.join(" - ");
+  const supportsStr = buildSupportsSummary(report, selectedAgenda);
 
   let totalsEstimado = 0;
   let totalsAlcancado = 0;
 
   actions.forEach((action, index) => {
-    // Público Estimado: somente Ação 1
+    // P\u00FAblico Estimado: somente A\u00E7\u00E3o 1
     if (index === 0) {
       totalsEstimado += Number(action.approach || 0);
     }
-    // Público Alcançado: approached_lectures na Ação 1, approached_actions nas extras
+    // P\u00FAblico Alcan\u00E7ado: approached_lectures na A\u00E7\u00E3o 1, approached_actions nas extras
     const alcVal = getReachedAudienceForAction(action, index);
     const alcNum = Number(alcVal);
     totalsAlcancado += (alcVal !== "" && alcVal !== null && alcVal !== undefined && Number.isFinite(alcNum)) ? alcNum : 0;
@@ -101,57 +112,57 @@ export function buildPreview(report, showEstimatedPublic = true) {
         const alcVal = getReachedAudienceForAction(action, index);
         const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined)
           ? alcVal
-          : "Não informado";
+          : "N\u00E3o informado";
 
         const estimadoLine = (isFirstAction && showEstimatedPublic)
-          ? `   Público estimado: ${action.approach || 0}\n`
+          ? `   P\u00FAblico estimado: ${action.approach || 0}\n`
           : "";
 
         return (
-          `${index + 1}. ${action.type_action || "Ação"} - ${action.institution_name || action.place_action || "local não informado"}\n` +
-          `   Instituição/Local: ${action.institution_name || "não informado"}\n` +
-          `   Endereço do Local: ${action.place_action || "não informado"}\n` +
-          `   Público: ${action.type_audience || "não informado"}\n` +
-          `   Horário: ${action.start_time || "--"} às ${action.final_hour || "--"}\n` +
+          `${index + 1}. ${action.type_action || "A\u00E7\u00E3o"} - ${action.institution_name || action.place_action || "local n\u00E3o informado"}\n` +
+          `   Institui\u00E7\u00E3o/Local: ${action.institution_name || "n\u00E3o informado"}\n` +
+          `   Endere\u00E7o do Local: ${action.place_action || "n\u00E3o informado"}\n` +
+          `   P\u00FAblico: ${action.type_audience || "n\u00E3o informado"}\n` +
+          `   Hor\u00E1rio: ${action.start_time || "--"} \u00E0s ${action.final_hour || "--"}\n` +
           estimadoLine +
-          `   Público alcançado: ${alcDisplay}\n` +
-          `   Dinâmica retirada: ${action.equipment_materials_removed ? action.equipment_materials_removed.replace(/\\n/g, ", ") : "-"}\n` +
-          `   Dinâmica distribuída: ${action.equipment_materials_distributed ? action.equipment_materials_distributed.replace(/\\n/g, ", ") : "-"}\n` +
-          `   Material para distribuição retirado: ${action.distribution_materials_removed ? action.distribution_materials_removed.replace(/\\n/g, ", ") : "-"}\n` +
-          `   Material para distribuição distribuído: ${action.distribution_materials_distributed ? action.distribution_materials_distributed.replace(/\\n/g, ", ") : "-"}`
+          `   P\u00FAblico alcan\u00E7ado: ${alcDisplay}\n` +
+          `   Din\u00E2mica retirada: ${action.equipment_materials_removed ? action.equipment_materials_removed.replace(/\\n/g, ", ") : "-"}\n` +
+          `   Din\u00E2mica distribu\u00EDda: ${action.equipment_materials_distributed ? action.equipment_materials_distributed.replace(/\\n/g, ", ") : "-"}\n` +
+          `   Material para distribui\u00E7\u00E3o retirado: ${action.distribution_materials_removed ? action.distribution_materials_removed.replace(/\\n/g, ", ") : "-"}\n` +
+          `   Material para distribui\u00E7\u00E3o distribu\u00EDdo: ${action.distribution_materials_distributed ? action.distribution_materials_distributed.replace(/\\n/g, ", ") : "-"}`
         );
       }).join("\n\n")
-    : "Nenhuma ação registrada.";
+    : "Nenhuma a\u00E7\u00E3o registrada.";
 
   return (
     `${reportName(report).toUpperCase()}\n\n` +
-    `Protocolo: ${report.agenda ? "#" + report.agenda : "não informado"}\n` +
-    `Solicitação: ${report.agenda_title || "não informada"}\n` +
-    `Data: ${report.operation_date ? formatDateBR(report.operation_date) : "não informada"}\n` +
-    `Equipe: ${report.team || "não informada"}\n` +
-    `Chefe responsável: ${selectedChief || "não informado"}\n` +
-    `Telefone do solicitante: ${report.agenda_phone || "não informado"}\n` +
+    `Protocolo: ${report.agenda ? "#" + report.agenda : "n\u00E3o informado"}\n` +
+    `Solicita\u00E7\u00E3o: ${report.agenda_title || "n\u00E3o informada"}\n` +
+    `Data: ${report.operation_date ? formatDateBR(report.operation_date) : "n\u00E3o informada"}\n` +
+    `Equipe: ${report.team || "n\u00E3o informada"}\n` +
+    `Chefe respons\u00E1vel: ${selectedChief || "n\u00E3o informado"}\n` +
+    `Telefone do solicitante: ${report.agenda_phone || "n\u00E3o informado"}\n` +
     "\n" +
     `EFETIVO E ESTRUTURA\n` +
-    `Agentes de educação: ${agentsMatch || "não informado"}\n` +
-    `Apoios: ${supportsStr || "Não informado"}\n` +
-    `Etilômetros: ${report.breathalyzers || "não informado"}\n` +
-    `Viaturas: ${report.cars || "não informado"}\n` +
-    `Alterações gerais: ${report.changes_general || "não informado"}\n\n` +
+    `Agentes de educa\u00E7\u00E3o: ${agentsMatch || "n\u00E3o informado"}\n` +
+    `Apoios: ${supportsStr || "N\u00E3o informado"}\n` +
+    `Etil\u00F4metros: ${report.breathalyzers || "n\u00E3o informado"}\n` +
+    `Viaturas: ${report.cars || "n\u00E3o informado"}\n` +
+    `Altera\u00E7\u00F5es gerais: ${report.changes_general || "n\u00E3o informado"}\n\n` +
     (report.changes_staff && report.changes_staff.trim()
-      ? `ALTERAÇÕES DE EFETIVO\n${report.changes_staff}\n\n`
+      ? `ALTERA\u00C7\u00D5ES DE EFETIVO\n${report.changes_staff}\n\n`
       : "") +
-    `AÇÕES\n${actionLines}\n\n` +
+    `A\u00C7\u00D5ES\n${actionLines}\n\n` +
     `TOTAIS\n` +
-    (showEstimatedPublic ? `Público estimado (total): ${totalsEstimado}\n` : "") +
-    `Público alcançado (total): ${totalsAlcancado}\n` +
+    (showEstimatedPublic ? `P\u00FAblico estimado (total): ${totalsEstimado}\n` : "") +
+    `P\u00FAblico alcan\u00E7ado (total): ${totalsAlcancado}\n` +
     `Taxa de Alcance: ${taxaText}\n` +
-    `Ações Realizadas: ${actions.length}\n\n` +
+    `A\u00E7\u00F5es Realizadas: ${actions.length}\n\n` +
     `RELATO OPERACIONAL DO CHEFE\n` +
-    `${report.general_observations || "Não informado"}\n\n` +
-    `CONTATO/OCORRÊNCIAS\n` +
-    `Contato recebido: ${report.contact_received || "não informado"}\n` +
-    `Observação de ocorrência: ${report.occurrence_observation || "não informado"}\n` +
+    `${report.general_observations || "N\u00E3o informado"}\n\n` +
+    `CONTATO/OCORR\u00CANCIAS\n` +
+    `Contato recebido: ${report.contact_received || "n\u00E3o informado"}\n` +
+    `Observa\u00E7\u00E3o de ocorr\u00EAncia: ${report.occurrence_observation || "n\u00E3o informado"}\n` +
     `Coordenadas: ${report.lat || "-"}, ${report.lng || "-"}` +
     (report.satisfaction_survey ? (() => {
       const survey = report.satisfaction_survey;
@@ -164,21 +175,20 @@ export function buildPreview(report, showEstimatedPublic = true) {
         Number(survey.audiovisual_resources),
         Number(survey.support_material)
       ].filter(val => !isNaN(val) && val > 0);
-      const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : "Não avaliado";
+      const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : "N\u00E3o avaliado";
       
       return `\n\n========================================\n` +
-      `PESQUISA DE SATISFAÇÃO (Respondida em: ${survey.answered_at ? formatDateBR(survey.answered_at.split("T")[0]) : "-"} ${survey.answered_at ? survey.answered_at.split("T")[1].slice(0, 5) : ""})\n` +
+      `PESQUISA DE SATISFA\u00C7\u00C3O (Respondida em: ${survey.answered_at ? formatDateBR(survey.answered_at.split("T")[0]) : "-"} ${survey.answered_at ? survey.answered_at.split("T")[1].slice(0, 5) : ""})\n` +
       `========================================\n` +
-      `Média de satisfação: ${avg === "Não avaliado" ? avg : `${avg}/5`}\n` +
-      `Avaliação geral: ${survey.overall_rating ? `${survey.overall_rating}/5` : "Não avaliado"}\n` +
-      `Pontualidade da equipe: ${survey.punctuality ? `${survey.punctuality}/5` : "Não avaliado"}\n` +
-      `Entusiasmo e dinamismo: ${survey.team_enthusiasm ? `${survey.team_enthusiasm}/5` : "Não avaliado"}\n` +
-      `Domínio do palestrante: ${survey.speaker_knowledge ? `${survey.speaker_knowledge}/5` : "Não avaliado"}\n` +
-      `Oficinas / Dinâmicas: ${survey.workshops ? `${survey.workshops}/5` : "Não avaliado"}\n` +
-      `Recursos audiovisuais: ${survey.audiovisual_resources ? `${survey.audiovisual_resources}/5` : "Não avaliado"}\n` +
-      `Material de apoio: ${survey.support_material ? `${survey.support_material}/5` : "Não avaliado"}\n` +
-      `Sugestões / Comentários:\n"${survey.suggestion || "Nenhum comentário enviado."}"`;
+      `M\u00E9dia de satisfa\u00E7\u00E3o: ${avg === "N\u00E3o avaliado" ? avg : `${avg}/5`}\n` +
+      `Avalia\u00E7\u00E3o geral: ${survey.overall_rating ? `${survey.overall_rating}/5` : "N\u00E3o avaliado"}\n` +
+      `Pontualidade da equipe: ${survey.punctuality ? `${survey.punctuality}/5` : "N\u00E3o avaliado"}\n` +
+      `Entusiasmo e dinamismo: ${survey.team_enthusiasm ? `${survey.team_enthusiasm}/5` : "N\u00E3o avaliado"}\n` +
+      `Dom\u00EDnio do palestrante: ${survey.speaker_knowledge ? `${survey.speaker_knowledge}/5` : "N\u00E3o avaliado"}\n` +
+      `Oficinas / Din\u00E2micas: ${survey.workshops ? `${survey.workshops}/5` : "N\u00E3o avaliado"}\n` +
+      `Recursos audiovisuais: ${survey.audiovisual_resources ? `${survey.audiovisual_resources}/5` : "N\u00E3o avaliado"}\n` +
+      `Material de apoio: ${survey.support_material ? `${survey.support_material}/5` : "N\u00E3o avaliado"}\n` +
+      `Sugest\u00F5es / Coment\u00E1rios:\n"${survey.suggestion || "Nenhum coment\u00E1rio enviado."}"`;
     })() : "")
   );
 }
-

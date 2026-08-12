@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
 
-import { buildPreview, chiefFromReport, reportName, getSupports, getReachedAudienceForAction } from "../utils/reportPreview.js";
+import { buildPreview, buildSupportsSummary, chiefFromReport, reportName, getSupports, getReachedAudienceForAction } from "../utils/reportPreview.js";
 import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
 import { getValidatableActions } from "./technicalReportsActionHelpers.js";
 
@@ -584,7 +584,7 @@ export default function TechnicalReportsPage() {
     if (!originalType) return false;
     return normalizeTypeLabel(action?.type_action) !== normalizeTypeLabel(originalType);
   };
-  const preview = useMemo(() => buildPreview(form, showEstimatedPublic), [form, showEstimatedPublic]);
+  const preview = useMemo(() => buildPreview(form, selectedAgenda, showEstimatedPublic), [form, selectedAgenda, showEstimatedPublic]);
 
   const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(r.agenda))), [reports]);
   const pendingAgendas = useMemo(() => agendas.filter(a => !completedAgendaIds.has(String(a.id))), [agendas, completedAgendaIds]);
@@ -2185,7 +2185,7 @@ export default function TechnicalReportsPage() {
                       const isHistoricalPublicRequest = resolvedHistoricalAgenda?.origin === "PUBLIC_FORM";
                       const isHistoricalStreetAction = isStreetActionAgenda(resolvedHistoricalAgenda) || Boolean(reportsPreviewModal?.street_action_details?.length);
                       const showHistoricalEstimatedPublic = !isHistoricalStreetAction || isHistoricalPublicRequest;
-                      return <pre>{buildPreview(reportsPreviewModal, showHistoricalEstimatedPublic)}</pre>;
+                      return <pre>{buildPreview(reportsPreviewModal, resolvedHistoricalAgenda, showHistoricalEstimatedPublic)}</pre>;
                     })()
                   ) : null}
                 </div>
@@ -2331,7 +2331,7 @@ export default function TechnicalReportsPage() {
       const chief = form.education_agents ? form.education_agents.match(/Chefe(?: respons[áa]vel)?:\s*([^\n]+)/i)?.[1]?.trim() : "";
       const agentsMatch = form.education_agents ? form.education_agents.match(/Agentes?:\s*([^\n]+)/i)?.[1]?.trim() : "";
       const supportsList = getSupports(form, selectedAgenda);
-      const supportsStr = supportsList.join(" - ");
+      const supportsStr = buildSupportsSummary(form, selectedAgenda);
       const absences = Object.values(attendanceForm || {}).filter(d => d.is_absent === true);
       const actions = form.actions || [];
       const hasStaffChanges = !!(form.changes_staff && form.changes_staff.trim());
