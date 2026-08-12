@@ -19,19 +19,19 @@ const emptyFilters = {
 
 const syncStatusMeta = {
   SYNCED: { label: "Sincronizado", className: "neutral" },
-  PENDING_REVIEW: { label: "Pendente de revisao", className: "warning" },
+  PENDING_REVIEW: { label: "Pendente de revisão", className: "warning" },
   APPROVED: { label: "Aprovado", className: "success" },
   RETURNED: { label: "Devolvido", className: "danger" },
 };
 
 const statisticsStatusMeta = {
-  PENDING: { label: "Aguardando analise", className: "warning" },
-  INCLUDED: { label: "Incluido na estatistica", className: "success" },
-  EXCLUDED: { label: "Nao incluido", className: "danger" },
+  PENDING: { label: "Aguardando análise", className: "warning" },
+  INCLUDED: { label: "Incluído na estatística", className: "success" },
+  EXCLUDED: { label: "Não incluído", className: "danger" },
 };
 
 function formatDateTimeBR(value) {
-  if (!value) return "Nao informado";
+  if (!value) return "Não informado";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return new Intl.DateTimeFormat("pt-BR", {
@@ -42,7 +42,7 @@ function formatDateTimeBR(value) {
 }
 
 function displayValue(value) {
-  if (value === null || value === undefined || value === "") return "Nao informado";
+  if (value === null || value === undefined || value === "") return "Não informado";
   return String(value);
 }
 
@@ -262,8 +262,8 @@ export default function InspectionReportsPage() {
     <section className="page">
       <div className="page-title">
         <div>
-          <h1>Relatorios de Fiscalizacao</h1>
-          <p>Consulta dos relatorios espelhados do Horus e homologacao estatistica pela OLS/CooAdm.</p>
+          <h1>Relatórios de Fiscalização</h1>
+          <p>Consulta dos relatórios espelhados do Horus e homologação estatística pela OLS/CooAdm.</p>
         </div>
       </div>
 
@@ -274,7 +274,7 @@ export default function InspectionReportsPage() {
             <input type="date" value={draftFilters.date_from} onChange={(event) => setDraftFilters((current) => ({ ...current, date_from: event.target.value }))} />
           </label>
           <label className="filter-field" style={{ display: "grid", gap: "6px" }}>
-            <span>Ate</span>
+            <span>Até</span>
             <input type="date" value={draftFilters.date_to} onChange={(event) => setDraftFilters((current) => ({ ...current, date_to: event.target.value }))} />
           </label>
           <label className="filter-field" style={{ display: "grid", gap: "6px" }}>
@@ -282,15 +282,15 @@ export default function InspectionReportsPage() {
             <input placeholder="Ex.: A3" value={draftFilters.team} onChange={(event) => setDraftFilters((current) => ({ ...current, team: event.target.value }))} />
           </label>
           <label className="filter-field" style={{ display: "grid", gap: "6px" }}>
-            <span>Situacao estatistica</span>
+            <span>Situação estatística</span>
             <select
               value={draftFilters.statistics_status}
               onChange={(event) => setDraftFilters((current) => ({ ...current, statistics_status: event.target.value }))}
             >
               <option value="">Todas</option>
-              <option value="PENDING">Aguardando analise</option>
-              <option value="INCLUDED">Incluido na estatistica</option>
-              <option value="EXCLUDED">Nao incluido</option>
+              <option value="PENDING">Aguardando análise</option>
+              <option value="INCLUDED">Incluído na estatística</option>
+              <option value="EXCLUDED">Não incluído</option>
             </select>
           </label>
         </div>
@@ -313,30 +313,39 @@ export default function InspectionReportsPage() {
       <div className="table-wrap premium-table-wrap">
         <h2>Listagem</h2>
         {loading ? (
-          <div style={{ padding: "24px 16px" }}>Carregando relatorios de Fiscalizacao...</div>
+          <div style={{ padding: "24px 16px" }}>Carregando relatórios de Fiscalização...</div>
         ) : error ? (
           <div style={{ padding: "24px 16px", color: "var(--danger)", display: "flex", alignItems: "center", gap: "10px" }}>
             <AlertCircle size={18} />
             <span>{error}</span>
           </div>
         ) : reports.length === 0 ? (
-          <div style={{ padding: "24px 16px" }}>
-            {Object.values(filters).some(Boolean) ? "Nenhum relatorio encontrado para os filtros informados." : "Nenhum relatorio de Fiscalizacao disponivel."}
+          <div style={{ padding: "24px 16px", display: "grid", gap: "6px" }}>
+            {Object.values(filters).some(Boolean) ? (
+              "Nenhum relatório encontrado para os filtros informados."
+            ) : (
+              <>
+                <strong>Nenhum relatório de Fiscalização sincronizado até o momento.</strong>
+                <span style={{ color: "var(--pico-muted-color)" }}>
+                  Os relatórios aparecerão aqui após a sincronização dos dados do Horus.
+                </span>
+              </>
+            )}
           </div>
         ) : (
           <>
             <table>
               <thead>
                 <tr>
-                  <th>Data da operacao</th>
+                  <th>Data da operação</th>
                   <th>Equipe</th>
-                  <th>Situacao estatistica</th>
-                  <th>Operacoes</th>
+                  <th>Situação estatística</th>
+                  <th>Operações</th>
                   <th>Abordados</th>
                   <th>Recusas</th>
                   <th>Multados</th>
-                  <th>Ultima sincronizacao</th>
-                  <th>Acao</th>
+                  <th>Última sincronização</th>
+                  <th>Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -371,7 +380,7 @@ export default function InspectionReportsPage() {
                   Anterior
                 </button>
                 <button className="secondary" disabled={!pageInfo.next || loading} onClick={() => pageInfo.next && loadReports(filters, pageInfo.next)}>
-                  Proxima
+                  Próxima
                 </button>
               </div>
             </div>
@@ -384,10 +393,10 @@ export default function InspectionReportsPage() {
           <div className="premium-modal" style={{ maxWidth: "1100px" }} onClick={(event) => event.stopPropagation()}>
             <div className="modal-header-premium">
               <div>
-                <h2 style={{ margin: 0 }}>Relatorio de Fiscalizacao</h2>
+                <h2 style={{ margin: 0 }}>Relatório de Fiscalização</h2>
                 {selectedReport ? (
                   <p style={{ margin: "6px 0 0", color: "var(--pico-muted-color)" }}>
-                    Equipe: <strong>{displayValue(selectedReport.team)}</strong> • Data da operacao: <strong>{formatDateBR(selectedReport.operation_date)}</strong>
+                    Equipe: <strong>{displayValue(selectedReport.team)}</strong> • Data da operação: <strong>{formatDateBR(selectedReport.operation_date)}</strong>
                   </p>
                 ) : null}
               </div>
@@ -398,7 +407,7 @@ export default function InspectionReportsPage() {
 
             <div className="modal-body-premium" style={{ display: "grid", gap: "20px" }}>
               {detailLoading ? (
-                <div>Carregando detalhe do relatorio...</div>
+                <div>Carregando detalhe do relatório...</div>
               ) : detailError ? (
                 <div style={{ color: "var(--danger)", display: "flex", alignItems: "center", gap: "10px" }}>
                   <AlertCircle size={18} />
@@ -414,51 +423,51 @@ export default function InspectionReportsPage() {
 
                   {selectedReport.has_source_update_after_statistics_review ? (
                     <div style={{ padding: "14px 16px", borderRadius: "14px", border: "1px solid rgba(180,83,9,0.2)", background: "#fff7ed", color: "#9a3412" }}>
-                      O relatorio recebeu uma atualizacao na origem apos a homologacao estatistica.
+                      O relatório recebeu uma atualização na origem após a homologação estatística.
                     </div>
                   ) : null}
 
-                  <DetailSection title="Cabecalho">
+                  <DetailSection title="Cabeçalho">
                     <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
                       <DetailField label="Equipe" value={selectedReport.team} />
-                      <DetailField label="Data da operacao" value={formatDateBR(selectedReport.operation_date)} />
-                      <DetailField label="Situacao estatistica" value={statisticsMeta.label} />
-                      <DetailField label="Situacao da sincronizacao" value={syncMeta.label} />
-                      <DetailField label="Ultima sincronizacao" value={formatDateTimeBR(selectedReport.synced_at)} />
-                      <DetailField label="Atualizacao da origem" value={formatDateTimeBR(selectedReport.source_updated_at)} />
+                      <DetailField label="Data da operação" value={formatDateBR(selectedReport.operation_date)} />
+                      <DetailField label="Situação estatística" value={statisticsMeta.label} />
+                      <DetailField label="Situação da sincronização" value={syncMeta.label} />
+                      <DetailField label="Última sincronização" value={formatDateTimeBR(selectedReport.synced_at)} />
+                      <DetailField label="Atualização da origem" value={formatDateTimeBR(selectedReport.source_updated_at)} />
                     </div>
                   </DetailSection>
 
-                  <DetailSection title="Homologacao estatistica">
+                  <DetailSection title="Homologação estatística">
                     <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                      <DetailField label="Situacao" value={statisticsMeta.label} />
-                      <DetailField label="Responsavel" value={selectedReport.statistics_reviewed_by_name} />
-                      <DetailField label="Data da decisao" value={formatDateTimeBR(selectedReport.statistics_reviewed_at)} />
-                      <DetailField label="Motivo da nao inclusao" value={selectedReport.statistics_exclusion_reason} />
+                      <DetailField label="Situação" value={statisticsMeta.label} />
+                      <DetailField label="Responsável" value={selectedReport.statistics_reviewed_by_name} />
+                      <DetailField label="Data da decisão" value={formatDateTimeBR(selectedReport.statistics_reviewed_at)} />
+                      <DetailField label="Motivo da não inclusão" value={selectedReport.statistics_exclusion_reason} />
                     </div>
                     {showReviewActions ? (
                       <div className="page-actions" style={{ justifyContent: "flex-start" }}>
                         <button onClick={() => setShowIncludeModal(true)} disabled={actionLoading}>
-                          Incluir na Estatistica
+                          Incluir na Estatística
                         </button>
                         <button className="secondary" onClick={() => setShowExcludeModal(true)} disabled={actionLoading}>
-                          Nao incluir na Estatistica
+                          Não incluir na Estatística
                         </button>
                       </div>
                     ) : null}
                   </DetailSection>
 
-                  <DetailSection title="Dados da operacao">
+                  <DetailSection title="Dados da operação">
                     <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                      <DetailField label="Chefe da equipe militar" value={selectedReport.military_chief_source_id ? "Identificacao ainda nao resolvida" : null} />
+                      <DetailField label="Chefe da equipe militar" value={selectedReport.military_chief_source_id ? "Identificação ainda não resolvida" : null} />
                       <DetailField label="Efetivo civil" value={selectedReport.segov_team_civil} />
                       <DetailField label="Efetivo militar" value={selectedReport.segov_team_military} />
                       <DetailField label="Agentes do Detran" value={selectedReport.agent_detran} />
                       <DetailField label="Reboques" value={selectedReport.number_trailers} />
                       <DetailField label="Viaturas utilizadas" value={selectedReport.cars} />
-                      <DetailField label="Alteracoes OLS" value={selectedReport.change_ols} />
-                      <DetailField label="Alteracoes de apoio" value={selectedReport.change_support} />
-                      <DetailField label="Alteracoes gerais" value={selectedReport.changes_general} />
+                      <DetailField label="Alterações OLS" value={selectedReport.change_ols} />
+                      <DetailField label="Alterações de apoio" value={selectedReport.change_support} />
+                      <DetailField label="Observações gerais" value={selectedReport.changes_general} />
                     </div>
                   </DetailSection>
 
@@ -472,7 +481,7 @@ export default function InspectionReportsPage() {
                     </div>
                   </DetailSection>
 
-                  <DetailSection title="Operacoes">
+                  <DetailSection title="Operações">
                     <div style={{ display: "grid", gap: "14px" }}>
                       {(selectedReport.operations || []).map((operation, index) => {
                         const opKey = operation.source_id || `${index}`;
@@ -496,7 +505,7 @@ export default function InspectionReportsPage() {
                             >
                               <span style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 800, color: "var(--primary-strong)" }}>
                                 {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                                Operacao #{index + 1}
+                                Operação #{index + 1}
                               </span>
                               <small style={{ color: "var(--pico-muted-color)" }}>{displayValue(operation.address_operation || operation.locality || operation.city)}</small>
                             </button>
@@ -504,19 +513,19 @@ export default function InspectionReportsPage() {
                             {expanded ? (
                               <div style={{ display: "grid", gap: "18px", padding: "18px" }}>
                                 <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                                  <DetailField label="Endereco da operacao" value={operation.address_operation} />
-                                  <DetailField label="Outro endereco nao listado" value={operation.another_not_listed} />
+                                  <DetailField label="Endereço da operação" value={operation.address_operation} />
+                                  <DetailField label="Outro endereço não listado" value={operation.another_not_listed} />
                                   <DetailField label="CEP" value={operation.cep} />
                                   <DetailField label="Logradouro" value={operation.street} />
-                                  <DetailField label="Numero" value={operation.number} />
+                                  <DetailField label="Número" value={operation.number} />
                                   <DetailField label="Bairro" value={operation.district} />
-                                  <DetailField label="Municipio" value={operation.city} />
+                                  <DetailField label="Município" value={operation.city} />
                                   <DetailField label="Localidade" value={operation.locality} />
                                 </div>
 
                                 <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                                  <DetailField label="Saida do ponto de encontro" value={operation.departure_meeting_point} />
-                                  <DetailField label="Montagem da operacao" value={operation.operation_assembly} />
+                                  <DetailField label="Saída do ponto de encontro" value={operation.departure_meeting_point} />
+                                  <DetailField label="Montagem da operação" value={operation.operation_assembly} />
                                   <DetailField label="Primeira abordagem" value={operation.first_approach} />
                                   <DetailField label="Encerramento" value={operation.closing} />
                                 </div>
@@ -533,27 +542,27 @@ export default function InspectionReportsPage() {
                                   <DetailField label="CNH recolhidas" value={operation.cnh_collected} />
                                   <DetailField label="Multados" value={operation.fined} />
                                   <DetailField label="Rebocados" value={operation.towed} />
-                                  <DetailField label="Deliberacoes de remocao" value={operation.removal_resolutions} />
-                                  <DetailField label="Prisoes por outros meios de prova" value={operation.arrests_means_evidence} />
+                                  <DetailField label="Deliberações de remoção" value={operation.removal_resolutions} />
+                                  <DetailField label="Prisões por outros meios de prova" value={operation.arrests_means_evidence} />
                                   <DetailField label="Art. 307" value={operation.art307} />
-                                  <DetailField label="Ocorrencias criminais" value={operation.criminal_occurrences} />
+                                  <DetailField label="Ocorrências criminais" value={operation.criminal_occurrences} />
                                   <DetailField label="Dirigir com CNH cassada" value={operation.driving_canceled_license} />
                                 </div>
 
                                 <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                                  <DetailField label="Alteracoes de material" value={operation.changes_material} />
-                                  <DetailField label="Deliberacoes dos veiculos" value={operation.vehicle_resolutions} />
+                                  <DetailField label="Alterações de material" value={operation.changes_material} />
+                                  <DetailField label="Deliberações dos veículos" value={operation.vehicle_resolutions} />
                                   <DetailField label="Testes administrativos" value={operation.administrative_tests} />
                                 </div>
 
                                 <div style={{ display: "grid", gap: "10px" }}>
-                                  <h4 style={{ margin: 0, color: "var(--primary-strong)" }}>Autos / Infracoes</h4>
+                                  <h4 style={{ margin: 0, color: "var(--primary-strong)" }}>Autos / Infrações</h4>
                                   {(operation.fines || []).length ? (
                                     <div className="table-wrap" style={{ paddingTop: 0 }}>
                                       <table>
                                         <thead>
                                           <tr>
-                                            <th>Codigo</th>
+                                            <th>Código</th>
                                             <th>Quantidade</th>
                                           </tr>
                                         </thead>
@@ -568,7 +577,7 @@ export default function InspectionReportsPage() {
                                       </table>
                                     </div>
                                   ) : (
-                                    <p style={{ margin: 0 }}>Nenhuma infracao detalhada informada.</p>
+                                    <p style={{ margin: 0 }}>Nenhuma infração detalhada informada.</p>
                                   )}
                                 </div>
                               </div>
@@ -587,9 +596,9 @@ export default function InspectionReportsPage() {
 
       {showIncludeModal ? (
         <DecisionModal
-          title="Confirmar inclusao deste Relatorio de Fiscalizacao na Estatistica?"
-          body="Os dados atuais serao registrados como a versao homologada para uso estatistico."
-          confirmLabel="Confirmar inclusao"
+          title="Confirmar inclusão deste Relatório de Fiscalização na Estatística?"
+          body="Os dados atuais serão registrados como a versão homologada para uso estatístico."
+          confirmLabel="Confirmar inclusão"
           onConfirm={handleInclude}
           onClose={() => setShowIncludeModal(false)}
           loading={actionLoading}
@@ -598,9 +607,9 @@ export default function InspectionReportsPage() {
 
       {showExcludeModal ? (
         <DecisionModal
-          title="Nao incluir na Estatistica"
-          body="Informe o motivo da nao inclusao deste relatorio."
-          confirmLabel="Confirmar nao inclusao"
+          title="Não incluir na Estatística"
+          body="Informe o motivo da não inclusão deste relatório."
+          confirmLabel="Confirmar não inclusão"
           onConfirm={handleExclude}
           onClose={() => setShowExcludeModal(false)}
           loading={actionLoading}
@@ -608,12 +617,12 @@ export default function InspectionReportsPage() {
           confirmClassName="secondary"
         >
           <label style={{ display: "grid", gap: "6px" }}>
-            <span>Motivo da nao inclusao</span>
+            <span>Motivo da não inclusão</span>
             <textarea
               rows={4}
               value={excludeReason}
               onChange={(event) => setExcludeReason(event.target.value)}
-              placeholder="Possivel inconsistência no quantitativo informado."
+              placeholder="Possível inconsistência no quantitativo informado."
             />
           </label>
         </DecisionModal>

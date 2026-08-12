@@ -12,7 +12,7 @@ const items = [
   { to: "/agendas", label: "Solicitações", icon: CalendarDays, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "AGENDAS" },
   { to: "/calendario", label: "Calendário", icon: CalendarDays, moduleName: "CALENDARIO" },
   { to: "/escala", label: "Escala", icon: CalendarDays, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"], moduleName: "ESCALA" },
-  { to: "/relatorio-tecnico", label: "Relatórios Técnicos", icon: BarChart3, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "RELATORIOS" },
+  { to: "/relatorio-tecnico", label: "Relatórios da Educação", icon: BarChart3, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "RELATORIOS" },
   { to: "/fiscalizacao/relatorios", label: "Relatórios de Fiscalização", icon: ClipboardCheck, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "VISITOR", "ALMOXARIFADO", "CREATOR"], moduleName: "FISCALIZACAO_RELATORIOS" },
   { to: "/estatisticas", label: "Estatísticas", icon: BarChart3, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "ESTATISTICAS" },
   { to: "/avaliacoes", label: "Avaliações", icon: Star, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "AVALIACOES" },
