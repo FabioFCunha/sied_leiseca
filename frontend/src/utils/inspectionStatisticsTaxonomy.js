@@ -25,24 +25,29 @@ function firstPresent(...values) {
 export function buildInspectionExecutiveCards(summary = {}) {
   return [
     {
-      key: "homologated_reports",
-      label: "Relatórios homologados",
-      value: summary.homologated_reports,
-    },
-    {
       key: "operations",
-      label: "Operações",
+      label: "Fiscalizações",
       value: summary.operations,
     },
     {
       key: "approach",
-      label: "Abordados + Recondutor",
-      value: summary.approach_plus_reconductor,
+      label: "Abordados",
+      value: summary.approach,
+    },
+    {
+      key: "refusal",
+      label: "Recusas",
+      value: summary.refusal,
     },
     {
       key: "fined",
       label: "Multados",
       value: summary.fined,
+    },
+    {
+      key: "cnh_collected",
+      label: "CNH Recolhidas",
+      value: summary.cnh_collected,
     },
   ];
 }

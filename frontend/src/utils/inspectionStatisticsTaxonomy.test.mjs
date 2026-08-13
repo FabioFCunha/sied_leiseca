@@ -68,25 +68,50 @@ const cards = buildInspectionExecutiveCards(
 
 assert.equal(
   cards.length,
-  4,
-  "a tela deve manter no máximo quatro cards executivos"
+  5,
+  "a tela deve manter os cinco cards executivos principais"
 );
 
 assert.deepEqual(
   cards.map((card) => card.key),
   [
-    "homologated_reports",
     "operations",
     "approach",
+    "refusal",
     "fined",
+    "cnh_collected",
   ],
-  "os quatro cards executivos devem seguir a ordem institucional definida"
+  "os cinco cards executivos devem seguir a ordem institucional definida"
+);
+
+assert.deepEqual(
+  cards.map((card) => card.label),
+  [
+    "Fiscalizações",
+    "Abordados",
+    "Recusas",
+    "Multados",
+    "CNH Recolhidas",
+  ],
+  "os cards executivos devem usar os nomes principais da Fiscalização"
 );
 
 assert.equal(
-  cards.find((card) => card.key === "approach").label,
-  "Abordados + Recondutor",
-  "o card executivo de abordagem deve refletir o indicador unificado"
+  cards.find((card) => card.key === "operations").value,
+  3,
+  "Fiscalizações deve usar summary.operations"
+);
+
+assert.equal(
+  cards.find((card) => card.key === "approach").value,
+  93,
+  "Abordados deve usar summary.approach sem somar recondutor"
+);
+
+assert.equal(
+  cards.find((card) => card.key === "cnh_collected").value,
+  1,
+  "CNH Recolhidas deve usar summary.cnh_collected"
 );
 
 const categories =

@@ -32,10 +32,11 @@ import {
 import "./StatisticsPage.css";
 
 const executiveCardMeta = {
-  homologated_reports: { icon: ClipboardCheck, color: "#0048d7" },
   operations: { icon: ShieldAlert, color: "#0f766e" },
   approach: { icon: Users, color: "#1d4ed8" },
+  refusal: { icon: TestTube2, color: "#b45309" },
   fined: { icon: CarFront, color: "#7c3aed" },
+  cnh_collected: { icon: ClipboardCheck, color: "#0048d7" },
 };
 
 const categoryIconMap = {
@@ -362,7 +363,7 @@ export default function InspectionStatisticsPage() {
             {cards.map((card) => {
               const meta =
                 executiveCardMeta[card.key] ||
-                executiveCardMeta.homologated_reports;
+                executiveCardMeta.operations;
 
               const Icon = meta.icon;
 
