@@ -52,14 +52,10 @@ function toIsoDate(value) {
 
 function buildDefaultFilters() {
   const today = new Date();
-  const monthStart = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    1
-  );
+  const historicalStart = new Date(2009, 0, 1);
 
   return {
-    date_from: toIsoDate(monthStart),
+    date_from: toIsoDate(historicalStart),
     date_to: toIsoDate(today),
     team: "",
   };
