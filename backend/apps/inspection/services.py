@@ -1465,6 +1465,16 @@ class InspectionStatisticsUnifiedService:
         )
 
         #
+        # Equivalência histórica LEGACY / ERA_A:
+        # a coluna "CNH" da série histórica foi importada em
+        # historical_cnh_retained e corresponde a "CNH Recolhidas"
+        # no painel unificado.
+        #
+        annual_agg["cnh_collected"] = annual_agg.get(
+            "historical_cnh_retained"
+        )
+
+        #
         # No legado, ocorrência criminal é derivada dos dois
         # indicadores disponíveis na fonte antiga.
         #
