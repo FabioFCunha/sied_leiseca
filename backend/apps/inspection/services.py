@@ -690,23 +690,6 @@ class InspectionStatisticsUnifiedService:
         }
 
         #
-        # Se o filtro inclui a faixa histórica com quebra metodológica
-        # de Rebocados, não exibimos um total parcial nem misturamos
-        # histórico não comparável com dados operacionais posteriores.
-        #
-        historical_towed_methodology_break = date(2023, 9, 25)
-        historical_towed_unreliable_in_filter = (
-            self.use_historical
-            and (
-                self.date_to is None
-                or self.date_to >= historical_towed_methodology_break
-            )
-        )
-
-        if historical_towed_unreliable_in_filter:
-            summary["towed"] = None
-
-        #
         # ABORDADOS + RECONDUTOR
         #
         # As definições histórica e operacional não são
@@ -1001,10 +984,6 @@ class InspectionStatisticsUnifiedService:
         team_production = list(
             tp_dict.values()
         )
-
-        if historical_towed_unreliable_in_filter:
-            for row in team_production:
-                row["towed"] = None
 
         team_production.sort(
             key=lambda row: (
@@ -1353,20 +1332,6 @@ class InspectionStatisticsUnifiedService:
         )
 
         #
-        # Quebra metodológica do indicador Rebocados no histórico Horus.
-        # Os valores brutos permanecem preservados no banco; a partir de
-        # 25/09/2023 o indicador deixa de ser tratado como série histórica
-        # canônica.
-        #
-        historical_towed_methodology_break = date(2023, 9, 25)
-
-        if (
-            self.date_to is None
-            or self.date_to >= historical_towed_methodology_break
-        ):
-            daily_agg["towed"] = None
-
-        #
         # approach_plus_reconductor calculado via Python para evitar
         # conflito de nomes no aggregate do Django 5.x.
         #
@@ -1652,17 +1617,6 @@ class InspectionStatisticsUnifiedService:
                 ),
             )
         )
-
-        #
-        # Aplica a mesma quebra metodológica de Rebocados na Produção
-        # por Equipe, sem alterar os valores brutos armazenados.
-        #
-        if (
-            self.date_to is None
-            or self.date_to >= historical_towed_methodology_break
-        ):
-            for row in hist_tp_qs:
-                row["towed"] = None
 
         hist_tp = {
             row["team"]: row
