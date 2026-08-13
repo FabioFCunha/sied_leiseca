@@ -5,240 +5,364 @@ export const TAXONOMY_STATUS = {
   NEEDS_DEFINITION: "PRECISA DEFINIÇÃO",
 };
 
-const isPresent = (value) => value !== null && value !== undefined;
+const isPresent = (value) =>
+  value !== null && value !== undefined;
 
 function formatMetricValue(value) {
   return isPresent(value) ? value : null;
 }
 
-function formatPairValue(left, right) {
-  if (!isPresent(left) && !isPresent(right)) {
-    return null;
+function firstPresent(...values) {
+  for (const value of values) {
+    if (isPresent(value)) {
+      return value;
+    }
   }
-  return `${isPresent(left) ? left : "Não informado"} + ${isPresent(right) ? right : "Não informado"}`;
+
+  return null;
 }
 
 export function buildInspectionExecutiveCards(summary = {}) {
   return [
-    { key: "homologated_reports", label: "Relatórios homologados", value: summary.homologated_reports ?? 0 },
-    { key: "operations", label: "Operações", value: summary.operations ?? 0 },
-    { key: "approach", label: "Abordados", value: summary.approach },
-    { key: "fined", label: "Multados", value: summary.fined },
+    {
+      key: "homologated_reports",
+      label: "Relatórios homologados",
+      value: summary.homologated_reports,
+    },
+    {
+      key: "operations",
+      label: "Operações",
+      value: summary.operations,
+    },
+    {
+      key: "approach",
+      label: "Abordados + Recondutor",
+      value: summary.approach_plus_reconductor,
+    },
+    {
+      key: "fined",
+      label: "Multados",
+      value: summary.fined,
+    },
   ];
 }
 
-export function buildInspectionStatisticsTaxonomy(dashboard = {}) {
+export function buildInspectionStatisticsTaxonomy(
+  dashboard = {}
+) {
   const summary = dashboard.summary || {};
+  const driver = dashboard.driver || {};
+  const alcohol = dashboard.alcohol_results || {};
+  const taxi = dashboard.taxi || {};
+  const occurrences = dashboard.occurrences || {};
+  const coverage = dashboard.coverage || {};
 
   return [
     {
       key: "vehicles",
       title: "VEÍCULOS",
-      subtitle: "Agrupamento institucional para abordagem de veículos e medidas imediatas.",
+      subtitle:
+        "Indicadores relacionados à abordagem de veículos e às medidas adotadas nas operações.",
       items: [
         {
           key: "approached_reconductor",
           label: "Abordados + Recondutor",
-          status: TAXONOMY_STATUS.PARTIAL,
-          value: formatPairValue(summary.approach, summary.reconductor),
-          field: "approach + reconductor",
-          note: "O SIED separa `approach` e `reconductor`; a regra oficial de consolidação única da planilha ainda precisa definição.",
+          status:
+            coverage[
+              "summary.approach_plus_reconductor"
+            ] === "PARTIAL"
+              ? TAXONOMY_STATUS.PARTIAL
+              : TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            summary.approach_plus_reconductor
+          ),
+          field: "summary.approach_plus_reconductor",
+          note:
+            coverage[
+              "summary.approach_plus_reconductor"
+            ] === "PARTIAL"
+              ? "Indicador possui conceitos distintos entre a base histórica consolidada e a produção operacional; não é somado automaticamente em períodos cruzados."
+              : "Indicador consolidado conforme a fonte utilizada no período selecionado.",
         },
         {
           key: "fined",
           label: "Multados",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(summary.fined),
-          field: "fined",
-          note: "Correspondência direta com o quantitativo operacional homologado.",
+          field: "summary.fined",
+          note:
+            "Indicador consolidado entre histórico e produção operacional quando disponível.",
         },
         {
           key: "towed",
           label: "Rebocados",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(summary.towed),
-          field: "towed",
-          note: "Correspondência direta com o quantitativo operacional homologado.",
+          field: "summary.towed",
+          note:
+            "Indicador consolidado entre histórico e produção operacional quando disponível.",
         },
       ],
     },
+
     {
       key: "driver",
       title: "MOTORISTA",
-      subtitle: "Indicadores ligados ao condutor e às medidas diretamente associadas à habilitação.",
+      subtitle:
+        "Indicadores relacionados ao condutor, habilitação, testes e medidas administrativas.",
       items: [
         {
           key: "breathalyzer_test",
           label: "Teste com etilômetro",
-          status: TAXONOMY_STATUS.NEEDS_DEFINITION,
-          value: null,
-          field: null,
-          note: "A planilha histórica usa uma nomenclatura própria e não há correspondência comprovada no modelo atual sem redefinir a regra.",
+          status: TAXONOMY_STATUS.PARTIAL,
+          value: formatMetricValue(
+            summary.passive_tests_performed
+          ),
+          field:
+            "summary.passive_tests_performed",
+          note:
+            "O SIED possui o quantitativo de testes passivos. A nomenclatura histórica de teste com etilômetro pode representar conceito mais amplo.",
         },
         {
           key: "licensed_reconductors",
           label: "Recondutores habilitados",
           status: TAXONOMY_STATUS.PARTIAL,
-          value: formatMetricValue(summary.reconductor),
-          field: "reconductor",
-          note: "O campo `reconductor` é próximo semanticamente, mas a qualificação 'habilitados' ainda precisa validação institucional.",
+          value: formatMetricValue(
+            firstPresent(
+              driver.reconductors_licensed,
+              driver.reconductor
+            )
+          ),
+          field:
+            "driver.reconductors_licensed / driver.reconductor",
+          note:
+            "A base histórica possui recondutores habilitados. No operacional existe o campo recondutor, mantido separado por diferença de definição.",
         },
         {
           key: "refusal",
           label: "Recusa ao teste",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(summary.refusal),
-          field: "refusal",
-          note: "Correspondência direta com o quantitativo de recusa.",
+          field: "summary.refusal",
+          note:
+            "Indicador consolidado de recusas ao teste.",
         },
         {
           key: "cnh_collected",
           label: "CNH Recolhidas",
           status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(summary.cnh_collected),
-          field: "cnh_collected",
-          note: "Correspondência direta. Permanece dentro da categoria MOTORISTA.",
+          value: formatMetricValue(
+            firstPresent(
+              summary.cnh_collected,
+              driver.historical_cnh_retained
+            )
+          ),
+          field:
+            "summary.cnh_collected / driver.historical_cnh_retained",
+          note:
+            "Utiliza o indicador consolidado atual e preserva o campo histórico específico quando necessário.",
         },
       ],
     },
+
     {
       key: "breathalyzer_results",
       title: "RESULTADO ETILÔMETRO",
-      subtitle: "Faixas do etilômetro e prisões por outros meios de prova, sem recálculo derivado.",
+      subtitle:
+        "Resultados registrados nas faixas do etilômetro e prisões por outros meios de prova.",
       items: [
         {
           key: "four_ml",
           label: "De 0,00 a 0,04",
           status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(summary.four_ml),
-          field: "four_ml",
-          note: "Correspondência direta com a faixa já homologada.",
+          value: formatMetricValue(
+            alcohol.four_ml
+          ),
+          field: "alcohol_results.four_ml",
+          note:
+            "Indicador consolidado entre histórico e produção operacional.",
         },
         {
           key: "thirtythree_ml",
           label: "De 0,05 a 0,33",
           status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(summary.thirtythree_ml),
-          field: "thirtythree_ml",
-          note: "Correspondência direta com a faixa já homologada.",
+          value: formatMetricValue(
+            alcohol.thirtythree_ml
+          ),
+          field:
+            "alcohol_results.thirtythree_ml",
+          note:
+            "Indicador consolidado entre histórico e produção operacional.",
         },
         {
           key: "thirtyfour_ml",
           label: "Mais de 0,33",
           status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(summary.thirtyfour_ml),
-          field: "thirtyfour_ml",
-          note: "Correspondência direta com a faixa já homologada.",
+          value: formatMetricValue(
+            alcohol.thirtyfour_ml
+          ),
+          field:
+            "alcohol_results.thirtyfour_ml",
+          note:
+            "Indicador consolidado entre histórico e produção operacional.",
         },
         {
           key: "arrests_means_evidence",
-          label: "Presos por outros meios de prova",
+          label:
+            "Presos por outros meios de prova",
           status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(summary.arrests_means_evidence),
-          field: "arrests_means_evidence",
-          note: "Correspondência direta com o campo operacional homologado.",
+          value: formatMetricValue(
+            alcohol.arrests_means_evidence
+          ),
+          field:
+            "alcohol_results.arrests_means_evidence",
+          note:
+            "Indicador consolidado para prisões registradas por outros meios de prova.",
         },
       ],
     },
+
     {
       key: "taxi",
       title: "TÁXI",
-      subtitle: "Bloco reservado para a taxonomia histórica, sem inventar equivalências no modelo atual.",
+      subtitle:
+        "Indicadores disponíveis na base histórica consolidada.",
       items: [
         {
           key: "taxi_approached",
           label: "Abordados",
-          status: TAXONOMY_STATUS.UNMAPPED,
-          value: null,
-          field: null,
-          note: "Não existe campo correspondente comprovado em `InspectionStatistic`.",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            taxi.approached
+          ),
+          field: "taxi.approached",
+          note:
+            "Indicador histórico consolidado de táxis abordados. O operacional atual não possui equivalente direto.",
         },
         {
           key: "taxi_pirate",
           label: "Pirata",
-          status: TAXONOMY_STATUS.UNMAPPED,
-          value: null,
-          field: null,
-          note: "Não existe campo correspondente comprovado em `InspectionStatistic`.",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(taxi.illegal),
+          field: "taxi.illegal",
+          note:
+            "Indicador histórico consolidado de transporte irregular/pirata. O operacional atual não possui equivalente direto.",
         },
       ],
     },
+
     {
       key: "events",
       title: "ACONTECIMENTOS",
-      subtitle: "Indicadores institucionais da planilha histórica agrupados sem alterar o significado oficial atual.",
+      subtitle:
+        "Ocorrências e acontecimentos consolidados conforme a cobertura disponível em cada período.",
       items: [
         {
           key: "planned_actions",
           label: "Ações planejadas",
-          status: TAXONOMY_STATUS.UNMAPPED,
-          value: null,
-          field: null,
-          note: "Não existe campo correspondente comprovado no modelo atual.",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            occurrences.planned_actions
+          ),
+          field:
+            "occurrences.planned_actions",
+          note:
+            "Indicador existente na base histórica consolidada.",
         },
         {
           key: "deliberations",
           label: "Deliberações",
-          status: TAXONOMY_STATUS.PARTIAL,
-          value: formatMetricValue(summary.removal_resolutions),
-          field: "removal_resolutions",
-          note: "O campo atual cobre deliberações de remoção; a planilha histórica pode incluir uma categoria mais ampla.",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            firstPresent(
+              occurrences.historical_deliberations,
+              summary.removal_resolutions
+            )
+          ),
+          field:
+            "occurrences.historical_deliberations / summary.removal_resolutions",
+          note:
+            "A base histórica possui campo específico de deliberações. No operacional, o campo disponível corresponde às deliberações de remoção.",
         },
         {
           key: "towings",
           label: "Reboques",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(summary.towed),
-          field: "towed",
-          note: "Correspondência direta com o quantitativo de reboques homologados.",
+          field: "summary.towed",
+          note:
+            "Indicador consolidado de veículos rebocados.",
         },
         {
           key: "rain",
           label: "Chuva",
-          status: TAXONOMY_STATUS.UNMAPPED,
-          value: null,
-          field: null,
-          note: "Não existe campo correspondente comprovado no modelo atual.",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            occurrences.rain
+          ),
+          field: "occurrences.rain",
+          note:
+            "Indicador disponível na base histórica consolidada.",
         },
         {
           key: "external_occurrence",
           label: "Ocorrência externa",
-          status: TAXONOMY_STATUS.UNMAPPED,
-          value: null,
-          field: null,
-          note: "Não existe campo correspondente comprovado no modelo atual.",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            occurrences.external_occurrence
+          ),
+          field:
+            "occurrences.external_occurrence",
+          note:
+            "Indicador disponível na base histórica consolidada.",
         },
         {
           key: "public_security_occurrence",
-          label: "Ocorrência de segurança pública",
-          status: TAXONOMY_STATUS.NEEDS_DEFINITION,
-          value: null,
-          field: null,
-          note: "O modelo atual possui `criminal_occurrences`, mas a equivalência com a taxonomia histórica ainda não está comprovada.",
+          label:
+            "Ocorrência de segurança pública",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            occurrences.public_security_occurrence
+          ),
+          field:
+            "occurrences.public_security_occurrence",
+          note:
+            "Indicador histórico específico de ocorrência de segurança pública.",
+        },
+        {
+          key: "criminal_occurrences",
+          label: "Ocorrências criminais",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            occurrences.criminal_occurrences
+          ),
+          field:
+            "occurrences.criminal_occurrences",
+          note:
+            "Indicador criminal consolidado conforme os campos compatíveis das fontes histórica e operacional.",
         },
         {
           key: "operations",
           label: "Operações",
           status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(summary.operations),
-          field: "operations_count",
-          note: "Correspondência direta com a soma de `operations_count`.",
-        },
-        {
-          key: "cnh_overcome",
-          label: "Superação CNH",
-          status: TAXONOMY_STATUS.UNMAPPED,
-          value: null,
-          field: null,
-          note: "Não existe campo correspondente comprovado no modelo atual.",
+          value: formatMetricValue(
+            occurrences.operations
+          ),
+          field: "occurrences.operations",
+          note:
+            "Quantidade de operações disponível no serviço estatístico unificado.",
         },
         {
           key: "driving_canceled_license",
           label: "CNH cassada",
           status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(summary.driving_canceled_license),
-          field: "driving_canceled_license",
-          note: "Correspondência direta com o indicador operacional homologado.",
+          value: formatMetricValue(
+            occurrences.driving_canceled_license
+          ),
+          field:
+            "occurrences.driving_canceled_license",
+          note:
+            "Indicador consolidado de CNH cassada quando informado pela fonte.",
         },
       ],
     },

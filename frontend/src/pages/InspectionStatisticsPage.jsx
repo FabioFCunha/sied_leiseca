@@ -31,8 +31,6 @@ import {
 } from "../utils/inspectionStatisticsTaxonomy.js";
 import "./StatisticsPage.css";
 
-const CUTOFF_DATE = "2026-08-10";
-
 const executiveCardMeta = {
   homologated_reports: { icon: ClipboardCheck, color: "#0048d7" },
   operations: { icon: ShieldAlert, color: "#0f766e" },
@@ -54,32 +52,42 @@ function toIsoDate(value) {
 
 function buildDefaultFilters() {
   const today = new Date();
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const cutoff = new Date(`${CUTOFF_DATE}T00:00:00`);
-  const start = monthStart < cutoff ? cutoff : monthStart;
+  const monthStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    1
+  );
+
   return {
-    date_from: toIsoDate(start),
+    date_from: toIsoDate(monthStart),
     date_to: toIsoDate(today),
     team: "",
   };
 }
 
 function integer(value) {
-  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(Number(value || 0));
+  return new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 }
 
 function displayMetric(value) {
-  return value === null || value === undefined ? "Não informado" : integer(value);
+  return value === null || value === undefined
+    ? "Não informado"
+    : integer(value);
 }
 
 function statusClassName(status) {
   switch (status) {
     case TAXONOMY_STATUS.MAPPED:
       return "is-mapped";
+
     case TAXONOMY_STATUS.PARTIAL:
       return "is-partial";
+
     case TAXONOMY_STATUS.UNMAPPED:
       return "is-unmapped";
+
     default:
       return "is-needs-definition";
   }
@@ -96,6 +104,7 @@ function Section({ title, subtitle, children }) {
           </div>
         </div>
       </div>
+
       <div className="stats-panel-body">{children}</div>
     </section>
   );
@@ -111,27 +120,47 @@ function TaxonomyGrid({ category }) {
           <span className="inspection-taxonomy-icon">
             <Icon size={18} />
           </span>
+
           <div>
             <h2>{category.title}</h2>
             <p>{category.subtitle}</p>
           </div>
         </div>
       </div>
+
       <div className="inspection-taxonomy-grid">
         {category.items.map((item) => (
-          <article key={item.key} className="inspection-taxonomy-item">
+          <article
+            key={item.key}
+            className="inspection-taxonomy-item"
+          >
             <div className="inspection-taxonomy-item-top">
               <strong>{item.label}</strong>
-              <span className={`inspection-taxonomy-badge ${statusClassName(item.status)}`}>{item.status}</span>
+
+              <span
+                className={`inspection-taxonomy-badge ${statusClassName(
+                  item.status
+                )}`}
+              >
+                {item.status}
+              </span>
             </div>
+
             <div className="inspection-taxonomy-value">
-              {item.status === TAXONOMY_STATUS.UNMAPPED || item.status === TAXONOMY_STATUS.NEEDS_DEFINITION
+              {item.status === TAXONOMY_STATUS.UNMAPPED ||
+              item.status === TAXONOMY_STATUS.NEEDS_DEFINITION
                 ? item.status
                 : displayMetric(item.value)}
             </div>
+
             <div className="inspection-taxonomy-meta">
-              {item.field ? <code>{item.field}</code> : <span>Sem campo homologado</span>}
+              {item.field ? (
+                <code>{item.field}</code>
+              ) : (
+                <span>Sem campo homologado</span>
+              )}
             </div>
+
             <p>{item.note}</p>
           </article>
         ))}
@@ -142,7 +171,9 @@ function TaxonomyGrid({ category }) {
 
 export default function InspectionStatisticsPage() {
   const [filters, setFilters] = useState(buildDefaultFilters);
-  const [draftFilters, setDraftFilters] = useState(buildDefaultFilters);
+  const [draftFilters, setDraftFilters] =
+    useState(buildDefaultFilters);
+
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -150,8 +181,11 @@ export default function InspectionStatisticsPage() {
   const loadDashboard = async (params = filters) => {
     setLoading(true);
     setError("");
+
     try {
-      const response = await getInspectionStatisticsDashboard(params);
+      const response =
+        await getInspectionStatisticsDashboard(params);
+
       setDashboard(response);
     } catch (err) {
       setError(err.message);
@@ -165,8 +199,19 @@ export default function InspectionStatisticsPage() {
     loadDashboard(filters);
   }, []);
 
-  const cards = useMemo(() => buildInspectionExecutiveCards(dashboard?.summary || {}), [dashboard]);
-  const taxonomy = useMemo(() => buildInspectionStatisticsTaxonomy(dashboard || {}), [dashboard]);
+  const cards = useMemo(
+    () =>
+      buildInspectionExecutiveCards(
+        dashboard?.summary || {}
+      ),
+    [dashboard]
+  );
+
+  const taxonomy = useMemo(
+    () => buildInspectionStatisticsTaxonomy(dashboard || {}),
+    [dashboard]
+  );
+
   const timeSeries = dashboard?.time_series || [];
   const teamProduction = dashboard?.team_production || [];
   const hasData = Boolean(dashboard?.meta?.has_data);
@@ -178,6 +223,7 @@ export default function InspectionStatisticsPage() {
 
   const handleClearFilters = () => {
     const next = buildDefaultFilters();
+
     setDraftFilters(next);
     setFilters(next);
     loadDashboard(next);
@@ -188,12 +234,26 @@ export default function InspectionStatisticsPage() {
       <div className="stats-hero">
         <div>
           <span>Fiscalização</span>
+
           <h1>Estatística Fiscalização</h1>
-          <p>Indicadores oficiais gerados a partir dos Relatórios de Fiscalização homologados no SIED.</p>
+
+          <p>
+            Indicadores oficiais consolidados da Fiscalização da
+            Operação Lei Seca.
+          </p>
         </div>
-        <div style={{ textAlign: "right", fontSize: "12px", color: "rgba(255,255,255,0.82)" }}>
-          <div>Base operacional homologada</div>
-          <div>Recorte disponível desde {formatDateBR(CUTOFF_DATE)}</div>
+
+        <div
+          style={{
+            textAlign: "right",
+            fontSize: "12px",
+            color: "rgba(255,255,255,0.82)",
+          }}
+        >
+          <div>Base estatística consolidada</div>
+          <div>
+            Histórico + produção operacional homologada
+          </div>
         </div>
       </div>
 
@@ -202,52 +262,101 @@ export default function InspectionStatisticsPage() {
           <Filter size={16} />
           Filtros
         </div>
+
         <label>
           De
+
           <input
             type="date"
-            min={CUTOFF_DATE}
             value={draftFilters.date_from}
-            onChange={(event) => setDraftFilters((current) => ({ ...current, date_from: event.target.value }))}
+            onChange={(event) =>
+              setDraftFilters((current) => ({
+                ...current,
+                date_from: event.target.value,
+              }))
+            }
           />
         </label>
+
         <label>
           Até
+
           <input
             type="date"
-            min={CUTOFF_DATE}
             value={draftFilters.date_to}
-            onChange={(event) => setDraftFilters((current) => ({ ...current, date_to: event.target.value }))}
+            onChange={(event) =>
+              setDraftFilters((current) => ({
+                ...current,
+                date_to: event.target.value,
+              }))
+            }
           />
         </label>
+
         <label>
           Equipe
+
           <input
             placeholder="Ex.: A3"
             value={draftFilters.team}
-            onChange={(event) => setDraftFilters((current) => ({ ...current, team: event.target.value }))}
+            onChange={(event) =>
+              setDraftFilters((current) => ({
+                ...current,
+                team: event.target.value,
+              }))
+            }
           />
         </label>
+
         <div className="stats-filter-actions">
-          <button className="primary" onClick={handleApplyFilters}>Aplicar</button>
-          <button type="button" onClick={handleClearFilters}>Limpar</button>
+          <button
+            className="primary"
+            onClick={handleApplyFilters}
+          >
+            Aplicar
+          </button>
+
+          <button
+            type="button"
+            onClick={handleClearFilters}
+          >
+            Limpar
+          </button>
         </div>
       </div>
 
       {loading ? (
         <div className="stats-panel">
-          <div className="stats-loading">Carregando estatísticas de Fiscalização...</div>
+          <div className="stats-loading">
+            Carregando estatísticas de Fiscalização...
+          </div>
         </div>
       ) : error ? (
         <div className="stats-panel">
-          <div className="stats-loading" style={{ color: "var(--danger)" }}>{error}</div>
+          <div
+            className="stats-loading"
+            style={{ color: "var(--danger)" }}
+          >
+            {error}
+          </div>
         </div>
       ) : !hasData ? (
         <div className="stats-panel">
-          <div className="stats-empty" style={{ gap: "8px", padding: "28px" }}>
-            <strong>Nenhum dado estatístico de Fiscalização homologado para o período selecionado.</strong>
+          <div
+            className="stats-empty"
+            style={{
+              gap: "8px",
+              padding: "28px",
+            }}
+          >
+            <strong>
+              Nenhum dado estatístico de Fiscalização para o
+              período selecionado.
+            </strong>
+
             <span>
-              Os relatórios homologados entram nesta página apenas após a inclusão oficial na estatística.
+              Verifique o período informado ou os filtros
+              aplicados.
             </span>
           </div>
         </div>
@@ -255,17 +364,31 @@ export default function InspectionStatisticsPage() {
         <>
           <div className="stats-kpi-grid">
             {cards.map((card) => {
-              const meta = executiveCardMeta[card.key] || executiveCardMeta.homologated_reports;
+              const meta =
+                executiveCardMeta[card.key] ||
+                executiveCardMeta.homologated_reports;
+
               const Icon = meta.icon;
+
               return (
-                <div key={card.key} className="stats-kpi" style={{ "--kpi": meta.color }}>
+                <div
+                  key={card.key}
+                  className="stats-kpi"
+                  style={{
+                    "--kpi": meta.color,
+                  }}
+                >
                   <div className="stats-kpi-top">
                     <span className="stats-kpi-icon">
                       <Icon size={18} />
                     </span>
+
                     {card.label}
                   </div>
-                  <div className="stats-kpi-value">{displayMetric(card.value)}</div>
+
+                  <div className="stats-kpi-value">
+                    {displayMetric(card.value)}
+                  </div>
                 </div>
               );
             })}
@@ -273,42 +396,87 @@ export default function InspectionStatisticsPage() {
 
           <div className="inspection-taxonomy-stack">
             {taxonomy.map((category) => (
-              <TaxonomyGrid key={category.key} category={category} />
+              <TaxonomyGrid
+                key={category.key}
+                category={category}
+              />
             ))}
           </div>
 
           <div className="stats-two-columns">
-            <Section title="Série temporal operacional" subtitle="Evolução diária dos relatórios homologados no período selecionado.">
+            <Section
+              title="Série temporal"
+              subtitle="Evolução diária dos indicadores da Fiscalização no período selecionado."
+            >
               <div className="stats-chart">
                 <ResponsiveContainer>
                   <ComposedChart data={timeSeries}>
                     <CartesianGrid strokeDasharray="3 3" />
+
                     <XAxis
                       dataKey="operation_date"
-                      tickFormatter={(value) => formatDateBR(value)}
+                      tickFormatter={(value) =>
+                        formatDateBR(value)
+                      }
                     />
+
                     <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip
-                      formatter={(value) => integer(value)}
-                      labelFormatter={(value) => formatDateBR(value)}
+
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
                     />
+
+                    <Tooltip
+                      formatter={(value) =>
+                        integer(value)
+                      }
+                      labelFormatter={(value) =>
+                        formatDateBR(value)
+                      }
+                    />
+
                     <Legend />
-                    <Bar yAxisId="left" dataKey="approach" name="Abordados" fill="#0048d7" radius={[6, 6, 0, 0]} />
-                    <Line yAxisId="right" type="monotone" dataKey="refusal" name="Recusas" stroke="#b45309" strokeWidth={3} />
-                    <Line yAxisId="right" type="monotone" dataKey="fined" name="Multados" stroke="#7c3aed" strokeWidth={3} />
+
+                    <Bar
+                      yAxisId="left"
+                      dataKey="approach"
+                      name="Abordados"
+                      fill="#0048d7"
+                      radius={[6, 6, 0, 0]}
+                    />
+
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="refusal"
+                      name="Recusas"
+                      stroke="#b45309"
+                      strokeWidth={3}
+                    />
+
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="fined"
+                      name="Multados"
+                      stroke="#7c3aed"
+                      strokeWidth={3}
+                    />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </Section>
 
-            <Section title="Produção por Equipe" subtitle="Ordenação inicial por abordados em ordem decrescente.">
+            <Section
+              title="Produção por Equipe"
+              subtitle="Ordenação inicial por abordados em ordem decrescente."
+            >
               <div className="stats-table-wrap">
                 <table className="stats-table">
                   <thead>
                     <tr>
                       <th>Equipe</th>
-                      <th>Relatórios</th>
                       <th>Operações</th>
                       <th>Abordados</th>
                       <th>Recusas</th>
@@ -316,26 +484,54 @@ export default function InspectionStatisticsPage() {
                       <th>Rebocados</th>
                     </tr>
                   </thead>
+
                   <tbody>
                     {teamProduction.map((row) => (
-                      <tr key={row.team || "sem-equipe"}>
-                        <td>{row.team || "Não informado"}</td>
-                        <td>{displayMetric(row.reports)}</td>
-                        <td>{displayMetric(row.operations)}</td>
-                        <td>{displayMetric(row.approach)}</td>
-                        <td>{displayMetric(row.refusal)}</td>
-                        <td>{displayMetric(row.fined)}</td>
-                        <td>{displayMetric(row.towed)}</td>
+                      <tr
+                        key={
+                          row.team || "sem-equipe"
+                        }
+                      >
+                        <td>
+                          {row.team ||
+                            "Não informado"}
+                        </td>
+
+                        <td>
+                          {displayMetric(
+                            row.operations
+                          )}
+                        </td>
+
+                        <td>
+                          {displayMetric(
+                            row.approach
+                          )}
+                        </td>
+
+                        <td>
+                          {displayMetric(
+                            row.refusal
+                          )}
+                        </td>
+
+                        <td>
+                          {displayMetric(
+                            row.fined
+                          )}
+                        </td>
+
+                        <td>
+                          {displayMetric(
+                            row.towed
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </Section>
-          </div>
-
-          <div className="alert">
-            Regra de consolidação: a API usa apenas <strong>InspectionStatistic</strong>. Sem registros homologados no filtro, os indicadores ficam vazios. Com base homologada, o <strong>SUM</strong> ignora valores <strong>NULL</strong>; se todos os valores de um indicador forem <strong>NULL</strong>, o resultado permanece <strong>Não informado</strong>.
           </div>
         </>
       )}
