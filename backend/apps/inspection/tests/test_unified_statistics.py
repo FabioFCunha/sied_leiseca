@@ -1,19 +1,18 @@
 from datetime import date, datetime, timezone
-import json
 from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
-from rest_framework.test import APIClient
 from django.urls import reverse
+from rest_framework.test import APIClient
 
 from apps.inspection.models import (
-    InspectionStatistic,
-    InspectionHistoricalStatistic,
-    InspectionHistoricalImportBatch,
     HistoricalSourceType,
     HistoricalTaxonomyEra,
+    InspectionHistoricalImportBatch,
+    InspectionHistoricalStatistic,
     InspectionReport,
+    InspectionStatistic,
 )
 from apps.inspection.services import InspectionStatisticsUnifiedService
 
@@ -25,6 +24,10 @@ class UnifiedStatisticsTests(TestCase):
             password="secretpassword",
             role=get_user_model().Role.ADMIN,
         )
+
+        #
+        # Histórico diário / ERA_C
+        #
         self.batch = InspectionHistoricalImportBatch.objects.create(
             source_file_name="test.xlsx",
             source_file_sha256="fakehash",
@@ -33,7 +36,12 @@ class UnifiedStatisticsTests(TestCase):
             source_file_size=100,
             status=InspectionHistoricalImportBatch.Status.COMPLETED,
             imported_by=self.user,
-            started_at=datetime(2026, 8, 12, tzinfo=timezone.utc),
+            started_at=datetime(
+                2026,
+                8,
+                12,
+                tzinfo=timezone.utc,
+            ),
         )
 
         # Historical stat 1 (2026-08-05) - Team A1
@@ -58,6 +66,7 @@ class UnifiedStatisticsTests(TestCase):
             taxi_illegal=2,
             rain=1,
         )
+
         # Historical stat 2 (2026-08-09) - Team B1
         InspectionHistoricalStatistic.objects.create(
             import_batch=self.batch,
@@ -78,15 +87,110 @@ class UnifiedStatisticsTests(TestCase):
             towed=None,
         )
 
+        #
+        # Histórico anual consolidado / LEGACY / ERA_A
+        #
+        self.legacy_batch = (
+            InspectionHistoricalImportBatch.objects.create(
+                source_file_name="legacy.xlsx",
+                source_file_sha256="legacy-fakehash",
+                source_type=HistoricalSourceType.LEGACY,
+                taxonomy_era=HistoricalTaxonomyEra.ERA_A,
+                source_file_size=200,
+                status=InspectionHistoricalImportBatch.Status.COMPLETED,
+                imported_by=self.user,
+                started_at=datetime(
+                    2026,
+                    8,
+                    13,
+                    tzinfo=timezone.utc,
+                ),
+            )
+        )
+
+        # Consolidado anual 2021
+        InspectionHistoricalStatistic.objects.create(
+            import_batch=self.legacy_batch,
+            reference_date=None,
+            reference_year=2021,
+            reference_month=None,
+            team="",
+            source_team_label="Consolidado anual",
+            source_type=HistoricalSourceType.LEGACY,
+            taxonomy_era=HistoricalTaxonomyEra.ERA_A,
+            source_sheet="Plan2",
+            source_row=2021,
+            historical_approached=153806,
+            fined=67399,
+            towed=867,
+            historical_cnh_retained=14823,
+            refusal=19063,
+            administrative_art_165=715,
+            criminal_art_306=146,
+            criminal_art_306_other_evidence=28,
+            historical_alcohol_cases=19952,
+            historical_alcohol_percentage="0.1297217562",
+            historical_art_307=431,
+            driving_canceled_license=194,
+            historical_operations=2689,
+        )
+
+        # Consolidado anual 2022
+        InspectionHistoricalStatistic.objects.create(
+            import_batch=self.legacy_batch,
+            reference_date=None,
+            reference_year=2022,
+            reference_month=None,
+            team="",
+            source_team_label="Consolidado anual",
+            source_type=HistoricalSourceType.LEGACY,
+            taxonomy_era=HistoricalTaxonomyEra.ERA_A,
+            source_sheet="Plan2",
+            source_row=2022,
+            historical_approached=344720,
+            fined=126330,
+            towed=7582,
+            historical_cnh_retained=22129,
+            refusal=33918,
+            administrative_art_165=155,
+            criminal_art_306=56,
+            criminal_art_306_other_evidence=52,
+            historical_alcohol_cases=34181,
+            historical_alcohol_percentage="0.0991558366",
+            historical_art_307=691,
+            driving_canceled_license=237,
+            historical_operations=3514,
+        )
+
+        #
+        # Operacional / SIED
+        #
+
         # Operational stat 1 (2026-08-10) - Team A1
         report1 = InspectionReport.objects.create(
             source_id=uuid4(),
-            source_created_at=datetime(2026, 8, 10, tzinfo=timezone.utc),
-            source_updated_at=datetime(2026, 8, 10, tzinfo=timezone.utc),
-            synced_at=datetime(2026, 8, 10, tzinfo=timezone.utc),
+            source_created_at=datetime(
+                2026,
+                8,
+                10,
+                tzinfo=timezone.utc,
+            ),
+            source_updated_at=datetime(
+                2026,
+                8,
+                10,
+                tzinfo=timezone.utc,
+            ),
+            synced_at=datetime(
+                2026,
+                8,
+                10,
+                tzinfo=timezone.utc,
+            ),
             operation_date=date(2026, 8, 10),
             team="A1",
         )
+
         InspectionStatistic.objects.create(
             report=report1,
             source_report_id=report1.source_id,
@@ -107,12 +211,28 @@ class UnifiedStatisticsTests(TestCase):
         # Operational stat 2 (2026-08-11) - Team B1
         report2 = InspectionReport.objects.create(
             source_id=uuid4(),
-            source_created_at=datetime(2026, 8, 11, tzinfo=timezone.utc),
-            source_updated_at=datetime(2026, 8, 11, tzinfo=timezone.utc),
-            synced_at=datetime(2026, 8, 11, tzinfo=timezone.utc),
+            source_created_at=datetime(
+                2026,
+                8,
+                11,
+                tzinfo=timezone.utc,
+            ),
+            source_updated_at=datetime(
+                2026,
+                8,
+                11,
+                tzinfo=timezone.utc,
+            ),
+            synced_at=datetime(
+                2026,
+                8,
+                11,
+                tzinfo=timezone.utc,
+            ),
             operation_date=date(2026, 8, 11),
             team="B1",
         )
+
         InspectionStatistic.objects.create(
             report=report2,
             source_report_id=report2.source_id,
@@ -130,97 +250,443 @@ class UnifiedStatisticsTests(TestCase):
             towed=None,
         )
 
+    #
+    # Testes já existentes
+    #
+
     def test_historical_only_period(self):
-        filters = {"date_from": "2026-08-01", "date_to": "2026-08-09"}
-        result = InspectionStatisticsUnifiedService(filters).get_dashboard_data()
+        filters = {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-09",
+        }
 
-        self.assertEqual(result["meta"]["sources_used"], ["historical"])
-        self.assertEqual(result["summary"]["homologated_reports"], None)
-        self.assertEqual(result["administrative_measures"]["fined"], 20)
-        self.assertEqual(result["alcohol_results"]["four_ml"], 10)
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
 
-        # Historical approach_plus_reconductor = four_ml + refusal = 10 + 3 = 13
-        self.assertEqual(result["summary"]["approach_plus_reconductor"], 13)
-        self.assertEqual(result["occurrences"]["rain"], 1)
-        self.assertEqual(result["coverage"]["occurrences.rain"], "HISTORICAL_ONLY")
+        self.assertEqual(
+            result["meta"]["sources_used"],
+            ["historical"],
+        )
+        self.assertEqual(
+            result["summary"]["homologated_reports"],
+            None,
+        )
+        self.assertEqual(
+            result["administrative_measures"]["fined"],
+            20,
+        )
+        self.assertEqual(
+            result["alcohol_results"]["four_ml"],
+            10,
+        )
+
+        # Historical approach_plus_reconductor =
+        # four_ml + refusal = 10 + 3 = 13
+        self.assertEqual(
+            result["summary"]["approach_plus_reconductor"],
+            13,
+        )
+
+        self.assertEqual(
+            result["occurrences"]["rain"],
+            1,
+        )
+        self.assertEqual(
+            result["coverage"]["occurrences.rain"],
+            "HISTORICAL_ONLY",
+        )
 
     def test_operational_only_period(self):
-        filters = {"date_from": "2026-08-10", "date_to": "2026-08-31"}
-        result = InspectionStatisticsUnifiedService(filters).get_dashboard_data()
+        filters = {
+            "date_from": "2026-08-10",
+            "date_to": "2026-08-31",
+        }
 
-        self.assertEqual(result["meta"]["sources_used"], ["report"])
-        self.assertEqual(result["summary"]["homologated_reports"], 2)
-        self.assertEqual(result["administrative_measures"]["fined"], 30)
-        self.assertEqual(result["alcohol_results"]["four_ml"], 15)
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
 
-        # Operational approach_plus_reconductor = approach + reconductor = 100 + 5 = 105
-        self.assertEqual(result["summary"]["approach_plus_reconductor"], 105)
-        self.assertEqual(result["occurrences"]["rain"], None)
-        self.assertEqual(result["coverage"]["occurrences.rain"], "HISTORICAL_ONLY")
+        self.assertEqual(
+            result["meta"]["sources_used"],
+            ["report"],
+        )
+        self.assertEqual(
+            result["summary"]["homologated_reports"],
+            2,
+        )
+        self.assertEqual(
+            result["administrative_measures"]["fined"],
+            30,
+        )
+        self.assertEqual(
+            result["alcohol_results"]["four_ml"],
+            15,
+        )
+
+        # Operational approach_plus_reconductor =
+        # approach + reconductor = 100 + 5 = 105
+        self.assertEqual(
+            result["summary"]["approach_plus_reconductor"],
+            105,
+        )
+
+        self.assertEqual(
+            result["occurrences"]["rain"],
+            None,
+        )
+        self.assertEqual(
+            result["coverage"]["occurrences.rain"],
+            "HISTORICAL_ONLY",
+        )
 
     def test_cross_period(self):
-        filters = {"date_from": "2026-08-01", "date_to": "2026-08-15"}
-        result = InspectionStatisticsUnifiedService(filters).get_dashboard_data()
+        filters = {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-15",
+        }
 
-        self.assertEqual(set(result["meta"]["sources_used"]), {"historical", "report"})
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        self.assertEqual(
+            set(result["meta"]["sources_used"]),
+            {"historical", "report"},
+        )
+
         # Fined: 20 (hist) + 30 (op) = 50
-        self.assertEqual(result["administrative_measures"]["fined"], 50)
+        self.assertEqual(
+            result["administrative_measures"]["fined"],
+            50,
+        )
 
-        # approach_plus_reconductor in cross period should be None because it's partial/incompatible
-        self.assertIsNone(result["summary"]["approach_plus_reconductor"])
-        self.assertEqual(result["coverage"]["summary.approach_plus_reconductor"], "PARTIAL")
+        # Indicador incompatível no cruzamento
+        self.assertIsNone(
+            result["summary"]["approach_plus_reconductor"]
+        )
+        self.assertEqual(
+            result["coverage"][
+                "summary.approach_plus_reconductor"
+            ],
+            "PARTIAL",
+        )
 
-        # Relatorios is operational only
-        self.assertEqual(result["summary"]["homologated_reports"], 2)
-        self.assertEqual(result["coverage"]["summary.homologated_reports"], "CURRENT_ONLY")
+        # Relatórios são somente operacionais
+        self.assertEqual(
+            result["summary"]["homologated_reports"],
+            2,
+        )
+        self.assertEqual(
+            result["coverage"]["summary.homologated_reports"],
+            "CURRENT_ONLY",
+        )
 
     def test_null_plus_null(self):
-        filters = {"date_from": "2026-08-09", "date_to": "2026-08-11", "team": "B1"}
-        result = InspectionStatisticsUnifiedService(filters).get_dashboard_data()
+        filters = {
+            "date_from": "2026-08-09",
+            "date_to": "2026-08-11",
+            "team": "B1",
+        }
 
-        # B1 has None in both periods for fined
-        self.assertIsNone(result["administrative_measures"]["fined"])
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        self.assertIsNone(
+            result["administrative_measures"]["fined"]
+        )
 
     def test_biqueira(self):
-        # four_ml (10 hist + 15 op) + thirtythree_ml (2 hist + 3 op) + thirtyfour_ml (1 hist + 0 op)
-        filters = {"date_from": "2026-08-01", "date_to": "2026-08-15"}
-        result = InspectionStatisticsUnifiedService(filters).get_dashboard_data()
+        filters = {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-15",
+        }
 
-        self.assertEqual(result["alcohol_results"]["four_ml"], 25)
-        self.assertEqual(result["alcohol_results"]["thirtythree_ml"], 5)
-        self.assertEqual(result["alcohol_results"]["thirtyfour_ml"], 1)
-        self.assertEqual(result["coverage"]["alcohol_results.four_ml"], "DIRECT")
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        self.assertEqual(
+            result["alcohol_results"]["four_ml"],
+            25,
+        )
+        self.assertEqual(
+            result["alcohol_results"]["thirtythree_ml"],
+            5,
+        )
+        self.assertEqual(
+            result["alcohol_results"]["thirtyfour_ml"],
+            1,
+        )
+        self.assertEqual(
+            result["coverage"]["alcohol_results.four_ml"],
+            "DIRECT",
+        )
 
     def test_team_production_unification(self):
-        filters = {"date_from": "2026-08-01", "date_to": "2026-08-15"}
-        result = InspectionStatisticsUnifiedService(filters).get_dashboard_data()
+        filters = {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-15",
+        }
 
-        team_prod = {t["team"]: t for t in result["team_production"]}
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        team_prod = {
+            item["team"]: item
+            for item in result["team_production"]
+        }
+
         self.assertIn("A1", team_prod)
         self.assertIn("B1", team_prod)
 
-        # A1 fined: 20 + 30 = 50
-        self.assertEqual(team_prod["A1"]["fined"], 50)
+        self.assertEqual(
+            team_prod["A1"]["fined"],
+            50,
+        )
 
     def test_time_series_continuous(self):
-        filters = {"date_from": "2026-08-01", "date_to": "2026-08-15"}
-        result = InspectionStatisticsUnifiedService(filters).get_dashboard_data()
+        filters = {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-15",
+        }
 
-        ts = {t["operation_date"]: t for t in result["time_series"]}
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        ts = {
+            item["operation_date"]: item
+            for item in result["time_series"]
+        }
+
         self.assertIn("2026-08-05", ts)
         self.assertIn("2026-08-09", ts)
         self.assertIn("2026-08-10", ts)
         self.assertIn("2026-08-11", ts)
 
-        self.assertEqual(ts["2026-08-05"]["fined"], 20)
-        self.assertEqual(ts["2026-08-10"]["fined"], 30)
+        self.assertEqual(
+            ts["2026-08-05"]["fined"],
+            20,
+        )
+        self.assertEqual(
+            ts["2026-08-10"]["fined"],
+            30,
+        )
 
     def test_view_endpoint_integration(self):
         client = APIClient()
         client.force_authenticate(user=self.user)
-        url = reverse("inspection-statistics-dashboard") + "?date_from=2026-08-01&date_to=2026-08-15"
+
+        url = (
+            reverse("inspection-statistics-dashboard")
+            + "?date_from=2026-08-01"
+            + "&date_to=2026-08-15"
+        )
+
         response = client.get(url)
-        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
 
         data = response.json()
-        self.assertEqual(data["administrative_measures"]["fined"], 50)
+
+        self.assertEqual(
+            data["administrative_measures"]["fined"],
+            50,
+        )
+
+    #
+    # Novos testes — série anual LEGACY / ERA_A
+    #
+
+    def test_full_legacy_year_2022(self):
+        filters = {
+            "date_from": "2022-01-01",
+            "date_to": "2022-12-31",
+        }
+
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        self.assertEqual(
+            result["meta"]["sources_used"],
+            ["historical"],
+        )
+
+        self.assertEqual(
+            result["summary"]["approach"],
+            344720,
+        )
+        self.assertEqual(
+            result["summary"]["fined"],
+            126330,
+        )
+        self.assertEqual(
+            result["summary"]["towed"],
+            7582,
+        )
+        self.assertEqual(
+            result["summary"]["refusal"],
+            33918,
+        )
+        self.assertEqual(
+            result["summary"]["art307"],
+            691,
+        )
+        self.assertEqual(
+            result["summary"]["operations"],
+            3514,
+        )
+
+        self.assertEqual(
+            result["driver"]["historical_cnh_retained"],
+            22129,
+        )
+        self.assertEqual(
+            result["summary"]["driving_canceled_license"],
+            237,
+        )
+
+    def test_full_legacy_year_2021(self):
+        filters = {
+            "date_from": "2021-01-01",
+            "date_to": "2021-12-31",
+        }
+
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        self.assertEqual(
+            result["summary"]["approach"],
+            153806,
+        )
+        self.assertEqual(
+            result["summary"]["fined"],
+            67399,
+        )
+        self.assertEqual(
+            result["summary"]["art307"],
+            431,
+        )
+        self.assertEqual(
+            result["summary"]["operations"],
+            2689,
+        )
+
+    def test_multiple_full_legacy_years_are_summed(self):
+        filters = {
+            "date_from": "2021-01-01",
+            "date_to": "2022-12-31",
+        }
+
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        self.assertEqual(
+            result["summary"]["approach"],
+            153806 + 344720,
+        )
+        self.assertEqual(
+            result["summary"]["fined"],
+            67399 + 126330,
+        )
+        self.assertEqual(
+            result["summary"]["towed"],
+            867 + 7582,
+        )
+        self.assertEqual(
+            result["summary"]["refusal"],
+            19063 + 33918,
+        )
+        self.assertEqual(
+            result["summary"]["art307"],
+            431 + 691,
+        )
+        self.assertEqual(
+            result["summary"]["operations"],
+            2689 + 3514,
+        )
+
+    def test_partial_legacy_year_does_not_use_annual_total(self):
+        filters = {
+            "date_from": "2022-01-01",
+            "date_to": "2022-06-30",
+        }
+
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        self.assertIsNone(
+            result["summary"]["approach"]
+        )
+        self.assertIsNone(
+            result["summary"]["fined"]
+        )
+        self.assertIsNone(
+            result["summary"]["operations"]
+        )
+        self.assertIsNone(
+            result["summary"]["art307"]
+        )
+
+    def test_mixed_partial_and_full_legacy_year(self):
+        filters = {
+            "date_from": "2021-07-01",
+            "date_to": "2022-12-31",
+        }
+
+        result = InspectionStatisticsUnifiedService(
+            filters
+        ).get_dashboard_data()
+
+        # 2021 está incompleto e não pode ser usado.
+        # 2022 está completamente coberto.
+        self.assertEqual(
+            result["summary"]["approach"],
+            344720,
+        )
+        self.assertEqual(
+            result["summary"]["fined"],
+            126330,
+        )
+        self.assertEqual(
+            result["summary"]["art307"],
+            691,
+        )
+        self.assertEqual(
+            result["summary"]["operations"],
+            3514,
+        )
+
+    def test_cutoff_2026_remains_unchanged(self):
+        historical = InspectionStatisticsUnifiedService(
+            {
+                "date_from": "2026-08-09",
+                "date_to": "2026-08-09",
+            }
+        ).get_dashboard_data()
+
+        operational = InspectionStatisticsUnifiedService(
+            {
+                "date_from": "2026-08-10",
+                "date_to": "2026-08-10",
+            }
+        ).get_dashboard_data()
+
+        self.assertEqual(
+            historical["meta"]["sources_used"],
+            ["historical"],
+        )
+        self.assertEqual(
+            operational["meta"]["sources_used"],
+            ["report"],
+        )

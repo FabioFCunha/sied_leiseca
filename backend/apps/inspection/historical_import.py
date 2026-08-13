@@ -133,11 +133,18 @@ class InspectionHistoricalWorkbookParser:
                 }
             }
 
-            reference_context = self._detect_reference_context()
-            if reference_context.get("error"):
-                errors.append(reference_context["error"])
-
             recognized = self._recognized_sheets()
+
+            reference_context = self._detect_reference_context()
+
+            if (
+                reference_context.get("error")
+                and (
+                    recognized["daily"]
+                    or recognized["accumulated"]
+                )
+            ):
+                errors.append(reference_context["error"])
             for sheet_name in recognized["daily"]:
                 result = self._parse_daily_sheet(sheet_name, reference_context, validation)
                 rows.extend(result["rows"])
@@ -522,6 +529,28 @@ class InspectionHistoricalWorkbookParser:
 
     def _parse_legacy_sheet(self, sheet_name):
         worksheet = self.workbook_values[sheet_name]
+
+        #
+        # PLAN2 anual consolidada
+        #
+        # Estrutura conhecida:
+        # - linha 1: anos de 2009 em diante;
+        # - linhas 2 a 13: indicadores anuais;
+        # - linha 14: anos de "AÇÕES REALIZADAS";
+        # - linha 15: totais anuais de ações.
+        #
+        annual_header = _normalize_text(
+            worksheet.cell(row=1, column=2).value
+        ).upper()
+
+        if "ANOS DE FISCALIZA" in annual_header:
+            return self._parse_annual_legacy_sheet(sheet_name)
+
+        #
+        # Parser LEGACY anterior.
+        # Mantido para compatibilidade com os arquivos históricos
+        # antigos estruturados por equipe.
+        #
         warnings = []
         errors = []
         rows = []
@@ -529,21 +558,41 @@ class InspectionHistoricalWorkbookParser:
         rows_ignored = 0
 
         for row_index, row in enumerate(
-            worksheet.iter_rows(min_row=3, max_row=min(500, worksheet.max_row), max_col=18, values_only=True),
+            worksheet.iter_rows(
+                min_row=3,
+                max_row=min(500, worksheet.max_row),
+                max_col=18,
+                values_only=True,
+            ),
             start=3,
         ):
             label = _normalize_text(row[0]).upper()
+
             if not label.startswith("EQUIPE"):
                 rows_ignored += 1
                 continue
+
             values = row[1:18]
-            if not any(value not in (None, "") for value in values):
+
+            if not any(
+                value not in (None, "")
+                for value in values
+            ):
                 rows_ignored += 1
                 continue
+
             rows_found += 1
-            team, team_warning = self._normalize_team(_normalize_text(row[0]))
+
+            team, team_warning = self._normalize_team(
+                _normalize_text(row[0])
+            )
+
             if team_warning:
-                warnings.append(f"{sheet_name}:{row_index} - {team_warning}")
+                warnings.append(
+                    f"{sheet_name}:{row_index} - "
+                    f"{team_warning}"
+                )
+
             rows.append(
                 ParsedHistoricalRow(
                     source_type=HistoricalSourceType.LEGACY,
@@ -554,24 +603,56 @@ class InspectionHistoricalWorkbookParser:
                     reference_year=None,
                     reference_month=None,
                     team=team,
-                    source_team_label=_normalize_text(row[0]),
+                    source_team_label=_normalize_text(
+                        row[0]
+                    ),
                     source_workbook_label=self.workbook_label,
                     metrics={
-                        "fined": _int_or_none(values[1]),
-                        "towed": _int_or_none(values[2]),
-                        "taxi_approached": _int_or_none(values[14]),
-                        "taxi_illegal": _int_or_none(values[15]),
-                        "rain": _int_or_none(values[16]),
-                        "historical_cnh_retained": _int_or_none(values[3]),
-                        "historical_passive_tests": _int_or_none(values[5]),
-                        "historical_reconductors_licensed": _int_or_none(values[6]),
-                        "refusal": _int_or_none(values[7]),
-                        "negative_tests": _int_or_none(values[8]),
-                        "administrative_art_165": _int_or_none(values[9]),
-                        "criminal_art_306": _int_or_none(values[10]),
-                        "criminal_art_306_other_evidence": _int_or_none(values[11]),
-                        "historical_alcohol_cases": _int_or_none(values[12]),
-                        "historical_alcohol_percentage": _decimal_or_none(values[13]),
+                        "fined": _int_or_none(
+                            values[1]
+                        ),
+                        "towed": _int_or_none(
+                            values[2]
+                        ),
+                        "taxi_approached": _int_or_none(
+                            values[14]
+                        ),
+                        "taxi_illegal": _int_or_none(
+                            values[15]
+                        ),
+                        "rain": _int_or_none(
+                            values[16]
+                        ),
+                        "historical_cnh_retained": _int_or_none(
+                            values[3]
+                        ),
+                        "historical_passive_tests": _int_or_none(
+                            values[5]
+                        ),
+                        "historical_reconductors_licensed": _int_or_none(
+                            values[6]
+                        ),
+                        "refusal": _int_or_none(
+                            values[7]
+                        ),
+                        "negative_tests": _int_or_none(
+                            values[8]
+                        ),
+                        "administrative_art_165": _int_or_none(
+                            values[9]
+                        ),
+                        "criminal_art_306": _int_or_none(
+                            values[10]
+                        ),
+                        "criminal_art_306_other_evidence": _int_or_none(
+                            values[11]
+                        ),
+                        "historical_alcohol_cases": _int_or_none(
+                            values[12]
+                        ),
+                        "historical_alcohol_percentage": _decimal_or_none(
+                            values[13]
+                        ),
                     },
                 )
             )
@@ -594,6 +675,398 @@ class InspectionHistoricalWorkbookParser:
             },
         }
 
+    def _parse_annual_legacy_sheet(self, sheet_name):
+        worksheet = self.workbook_values[sheet_name]
+
+        warnings = []
+        errors = []
+        rows = []
+        rows_ignored = 0
+
+        #
+        # Período oficial desta fonte.
+        #
+        # A partir de 2023, a fonte oficial será o Horus.
+        #
+        min_year = 2009
+        max_year = 2022
+
+        #
+        # Índice dos anos na grade principal.
+        #
+        year_columns = {}
+
+        for column in range(
+            1,
+            worksheet.max_column + 1,
+        ):
+            raw_year = worksheet.cell(
+                row=1,
+                column=column,
+            ).value
+
+            year = _int_or_none(raw_year)
+
+            if (
+                year is not None
+                and min_year <= year <= max_year
+            ):
+                year_columns[year] = column
+
+        expected_years = set(
+            range(min_year, max_year + 1)
+        )
+
+        missing_years = sorted(
+            expected_years - set(year_columns)
+        )
+
+        if missing_years:
+            errors.append(
+                "Planilha anual LEGACY sem colunas para os anos: "
+                + ", ".join(
+                    str(year)
+                    for year in missing_years
+                )
+            )
+
+        #
+        # Localiza os indicadores pelas próprias descrições.
+        # Assim evitamos depender apenas da posição fixa
+        # das linhas.
+        #
+        indicator_rows = {}
+
+        for row_index in range(
+            1,
+            worksheet.max_row + 1,
+        ):
+            label = _normalize_text(
+                worksheet.cell(
+                    row=row_index,
+                    column=2,
+                ).value
+            ).upper()
+
+            if not label:
+                continue
+
+            if "ABORDADOS" in label:
+                indicator_rows["historical_approached"] = (
+                    row_index
+                )
+
+            elif "MULTADOS" in label:
+                indicator_rows["fined"] = (
+                    row_index
+                )
+
+            elif "REBOCADOS" in label:
+                indicator_rows["towed"] = (
+                    row_index
+                )
+
+            elif (
+                label.startswith("4")
+                and "CNH" in label
+            ):
+                indicator_rows[
+                    "historical_cnh_retained"
+                ] = row_index
+
+            elif "RECUSAS" in label:
+                indicator_rows["refusal"] = (
+                    row_index
+                )
+
+            elif (
+                "ADMINISTRATIVO" in label
+                and "165" in label
+            ):
+                indicator_rows[
+                    "administrative_art_165"
+                ] = row_index
+
+            elif (
+                "CRIMINAL" in label
+                and "306" in label
+            ):
+                indicator_rows[
+                    "criminal_art_306"
+                ] = row_index
+
+            elif (
+                "OUTROS MEIOS" in label
+                and "306" in label
+            ):
+                indicator_rows[
+                    "criminal_art_306_other_evidence"
+                ] = row_index
+
+            elif "CASOS DE ALCOOLEMIA" in label:
+                indicator_rows[
+                    "historical_alcohol_cases"
+                ] = row_index
+
+            elif "PERCENTUAL DE ALCOOLEMIA" in label:
+                indicator_rows[
+                    "historical_alcohol_percentage"
+                ] = row_index
+
+            elif (
+                "ADMINISTRATIVO" in label
+                and "307" in label
+            ):
+                indicator_rows[
+                    "historical_art_307"
+                ] = row_index
+
+            elif "CNH CASSADA" in label:
+                indicator_rows[
+                    "driving_canceled_license"
+                ] = row_index
+
+        expected_indicators = {
+            "historical_approached",
+            "fined",
+            "towed",
+            "historical_cnh_retained",
+            "refusal",
+            "administrative_art_165",
+            "criminal_art_306",
+            "criminal_art_306_other_evidence",
+            "historical_alcohol_cases",
+            "historical_alcohol_percentage",
+            "historical_art_307",
+            "driving_canceled_license",
+        }
+
+        missing_indicators = sorted(
+            expected_indicators
+            - set(indicator_rows)
+        )
+
+        if missing_indicators:
+            errors.append(
+                "Indicadores anuais LEGACY não localizados: "
+                + ", ".join(missing_indicators)
+            )
+
+        #
+        # AÇÕES REALIZADAS possui outra grade:
+        # anos na linha 14 e valores na linha 15.
+        #
+        operations_by_year = {}
+
+        for column in range(
+            1,
+            worksheet.max_column + 1,
+        ):
+            raw_year = worksheet.cell(
+                row=14,
+                column=column,
+            ).value
+
+            year = _int_or_none(raw_year)
+
+            if (
+                year is not None
+                and min_year <= year <= max_year
+            ):
+                operations_by_year[year] = (
+                    _int_or_none(
+                        worksheet.cell(
+                            row=15,
+                            column=column,
+                        ).value
+                    )
+                )
+
+        missing_operation_years = sorted(
+            expected_years
+            - set(operations_by_year)
+        )
+
+        if missing_operation_years:
+            warnings.append(
+                "Ações realizadas sem valor localizado para: "
+                + ", ".join(
+                    str(year)
+                    for year in missing_operation_years
+                )
+            )
+
+        #
+        # Se a estrutura obrigatória estiver incompleta,
+        # não gera registros parciais silenciosamente.
+        #
+        if errors:
+            return {
+                "rows": [],
+                "warnings": warnings,
+                "errors": errors,
+                "rows_ignored": 0,
+                "rows_found": 0,
+                "sheet_report": {
+                    "sheet": sheet_name,
+                    "source_type": HistoricalSourceType.LEGACY,
+                    "taxonomy_era": HistoricalTaxonomyEra.ERA_A,
+                    "rows_found": 0,
+                    "rows_valid": 0,
+                    "rows_ignored": 0,
+                    "errors": len(errors),
+                    "warnings": len(warnings),
+                    "annual_series": True,
+                    "year_from": min_year,
+                    "year_to": max_year,
+                },
+            }
+
+        #
+        # Um registro consolidado por ano.
+        #
+        for year in range(
+            min_year,
+            max_year + 1,
+        ):
+            column = year_columns[year]
+
+            metrics = {}
+
+            for (
+                field_name,
+                row_index,
+            ) in indicator_rows.items():
+                raw_value = worksheet.cell(
+                    row=row_index,
+                    column=column,
+                ).value
+
+                if (
+                    field_name
+                    == "historical_alcohol_percentage"
+                ):
+                    metrics[field_name] = (
+                        _decimal_or_none(raw_value)
+                    )
+                else:
+                    metrics[field_name] = (
+                        _int_or_none(raw_value)
+                    )
+
+            #
+            # Correção confirmada da fonte:
+            # 2021 / Abordados = 153.806.
+            #
+            # A célula original contém 153806.12.
+            # Não preservamos a fração porque o indicador
+            # representa quantidade de pessoas abordadas.
+            #
+            if (
+                year == 2021
+                and metrics.get(
+                    "historical_approached"
+                )
+                is not None
+            ):
+                metrics[
+                    "historical_approached"
+                ] = 153806
+
+            metrics["historical_operations"] = (
+                operations_by_year.get(year)
+            )
+
+            rows.append(
+                ParsedHistoricalRow(
+                    source_type=HistoricalSourceType.LEGACY,
+                    taxonomy_era=HistoricalTaxonomyEra.ERA_A,
+                    source_sheet=sheet_name,
+
+                    #
+                    # Como cada registro anual é formado
+                    # pela leitura de várias linhas da planilha,
+                    # usamos o próprio ano como chave de
+                    # rastreabilidade do registro consolidado.
+                    #
+                    source_row=year,
+
+                    reference_date=None,
+                    reference_year=year,
+                    reference_month=None,
+
+                    #
+                    # A planilha anual é consolidada para toda
+                    # a Fiscalização e não possui equipe.
+                    #
+                    team="",
+                    source_team_label="Consolidado anual",
+
+                    source_workbook_label=self.workbook_label,
+                    metrics=metrics,
+                )
+            )
+
+        #
+        # 2023 a 2026 existem na planilha, mas não serão
+        # utilizados: a fonte oficial desse período será
+        # o Horus.
+        #
+        ignored_future_years = []
+
+        for column in range(
+            1,
+            worksheet.max_column + 1,
+        ):
+            year = _int_or_none(
+                worksheet.cell(
+                    row=1,
+                    column=column,
+                ).value
+            )
+
+            if (
+                year is not None
+                and year > max_year
+            ):
+                ignored_future_years.append(year)
+
+        if ignored_future_years:
+            warnings.append(
+                "Anos ignorados por regra de fonte oficial "
+                "(Horus a partir de 2023): "
+                + ", ".join(
+                    str(year)
+                    for year in sorted(
+                        set(ignored_future_years)
+                    )
+                )
+            )
+
+        return {
+            "rows": rows,
+            "warnings": warnings,
+            "errors": errors,
+            "rows_ignored": rows_ignored,
+            "rows_found": len(rows),
+            "sheet_report": {
+                "sheet": sheet_name,
+                "source_type": HistoricalSourceType.LEGACY,
+                "taxonomy_era": HistoricalTaxonomyEra.ERA_A,
+                "rows_found": len(rows),
+                "rows_valid": len(rows),
+                "rows_ignored": rows_ignored,
+                "errors": len(errors),
+                "warnings": len(warnings),
+                "annual_series": True,
+                "year_from": min_year,
+                "year_to": max_year,
+                "years_imported": [
+                    row.reference_year
+                    for row in rows
+                ],
+            },
+        }
     def _inspect_mother_sheet(self):
         for sheet_name in self.workbook_values.sheetnames:
             normalized = _normalize_sheet_name(sheet_name)
@@ -762,3 +1235,4 @@ class InspectionHistoricalImportService:
                 "error": f"Erro durante a importacao: {str(e)}",
                 "batch_id": batch.id,
             })
+

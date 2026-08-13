@@ -367,6 +367,32 @@ class InspectionHistoricalImportTests(TestCase):
         with self.assertRaisesMessage(Exception, "Dados historicos de Fiscalizacao nao podem ultrapassar 2026-08-09."):
             item.full_clean()
 
+    def test_historical_statistic_db_constraint_blocks_reference_date_after_cutoff(self):
+        from django.db import IntegrityError
+        batch = InspectionHistoricalImportBatch.objects.create(
+            source_file_name="a.xlsx",
+            source_file_sha256="def2",
+            source_file_size=1,
+            status=InspectionHistoricalImportBatch.Status.PENDING,
+            imported_by=self.user,
+            started_at=datetime(2026, 8, 12, 9, 0, tzinfo=timezone.utc),
+        )
+        item = InspectionHistoricalStatistic(
+            import_batch=batch,
+            reference_date=date(2026, 8, 10),
+            reference_year=2026,
+            reference_month=8,
+            team="A1",
+            source_team_label="EQUIPE A1",
+            source_type=HistoricalSourceType.DAILY,
+            source_sheet="D10",
+            source_row=4,
+            taxonomy_era=HistoricalTaxonomyEra.ERA_C,
+            source_workbook_label="arquivo.xlsx",
+        )
+        with self.assertRaises(IntegrityError):
+            InspectionHistoricalStatistic.objects.bulk_create([item])
+
     def test_historical_statistic_unique_per_batch_sheet_and_row(self):
         batch = InspectionHistoricalImportBatch.objects.create(
             source_file_name="a.xlsx",

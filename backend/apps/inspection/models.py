@@ -382,6 +382,9 @@ class InspectionHistoricalStatistic(models.Model):
     historical_cnh_retained = models.IntegerField(null=True, blank=True)
     historical_passive_tests = models.IntegerField(null=True, blank=True)
 
+    historical_approached = models.IntegerField(null=True, blank=True)
+    historical_art_307 = models.IntegerField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

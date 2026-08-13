@@ -512,32 +512,49 @@ class InspectionStatisticsService:
 
 from django.db.models import Count, Sum, Value, F
 from django.db.models.functions import Coalesce
-from apps.inspection.models import InspectionHistoricalStatistic, INSPECTION_STATISTICS_CUTOFF_DATE
+
+from apps.inspection.models import (
+    HistoricalSourceType,
+    HistoricalTaxonomyEra,
+    InspectionHistoricalStatistic,
+    INSPECTION_STATISTICS_CUTOFF_DATE,
+)
+
 
 class InspectionStatisticsUnifiedService:
     def __init__(self, filters):
         self.filters = filters
+
         self.date_from = (
             date.fromisoformat(filters["date_from"])
             if filters.get("date_from")
             else None
         )
+
         self.date_to = (
             date.fromisoformat(filters["date_to"])
             if filters.get("date_to")
             else None
         )
+
         self.team = filters.get("team")
 
         self.use_historical = False
         self.use_operational = False
 
+        #
         # Regra oficial:
-        # - até 09/08/2026: histórico consolidado
-        # - a partir de 10/08/2026: operacional homologado no SIED
+        #
+        # - até 09/08/2026:
+        #   histórico consolidado;
+        #
+        # - a partir de 10/08/2026:
+        #   estatística operacional homologada no SIED.
+        #
         if not self.date_from and not self.date_to:
             self.use_historical = True
             self.use_operational = True
+
         else:
             d_from = self.date_from or date.min
             d_to = self.date_to or date.max
@@ -552,6 +569,7 @@ class InspectionStatisticsUnifiedService:
     def _sum_nullable(a, b):
         if a is None and b is None:
             return None
+
         return (a or 0) + (b or 0)
 
     def get_dashboard_data(self):
@@ -575,67 +593,92 @@ class InspectionStatisticsUnifiedService:
         if self.use_operational:
             sources_used.append("report")
 
+        #
+        # RESUMO EXECUTIVO
+        #
         summary = {
             "homologated_reports": (
                 oper_agg.get("homologated_reports")
                 if self.use_operational
                 else None
             ),
+
             "operations": self._sum_nullable(
                 hist_agg.get("operations"),
                 oper_agg.get("operations"),
             ),
+
             "approach_plus_reconductor": None,
+
             "refusal": self._sum_nullable(
                 hist_agg.get("refusal"),
                 oper_agg.get("refusal"),
             ),
+
             "fined": self._sum_nullable(
                 hist_agg.get("fined"),
                 oper_agg.get("fined"),
             ),
+
             "towed": self._sum_nullable(
                 hist_agg.get("towed"),
                 oper_agg.get("towed"),
             ),
+
             "cnh_collected": self._sum_nullable(
                 hist_agg.get("cnh_collected"),
                 oper_agg.get("cnh_collected"),
             ),
+
             "passive_tests_performed": self._sum_nullable(
                 hist_agg.get("passive_tests_performed"),
                 oper_agg.get("passive_tests_performed"),
             ),
+
             "removal_resolutions": self._sum_nullable(
                 hist_agg.get("removal_resolutions"),
                 oper_agg.get("removal_resolutions"),
             ),
+
             "criminal_occurrences": self._sum_nullable(
                 hist_agg.get("criminal_occurrences"),
                 oper_agg.get("criminal_occurrences"),
             ),
+
             "art307": self._sum_nullable(
                 hist_agg.get("art307"),
                 oper_agg.get("art307"),
             ),
+
             "driving_canceled_license": self._sum_nullable(
                 hist_agg.get("driving_canceled_license"),
                 oper_agg.get("driving_canceled_license"),
             ),
+
             "arrests_means_evidence": self._sum_nullable(
                 hist_agg.get("arrests_means_evidence"),
                 oper_agg.get("arrests_means_evidence"),
             ),
+
             "celebrities_authorities": (
                 oper_agg.get("celebrities_authorities")
                 if self.use_operational
                 else None
             ),
-            "approach": (
-                oper_agg.get("sum_approach")
-                if self.use_operational
-                else None
+
+            #
+            # Abordados pode existir tanto no histórico anual
+            # quanto na estatística operacional.
+            #
+            "approach": self._sum_nullable(
+                hist_agg.get("approach"),
+                (
+                    oper_agg.get("sum_approach")
+                    if self.use_operational
+                    else None
+                ),
             ),
+
             "reconductor": (
                 oper_agg.get("sum_reconductor")
                 if self.use_operational
@@ -643,43 +686,60 @@ class InspectionStatisticsUnifiedService:
             ),
         }
 
+        #
+        # ABORDADOS + RECONDUTOR
+        #
+        # As definições histórica e operacional não são
+        # necessariamente equivalentes.
+        #
         if self.use_historical and not self.use_operational:
-            summary["approach_plus_reconductor"] = hist_agg.get(
-                "approach_plus_reconductor"
+            summary["approach_plus_reconductor"] = (
+                hist_agg.get("approach_plus_reconductor")
             )
+
         elif self.use_operational and not self.use_historical:
-            summary["approach_plus_reconductor"] = oper_agg.get(
-                "approach_plus_reconductor"
+            summary["approach_plus_reconductor"] = (
+                oper_agg.get("approach_plus_reconductor")
             )
+
         else:
             summary["approach_plus_reconductor"] = None
 
+        #
+        # RESULTADOS DO ETILÔMETRO
+        #
         alcohol = {
             "four_ml": self._sum_nullable(
                 hist_agg.get("four_ml"),
                 oper_agg.get("four_ml"),
             ),
+
             "thirtythree_ml": self._sum_nullable(
                 hist_agg.get("thirtythree_ml"),
                 oper_agg.get("thirtythree_ml"),
             ),
+
             "thirtyfour_ml": self._sum_nullable(
                 hist_agg.get("thirtyfour_ml"),
                 oper_agg.get("thirtyfour_ml"),
             ),
+
             "refusal": self._sum_nullable(
                 hist_agg.get("refusal"),
                 oper_agg.get("refusal"),
             ),
+
             "arrests_means_evidence": self._sum_nullable(
                 hist_agg.get("arrests_means_evidence"),
                 oper_agg.get("arrests_means_evidence"),
             ),
+
             "negative_tests": (
                 hist_agg.get("negative_tests")
                 if self.use_historical
                 else None
             ),
+
             "historical_alcohol_cases": (
                 hist_agg.get("historical_alcohol_cases")
                 if self.use_historical
@@ -687,19 +747,28 @@ class InspectionStatisticsUnifiedService:
             ),
         }
 
+        #
+        # MEDIDAS ADMINISTRATIVAS
+        #
         admin = {
             "fined": summary["fined"],
             "towed": summary["towed"],
             "cnh_collected": summary["cnh_collected"],
-            "removal_resolutions": summary["removal_resolutions"],
+            "removal_resolutions": summary[
+                "removal_resolutions"
+            ],
         }
 
+        #
+        # TÁXI
+        #
         taxi = {
             "approached": (
                 hist_agg.get("taxi_approached")
                 if self.use_historical
                 else None
             ),
+
             "illegal": (
                 hist_agg.get("taxi_illegal")
                 if self.use_historical
@@ -707,84 +776,132 @@ class InspectionStatisticsUnifiedService:
             ),
         }
 
+        #
+        # MOTORISTA
+        #
         driver = {
             "reconductor": (
                 oper_agg.get("sum_reconductor")
                 if self.use_operational
                 else None
             ),
+
             "reconductors_licensed": (
-                hist_agg.get("historical_reconductors_licensed")
+                hist_agg.get(
+                    "historical_reconductors_licensed"
+                )
                 if self.use_historical
                 else None
             ),
+
             "refusal": summary["refusal"],
-            "cnh_collected": summary["cnh_collected"],
+
+            "cnh_collected": summary[
+                "cnh_collected"
+            ],
+
             "passive_tests_performed": summary[
                 "passive_tests_performed"
             ],
+
             "historical_cnh_retained": (
-                hist_agg.get("historical_cnh_retained")
+                hist_agg.get(
+                    "historical_cnh_retained"
+                )
                 if self.use_historical
                 else None
             ),
+
             "historical_passive_tests": (
-                hist_agg.get("historical_passive_tests")
+                hist_agg.get(
+                    "historical_passive_tests"
+                )
                 if self.use_historical
                 else None
             ),
         }
 
+        #
+        # ACONTECIMENTOS
+        #
         occurrences = {
-            "criminal_occurrences": summary["criminal_occurrences"],
+            "criminal_occurrences": summary[
+                "criminal_occurrences"
+            ],
+
             "art307": summary["art307"],
+
             "driving_canceled_license": summary[
                 "driving_canceled_license"
             ],
+
             "arrests_means_evidence": summary[
                 "arrests_means_evidence"
             ],
+
             "rain": (
                 hist_agg.get("rain")
                 if self.use_historical
                 else None
             ),
+
             "planned_actions": (
                 hist_agg.get("planned_actions")
                 if self.use_historical
                 else None
             ),
+
             "external_occurrence": (
                 hist_agg.get("external_occurrence")
                 if self.use_historical
                 else None
             ),
+
             "public_security_occurrence": (
-                hist_agg.get("public_security_occurrence")
+                hist_agg.get(
+                    "public_security_occurrence"
+                )
                 if self.use_historical
                 else None
             ),
+
             "historical_deliberations": (
-                hist_agg.get("historical_deliberations")
+                hist_agg.get(
+                    "historical_deliberations"
+                )
                 if self.use_historical
                 else None
             ),
+
             "historical_event_trailers": (
-                hist_agg.get("historical_event_trailers")
+                hist_agg.get(
+                    "historical_event_trailers"
+                )
                 if self.use_historical
                 else None
             ),
+
             "operations": summary["operations"],
         }
 
+        #
+        # SÉRIE TEMPORAL
+        #
         ts_dict = {}
 
         for row in hist_ts:
-            operation_date = row["operation_date"]
-            ts_dict[operation_date] = row
+            operation_date = row[
+                "operation_date"
+            ]
+
+            ts_dict[
+                operation_date
+            ] = row
 
         for row in oper_ts:
-            operation_date = row["operation_date"]
+            operation_date = row[
+                "operation_date"
+            ]
 
             if operation_date in ts_dict:
                 for key in [
@@ -794,24 +911,41 @@ class InspectionStatisticsUnifiedService:
                     "refusal",
                     "fined",
                 ]:
-                    ts_dict[operation_date][key] = self._sum_nullable(
-                        ts_dict[operation_date].get(key),
+                    ts_dict[
+                        operation_date
+                    ][key] = self._sum_nullable(
+                        ts_dict[
+                            operation_date
+                        ].get(key),
                         row.get(key),
                     )
+
             else:
-                ts_dict[operation_date] = row
+                ts_dict[
+                    operation_date
+                ] = row
 
         time_series = [
             ts_dict[key]
-            for key in sorted(ts_dict.keys())
+            for key in sorted(
+                ts_dict.keys()
+            )
         ]
 
         for row in time_series:
-            if isinstance(row["operation_date"], date):
-                row["operation_date"] = row[
+            if isinstance(
+                row["operation_date"],
+                date,
+            ):
+                row[
+                    "operation_date"
+                ] = row[
                     "operation_date"
                 ].isoformat()
 
+        #
+        # PRODUÇÃO POR EQUIPE
+        #
         tp_dict = {}
 
         for team, row in hist_tp.items():
@@ -827,201 +961,529 @@ class InspectionStatisticsUnifiedService:
                     "fined",
                     "towed",
                 ]:
-                    tp_dict[team][key] = self._sum_nullable(
-                        tp_dict[team].get(key),
-                        row.get(key),
+                    tp_dict[
+                        team
+                    ][key] = (
+                        self._sum_nullable(
+                            tp_dict[
+                                team
+                            ].get(key),
+                            row.get(key),
+                        )
                     )
+
             else:
                 tp_dict[team] = row
 
-        team_production = list(tp_dict.values())
+        team_production = list(
+            tp_dict.values()
+        )
 
         team_production.sort(
             key=lambda row: (
-                -(row.get("approach") or 0),
-                row.get("team", ""),
+                -(
+                    row.get(
+                        "approach"
+                    )
+                    or 0
+                ),
+                row.get(
+                    "team",
+                    "",
+                ),
             )
         )
 
+        #
+        # COBERTURA
+        #
         coverage = {
-            "summary.homologated_reports": "CURRENT_ONLY",
+            "summary.homologated_reports": (
+                "CURRENT_ONLY"
+            ),
+
             "summary.operations": "PARTIAL",
+
             "summary.approach_plus_reconductor": (
                 "DIRECT"
-                if (self.use_historical ^ self.use_operational)
+                if (
+                    self.use_historical
+                    ^ self.use_operational
+                )
                 else "PARTIAL"
             ),
+
             "alcohol_results.four_ml": "DIRECT",
             "alcohol_results.thirtythree_ml": "DIRECT",
             "alcohol_results.thirtyfour_ml": "DIRECT",
+
             "taxi.approached": "HISTORICAL_ONLY",
             "taxi.illegal": "HISTORICAL_ONLY",
+
             "occurrences.rain": "HISTORICAL_ONLY",
             "occurrences.planned_actions": "HISTORICAL_ONLY",
             "occurrences.external_occurrence": "HISTORICAL_ONLY",
             "occurrences.public_security_occurrence": "HISTORICAL_ONLY",
             "occurrences.historical_deliberations": "HISTORICAL_ONLY",
             "occurrences.historical_event_trailers": "HISTORICAL_ONLY",
+
             "driver.reconductors_licensed": "HISTORICAL_ONLY",
             "driver.historical_cnh_retained": "HISTORICAL_ONLY",
             "driver.historical_passive_tests": "HISTORICAL_ONLY",
         }
 
         normalized_filters = {
-            "date_from": self.filters.get("date_from"),
-            "date_to": self.filters.get("date_to"),
-            "team": self.filters.get("team"),
+            "date_from": self.filters.get(
+                "date_from"
+            ),
+            "date_to": self.filters.get(
+                "date_to"
+            ),
+            "team": self.filters.get(
+                "team"
+            ),
         }
+
+        #
+        # Um consolidado anual legítimo pode possuir resumo
+        # sem possuir série temporal diária.
+        #
+        has_data = (
+            bool(time_series)
+            or bool(team_production)
+            or any(
+                value is not None
+                for value in summary.values()
+            )
+        )
 
         return {
             "filters": normalized_filters,
+
             "summary": summary,
+
             "driver": driver,
+
             "alcohol_results": alcohol,
+
             "administrative_measures": admin,
+
             "taxi": taxi,
+
             "occurrences": occurrences,
+
             "team_production": team_production,
+
             "time_series": time_series,
+
             "meta": {
-                "has_data": bool(time_series),
+                "has_data": has_data,
+
                 "cutoff_date": (
-                    INSPECTION_STATISTICS_CUTOFF_DATE.isoformat()
+                    INSPECTION_STATISTICS_CUTOFF_DATE
+                    .isoformat()
                 ),
+
                 "sources_used": sources_used,
             },
+
             "coverage": coverage,
         }
 
     def _get_historical_data(self):
-        qs = InspectionHistoricalStatistic.objects.all()
+        #
+        # HISTÓRICO COM DUAS GRANULARIDADES
+        #
+        # Histórico diário:
+        # possui reference_date.
+        #
+        # Histórico anual LEGACY / ERA_A:
+        # possui reference_year e reference_date=None.
+        #
+
+        daily_qs = (
+            InspectionHistoricalStatistic
+            .objects
+            .filter(
+                reference_date__isnull=False
+            )
+        )
 
         if self.date_from:
-            qs = qs.filter(
+            daily_qs = daily_qs.filter(
                 reference_date__gte=self.date_from
             )
 
         if self.date_to:
-            qs = qs.filter(
+            daily_qs = daily_qs.filter(
                 reference_date__lte=self.date_to
             )
 
         if self.team:
-            qs = qs.filter(
+            daily_qs = daily_qs.filter(
                 team__iexact=self.team
             )
 
-        agg = qs.aggregate(
-            approach_plus_reconductor=Sum(
-                Coalesce("four_ml", Value(0))
-                + Coalesce("refusal", Value(0))
-            ),
-            refusal=Sum("refusal"),
-            fined=Sum("fined"),
-            towed=Sum("towed"),
-            cnh_collected=Sum("cnh_collected"),
-            passive_tests_performed=Sum(
-                "passive_tests_performed"
-            ),
-            removal_resolutions=Sum(
-                "removal_resolutions"
-            ),
-            arrests_means_evidence=Sum(
-                "arrests_means_evidence"
-            ),
-            four_ml=Sum("four_ml"),
-            thirtythree_ml=Sum("thirtythree_ml"),
-            thirtyfour_ml=Sum("thirtyfour_ml"),
-            taxi_approached=Sum("taxi_approached"),
-            taxi_illegal=Sum("taxi_illegal"),
-            rain=Sum("rain"),
-            planned_actions=Sum("planned_actions"),
-            external_occurrence=Sum(
-                "external_occurrence"
-            ),
-            public_security_occurrence=Sum(
-                "public_security_occurrence"
-            ),
-            historical_reconductors_licensed=Sum(
-                "historical_reconductors_licensed"
-            ),
-            historical_deliberations=Sum(
-                "historical_deliberations"
-            ),
-            historical_cnh_retained=Sum(
-                "historical_cnh_retained"
-            ),
-            historical_passive_tests=Sum(
-                "historical_passive_tests"
-            ),
-            historical_event_trailers=Sum(
-                "historical_event_trailers"
-            ),
-            negative_tests=Sum("negative_tests"),
-            historical_alcohol_cases=Sum(
-                "historical_alcohol_cases"
-            ),
-            criminal_art_306=Sum(
-                "criminal_art_306"
-            ),
-            criminal_art_306_other_evidence=Sum(
-                "criminal_art_306_other_evidence"
-            ),
-            operations=Sum(
-                "historical_operations"
-            ),
-            driving_canceled_license=Sum(
-                "driving_canceled_license"
-            ),
-        )
-
-        criminal_art_306 = agg.pop(
-            "criminal_art_306",
-            None,
-        )
-
-        criminal_other = agg.pop(
-            "criminal_art_306_other_evidence",
-            None,
-        )
-
-        agg["criminal_occurrences"] = self._sum_nullable(
-            criminal_art_306,
-            criminal_other,
-        )
-
-        agg["art307"] = None
-
-        hist_ts = list(
-            qs.values("reference_date")
-            .annotate(
-                operation_date=F("reference_date"),
-                approach=Sum(
-                    Coalesce("four_ml", Value(0))
-                    + Coalesce("refusal", Value(0))
+        #
+        # CONSOLIDADO ANUAL LEGACY / ERA_A
+        #
+        annual_qs = (
+            InspectionHistoricalStatistic
+            .objects
+            .filter(
+                source_type=(
+                    HistoricalSourceType.LEGACY
                 ),
-                refusal=Sum("refusal"),
-                fined=Sum("fined"),
+                taxonomy_era=(
+                    HistoricalTaxonomyEra.ERA_A
+                ),
+                reference_date__isnull=True,
+                reference_month__isnull=True,
+            )
+        )
+
+        #
+        # Consolidado anual não possui equipe.
+        #
+        if self.team:
+            annual_qs = annual_qs.none()
+
+        else:
+            first_full_year = 1
+            last_full_year = 9999
+
+            #
+            # Um ano inicial só entra se o filtro começar
+            # exatamente em 01/01.
+            #
+            if self.date_from:
+                first_full_year = (
+                    self.date_from.year
+                )
+
+                if (
+                    self.date_from.month != 1
+                    or self.date_from.day != 1
+                ):
+                    first_full_year += 1
+
+            #
+            # Um ano final só entra se o filtro terminar
+            # exatamente em 31/12.
+            #
+            if self.date_to:
+                last_full_year = (
+                    self.date_to.year
+                )
+
+                if (
+                    self.date_to.month != 12
+                    or self.date_to.day != 31
+                ):
+                    last_full_year -= 1
+
+            if (
+                first_full_year
+                <= last_full_year
+            ):
+                annual_qs = (
+                    annual_qs.filter(
+                        reference_year__gte=(
+                            first_full_year
+                        ),
+                        reference_year__lte=(
+                            last_full_year
+                        ),
+                    )
+                )
+
+            else:
+                annual_qs = (
+                    annual_qs.none()
+                )
+
+        def aggregate_queryset(queryset):
+            values = queryset.aggregate(
+                #
+                # Indicador histórico diário utilizado
+                # pelo contrato anterior.
+                #
+                approach_plus_reconductor=Sum(
+                    Coalesce(
+                        "four_ml",
+                        Value(0),
+                    )
+                    + Coalesce(
+                        "refusal",
+                        Value(0),
+                    )
+                ),
+
+                #
+                # Abordados anual LEGACY.
+                #
+                approach=Sum(
+                    "historical_approached"
+                ),
+
+                refusal=Sum(
+                    "refusal"
+                ),
+
+                fined=Sum(
+                    "fined"
+                ),
+
+                towed=Sum(
+                    "towed"
+                ),
+
+                cnh_collected=Sum(
+                    "cnh_collected"
+                ),
+
+                passive_tests_performed=Sum(
+                    "passive_tests_performed"
+                ),
+
+                removal_resolutions=Sum(
+                    "removal_resolutions"
+                ),
+
+                arrests_means_evidence=Sum(
+                    "arrests_means_evidence"
+                ),
+
+                four_ml=Sum(
+                    "four_ml"
+                ),
+
+                thirtythree_ml=Sum(
+                    "thirtythree_ml"
+                ),
+
+                thirtyfour_ml=Sum(
+                    "thirtyfour_ml"
+                ),
+
+                taxi_approached=Sum(
+                    "taxi_approached"
+                ),
+
+                taxi_illegal=Sum(
+                    "taxi_illegal"
+                ),
+
+                rain=Sum(
+                    "rain"
+                ),
+
+                planned_actions=Sum(
+                    "planned_actions"
+                ),
+
+                external_occurrence=Sum(
+                    "external_occurrence"
+                ),
+
+                public_security_occurrence=Sum(
+                    "public_security_occurrence"
+                ),
+
+                historical_reconductors_licensed=Sum(
+                    "historical_reconductors_licensed"
+                ),
+
+                historical_deliberations=Sum(
+                    "historical_deliberations"
+                ),
+
+                historical_cnh_retained=Sum(
+                    "historical_cnh_retained"
+                ),
+
+                historical_passive_tests=Sum(
+                    "historical_passive_tests"
+                ),
+
+                historical_event_trailers=Sum(
+                    "historical_event_trailers"
+                ),
+
+                negative_tests=Sum(
+                    "negative_tests"
+                ),
+
+                historical_alcohol_cases=Sum(
+                    "historical_alcohol_cases"
+                ),
+
+                criminal_art_306=Sum(
+                    "criminal_art_306"
+                ),
+
+                criminal_art_306_other_evidence=Sum(
+                    "criminal_art_306_other_evidence"
+                ),
+
+                operations=Sum(
+                    "historical_operations"
+                ),
+
+                driving_canceled_license=Sum(
+                    "driving_canceled_license"
+                ),
+
+                art307=Sum(
+                    "historical_art_307"
+                ),
+            )
+
+            criminal_art_306 = (
+                values.pop(
+                    "criminal_art_306",
+                    None,
+                )
+            )
+
+            criminal_other = (
+                values.pop(
+                    "criminal_art_306_other_evidence",
+                    None,
+                )
+            )
+
+            values[
+                "criminal_occurrences"
+            ] = self._sum_nullable(
+                criminal_art_306,
+                criminal_other,
+            )
+
+            return values
+
+        daily_agg = (
+            aggregate_queryset(
+                daily_qs
+            )
+        )
+
+        annual_agg = (
+            aggregate_queryset(
+                annual_qs
+            )
+        )
+
+        #
+        # No LEGACY anual não existe equivalência segura
+        # para "Abordados + Recondutor".
+        #
+        annual_agg[
+            "approach_plus_reconductor"
+        ] = None
+
+        agg = {}
+
+        aggregate_keys = (
+            set(
+                daily_agg.keys()
+            )
+            | set(
+                annual_agg.keys()
+            )
+        )
+
+        for key in aggregate_keys:
+            agg[key] = (
+                self._sum_nullable(
+                    daily_agg.get(key),
+                    annual_agg.get(key),
+                )
+            )
+
+        #
+        # SÉRIE TEMPORAL
+        #
+        # Consolidado anual não é transformado artificialmente
+        # em uma data.
+        #
+        hist_ts = list(
+            daily_qs
+            .values(
+                "reference_date"
+            )
+            .annotate(
+                operation_date=F(
+                    "reference_date"
+                ),
+
+                approach=Sum(
+                    Coalesce(
+                        "four_ml",
+                        Value(0),
+                    )
+                    + Coalesce(
+                        "refusal",
+                        Value(0),
+                    )
+                ),
+
+                refusal=Sum(
+                    "refusal"
+                ),
+
+                fined=Sum(
+                    "fined"
+                ),
+
                 operations=Sum(
                     "historical_operations"
                 ),
             )
-            .order_by("reference_date")
+            .order_by(
+                "reference_date"
+            )
         )
 
         for row in hist_ts:
-            del row["reference_date"]
+            del row[
+                "reference_date"
+            ]
 
+        #
+        # PRODUÇÃO POR EQUIPE
+        #
+        # Apenas registros de granularidade compatível.
+        #
         hist_tp_qs = list(
-            qs.values("team")
+            daily_qs
+            .values(
+                "team"
+            )
             .annotate(
                 approach=Sum(
-                    Coalesce("four_ml", Value(0))
-                    + Coalesce("refusal", Value(0))
+                    Coalesce(
+                        "four_ml",
+                        Value(0),
+                    )
+                    + Coalesce(
+                        "refusal",
+                        Value(0),
+                    )
                 ),
-                refusal=Sum("refusal"),
-                fined=Sum("fined"),
-                towed=Sum("towed"),
+
+                refusal=Sum(
+                    "refusal"
+                ),
+
+                fined=Sum(
+                    "fined"
+                ),
+
+                towed=Sum(
+                    "towed"
+                ),
+
                 operations=Sum(
                     "historical_operations"
                 ),
@@ -1033,7 +1495,11 @@ class InspectionStatisticsUnifiedService:
             for row in hist_tp_qs
         }
 
-        return agg, hist_ts, hist_tp
+        return (
+            agg,
+            hist_ts,
+            hist_tp,
+        )
 
     def _get_operational_data(self):
         qs = InspectionStatistic.objects.all()
@@ -1054,63 +1520,150 @@ class InspectionStatisticsUnifiedService:
             )
 
         agg = qs.aggregate(
-            homologated_reports=Count("id"),
-            operations=Sum("operations_count"),
-            sum_approach=Sum("approach"),
-            sum_reconductor=Sum("reconductor"),
-            approach_plus_reconductor=Sum(
-                Coalesce("approach", Value(0))
-                + Coalesce("reconductor", Value(0))
+            homologated_reports=Count(
+                "id"
             ),
-            refusal=Sum("refusal"),
-            fined=Sum("fined"),
-            towed=Sum("towed"),
-            cnh_collected=Sum("cnh_collected"),
+
+            operations=Sum(
+                "operations_count"
+            ),
+
+            sum_approach=Sum(
+                "approach"
+            ),
+
+            sum_reconductor=Sum(
+                "reconductor"
+            ),
+
+            approach_plus_reconductor=Sum(
+                Coalesce(
+                    "approach",
+                    Value(0),
+                )
+                + Coalesce(
+                    "reconductor",
+                    Value(0),
+                )
+            ),
+
+            refusal=Sum(
+                "refusal"
+            ),
+
+            fined=Sum(
+                "fined"
+            ),
+
+            towed=Sum(
+                "towed"
+            ),
+
+            cnh_collected=Sum(
+                "cnh_collected"
+            ),
+
             passive_tests_performed=Sum(
                 "passive_tests_performed"
             ),
+
             removal_resolutions=Sum(
                 "removal_resolutions"
             ),
+
             criminal_occurrences=Sum(
                 "criminal_occurrences"
             ),
-            art307=Sum("art307"),
+
+            art307=Sum(
+                "art307"
+            ),
+
             driving_canceled_license=Sum(
                 "driving_canceled_license"
             ),
+
             arrests_means_evidence=Sum(
                 "arrests_means_evidence"
             ),
+
             celebrities_authorities=Sum(
                 "celebrities_authorities"
             ),
-            four_ml=Sum("four_ml"),
-            thirtythree_ml=Sum("thirtythree_ml"),
-            thirtyfour_ml=Sum("thirtyfour_ml"),
+
+            four_ml=Sum(
+                "four_ml"
+            ),
+
+            thirtythree_ml=Sum(
+                "thirtythree_ml"
+            ),
+
+            thirtyfour_ml=Sum(
+                "thirtyfour_ml"
+            ),
         )
 
         oper_ts = list(
-            qs.values("operation_date")
-            .annotate(
-                reports=Count("id"),
-                operations=Sum("operations_count"),
-                approach=Sum("approach"),
-                refusal=Sum("refusal"),
-                fined=Sum("fined"),
+            qs
+            .values(
+                "operation_date"
             )
-            .order_by("operation_date")
+            .annotate(
+                reports=Count(
+                    "id"
+                ),
+
+                operations=Sum(
+                    "operations_count"
+                ),
+
+                approach=Sum(
+                    "approach"
+                ),
+
+                refusal=Sum(
+                    "refusal"
+                ),
+
+                fined=Sum(
+                    "fined"
+                ),
+            )
+            .order_by(
+                "operation_date"
+            )
         )
 
         oper_tp_qs = list(
-            qs.values("team")
+            qs
+            .values(
+                "team"
+            )
             .annotate(
-                reports=Count("id"),
-                operations=Sum("operations_count"),
-                approach=Sum("approach"),
-                refusal=Sum("refusal"),
-                fined=Sum("fined"),
-                towed=Sum("towed"),
+                reports=Count(
+                    "id"
+                ),
+
+                operations=Sum(
+                    "operations_count"
+                ),
+
+                approach=Sum(
+                    "approach"
+                ),
+
+                refusal=Sum(
+                    "refusal"
+                ),
+
+                fined=Sum(
+                    "fined"
+                ),
+
+                towed=Sum(
+                    "towed"
+                ),
             )
         )
 
@@ -1119,4 +1672,8 @@ class InspectionStatisticsUnifiedService:
             for row in oper_tp_qs
         }
 
-        return agg, oper_ts, oper_tp
+        return (
+            agg,
+            oper_ts,
+            oper_tp,
+        )
