@@ -212,6 +212,71 @@ class InspectionReportListSerializer(serializers.ModelSerializer):
         ]
 
 
+class InspectionHistoricalPushSerializer(serializers.Serializer):
+    """
+    Serializer para o endpoint POST /api/inspection/sync/historical/push/
+
+    Recebe um único registro do array ``rows`` do JSON exportado do Horus,
+    mais o SHA-256 do arquivo de extração para rastreabilidade do lote.
+    """
+
+    # Identificação do lote (rastreabilidade)
+    file_sha256 = serializers.CharField(
+        min_length=64,
+        max_length=64,
+        help_text=(
+            "SHA-256 do arquivo JSON exportado do Horus. "
+            "Identifica o lote de origem para rastreabilidade."
+        ),
+    )
+
+    # Metadados de controle obrigatórios
+    source_type = serializers.ChoiceField(choices=["DAILY"])
+    taxonomy_era = serializers.ChoiceField(choices=["ERA_C"])
+    reference_date = serializers.DateField()
+    team = serializers.CharField(allow_blank=False, trim_whitespace=True)
+
+    # Rastreabilidade interna
+    source_row = serializers.IntegerField(required=False, allow_null=True, default=0)
+
+    # Contadores de relatórios/operações
+    reports_count = serializers.IntegerField(required=False, allow_null=True, default=None)
+    operations_count = serializers.IntegerField(required=False, allow_null=True, default=None)
+
+    # Campos de abordagem (regra ERA_C)
+    approach = serializers.IntegerField(required=False, allow_null=True, default=None)
+    reconductor = serializers.IntegerField(required=False, allow_null=True, default=None)
+
+    # Demais campos numéricos
+    refusal = serializers.IntegerField(required=False, allow_null=True, default=None)
+    fined = serializers.IntegerField(required=False, allow_null=True, default=None)
+    towed = serializers.IntegerField(required=False, allow_null=True, default=None)
+    cnh_collected = serializers.IntegerField(required=False, allow_null=True, default=None)
+    four_ml = serializers.IntegerField(required=False, allow_null=True, default=None)
+    thirtythree_ml = serializers.IntegerField(required=False, allow_null=True, default=None)
+    thirtyfour_ml = serializers.IntegerField(required=False, allow_null=True, default=None)
+    passive_tests_performed = serializers.IntegerField(required=False, allow_null=True, default=None)
+    removal_resolutions = serializers.IntegerField(required=False, allow_null=True, default=None)
+    arrests_means_evidence = serializers.IntegerField(required=False, allow_null=True, default=None)
+    art307 = serializers.IntegerField(required=False, allow_null=True, default=None)
+    criminal_occurrences = serializers.IntegerField(required=False, allow_null=True, default=None)
+    driving_canceled_license = serializers.IntegerField(required=False, allow_null=True, default=None)
+
+    def validate_team(self, value):
+        normalized = str(value or "").strip().upper()
+        if not normalized:
+            raise serializers.ValidationError("team não pode ser vazio.")
+        return normalized
+
+    def validate_file_sha256(self, value):
+        import re
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", value):
+            raise serializers.ValidationError(
+                "file_sha256 deve ser um hexadecimal de 64 caracteres (SHA-256)."
+            )
+        return value.lower()
+
+
 class InspectionReportDetailSerializer(serializers.ModelSerializer):
     operations = InspectionReportOperationSerializer(many=True, read_only=True)
     statistics_reviewed_by_name = serializers.CharField(source="statistics_reviewed_by.full_name", read_only=True)

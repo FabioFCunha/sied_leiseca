@@ -12,12 +12,18 @@ from apps.inspection.permissions import (
 )
 from apps.inspection.serializers import (
     InspectionExcludeStatisticsSerializer,
+    InspectionHistoricalPushSerializer,
     InspectionStatisticsDashboardQuerySerializer,
     InspectionReportDetailSerializer,
     InspectionReportIngestionSerializer,
     InspectionReportListSerializer,
 )
 from apps.inspection.services import InspectionStatisticsService, InspectionSyncService, InspectionStatisticsUnifiedService
+from apps.inspection.horus_historical_push import (
+    HorusHistoricalPushConflict,
+    HorusHistoricalPushError,
+    HorusHistoricalPushService,
+)
 
 
 SUMMARY_FIELDS = (
@@ -214,3 +220,60 @@ class InspectionStatisticsDashboardView(APIView):
             "team": filters.get("team") or None,
         }
         return Response(InspectionStatisticsUnifiedService(normalized_filters).get_dashboard_data())
+
+
+class InspectionHistoricalPushView(APIView):
+    """
+    POST /api/inspection/sync/historical/push/
+
+    Recebe um único registro histórico do Horus (DAILY / ERA_C,
+    2023-01-01 ≤ reference_date ≤ 2026-08-09) e persiste com idempotência:
+
+    - 201 Created       → registro criado com sucesso
+    - 200 OK            → registro já existia com dados idênticos (already_exists)
+    - 409 Conflict      → registro já existe com dados DIFERENTES (sem gravação)
+    - 400 Bad Request   → dados inválidos
+    - 401/403           → token ausente ou incorreto
+
+    Autenticação: mesmo token técnico do sync operacional
+    (header Authorization: Bearer <INSPECTION_SYNC_TOKEN>
+     ou X-Inspection-Sync-Token: <INSPECTION_SYNC_TOKEN>)
+    """
+
+    authentication_classes = []
+    permission_classes = [HasInspectionSyncToken]
+
+    def post(self, request):
+        serializer = InspectionHistoricalPushSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+
+        file_sha256 = validated.pop("file_sha256")
+
+        try:
+            result = HorusHistoricalPushService().push_single(
+                validated,
+                file_sha256=file_sha256,
+            )
+        except HorusHistoricalPushError as exc:
+            return Response(
+                {"error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except HorusHistoricalPushConflict as exc:
+            return Response(
+                {
+                    "result": "conflict",
+                    "error": str(exc),
+                    "existing_id": exc.existing_id,
+                    "differences": exc.differences,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        http_status = (
+            status.HTTP_201_CREATED
+            if result["result"] == "created"
+            else status.HTTP_200_OK
+        )
+        return Response(result, status=http_status)
