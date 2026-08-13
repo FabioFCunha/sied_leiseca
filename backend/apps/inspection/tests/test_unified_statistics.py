@@ -44,7 +44,6 @@ class UnifiedStatisticsTests(TestCase):
             ),
         )
 
-        # Historical stat 1 (2026-08-05) - Team A1
         InspectionHistoricalStatistic.objects.create(
             import_batch=self.batch,
             reference_date=date(2026, 8, 5),
@@ -56,6 +55,8 @@ class UnifiedStatisticsTests(TestCase):
             taxonomy_era=HistoricalTaxonomyEra.ERA_C,
             source_sheet="D1",
             source_row=4,
+            historical_approached=100,
+            reconductor=5,
             four_ml=10,
             thirtythree_ml=2,
             thirtyfour_ml=1,
@@ -281,11 +282,11 @@ class UnifiedStatisticsTests(TestCase):
             10,
         )
 
-        # Historical approach_plus_reconductor =
-        # four_ml + refusal = 10 + 3 = 13
+        # DAILY/ERA_C: approach_plus_reconductor = historical_approached + reconductor
+        # historical_approached=100, reconductor=5 -> 105
         self.assertEqual(
             result["summary"]["approach_plus_reconductor"],
-            13,
+            105,
         )
 
         self.assertEqual(

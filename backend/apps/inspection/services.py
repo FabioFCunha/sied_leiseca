@@ -679,10 +679,13 @@ class InspectionStatisticsUnifiedService:
                 ),
             ),
 
-            "reconductor": (
-                oper_agg.get("sum_reconductor")
-                if self.use_operational
-                else None
+            "reconductor": self._sum_nullable(
+                hist_agg.get("reconductor"),
+                (
+                    oper_agg.get("sum_reconductor")
+                    if self.use_operational
+                    else None
+                ),
             ),
         }
 
@@ -780,10 +783,13 @@ class InspectionStatisticsUnifiedService:
         # MOTORISTA
         #
         driver = {
-            "reconductor": (
-                oper_agg.get("sum_reconductor")
-                if self.use_operational
-                else None
+            "reconductor": self._sum_nullable(
+                hist_agg.get("reconductor"),
+                (
+                    oper_agg.get("sum_reconductor")
+                    if self.use_operational
+                    else None
+                ),
             ),
 
             "reconductors_licensed": (
@@ -1094,18 +1100,21 @@ class InspectionStatisticsUnifiedService:
         #
         # HISTÓRICO COM DUAS GRANULARIDADES
         #
-        # Histórico diário:
-        # possui reference_date.
+        # 1) DAILY / ERA_C:
+        #    dados diários oficiais do Horus, com data e equipe.
         #
-        # Histórico anual LEGACY / ERA_A:
-        # possui reference_year e reference_date=None.
+        # 2) LEGACY / ERA_A:
+        #    consolidado anual anterior a 2023, sem data diária
+        #    e sem equipe.
         #
 
         daily_qs = (
             InspectionHistoricalStatistic
             .objects
             .filter(
-                reference_date__isnull=False
+                reference_date__isnull=False,
+                source_type=HistoricalSourceType.DAILY,
+                taxonomy_era=HistoricalTaxonomyEra.ERA_C,
             )
         )
 
@@ -1131,19 +1140,15 @@ class InspectionStatisticsUnifiedService:
             InspectionHistoricalStatistic
             .objects
             .filter(
-                source_type=(
-                    HistoricalSourceType.LEGACY
-                ),
-                taxonomy_era=(
-                    HistoricalTaxonomyEra.ERA_A
-                ),
+                source_type=HistoricalSourceType.LEGACY,
+                taxonomy_era=HistoricalTaxonomyEra.ERA_A,
                 reference_date__isnull=True,
                 reference_month__isnull=True,
             )
         )
 
         #
-        # Consolidado anual não possui equipe.
+        # O consolidado anual não possui equipe.
         #
         if self.team:
             annual_qs = annual_qs.none()
@@ -1157,9 +1162,7 @@ class InspectionStatisticsUnifiedService:
             # exatamente em 01/01.
             #
             if self.date_from:
-                first_full_year = (
-                    self.date_from.year
-                )
+                first_full_year = self.date_from.year
 
                 if (
                     self.date_from.month != 1
@@ -1172,9 +1175,7 @@ class InspectionStatisticsUnifiedService:
             # exatamente em 31/12.
             #
             if self.date_to:
-                last_full_year = (
-                    self.date_to.year
-                )
+                last_full_year = self.date_to.year
 
                 if (
                     self.date_to.month != 12
@@ -1182,230 +1183,358 @@ class InspectionStatisticsUnifiedService:
                 ):
                     last_full_year -= 1
 
-            if (
-                first_full_year
-                <= last_full_year
-            ):
-                annual_qs = (
-                    annual_qs.filter(
-                        reference_year__gte=(
-                            first_full_year
-                        ),
-                        reference_year__lte=(
-                            last_full_year
-                        ),
-                    )
+            if first_full_year <= last_full_year:
+                annual_qs = annual_qs.filter(
+                    reference_year__gte=first_full_year,
+                    reference_year__lte=last_full_year,
                 )
 
             else:
-                annual_qs = (
-                    annual_qs.none()
-                )
+                annual_qs = annual_qs.none()
 
-        def aggregate_queryset(queryset):
-            values = queryset.aggregate(
-                #
-                # Indicador histórico diário utilizado
-                # pelo contrato anterior.
-                #
-                approach_plus_reconductor=Sum(
-                    Coalesce(
-                        "four_ml",
-                        Value(0),
-                    )
-                    + Coalesce(
-                        "refusal",
-                        Value(0),
-                    )
-                ),
+        #
+        # ==========================================================
+        # HISTÓRICO DIÁRIO HORUS / ERA_C
+        # ==========================================================
+        #
+        # Aqui os indicadores possuem equivalência direta com
+        # os campos extraídos do Horus.
+        #
+        daily_agg = daily_qs.aggregate(
+            approach=Sum(
+                "historical_approached"
+            ),
 
-                #
-                # Abordados anual LEGACY.
-                #
-                approach=Sum(
-                    "historical_approached"
-                ),
+            reconductor=Sum(
+                "reconductor"
+            ),
 
-                refusal=Sum(
-                    "refusal"
-                ),
+            #
+            # ATENÇÃO: approach_plus_reconductor NÃO é calculado
+            # aqui no aggregate porque o Django 5.x resolve
+            # Coalesce('reconductor') dentro de Sum() como o alias
+            # do agregado 'reconductor', causando FieldError.
+            # É calculado via Python logo abaixo.
+            #
 
-                fined=Sum(
-                    "fined"
-                ),
+            refusal=Sum(
+                "refusal"
+            ),
 
-                towed=Sum(
-                    "towed"
-                ),
+            fined=Sum(
+                "fined"
+            ),
 
-                cnh_collected=Sum(
-                    "cnh_collected"
-                ),
+            towed=Sum(
+                "towed"
+            ),
 
-                passive_tests_performed=Sum(
-                    "passive_tests_performed"
-                ),
+            cnh_collected=Sum(
+                "cnh_collected"
+            ),
 
-                removal_resolutions=Sum(
-                    "removal_resolutions"
-                ),
+            passive_tests_performed=Sum(
+                "passive_tests_performed"
+            ),
 
-                arrests_means_evidence=Sum(
-                    "arrests_means_evidence"
-                ),
+            removal_resolutions=Sum(
+                "removal_resolutions"
+            ),
 
-                four_ml=Sum(
-                    "four_ml"
-                ),
+            arrests_means_evidence=Sum(
+                "arrests_means_evidence"
+            ),
 
-                thirtythree_ml=Sum(
-                    "thirtythree_ml"
-                ),
+            four_ml=Sum(
+                "four_ml"
+            ),
 
-                thirtyfour_ml=Sum(
-                    "thirtyfour_ml"
-                ),
+            thirtythree_ml=Sum(
+                "thirtythree_ml"
+            ),
 
-                taxi_approached=Sum(
-                    "taxi_approached"
-                ),
+            thirtyfour_ml=Sum(
+                "thirtyfour_ml"
+            ),
 
-                taxi_illegal=Sum(
-                    "taxi_illegal"
-                ),
-
-                rain=Sum(
-                    "rain"
-                ),
-
-                planned_actions=Sum(
-                    "planned_actions"
-                ),
-
-                external_occurrence=Sum(
-                    "external_occurrence"
-                ),
-
-                public_security_occurrence=Sum(
-                    "public_security_occurrence"
-                ),
-
-                historical_reconductors_licensed=Sum(
-                    "historical_reconductors_licensed"
-                ),
-
-                historical_deliberations=Sum(
-                    "historical_deliberations"
-                ),
-
-                historical_cnh_retained=Sum(
-                    "historical_cnh_retained"
-                ),
-
-                historical_passive_tests=Sum(
-                    "historical_passive_tests"
-                ),
-
-                historical_event_trailers=Sum(
-                    "historical_event_trailers"
-                ),
-
-                negative_tests=Sum(
-                    "negative_tests"
-                ),
-
-                historical_alcohol_cases=Sum(
-                    "historical_alcohol_cases"
-                ),
-
-                criminal_art_306=Sum(
-                    "criminal_art_306"
-                ),
-
-                criminal_art_306_other_evidence=Sum(
-                    "criminal_art_306_other_evidence"
-                ),
-
-                operations=Sum(
-                    "historical_operations"
-                ),
-
-                driving_canceled_license=Sum(
-                    "driving_canceled_license"
-                ),
-
-                art307=Sum(
-                    "historical_art_307"
-                ),
-            )
-
-            criminal_art_306 = (
-                values.pop(
-                    "criminal_art_306",
-                    None,
-                )
-            )
-
-            criminal_other = (
-                values.pop(
-                    "criminal_art_306_other_evidence",
-                    None,
-                )
-            )
-
-            values[
+            criminal_occurrences=Sum(
                 "criminal_occurrences"
-            ] = self._sum_nullable(
-                criminal_art_306,
-                criminal_other,
-            )
+            ),
 
-            return values
+            art307=Sum(
+                "historical_art_307"
+            ),
 
-        daily_agg = (
-            aggregate_queryset(
-                daily_qs
-            )
-        )
+            driving_canceled_license=Sum(
+                "driving_canceled_license"
+            ),
 
-        annual_agg = (
-            aggregate_queryset(
-                annual_qs
-            )
+            operations=Sum(
+                "historical_operations"
+            ),
+
+            #
+            # Campos existentes somente em outras fontes históricas.
+            #
+            taxi_approached=Sum(
+                "taxi_approached"
+            ),
+
+            taxi_illegal=Sum(
+                "taxi_illegal"
+            ),
+
+            rain=Sum(
+                "rain"
+            ),
+
+            planned_actions=Sum(
+                "planned_actions"
+            ),
+
+            external_occurrence=Sum(
+                "external_occurrence"
+            ),
+
+            public_security_occurrence=Sum(
+                "public_security_occurrence"
+            ),
+
+            historical_reconductors_licensed=Sum(
+                "historical_reconductors_licensed"
+            ),
+
+            historical_deliberations=Sum(
+                "historical_deliberations"
+            ),
+
+            historical_cnh_retained=Sum(
+                "historical_cnh_retained"
+            ),
+
+            historical_passive_tests=Sum(
+                "historical_passive_tests"
+            ),
+
+            historical_event_trailers=Sum(
+                "historical_event_trailers"
+            ),
+
+            negative_tests=Sum(
+                "negative_tests"
+            ),
+
+            historical_alcohol_cases=Sum(
+                "historical_alcohol_cases"
+            ),
         )
 
         #
-        # No LEGACY anual não existe equivalência segura
-        # para "Abordados + Recondutor".
+        # approach_plus_reconductor calculado via Python para evitar
+        # conflito de nomes no aggregate do Django 5.x.
+        #
+        daily_approach = daily_agg.get("approach")
+        daily_reconductor = daily_agg.get("reconductor")
+        daily_agg["approach_plus_reconductor"] = self._sum_nullable(
+            daily_approach, daily_reconductor
+        )
+
+        #
+        # ==========================================================
+        # CONSOLIDADO ANUAL LEGACY / ERA_A
+        # ==========================================================
+        #
+        annual_agg = annual_qs.aggregate(
+            approach=Sum(
+                "historical_approached"
+            ),
+
+            refusal=Sum(
+                "refusal"
+            ),
+
+            fined=Sum(
+                "fined"
+            ),
+
+            towed=Sum(
+                "towed"
+            ),
+
+            cnh_collected=Sum(
+                "cnh_collected"
+            ),
+
+            passive_tests_performed=Sum(
+                "passive_tests_performed"
+            ),
+
+            removal_resolutions=Sum(
+                "removal_resolutions"
+            ),
+
+            arrests_means_evidence=Sum(
+                "arrests_means_evidence"
+            ),
+
+            four_ml=Sum(
+                "four_ml"
+            ),
+
+            thirtythree_ml=Sum(
+                "thirtythree_ml"
+            ),
+
+            thirtyfour_ml=Sum(
+                "thirtyfour_ml"
+            ),
+
+            taxi_approached=Sum(
+                "taxi_approached"
+            ),
+
+            taxi_illegal=Sum(
+                "taxi_illegal"
+            ),
+
+            rain=Sum(
+                "rain"
+            ),
+
+            planned_actions=Sum(
+                "planned_actions"
+            ),
+
+            external_occurrence=Sum(
+                "external_occurrence"
+            ),
+
+            public_security_occurrence=Sum(
+                "public_security_occurrence"
+            ),
+
+            historical_reconductors_licensed=Sum(
+                "historical_reconductors_licensed"
+            ),
+
+            historical_deliberations=Sum(
+                "historical_deliberations"
+            ),
+
+            historical_cnh_retained=Sum(
+                "historical_cnh_retained"
+            ),
+
+            historical_passive_tests=Sum(
+                "historical_passive_tests"
+            ),
+
+            historical_event_trailers=Sum(
+                "historical_event_trailers"
+            ),
+
+            negative_tests=Sum(
+                "negative_tests"
+            ),
+
+            historical_alcohol_cases=Sum(
+                "historical_alcohol_cases"
+            ),
+
+            criminal_art_306=Sum(
+                "criminal_art_306"
+            ),
+
+            criminal_art_306_other_evidence=Sum(
+                "criminal_art_306_other_evidence"
+            ),
+
+            operations=Sum(
+                "historical_operations"
+            ),
+
+            driving_canceled_license=Sum(
+                "driving_canceled_license"
+            ),
+
+            art307=Sum(
+                "historical_art_307"
+            ),
+        )
+
+        #
+        # No legado, ocorrência criminal é derivada dos dois
+        # indicadores disponíveis na fonte antiga.
+        #
+        criminal_art_306 = annual_agg.pop(
+            "criminal_art_306",
+            None,
+        )
+
+        criminal_other = annual_agg.pop(
+            "criminal_art_306_other_evidence",
+            None,
+        )
+
+        annual_agg[
+            "criminal_occurrences"
+        ] = self._sum_nullable(
+            criminal_art_306,
+            criminal_other,
+        )
+
+        #
+        # O LEGACY anual não possui recondutor equivalente.
+        #
+        annual_agg["reconductor"] = None
+
+        #
+        # Também não existe equivalência segura para
+        # "Abordados + Recondutor" no LEGACY.
         #
         annual_agg[
             "approach_plus_reconductor"
         ] = None
 
+        #
+        # ==========================================================
+        # UNIFICAÇÃO DOS DOIS HISTÓRICOS
+        # ==========================================================
+        #
         agg = {}
 
         aggregate_keys = (
-            set(
-                daily_agg.keys()
-            )
-            | set(
-                annual_agg.keys()
-            )
+            set(daily_agg.keys())
+            | set(annual_agg.keys())
         )
 
         for key in aggregate_keys:
-            agg[key] = (
-                self._sum_nullable(
-                    daily_agg.get(key),
-                    annual_agg.get(key),
-                )
+            agg[key] = self._sum_nullable(
+                daily_agg.get(key),
+                annual_agg.get(key),
             )
 
         #
-        # SÉRIE TEMPORAL
+        # Se o período selecionado mistura DAILY/Horus e
+        # LEGACY anual, não mostramos Abordados + Recondutor,
+        # porque uma parte da série não possui recondutor
+        # equivalente.
         #
-        # Consolidado anual não é transformado artificialmente
-        # em uma data.
+        has_daily = daily_qs.exists()
+        has_annual = annual_qs.exists()
+
+        if has_daily and has_annual:
+            agg[
+                "approach_plus_reconductor"
+            ] = None
+
+        #
+        # ==========================================================
+        # SÉRIE TEMPORAL
+        # ==========================================================
+        #
+        # Apenas o histórico diário possui granularidade legítima
+        # para compor uma série por data.
         #
         hist_ts = list(
             daily_qs
@@ -1418,14 +1547,11 @@ class InspectionStatisticsUnifiedService:
                 ),
 
                 approach=Sum(
-                    Coalesce(
-                        "four_ml",
-                        Value(0),
-                    )
-                    + Coalesce(
-                        "refusal",
-                        Value(0),
-                    )
+                    "historical_approached"
+                ),
+
+                reconductor=Sum(
+                    "reconductor"
                 ),
 
                 refusal=Sum(
@@ -1451,9 +1577,12 @@ class InspectionStatisticsUnifiedService:
             ]
 
         #
+        # ==========================================================
         # PRODUÇÃO POR EQUIPE
+        # ==========================================================
         #
-        # Apenas registros de granularidade compatível.
+        # Também somente DAILY / ERA_C, pois o LEGACY anual
+        # não possui equipe.
         #
         hist_tp_qs = list(
             daily_qs
@@ -1462,14 +1591,11 @@ class InspectionStatisticsUnifiedService:
             )
             .annotate(
                 approach=Sum(
-                    Coalesce(
-                        "four_ml",
-                        Value(0),
-                    )
-                    + Coalesce(
-                        "refusal",
-                        Value(0),
-                    )
+                    "historical_approached"
+                ),
+
+                reconductor=Sum(
+                    "reconductor"
                 ),
 
                 refusal=Sum(

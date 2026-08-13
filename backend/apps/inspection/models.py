@@ -360,6 +360,7 @@ class InspectionHistoricalStatistic(models.Model):
     operations_count = models.IntegerField(null=True, blank=True)
     removal_resolutions = models.IntegerField(null=True, blank=True)
     driving_canceled_license = models.IntegerField(null=True, blank=True)
+    criminal_occurrences = models.IntegerField(null=True, blank=True)
 
     taxi_approached = models.IntegerField(null=True, blank=True)
     taxi_illegal = models.IntegerField(null=True, blank=True)
