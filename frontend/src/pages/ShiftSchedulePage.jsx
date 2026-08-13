@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Paperclip, Repeat2, Trash2, X, AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, Paperclip, Repeat2, Trash2, X, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
@@ -118,6 +118,11 @@ export default function ShiftSchedulePage() {
   const { user } = useAuth();
   const isVisitor = user?.role === "VISITOR";
   const [cursor, setCursor] = useState(new Date());
+  const initialMonthStart = formatLocalISODate(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const initialMonthEnd = formatLocalISODate(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0));
+  const [periodDraft, setPeriodDraft] = useState({ dateFrom: initialMonthStart, dateTo: initialMonthEnd });
+  const [periodFilter, setPeriodFilter] = useState({ dateFrom: initialMonthStart, dateTo: initialMonthEnd });
+  const [memberFilter, setMemberFilter] = useState("");
   const [schedules, setSchedules] = useState([]);
   const [teams, setTeams] = useState([]);
   const [chiefs, setChiefs] = useState([]);
@@ -157,11 +162,19 @@ export default function ShiftSchedulePage() {
   };
 
   const days = useMemo(() => {
-    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-    const start = new Date(first);
-    start.setDate(1 - first.getDay());
-    return Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
-  }, [cursor]);
+    if (!periodFilter.dateFrom || !periodFilter.dateTo) return [];
+    const start = new Date(`${periodFilter.dateFrom}T12:00:00`);
+    const end = new Date(`${periodFilter.dateTo}T12:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+
+    const result = [];
+    const current = new Date(start);
+    while (current <= end) {
+      result.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    return result;
+  }, [periodFilter]);
 
   const rostersByTeam = useMemo(() => {
     const base = {};
@@ -204,6 +217,73 @@ export default function ShiftSchedulePage() {
     if (isSupervisorRole) return teamMatchesUser(member.team_name || swapSchedule?.team_name);
     return true;
   });
+  const memberFilterOptions = useMemo(() => {
+    const names = new Map();
+    [...chiefs, ...agents, ...supports].forEach((member) => {
+      const name = String(member?.name || "").trim();
+      if (!name) return;
+      const key = normalizeText(name);
+      if (!names.has(key)) names.set(key, name);
+    });
+    return [...names.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [agents, chiefs, supports]);
+
+  const memberServiceSummary = useMemo(() => {
+    const selectedName = normalizeText(memberFilter);
+    if (!selectedName) {
+      return { total: 0, regular: 0, extra: 0, services: [] };
+    }
+
+    const services = [];
+    schedules.forEach((schedule) => {
+      memberRows(schedule.members).forEach((member) => {
+        if (normalizeText(member.name) !== selectedName) return;
+        services.push({
+          scheduleId: schedule.id,
+          date: schedule.date,
+          teamName: formatTeamName(schedule.team_name),
+          isExtra: Boolean(member.is_extra),
+          typeLabel: member.typeLabel,
+        });
+      });
+    });
+
+    services.sort((a, b) => a.date.localeCompare(b.date) || a.teamName.localeCompare(b.teamName, "pt-BR"));
+    return {
+      total: services.length,
+      regular: services.filter((item) => !item.isExtra).length,
+      extra: services.filter((item) => item.isExtra).length,
+      services,
+    };
+  }, [memberFilter, schedules]);
+
+  const applyPeriodFilter = () => {
+    if (!periodDraft.dateFrom || !periodDraft.dateTo) {
+      setMessage("Informe as datas inicial e final do período.");
+      return;
+    }
+    if (periodDraft.dateFrom > periodDraft.dateTo) {
+      setMessage("A data inicial não pode ser posterior à data final.");
+      return;
+    }
+    setPeriodFilter({ ...periodDraft });
+    setSelectedDate(null);
+    setDetailScheduleId("");
+    setMessage("");
+  };
+
+  const clearScheduleFilters = () => {
+    const now = new Date();
+    const dateFrom = formatLocalISODate(new Date(now.getFullYear(), now.getMonth(), 1));
+    const dateTo = formatLocalISODate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    setPeriodDraft({ dateFrom, dateTo });
+    setPeriodFilter({ dateFrom, dateTo });
+    setMemberFilter("");
+    setSelectedDate(null);
+    setDetailScheduleId("");
+    setMessage("");
+  };
+
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportTeam, setReportTeam] = useState("");
   const [reportMonth, setReportMonth] = useState(cursor.getMonth());
@@ -245,9 +325,13 @@ export default function ShiftSchedulePage() {
   const loadSchedules = async () => {
     setLoading(true);
     try {
+      if (!periodFilter.dateFrom || !periodFilter.dateTo) {
+        setSchedules([]);
+        return;
+      }
       const params = new URLSearchParams({
-        date_from: formatLocalISODate(days[0]),
-        date_to: formatLocalISODate(days[days.length - 1]),
+        date_from: periodFilter.dateFrom,
+        date_to: periodFilter.dateTo,
       }).toString();
       const seq = requestSeq.current + 1;
       requestSeq.current = seq;
@@ -312,7 +396,7 @@ export default function ShiftSchedulePage() {
 
   useEffect(() => {
     loadSchedules().catch((err) => setMessage(err.message));
-  }, [days]);
+  }, [periodFilter.dateFrom, periodFilter.dateTo]);
 
   useEffect(() => {
     if (!openScheduleId || processedOpenSchedule.current) return;
@@ -356,6 +440,10 @@ export default function ShiftSchedulePage() {
             targetDate.getMonth(),
             1
           ));
+          const targetMonthStart = formatLocalISODate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
+          const targetMonthEnd = formatLocalISODate(new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0));
+          setPeriodDraft({ dateFrom: targetMonthStart, dateTo: targetMonthEnd });
+          setPeriodFilter({ dateFrom: targetMonthStart, dateTo: targetMonthEnd });
           setSelectedDate(schedule.date);
         }
 
@@ -417,6 +505,10 @@ export default function ShiftSchedulePage() {
     if (!firstPending) return;
     const targetDate = new Date(`${firstPending.date}T12:00:00`);
     setCursor(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
+    const targetMonthStart = formatLocalISODate(new Date(targetDate.getFullYear(), targetDate.getMonth(), 1));
+    const targetMonthEnd = formatLocalISODate(new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0));
+    setPeriodDraft({ dateFrom: targetMonthStart, dateTo: targetMonthEnd });
+    setPeriodFilter({ dateFrom: targetMonthStart, dateTo: targetMonthEnd });
     setSelectedDate(null);
     setDetailScheduleId(String(firstPending.id));
     setMessage("");
@@ -699,16 +791,87 @@ export default function ShiftSchedulePage() {
         </div>
       </div>
 
-      <div className="calendar-toolbar shift-toolbar">
-        <button className="icon-button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} aria-label="Mês anterior"><ChevronLeft size={18} /></button>
-        <strong>{cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</strong>
-        <button className="icon-button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} aria-label="Próximo mês"><ChevronRight size={18} /></button>
-        <input className="jump-date" type="date" value={formatLocalISODate(cursor)} onChange={(event) => setCursor(new Date(`${event.target.value}T12:00:00`))} />
+      <div className="calendar-toolbar shift-toolbar" style={{ alignItems: "flex-end", flexWrap: "wrap", gap: "10px" }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>De</span>
+          <input
+            className="jump-date"
+            type="date"
+            value={periodDraft.dateFrom}
+            onChange={(event) => setPeriodDraft((current) => ({ ...current, dateFrom: event.target.value }))}
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>Até</span>
+          <input
+            className="jump-date"
+            type="date"
+            value={periodDraft.dateTo}
+            onChange={(event) => setPeriodDraft((current) => ({ ...current, dateTo: event.target.value }))}
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: "4px", minWidth: "280px", flex: "1 1 280px" }}>
+          <span style={{ fontSize: "0.8rem", fontWeight: 700 }}>Integrante</span>
+          <input
+            list="shift-member-filter-options"
+            value={memberFilter}
+            onChange={(event) => setMemberFilter(event.target.value)}
+            placeholder="Digite ou selecione o nome"
+          />
+          <datalist id="shift-member-filter-options">
+            {memberFilterOptions.map((name) => <option key={name} value={name} />)}
+          </datalist>
+        </label>
+        <button type="button" onClick={applyPeriodFilter}>Aplicar filtros</button>
+        <button type="button" className="secondary" onClick={clearScheduleFilters}>Limpar</button>
         {!isVisitor && (
           <button type="button" className="secondary" onClick={() => openSwapModal()}><Repeat2 size={17} /> Solicitar troca</button>
         )}
-        <button type="button" className="secondary" onClick={() => openReportModal()} style={{ marginLeft: 8 }}><CalendarDays size={17} /> Relatório RH</button>
+        <button type="button" className="secondary" onClick={() => openReportModal()}><CalendarDays size={17} /> Relatório RH</button>
       </div>
+
+      {memberFilter && (
+        <section
+          className="card"
+          style={{
+            margin: "12px 0",
+            padding: "14px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}
+        >
+          <div>
+            <strong>{memberFilter}</strong>
+            <div style={{ marginTop: "4px", fontSize: "0.9rem" }}>
+              Período: {formatDateBR(periodFilter.dateFrom)} a {formatDateBR(periodFilter.dateTo)}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "18px" }}>
+            <span><strong>{memberServiceSummary.total}</strong> serviços</span>
+            <span><strong>{memberServiceSummary.regular}</strong> regulares</span>
+            <span><strong>{memberServiceSummary.extra}</strong> extras</span>
+          </div>
+          {memberServiceSummary.services.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {memberServiceSummary.services.map((service) => (
+                <button
+                  key={`${service.scheduleId}-${service.date}`}
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    const schedule = schedules.find((item) => String(item.id) === String(service.scheduleId));
+                    if (schedule) openTeamDetail(schedule);
+                  }}
+                  style={{ padding: "5px 8px", fontSize: "0.8rem" }}
+                >
+                  {formatDateBR(service.date)} · {service.teamName}{service.isExtra ? " · Extra" : ""}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {loadError && <div className="alert">{loadError}</div>}
       {canApprove && !loadError && pendingValidationCount > 0 && (
@@ -731,7 +894,12 @@ export default function ShiftSchedulePage() {
       <div className="calendar-grid shift-calendar-grid">
         {days.map((day) => {
           const iso = formatLocalISODate(day);
-          const daySchedules = schedules.filter((item) => item.date === iso);
+          const selectedMemberName = normalizeText(memberFilter);
+          const daySchedules = schedules.filter((item) => {
+            if (item.date !== iso) return false;
+            if (!selectedMemberName) return true;
+            return memberRows(item.members).some((member) => normalizeText(member.name) === selectedMemberName);
+          });
           return (
             <article key={iso} className="day-cell shift-day-cell" onClick={() => openDay(day)}>
               <span>{WEEKDAY_LABELS[day.getDay()]} {day.getDate()}</span>
