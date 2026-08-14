@@ -590,6 +590,18 @@ from apps.inspection.models import (
 HORUS_OPERATIONAL_CUTOFF_DATE = date(2026, 8, 10)
 
 HORUS_CARD_BASELINES = {
+    "four_ml": {
+        "value": 939914,
+        "available_from": "2022-10-03",
+    },
+    "thirtythree_ml": {
+        "value": 3512,
+        "available_from": "2022-10-04",
+    },
+    "thirtyfour_ml": {
+        "value": 736,
+        "available_from": "2022-10-04",
+    },
     "reconductor": {
         "value": 168019,
         "available_from": "2022-10-03",
@@ -1221,6 +1233,9 @@ class InspectionStatisticsUnifiedService:
 
         operational = operation_qs.aggregate(
             reconductor=Sum("reconductor"),
+            four_ml=Sum("four_ml"),
+            thirtythree_ml=Sum("thirtythree_ml"),
+            thirtyfour_ml=Sum("thirtyfour_ml"),
             passive_tests_performed=Sum("passive_tests_performed"),
             arrests_means_evidence=Sum("arrests_means_evidence"),
             removal_resolutions=Sum("removal_resolutions"),
@@ -1246,6 +1261,9 @@ class InspectionStatisticsUnifiedService:
 
         for field_name in (
             "reconductor",
+            "four_ml",
+            "thirtythree_ml",
+            "thirtyfour_ml",
             "passive_tests_performed",
             "arrests_means_evidence",
             "removal_resolutions",
