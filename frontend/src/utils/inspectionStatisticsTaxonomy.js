@@ -60,6 +60,7 @@ export function buildInspectionStatisticsTaxonomy(
   const alcohol = dashboard.alcohol_results || {};
   const taxi = dashboard.taxi || {};
   const occurrences = dashboard.occurrences || {};
+  const horusCards = dashboard.horus_cards || {};
   const coverage = dashboard.coverage || {};
 
   return [
@@ -118,15 +119,13 @@ export function buildInspectionStatisticsTaxonomy(
       items: [
         {
           key: "breathalyzer_test",
-          label: "Teste com etilômetro",
-          status: TAXONOMY_STATUS.PARTIAL,
+          label: "Testes passivos",
+          status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            summary.passive_tests_performed
+            horusCards.passive_tests_performed?.value
           ),
-          field:
-            "summary.passive_tests_performed",
           note:
-            "O SIED possui o quantitativo de testes passivos. A nomenclatura histórica de teste com etilômetro pode representar conceito mais amplo.",
+            "Registros disponíveis no Horus desde 03/10/2022.",
         },
         {
           key: "licensed_reconductors",
@@ -213,16 +212,13 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "arrests_means_evidence",
-          label:
-            "Presos por outros meios de prova",
+          label: "Presos por outros meios de prova",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            alcohol.arrests_means_evidence
+            horusCards.arrests_means_evidence?.value
           ),
-          field:
-            "alcohol_results.arrests_means_evidence",
           note:
-            "Indicador consolidado para prisões registradas por outros meios de prova.",
+            "Registros disponíveis no Horus desde 10/10/2022.",
         },
       ],
     },
@@ -276,18 +272,13 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "deliberations",
-          label: "Deliberações",
+          label: "Delibera??es de remo??o",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            firstPresent(
-              occurrences.historical_deliberations,
-              summary.removal_resolutions
-            )
+            horusCards.removal_resolutions?.value
           ),
-          field:
-            "occurrences.historical_deliberations / summary.removal_resolutions",
           note:
-            "A base histórica possui campo específico de deliberações. No operacional, o campo disponível corresponde às deliberações de remoção.",
+            "Registros disponíveis no Horus desde 03/10/2022.",
         },
         {
           key: "towings",
@@ -303,11 +294,10 @@ export function buildInspectionStatisticsTaxonomy(
           label: "Chuva",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            occurrences.rain
+            horusCards.rain?.value
           ),
-          field: "occurrences.rain",
           note:
-            "Indicador disponível na base histórica consolidada.",
+            "Operações com registro explícito de chuva nas observações do Horus desde 03/10/2022.",
         },
         {
           key: "external_occurrence",
@@ -336,15 +326,23 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "criminal_occurrences",
-          label: "Ocorrências criminais",
+          label: "Ocorr?ncias criminais",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            occurrences.criminal_occurrences
+            horusCards.criminal_occurrences?.value
           ),
-          field:
-            "occurrences.criminal_occurrences",
           note:
-            "Indicador criminal consolidado conforme os campos compatíveis das fontes histórica e operacional.",
+            "Registros disponíveis no Horus desde 03/10/2022.",
+        },
+        {
+          key: "art307",
+          label: "Art. 307",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            horusCards.art307?.value
+          ),
+          note:
+            "Registros disponíveis no Horus desde 03/10/2022.",
         },
         {
           key: "operations",
@@ -362,12 +360,10 @@ export function buildInspectionStatisticsTaxonomy(
           label: "CNH cassada",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            occurrences.driving_canceled_license
+            horusCards.driving_canceled_license?.value
           ),
-          field:
-            "occurrences.driving_canceled_license",
           note:
-            "Indicador consolidado de CNH cassada quando informado pela fonte.",
+            "Registros disponíveis no Horus desde 04/10/2022.",
         },
       ],
     },

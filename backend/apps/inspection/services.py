@@ -518,8 +518,46 @@ from apps.inspection.models import (
     HistoricalTaxonomyEra,
     InspectionHistoricalStatistic,
     HISTORICAL_CUTOFF_DATE,
+
+
     INSPECTION_STATISTICS_CUTOFF_DATE,
 )
+
+
+# Indicadores cuja fonte oficial exibida no dashboard e exclusivamente o Horus.
+# O saldo-base corresponde ao acumulado auditado ate 09/08/2026.
+HORUS_OPERATIONAL_CUTOFF_DATE = date(2026, 8, 10)
+
+HORUS_CARD_BASELINES = {
+    "passive_tests_performed": {
+        "value": 476969,
+        "available_from": "2022-10-03",
+    },
+    "arrests_means_evidence": {
+        "value": 244,
+        "available_from": "2022-10-10",
+    },
+    "removal_resolutions": {
+        "value": 143930,
+        "available_from": "2022-10-03",
+    },
+    "art307": {
+        "value": 2833,
+        "available_from": "2022-10-03",
+    },
+    "criminal_occurrences": {
+        "value": 1198,
+        "available_from": "2022-10-03",
+    },
+    "driving_canceled_license": {
+        "value": 618,
+        "available_from": "2022-10-04",
+    },
+    "rain": {
+        "value": 1974,
+        "available_from": "2022-10-03",
+    },
+}
 
 
 class InspectionStatisticsUnifiedService:
@@ -1097,7 +1135,71 @@ class InspectionStatisticsUnifiedService:
             },
 
             "coverage": coverage,
+
+            "horus_cards": self._get_horus_card_totals(),
         }
+
+
+    def _get_horus_card_totals(self):
+        operation_qs = InspectionReportOperation.objects.filter(
+            report__operation_date__gte=HORUS_OPERATIONAL_CUTOFF_DATE
+        )
+
+        operational = operation_qs.aggregate(
+            passive_tests_performed=Sum("passive_tests_performed"),
+            arrests_means_evidence=Sum("arrests_means_evidence"),
+            removal_resolutions=Sum("removal_resolutions"),
+            art307=Sum("art307"),
+            criminal_occurrences=Sum("criminal_occurrences"),
+            driving_canceled_license=Sum("driving_canceled_license"),
+        )
+
+        operational_rain = (
+            InspectionReport.objects
+            .filter(
+                operation_date__gte=HORUS_OPERATIONAL_CUTOFF_DATE
+            )
+            .filter(
+                Q(changes_general__icontains="chuv")
+                | Q(changes_general__icontains="chove")
+            )
+            .distinct()
+            .count()
+        )
+
+        result = {}
+
+        for field_name in (
+            "passive_tests_performed",
+            "arrests_means_evidence",
+            "removal_resolutions",
+            "art307",
+            "criminal_occurrences",
+            "driving_canceled_license",
+        ):
+            baseline = HORUS_CARD_BASELINES[field_name]
+
+            result[field_name] = {
+                "value": (
+                    baseline["value"]
+                    + (operational.get(field_name) or 0)
+                ),
+                "available_from": baseline["available_from"],
+                "source": "HORUS",
+            }
+
+        rain_baseline = HORUS_CARD_BASELINES["rain"]
+
+        result["rain"] = {
+            "value": (
+                rain_baseline["value"]
+                + operational_rain
+            ),
+            "available_from": rain_baseline["available_from"],
+            "source": "HORUS",
+        }
+
+        return result
 
     def _get_historical_data(self):
         #
