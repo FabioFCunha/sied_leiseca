@@ -31,7 +31,7 @@ export function buildInspectionExecutiveCards(summary = {}) {
     },
     {
       key: "approach",
-      label: "Abordados",
+      label: "Abordados e Recondutores",
       value: summary.approach,
     },
     {
@@ -119,18 +119,13 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "licensed_reconductors",
-          label: "Recondutores habilitados",
-          status: TAXONOMY_STATUS.PARTIAL,
+          label: "Recondutores",
+          status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            firstPresent(
-              driver.reconductors_licensed,
-              driver.reconductor
-            )
+            horusCards.reconductor?.value
           ),
-          field:
-            "driver.reconductors_licensed / driver.reconductor",
           note:
-            "A base histórica possui recondutores habilitados. No operacional existe o campo recondutor, mantido separado por diferença de definição.",
+            "Registros disponíveis no Horus desde 03/10/2022.",
         },
         {
           key: "refusal",
