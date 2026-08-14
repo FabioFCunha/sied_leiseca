@@ -71,24 +71,14 @@ export function buildInspectionStatisticsTaxonomy(
         "Indicadores relacionados à abordagem de veículos e às medidas adotadas nas operações.",
       items: [
         {
-          key: "approached_reconductor",
-          label: "Abordados + Recondutor",
-          status:
-            coverage[
-              "summary.approach_plus_reconductor"
-            ] === "PARTIAL"
-              ? TAXONOMY_STATUS.PARTIAL
-              : TAXONOMY_STATUS.MAPPED,
+          key: "stolen_recovered_vehicles",
+          label: "Roubado/Furtado",
+          status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            summary.approach_plus_reconductor
+            horusCards.stolen_recovered_vehicles?.value
           ),
-          field: "summary.approach_plus_reconductor",
           note:
-            coverage[
-              "summary.approach_plus_reconductor"
-            ] === "PARTIAL"
-              ? "Indicador possui conceitos distintos entre a base histórica consolidada e a produção operacional; não é somado automaticamente em períodos cruzados."
-              : "Indicador consolidado conforme a fonte utilizada no período selecionado.",
+            "35 recuperados + 33 roubados + 398 furtados. Fonte: Horus.",
         },
         {
           key: "fined",

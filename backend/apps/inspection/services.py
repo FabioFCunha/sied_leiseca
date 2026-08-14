@@ -529,6 +529,15 @@ from apps.inspection.models import (
 HORUS_OPERATIONAL_CUTOFF_DATE = date(2026, 8, 10)
 
 HORUS_CARD_BASELINES = {
+    "stolen_recovered_vehicles": {
+        "value": 466,
+        "available_from": "2022-10-03",
+        "breakdown": {
+            "recovered": 35,
+            "stolen": 33,
+            "theft": 398,
+        },
+    },
     "passive_tests_performed": {
         "value": 476969,
         "available_from": "2022-10-03",
@@ -1187,6 +1196,15 @@ class InspectionStatisticsUnifiedService:
                 "available_from": baseline["available_from"],
                 "source": "HORUS",
             }
+
+        stolen_baseline = HORUS_CARD_BASELINES["stolen_recovered_vehicles"]
+
+        result["stolen_recovered_vehicles"] = {
+            "value": stolen_baseline["value"],
+            "available_from": stolen_baseline.get("available_from"),
+            "breakdown": stolen_baseline.get("breakdown", {}),
+            "source": "HORUS",
+        }
 
         rain_baseline = HORUS_CARD_BASELINES["rain"]
 
