@@ -170,6 +170,59 @@ class InspectionSyncServiceTests(InspectionSyncPayloadMixin, TestCase):
         self.assertEqual(fine.quant, 4)
         self.assertEqual(report.statistics_status, InspectionReport.StatisticsStatus.PENDING)
 
+    def test_equal_report_version_with_newer_child_updates_children(self):
+        initial = self.payload()
+        initial["operations"] = []
+
+        serializer = InspectionReportIngestionSerializer(data=initial)
+        serializer.is_valid(raise_exception=True)
+        first = self.service.sync_report(serializer.validated_data)
+
+        self.assertEqual(first.outcome, "created")
+        self.assertEqual(
+            InspectionReportOperation.objects.count(),
+            0,
+        )
+
+        updated = self.payload()
+
+        # O cabecalho permanece com a mesma versao.
+        updated["source_updated_at"] = initial["source_updated_at"]
+
+        # A operacao foi gravada posteriormente no Horus.
+        updated["operations"][0][
+            "source_updated_at"
+        ] = "2026-08-10T08:35:00Z"
+
+        serializer = InspectionReportIngestionSerializer(data=updated)
+        serializer.is_valid(raise_exception=True)
+        second = self.service.sync_report(serializer.validated_data)
+
+        self.assertEqual(second.outcome, "updated")
+        self.assertEqual(
+            InspectionReport.objects.count(),
+            1,
+        )
+        self.assertEqual(
+            InspectionReportOperation.objects.count(),
+            1,
+        )
+
+        # Uma nova ingestao identica permanece idempotente.
+        serializer = InspectionReportIngestionSerializer(data=updated)
+        serializer.is_valid(raise_exception=True)
+        third = self.service.sync_report(serializer.validated_data)
+
+        self.assertEqual(third.outcome, "ignored_equal")
+        self.assertEqual(
+            InspectionReport.objects.count(),
+            1,
+        )
+        self.assertEqual(
+            InspectionReportOperation.objects.count(),
+            1,
+        )
+
     def test_older_version_does_not_overwrite(self):
         self.service.sync_report(self.validated_payload())
 

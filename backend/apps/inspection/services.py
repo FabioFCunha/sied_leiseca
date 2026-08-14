@@ -244,8 +244,20 @@ class InspectionSyncService:
             self._sync_children(report, payload)
             return InspectionSyncResult(report=report, outcome="created", detail="Relatorio criado.")
 
+        incoming_report_updated_at = payload["source_updated_at"]
+
+        # Um cabecalho realmente mais antigo nunca pode sobrescrever
+        # a versao do relatorio ja armazenada, mesmo que o payload
+        # contenha filhos com timestamps mais recentes.
+        if incoming_report_updated_at < report.source_updated_at:
+            return InspectionSyncResult(
+                report=report,
+                outcome="ignored_stale",
+                detail="Payload ignorado por possuir versao mais antiga.",
+            )
+
         latest_known_source_updated_at = self._latest_known_source_updated_at(report)
-        incoming_updated_at = payload["source_updated_at"]
+        incoming_updated_at = self._effective_payload_updated_at(payload)
 
         if incoming_updated_at < latest_known_source_updated_at:
             return InspectionSyncResult(
@@ -282,10 +294,59 @@ class InspectionSyncService:
 
         return InspectionSyncResult(report=report, outcome="updated", detail="Relatorio atualizado.")
 
+    def _effective_payload_updated_at(self, payload):
+        """
+        Retorna a versao efetiva recebida do Horus.
+
+        O cabecalho do relatorio pode ser gravado antes das operacoes e
+        multas relacionadas. Por isso, a versao efetiva precisa considerar
+        tambem os timestamps dos registros filhos.
+        """
+        timestamps = [payload["source_updated_at"]]
+
+        for operation_payload in payload.get("operations", []):
+            operation_updated_at = operation_payload.get("source_updated_at")
+            if operation_updated_at is not None:
+                timestamps.append(operation_updated_at)
+
+            for fine_payload in operation_payload.get("fines", []):
+                fine_updated_at = fine_payload.get("source_updated_at")
+                if fine_updated_at is not None:
+                    timestamps.append(fine_updated_at)
+
+        return max(timestamps)
+
     def _latest_known_source_updated_at(self, report):
+        timestamps = [report.source_updated_at]
+
         if report.source_update_after_statistics_review_at:
-            return max(report.source_updated_at, report.source_update_after_statistics_review_at)
-        return report.source_updated_at
+            timestamps.append(
+                report.source_update_after_statistics_review_at
+            )
+
+        operation_updated_at = (
+            InspectionReportOperation.objects
+            .filter(report=report)
+            .order_by("-source_updated_at")
+            .values_list("source_updated_at", flat=True)
+            .first()
+        )
+
+        if operation_updated_at is not None:
+            timestamps.append(operation_updated_at)
+
+        fine_updated_at = (
+            InspectionFine.objects
+            .filter(operation__report=report)
+            .order_by("-source_updated_at")
+            .values_list("source_updated_at", flat=True)
+            .first()
+        )
+
+        if fine_updated_at is not None:
+            timestamps.append(fine_updated_at)
+
+        return max(timestamps)
 
     def _create_report(self, payload, synced_at):
         create_data = {field: payload.get(field) for field in REPORT_MUTABLE_FIELDS}
