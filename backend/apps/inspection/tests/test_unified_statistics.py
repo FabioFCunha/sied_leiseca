@@ -273,25 +273,19 @@ class UnifiedStatisticsTests(TestCase):
             result["summary"]["homologated_reports"],
             None,
         )
-        self.assertEqual(
-            result["administrative_measures"]["fined"],
-            20,
+        # DAILY / ERA_C pertence à futura consulta territorial do Horus
+        # e não compõe os indicadores oficiais da primeira aba.
+        self.assertIsNone(
+            result["administrative_measures"]["fined"]
         )
-        self.assertEqual(
-            result["alcohol_results"]["four_ml"],
-            10,
+        self.assertIsNone(
+            result["alcohol_results"]["four_ml"]
         )
-
-        # DAILY/ERA_C: approach_plus_reconductor = historical_approached + reconductor
-        # historical_approached=100, reconductor=5 -> 105
-        self.assertEqual(
-            result["summary"]["approach_plus_reconductor"],
-            105,
+        self.assertIsNone(
+            result["summary"]["approach_plus_reconductor"]
         )
-
-        self.assertEqual(
-            result["occurrences"]["rain"],
-            1,
+        self.assertIsNone(
+            result["occurrences"]["rain"]
         )
         self.assertEqual(
             result["coverage"]["occurrences.rain"],
@@ -356,10 +350,10 @@ class UnifiedStatisticsTests(TestCase):
             {"historical", "report"},
         )
 
-        # Fined: 20 (hist) + 30 (op) = 50
+        # DAILY / ERA_C não entra na aba oficial; somente o operacional.
         self.assertEqual(
             result["administrative_measures"]["fined"],
-            50,
+            30,
         )
 
         # Indicador incompatível no cruzamento
@@ -408,17 +402,18 @@ class UnifiedStatisticsTests(TestCase):
             filters
         ).get_dashboard_data()
 
+        # DAILY / ERA_C não é somado aos indicadores oficiais.
         self.assertEqual(
             result["alcohol_results"]["four_ml"],
-            25,
+            15,
         )
         self.assertEqual(
             result["alcohol_results"]["thirtythree_ml"],
-            5,
+            3,
         )
         self.assertEqual(
             result["alcohol_results"]["thirtyfour_ml"],
-            1,
+            0,
         )
         self.assertEqual(
             result["coverage"]["alcohol_results.four_ml"],
@@ -445,7 +440,7 @@ class UnifiedStatisticsTests(TestCase):
 
         self.assertEqual(
             team_prod["A1"]["fined"],
-            50,
+            30,
         )
 
     def test_time_series_continuous(self):
@@ -463,15 +458,12 @@ class UnifiedStatisticsTests(TestCase):
             for item in result["time_series"]
         }
 
-        self.assertIn("2026-08-05", ts)
-        self.assertIn("2026-08-09", ts)
+        # A série temporal oficial não usa a granularidade DAILY / ERA_C.
+        self.assertNotIn("2026-08-05", ts)
+        self.assertNotIn("2026-08-09", ts)
         self.assertIn("2026-08-10", ts)
         self.assertIn("2026-08-11", ts)
 
-        self.assertEqual(
-            ts["2026-08-05"]["fined"],
-            20,
-        )
         self.assertEqual(
             ts["2026-08-10"]["fined"],
             30,
@@ -498,7 +490,7 @@ class UnifiedStatisticsTests(TestCase):
 
         self.assertEqual(
             data["administrative_measures"]["fined"],
-            50,
+            30,
         )
 
     #

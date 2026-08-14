@@ -27,12 +27,12 @@ class Command(BaseCommand):
         parser.add_argument(
             "--source-type",
             type=str,
-            help="Filtra por tipo de fonte (ex: DAILY).",
+            help="Filtra por tipo de fonte (DAILY, ACCUMULATED ou LEGACY).",
         )
         parser.add_argument(
             "--taxonomy-era",
             type=str,
-            help="Filtra por era (ex: ERA_C).",
+            help="Filtra por era (ERA_A, ERA_B ou ERA_C).",
         )
 
     def handle(self, *args, **options):
@@ -55,13 +55,14 @@ class Command(BaseCommand):
         if is_apply:
             allowed_pairs = {
                 ("DAILY", "ERA_C"),
+                ("ACCUMULATED", "ERA_B"),
                 ("LEGACY", "ERA_A"),
             }
 
             if (source_type, taxonomy_era) not in allowed_pairs:
                 raise CommandError(
                     "Aplicacao real autorizada somente para "
-                    "DAILY / ERA_C ou LEGACY / ERA_A."
+                    "DAILY / ERA_C, ACCUMULATED / ERA_B ou LEGACY / ERA_A."
                 )
 
             from apps.inspection.historical_import import (

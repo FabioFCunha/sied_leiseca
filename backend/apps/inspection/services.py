@@ -510,13 +510,14 @@ class InspectionStatisticsService:
 
 
 
-from django.db.models import Count, Sum, Value, F
+from django.db.models import Count, Sum, Value, F, Q
 from django.db.models.functions import Coalesce
 
 from apps.inspection.models import (
     HistoricalSourceType,
     HistoricalTaxonomyEra,
     InspectionHistoricalStatistic,
+    HISTORICAL_CUTOFF_DATE,
     INSPECTION_STATISTICS_CUTOFF_DATE,
 )
 
@@ -1100,544 +1101,175 @@ class InspectionStatisticsUnifiedService:
 
     def _get_historical_data(self):
         #
-        # HISTÓRICO COM DUAS GRANULARIDADES
+        # ESTATÍSTICA OFICIAL CONSOLIDADA
+        # ==========================================================
         #
-        # 1) DAILY / ERA_C:
-        #    dados diários oficiais do Horus, com data e equipe.
+        # A primeira aba institucional NÃO utiliza DAILY / ERA_C
+        # (Horus) para compor seus totais. O Horus permanece no banco
+        # para a futura análise territorial por município/bairro/região.
         #
-        # 2) LEGACY / ERA_A:
-        #    consolidado anual anterior a 2023, sem data diária
-        #    e sem equipe.
+        # Fontes oficiais desta aba:
+        # - LEGACY / ERA_A: 2009 a 2022;
+        # - ACCUMULATED / ERA_B: 2023 a 09/08/2026.
         #
-
-        daily_qs = (
+        # Ambas são registros consolidados da planilha institucional,
+        # sem equipe e sem granularidade diária.
+        #
+        official_qs = (
             InspectionHistoricalStatistic
             .objects
             .filter(
-                reference_date__isnull=False,
-                source_type=HistoricalSourceType.DAILY,
-                taxonomy_era=HistoricalTaxonomyEra.ERA_C,
-            )
-        )
-
-        if self.date_from:
-            daily_qs = daily_qs.filter(
-                reference_date__gte=self.date_from
-            )
-
-        if self.date_to:
-            daily_qs = daily_qs.filter(
-                reference_date__lte=self.date_to
-            )
-
-        if self.team:
-            daily_qs = daily_qs.filter(
-                team__iexact=self.team
-            )
-
-        #
-        # CONSOLIDADO ANUAL LEGACY / ERA_A
-        #
-        annual_qs = (
-            InspectionHistoricalStatistic
-            .objects
-            .filter(
-                source_type=HistoricalSourceType.LEGACY,
-                taxonomy_era=HistoricalTaxonomyEra.ERA_A,
                 reference_date__isnull=True,
                 reference_month__isnull=True,
+                team="",
+            )
+            .filter(
+                Q(
+                    source_type=HistoricalSourceType.LEGACY,
+                    taxonomy_era=HistoricalTaxonomyEra.ERA_A,
+                )
+                | Q(
+                    source_type=HistoricalSourceType.ACCUMULATED,
+                    taxonomy_era=HistoricalTaxonomyEra.ERA_B,
+                )
             )
         )
 
         #
-        # O consolidado anual não possui equipe.
+        # A planilha oficial é consolidada por ano. Portanto, um ano
+        # só pode participar do total quando o filtro cobre integralmente
+        # o período oficial disponível daquele ano. Não distribuímos
+        # artificialmente um total anual por dias ou meses.
+        #
+        # Para 2026, o período histórico oficial termina em 09/08/2026.
         #
         if self.team:
-            annual_qs = annual_qs.none()
-
+            official_qs = official_qs.none()
         else:
-            first_full_year = 1
-            last_full_year = 9999
+            covered_years = []
 
-            #
-            # Um ano inicial só entra se o filtro começar
-            # exatamente em 01/01.
-            #
-            if self.date_from:
-                first_full_year = self.date_from.year
-
-                if (
-                    self.date_from.month != 1
-                    or self.date_from.day != 1
-                ):
-                    first_full_year += 1
-
-            #
-            # Um ano final só entra se o filtro terminar
-            # exatamente em 31/12.
-            #
-            if self.date_to:
-                last_full_year = self.date_to.year
-
-                if (
-                    self.date_to.month != 12
-                    or self.date_to.day != 31
-                ):
-                    last_full_year -= 1
-
-            if first_full_year <= last_full_year:
-                annual_qs = annual_qs.filter(
-                    reference_year__gte=first_full_year,
-                    reference_year__lte=last_full_year,
+            for year in range(2009, HISTORICAL_CUTOFF_DATE.year + 1):
+                period_start = date(year, 1, 1)
+                period_end = (
+                    HISTORICAL_CUTOFF_DATE
+                    if year == HISTORICAL_CUTOFF_DATE.year
+                    else date(year, 12, 31)
                 )
 
-            else:
-                annual_qs = annual_qs.none()
+                starts_before_or_on = (
+                    self.date_from is None
+                    or self.date_from <= period_start
+                )
+                ends_after_or_on = (
+                    self.date_to is None
+                    or self.date_to >= period_end
+                )
+
+                if starts_before_or_on and ends_after_or_on:
+                    covered_years.append(year)
+
+            official_qs = official_qs.filter(
+                reference_year__in=covered_years
+            )
 
         #
-        # ==========================================================
-        # HISTÓRICO DIÁRIO HORUS / ERA_C
-        # ==========================================================
+        # CONSOLIDADO OFICIAL
         #
-        # Aqui os indicadores possuem equivalência direta com
-        # os campos extraídos do Horus.
-        #
-        daily_agg = daily_qs.aggregate(
-            approach=Sum(
-                "historical_approached"
-            ),
+        agg = official_qs.aggregate(
+            approach=Sum("historical_approached"),
+            refusal=Sum("refusal"),
+            fined=Sum("fined"),
+            towed=Sum("towed"),
 
-            reconductor=Sum(
-                "reconductor"
-            ),
+            # Na planilha histórica, "CNH" corresponde a
+            # "CNH Recolhidas" no SIED.
+            cnh_collected=Sum("historical_cnh_retained"),
 
-            #
-            # ATENÇÃO: approach_plus_reconductor NÃO é calculado
-            # aqui no aggregate porque o Django 5.x resolve
-            # Coalesce('reconductor') dentro de Sum() como o alias
-            # do agregado 'reconductor', causando FieldError.
-            # É calculado via Python logo abaixo.
-            #
-
-            refusal=Sum(
-                "refusal"
-            ),
-
-            fined=Sum(
-                "fined"
-            ),
-
-            towed=Sum(
-                "towed"
-            ),
-
-            cnh_collected=Sum(
-                "cnh_collected"
-            ),
-
-            passive_tests_performed=Sum(
-                "passive_tests_performed"
-            ),
-
-            removal_resolutions=Sum(
-                "removal_resolutions"
-            ),
-
-            arrests_means_evidence=Sum(
-                "arrests_means_evidence"
-            ),
-
-            four_ml=Sum(
-                "four_ml"
-            ),
-
-            thirtythree_ml=Sum(
-                "thirtythree_ml"
-            ),
-
-            thirtyfour_ml=Sum(
-                "thirtyfour_ml"
-            ),
-
-            criminal_occurrences=Sum(
-                "criminal_occurrences"
-            ),
-
-            art307=Sum(
-                "historical_art_307"
-            ),
-
-            driving_canceled_license=Sum(
-                "driving_canceled_license"
-            ),
-
-            operations=Sum(
-                "historical_operations"
-            ),
-
-            #
-            # Campos existentes somente em outras fontes históricas.
-            #
-            taxi_approached=Sum(
-                "taxi_approached"
-            ),
-
-            taxi_illegal=Sum(
-                "taxi_illegal"
-            ),
-
-            rain=Sum(
-                "rain"
-            ),
-
-            planned_actions=Sum(
-                "planned_actions"
-            ),
-
-            external_occurrence=Sum(
-                "external_occurrence"
-            ),
-
-            public_security_occurrence=Sum(
-                "public_security_occurrence"
-            ),
-
+            passive_tests_performed=Sum("historical_passive_tests"),
+            removal_resolutions=Sum("removal_resolutions"),
+            arrests_means_evidence=Sum("arrests_means_evidence"),
+            four_ml=Sum("four_ml"),
+            thirtythree_ml=Sum("thirtythree_ml"),
+            thirtyfour_ml=Sum("thirtyfour_ml"),
+            taxi_approached=Sum("taxi_approached"),
+            taxi_illegal=Sum("taxi_illegal"),
+            rain=Sum("rain"),
+            planned_actions=Sum("planned_actions"),
+            external_occurrence=Sum("external_occurrence"),
+            public_security_occurrence=Sum("public_security_occurrence"),
             historical_reconductors_licensed=Sum(
                 "historical_reconductors_licensed"
             ),
-
-            historical_deliberations=Sum(
-                "historical_deliberations"
-            ),
-
-            historical_cnh_retained=Sum(
-                "historical_cnh_retained"
-            ),
-
-            historical_passive_tests=Sum(
-                "historical_passive_tests"
-            ),
-
-            historical_event_trailers=Sum(
-                "historical_event_trailers"
-            ),
-
-            negative_tests=Sum(
-                "negative_tests"
-            ),
-
-            historical_alcohol_cases=Sum(
-                "historical_alcohol_cases"
-            ),
-        )
-
-        #
-        # approach_plus_reconductor calculado via Python para evitar
-        # conflito de nomes no aggregate do Django 5.x.
-        #
-        daily_approach = daily_agg.get("approach")
-        daily_reconductor = daily_agg.get("reconductor")
-        daily_agg["approach_plus_reconductor"] = self._sum_nullable(
-            daily_approach, daily_reconductor
-        )
-
-        #
-        # ==========================================================
-        # CONSOLIDADO ANUAL LEGACY / ERA_A
-        # ==========================================================
-        #
-        annual_agg = annual_qs.aggregate(
-            approach=Sum(
-                "historical_approached"
-            ),
-
-            refusal=Sum(
-                "refusal"
-            ),
-
-            fined=Sum(
-                "fined"
-            ),
-
-            towed=Sum(
-                "towed"
-            ),
-
-            cnh_collected=Sum(
-                "cnh_collected"
-            ),
-
-            passive_tests_performed=Sum(
-                "passive_tests_performed"
-            ),
-
-            removal_resolutions=Sum(
-                "removal_resolutions"
-            ),
-
-            arrests_means_evidence=Sum(
-                "arrests_means_evidence"
-            ),
-
-            four_ml=Sum(
-                "four_ml"
-            ),
-
-            thirtythree_ml=Sum(
-                "thirtythree_ml"
-            ),
-
-            thirtyfour_ml=Sum(
-                "thirtyfour_ml"
-            ),
-
-            taxi_approached=Sum(
-                "taxi_approached"
-            ),
-
-            taxi_illegal=Sum(
-                "taxi_illegal"
-            ),
-
-            rain=Sum(
-                "rain"
-            ),
-
-            planned_actions=Sum(
-                "planned_actions"
-            ),
-
-            external_occurrence=Sum(
-                "external_occurrence"
-            ),
-
-            public_security_occurrence=Sum(
-                "public_security_occurrence"
-            ),
-
-            historical_reconductors_licensed=Sum(
-                "historical_reconductors_licensed"
-            ),
-
-            historical_deliberations=Sum(
-                "historical_deliberations"
-            ),
-
-            historical_cnh_retained=Sum(
-                "historical_cnh_retained"
-            ),
-
-            historical_passive_tests=Sum(
-                "historical_passive_tests"
-            ),
-
-            historical_event_trailers=Sum(
-                "historical_event_trailers"
-            ),
-
-            negative_tests=Sum(
-                "negative_tests"
-            ),
-
-            historical_alcohol_cases=Sum(
-                "historical_alcohol_cases"
-            ),
-
-            criminal_art_306=Sum(
-                "criminal_art_306"
-            ),
-
+            historical_deliberations=Sum("historical_deliberations"),
+            historical_cnh_retained=Sum("historical_cnh_retained"),
+            historical_passive_tests=Sum("historical_passive_tests"),
+            historical_event_trailers=Sum("historical_event_trailers"),
+            negative_tests=Sum("negative_tests"),
+            historical_alcohol_cases=Sum("historical_alcohol_cases"),
+            criminal_art_306=Sum("criminal_art_306"),
             criminal_art_306_other_evidence=Sum(
                 "criminal_art_306_other_evidence"
             ),
-
-            operations=Sum(
-                "historical_operations"
-            ),
-
-            driving_canceled_license=Sum(
-                "driving_canceled_license"
-            ),
-
-            art307=Sum(
-                "historical_art_307"
-            ),
+            operations=Sum("historical_operations"),
+            driving_canceled_license=Sum("driving_canceled_license"),
+            art307=Sum("historical_art_307"),
         )
 
-        #
-        # Equivalência histórica LEGACY / ERA_A:
-        # a coluna "CNH" da série histórica foi importada em
-        # historical_cnh_retained e corresponde a "CNH Recolhidas"
-        # no painel unificado.
-        #
-        annual_agg["cnh_collected"] = annual_agg.get(
-            "historical_cnh_retained"
-        )
-
-        #
-        # No legado, ocorrência criminal é derivada dos dois
-        # indicadores disponíveis na fonte antiga.
-        #
-        criminal_art_306 = annual_agg.pop(
-            "criminal_art_306",
-            None,
-        )
-
-        criminal_other = annual_agg.pop(
+        criminal_art_306 = agg.pop("criminal_art_306", None)
+        criminal_other = agg.pop(
             "criminal_art_306_other_evidence",
             None,
         )
-
-        annual_agg[
-            "criminal_occurrences"
-        ] = self._sum_nullable(
+        agg["criminal_occurrences"] = self._sum_nullable(
             criminal_art_306,
             criminal_other,
         )
 
-        #
-        # O LEGACY anual não possui recondutor equivalente.
-        #
-        annual_agg["reconductor"] = None
+        # A série oficial consolidada não possui recondutor equivalente
+        # nem permite construir "Abordados + Recondutor" de forma segura.
+        agg["reconductor"] = None
+        agg["approach_plus_reconductor"] = None
 
         #
-        # Também não existe equivalência segura para
-        # "Abordados + Recondutor" no LEGACY.
-        #
-        annual_agg[
-            "approach_plus_reconductor"
-        ] = None
-
-        #
-        # ==========================================================
-        # UNIFICAÇÃO DOS DOIS HISTÓRICOS
+        # SÉRIE TEMPORAL OFICIAL
         # ==========================================================
         #
-        agg = {}
-
-        aggregate_keys = (
-            set(daily_agg.keys())
-            | set(annual_agg.keys())
-        )
-
-        for key in aggregate_keys:
-            agg[key] = self._sum_nullable(
-                daily_agg.get(key),
-                annual_agg.get(key),
-            )
-
+        # Como a fonte é anual, cada ponto representa o encerramento do
+        # período oficial do ano. Em 2026, o ponto termina em 09/08/2026.
         #
-        # Se o período selecionado mistura DAILY/Horus e
-        # LEGACY anual, não mostramos Abordados + Recondutor,
-        # porque uma parte da série não possui recondutor
-        # equivalente.
-        #
-        has_daily = daily_qs.exists()
-        has_annual = annual_qs.exists()
-
-        if has_daily and has_annual:
-            agg[
-                "approach_plus_reconductor"
-            ] = None
-
-        #
-        # ==========================================================
-        # SÉRIE TEMPORAL
-        # ==========================================================
-        #
-        # Apenas o histórico diário possui granularidade legítima
-        # para compor uma série por data.
-        #
-        hist_ts = list(
-            daily_qs
-            .values(
-                "reference_date"
-            )
+        hist_ts = []
+        yearly_rows = list(
+            official_qs
+            .values("reference_year")
             .annotate(
-                operation_date=F(
-                    "reference_date"
-                ),
-
-                approach=Sum(
-                    "historical_approached"
-                ),
-
-                reconductor=Sum(
-                    "reconductor"
-                ),
-
-                refusal=Sum(
-                    "refusal"
-                ),
-
-                fined=Sum(
-                    "fined"
-                ),
-
-                operations=Sum(
-                    "historical_operations"
-                ),
+                approach=Sum("historical_approached"),
+                refusal=Sum("refusal"),
+                fined=Sum("fined"),
+                operations=Sum("historical_operations"),
             )
-            .order_by(
-                "reference_date"
-            )
+            .order_by("reference_year")
         )
 
-        for row in hist_ts:
-            del row[
-                "reference_date"
-            ]
-
-        #
-        # ==========================================================
-        # PRODUÇÃO POR EQUIPE
-        # ==========================================================
-        #
-        # Também somente DAILY / ERA_C, pois o LEGACY anual
-        # não possui equipe.
-        #
-        hist_tp_qs = list(
-            daily_qs
-            .values(
-                "team"
+        for row in yearly_rows:
+            year = row.pop("reference_year")
+            row["operation_date"] = (
+                HISTORICAL_CUTOFF_DATE
+                if year == HISTORICAL_CUTOFF_DATE.year
+                else date(year, 12, 31)
             )
-            .annotate(
-                approach=Sum(
-                    "historical_approached"
-                ),
+            hist_ts.append(row)
 
-                reconductor=Sum(
-                    "reconductor"
-                ),
-
-                refusal=Sum(
-                    "refusal"
-                ),
-
-                fined=Sum(
-                    "fined"
-                ),
-
-                towed=Sum(
-                    "towed"
-                ),
-
-                operations=Sum(
-                    "historical_operations"
-                ),
-            )
-        )
-
-        hist_tp = {
-            row["team"]: row
-            for row in hist_tp_qs
-        }
+        # O consolidado institucional não possui dimensão por equipe.
+        # A análise histórica por equipe/município/bairro ficará na aba
+        # territorial baseada em Horus DAILY / ERA_C.
+        hist_tp = {}
 
         return (
             agg,
             hist_ts,
             hist_tp,
         )
+
 
     def _get_operational_data(self):
         qs = InspectionStatistic.objects.all()

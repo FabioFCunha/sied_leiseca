@@ -174,7 +174,8 @@ class InspectionHistoricalWorkbookParser:
                 errors.extend(result["errors"])
                 ignored_rows += result["rows_ignored"]
                 rows_found += result["rows_found"]
-                eras_counter[HistoricalTaxonomyEra.ERA_A] += len(result["rows"])
+                for parsed_row in result["rows"]:
+                    eras_counter[parsed_row.taxonomy_era] += 1
                 sheets_report[sheet_name] = result["sheet_report"]
 
             mother_report = self._inspect_mother_sheet()
@@ -684,12 +685,16 @@ class InspectionHistoricalWorkbookParser:
         rows_ignored = 0
 
         #
-        # Período oficial desta fonte.
+        # Período oficial da série institucional consolidada.
         #
-        # A partir de 2023, a fonte oficial será o Horus.
+        # 2009–2022 -> LEGACY / ERA_A
+        # 2023–09/08/2026 -> ACCUMULATED / ERA_B
+        #
+        # O Horus DAILY / ERA_C continua preservado como fonte
+        # analítica detalhada e não substitui estes totais oficiais.
         #
         min_year = 2009
-        max_year = 2022
+        max_year = HISTORICAL_CUTOFF_DATE.year
 
         #
         # Índice dos anos na grade principal.
@@ -882,6 +887,47 @@ class InspectionHistoricalWorkbookParser:
                     )
                 )
 
+        #
+        # Na planilha institucional, 2026 não aparece na mesma grade anual
+        # de AÇÕES REALIZADAS. Os meses estão em uma grade lateral e o
+        # consolidado oficial aparece sob o rótulo "TOTAL 2026".
+        #
+        # Localizamos esse total explicitamente, sem somar meses nem
+        # inferir/distribuir valores.
+        #
+        if 2026 in expected_years and 2026 not in operations_by_year:
+            total_2026 = None
+
+            for row_index in range(
+                1,
+                min(worksheet.max_row, 40) + 1,
+            ):
+                for column in range(
+                    1,
+                    worksheet.max_column + 1,
+                ):
+                    label = _normalize_text(
+                        worksheet.cell(
+                            row=row_index,
+                            column=column,
+                        ).value
+                    ).upper()
+
+                    if label == "TOTAL 2026":
+                        total_2026 = _int_or_none(
+                            worksheet.cell(
+                                row=row_index + 1,
+                                column=column,
+                            ).value
+                        )
+                        break
+
+                if total_2026 is not None:
+                    break
+
+            if total_2026 is not None:
+                operations_by_year[2026] = total_2026
+
         missing_operation_years = sorted(
             expected_years
             - set(operations_by_year)
@@ -977,10 +1023,20 @@ class InspectionHistoricalWorkbookParser:
                 operations_by_year.get(year)
             )
 
+            is_era_b = year >= 2023
+
             rows.append(
                 ParsedHistoricalRow(
-                    source_type=HistoricalSourceType.LEGACY,
-                    taxonomy_era=HistoricalTaxonomyEra.ERA_A,
+                    source_type=(
+                        HistoricalSourceType.ACCUMULATED
+                        if is_era_b
+                        else HistoricalSourceType.LEGACY
+                    ),
+                    taxonomy_era=(
+                        HistoricalTaxonomyEra.ERA_B
+                        if is_era_b
+                        else HistoricalTaxonomyEra.ERA_A
+                    ),
                     source_sheet=sheet_name,
 
                     #
@@ -1000,46 +1056,10 @@ class InspectionHistoricalWorkbookParser:
                     # a Fiscalização e não possui equipe.
                     #
                     team="",
-                    source_team_label="Consolidado anual",
+                    source_team_label="Consolidado institucional anual",
 
                     source_workbook_label=self.workbook_label,
                     metrics=metrics,
-                )
-            )
-
-        #
-        # 2023 a 2026 existem na planilha, mas não serão
-        # utilizados: a fonte oficial desse período será
-        # o Horus.
-        #
-        ignored_future_years = []
-
-        for column in range(
-            1,
-            worksheet.max_column + 1,
-        ):
-            year = _int_or_none(
-                worksheet.cell(
-                    row=1,
-                    column=column,
-                ).value
-            )
-
-            if (
-                year is not None
-                and year > max_year
-            ):
-                ignored_future_years.append(year)
-
-        if ignored_future_years:
-            warnings.append(
-                "Anos ignorados por regra de fonte oficial "
-                "(Horus a partir de 2023): "
-                + ", ".join(
-                    str(year)
-                    for year in sorted(
-                        set(ignored_future_years)
-                    )
                 )
             )
 
@@ -1051,8 +1071,8 @@ class InspectionHistoricalWorkbookParser:
             "rows_found": len(rows),
             "sheet_report": {
                 "sheet": sheet_name,
-                "source_type": HistoricalSourceType.LEGACY,
-                "taxonomy_era": HistoricalTaxonomyEra.ERA_A,
+                "source_type": "OFFICIAL_CONSOLIDATED",
+                "taxonomy_era": "ERA_A+ERA_B",
                 "rows_found": len(rows),
                 "rows_valid": len(rows),
                 "rows_ignored": rows_ignored,
