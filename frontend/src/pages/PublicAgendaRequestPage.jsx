@@ -762,10 +762,12 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
 
           {form.requester_entity_kind !== STREET_ACTION_ID && (
             <div className="form-section">
-              <h3>Sobre a ação pretendida</h3>
-              <div className="notice-card compact-notice">
-                <strong>Período não superior a 4 (quatro) horas</strong>
-              </div>
+              <h3>{internalRequest ? "Sobre a ação pretendida" : "Palestra pretendida"}</h3>
+              {internalRequest && (
+                <div className="notice-card compact-notice">
+                  <strong>Período não superior a 4 (quatro) horas</strong>
+                </div>
+              )}
               <div className="field-card">
                 <strong>Faixa etária do público <b>*</b></strong>
                 <p>(em caso de mais de uma faixa etária, preencher outro formulário)</p>
