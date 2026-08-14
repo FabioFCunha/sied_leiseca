@@ -261,10 +261,20 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             setMessage("Informe um horário válido no formato HH:mm para a hora final.");
             return;
           }
-        } else {
+        } else if (internalRequest) {
            normalizedEndTime = addHoursToTime(normalizedStartTime, 1);
         }
       }
+    }
+
+    if (
+      !internalRequest &&
+      normalizedStartTime &&
+      normalizedEndTime &&
+      normalizedEndTime <= normalizedStartTime
+    ) {
+      setMessage("O horário de fim deve ser posterior ao horário de início.");
+      return;
     }
 
     if (editMode) {
@@ -573,7 +583,6 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                     { id: "Instituição de Ensino", label: "Instituição de Ensino" },
                     { id: "Empresa/Órgão", label: "Empresa/Órgão" },
                     { id: "Organização de evento", label: "Organização de evento" },
-                    { id: STREET_ACTION_ID, label: "A\u00e7\u00e3o de Rua" },
                   ]).map((option) => (
                     <label className="radio-option compact-radio option-tile" key={option.id}>
                       <input
@@ -673,7 +682,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
           </div>
 
           <div className="form-section">
-            <h3>Dados da ação</h3>
+            <h3>{internalRequest ? "Dados da ação" : "Dados da palestra"}</h3>
             {!isStreetRequesterType(form.requester_entity_kind) ? (
               <div className="field-card selection-card">
                 <strong>MODALIDADE PRETENDIDA <b>*</b></strong>
@@ -722,6 +731,17 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                 <input type="time" value={form.start_time} onChange={(event) => update("start_time", event.target.value)} max={internalRequest ? undefined : "18:00"} required />
               </label>
             </div>
+            {!internalRequest && !isStreetRequesterType(form.requester_entity_kind) && (
+              <label className="field-label" style={{ marginTop: "16px", maxWidth: "320px" }}>
+                <span>HORÁRIO PRETENDIDO DE FIM <b>*</b></span>
+                <input
+                  type="time"
+                  value={form.end_time}
+                  onChange={(event) => update("end_time", event.target.value)}
+                  required
+                />
+              </label>
+            )}
             {isStreetRequesterType(form.requester_entity_kind) && (
               <>
                 <div className="notice-card compact-notice">
@@ -990,3 +1010,4 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
     </main>
   );
 }
+
