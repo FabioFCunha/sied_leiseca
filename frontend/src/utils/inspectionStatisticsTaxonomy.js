@@ -162,38 +162,36 @@ export function buildInspectionStatisticsTaxonomy(
       items: [
         {
           key: "four_ml",
-          label: "De 0,00 a 0,04",
+          label: "Resultado negativo",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            alcohol.four_ml
+            horusCards.four_ml?.value
           ),
-          field: "alcohol_results.four_ml",
+          field: "0,00 a 0,04 mg/L",
           note:
-            "Indicador consolidado entre histórico e produção operacional.",
+            "Registros disponíveis no Horus desde 03/10/2022.",
         },
         {
           key: "thirtythree_ml",
-          label: "De 0,05 a 0,33",
+          label: "Infração administrativa",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            alcohol.thirtythree_ml
+            horusCards.thirtythree_ml?.value
           ),
-          field:
-            "alcohol_results.thirtythree_ml",
+          field: "0,05 a 0,33 mg/L",
           note:
-            "Indicador consolidado entre histórico e produção operacional.",
+            "Registros disponíveis no Horus desde 04/10/2022.",
         },
         {
           key: "thirtyfour_ml",
-          label: "Mais de 0,33",
+          label: "Faixa criminal — etilômetro",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            alcohol.thirtyfour_ml
+            horusCards.thirtyfour_ml?.value
           ),
-          field:
-            "alcohol_results.thirtyfour_ml",
+          field: "0,34 mg/L ou mais",
           note:
-            "Indicador consolidado entre histórico e produção operacional.",
+            "Registros disponíveis no Horus desde 04/10/2022.",
         },
         {
           key: "arrests_means_evidence",
