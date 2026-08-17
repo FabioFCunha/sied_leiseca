@@ -260,6 +260,22 @@ export function buildInspectionStatisticsTaxonomy(
           note: "Indicador histórico consolidado.",
         },
         {
+          key: "stolen_vehicles",
+          label: "Ve?culos furtados",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(publicSecurity.stolen_vehicles),
+          field: "public_security.stolen_vehicles",
+          note: "Indicador do Horus e produ??o operacional homologada.",
+        },
+        {
+          key: "robbed_vehicles",
+          label: "Ve?culos roubados",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(publicSecurity.robbed_vehicles),
+          field: "public_security.robbed_vehicles",
+          note: "Indicador do Horus e produ??o operacional homologada.",
+        },
+        {
           key: "narcotics",
           label: "Entorpecentes",
           status: TAXONOMY_STATUS.MAPPED,
