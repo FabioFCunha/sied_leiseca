@@ -2,6 +2,7 @@ import {
   AlertCircle,
   CarFront,
   ClipboardCheck,
+  CloudRain,
   Filter,
   Gauge,
   HelpCircle,
@@ -424,14 +425,24 @@ export default function InspectionStatisticsPage() {
               gap: "8px",
             }}
           >
-            <strong
+            <div
               style={{
-                fontSize: "24px",
-                lineHeight: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
               }}
             >
-              {integer(rainTotal)}
-            </strong>
+              <CloudRain size={22} strokeWidth={2.2} />
+
+              <strong
+                style={{
+                  fontSize: "24px",
+                  lineHeight: 1,
+                }}
+              >
+                {integer(rainTotal)}
+              </strong>
+            </div>
 
             <span
               style={{
