@@ -240,11 +240,13 @@ function ApproachedLineLabel({
   const boxWidth = Math.max(48, String(label).length * 7 + 12);
   const boxHeight = 20;
 
+  const labelY = Math.max(4, y - 30);
+
   return (
     <g>
       <rect
         x={x - boxWidth / 2}
-        y={y - 30}
+        y={labelY}
         width={boxWidth}
         height={boxHeight}
         rx={4}
@@ -253,7 +255,7 @@ function ApproachedLineLabel({
 
       <text
         x={x}
-        y={y - 20}
+        y={labelY + boxHeight / 2}
         fill="#ffffff"
         textAnchor="middle"
         dominantBaseline="central"
@@ -554,7 +556,15 @@ export default function InspectionStatisticsPage() {
                 style={{ height: "420px" }}
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={historicalYearlyTable.rows}>
+                  <BarChart
+                    data={historicalYearlyTable.rows}
+                    margin={{
+                      top: 34,
+                      right: 8,
+                      left: 8,
+                      bottom: 0,
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
 
                     <XAxis dataKey="year" />
