@@ -227,6 +227,45 @@ function displayHistoricalValue(value, percentage = false) {
   return integer(value);
 }
 
+function ApproachedLineLabel({
+  x,
+  y,
+  value,
+}) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const label = integer(value);
+  const boxWidth = Math.max(48, String(label).length * 7 + 12);
+  const boxHeight = 20;
+
+  return (
+    <g>
+      <rect
+        x={x - boxWidth / 2}
+        y={y - 30}
+        width={boxWidth}
+        height={boxHeight}
+        rx={4}
+        fill="#1d4ed8"
+      />
+
+      <text
+        x={x}
+        y={y - 20}
+        fill="#ffffff"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={11}
+        fontWeight={700}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
 function AlcoholBarLabel({
   x,
   y,
@@ -579,8 +618,7 @@ export default function InspectionStatisticsPage() {
                     >
                       <LabelList
                         dataKey="approached"
-                        position="top"
-                        formatter={(value) => integer(value)}
+                        content={<ApproachedLineLabel />}
                       />
                     </Line>
                   </BarChart>
