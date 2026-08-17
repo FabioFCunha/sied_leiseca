@@ -377,10 +377,10 @@ export default function InspectionStatisticsPage() {
             ...card,
             secondary:
               operations > 0
-                ? `${(approached / operations).toLocaleString("pt-BR", {
+                ? `M?dia de ${(approached / operations).toLocaleString("pt-BR", {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 1,
-                  })} por fiscaliza??o`
+                  })} abordados por fiscaliza??o em m?dia`
                 : null,
           };
         }
@@ -392,7 +392,7 @@ export default function InspectionStatisticsPage() {
               `${percentage(refusal, approached).toLocaleString("pt-BR", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
-              })}% dos abordados`,
+              })}% dos abordados recusaram o teste do etil?metro`,
           };
         }
 
@@ -400,10 +400,10 @@ export default function InspectionStatisticsPage() {
           return {
             ...card,
             secondary:
-              `${(fined / Math.max(operations, 1)).toLocaleString("pt-BR", {
+              `M?dia de ${(fined / Math.max(operations, 1)).toLocaleString("pt-BR", {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1,
-              })} multas por fiscaliza??o`,
+              })} multas aplicadas por fiscaliza??o em m?dia`,
           };
         }
 
@@ -417,7 +417,7 @@ export default function InspectionStatisticsPage() {
               ).toLocaleString("pt-BR", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
-              })}% dos abordados`,
+              })}% dos abordados tiveram a CNH recolhida`,
           };
         }
 
@@ -435,7 +435,7 @@ export default function InspectionStatisticsPage() {
           ).toLocaleString("pt-BR", {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
-          })}% dos abordados`,
+          })}% dos abordados foram classificados como casos de alcoolemia`,
       },
     ];
   }, [dashboard]);
@@ -663,7 +663,7 @@ export default function InspectionStatisticsPage() {
         </div>
       ) : (
         <>
-          <div className="stats-kpi-grid">
+          <div className="stats-kpi-grid inspection-kpi-grid">
             {cards.map((card) => {
               const meta =
                 executiveCardMeta[card.key] ||
@@ -695,7 +695,8 @@ export default function InspectionStatisticsPage() {
                     <div
                       style={{
                         marginTop: "6px",
-                        fontSize: "12px",
+                        fontSize: "10.5px",
+                        lineHeight: 1.25,
                         fontWeight: 600,
                         color: "var(--muted)",
                       }}
