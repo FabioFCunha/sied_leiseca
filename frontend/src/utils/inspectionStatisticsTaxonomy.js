@@ -89,6 +89,16 @@ export function buildInspectionStatisticsTaxonomy(
           note:
             "Indicador consolidado entre histórico e produção operacional quando disponível.",
         },
+        {
+          key: "deliberations",
+          label: "Deliberações de remoção",
+          status: TAXONOMY_STATUS.MAPPED,
+          value: formatMetricValue(
+            horusCards.removal_resolutions?.value
+          ),
+          note:
+            "Registros disponíveis no Horus desde 03/10/2022.",
+        },
       ],
     },
 
@@ -312,97 +322,5 @@ export function buildInspectionStatisticsTaxonomy(
       ],
     },
 
-    {
-      key: "events",
-      title: "ACONTECIMENTOS",
-      subtitle:
-        "Ocorrências e acontecimentos consolidados conforme a cobertura disponível em cada período.",
-      items: [
-        {
-          key: "planned_actions",
-          label: "Ações planejadas",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            occurrences.planned_actions
-          ),
-          field:
-            "occurrences.planned_actions",
-          note:
-            "Indicador existente na base histórica consolidada.",
-        },
-        {
-          key: "deliberations",
-          label: "Deliberações de remoção",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            horusCards.removal_resolutions?.value
-          ),
-          note:
-            "Registros disponíveis no Horus desde 03/10/2022.",
-        },
-        {
-          key: "towings",
-          label: "Reboques",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(summary.towed),
-          field: "summary.towed",
-          note:
-            "Indicador consolidado de veículos rebocados.",
-        },
-        {
-          key: "rain",
-          label: "Chuva",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            horusCards.rain?.value
-          ),
-          note:
-            "Operações com registro explícito de chuva nas observações do Horus desde 03/10/2022.",
-        },
-        {
-          key: "external_occurrence",
-          label: "Ocorrência externa",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            occurrences.external_occurrence
-          ),
-          field:
-            "occurrences.external_occurrence",
-          note:
-            "Indicador disponível na base histórica consolidada.",
-        },
-        {
-          key: "criminal_occurrences",
-          label: "Ocorrências criminais",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            horusCards.criminal_occurrences?.value
-          ),
-          note:
-            "Registros disponíveis no Horus desde 03/10/2022.",
-        },
-        {
-          key: "art307",
-          label: "Art. 307",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            horusCards.art307?.value
-          ),
-          note:
-            "Registros disponíveis no Horus desde 03/10/2022.",
-        },
-        {
-          key: "operations",
-          label: "Operações",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            occurrences.operations
-          ),
-          field: "occurrences.operations",
-          note:
-            "Quantidade de operações disponível no serviço estatístico unificado.",
-        },
-      ],
-    },
   ];
 }

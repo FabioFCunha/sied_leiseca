@@ -11,6 +11,16 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js";
 import {
   TAXONOMY_STATUS,
@@ -448,6 +458,64 @@ export default function InspectionStatisticsPage() {
               />
             ))}
           </div>
+
+          {historicalYearlyTable?.rows?.length ? (
+            <Section
+              title="Evolu??o da Fiscaliza??o"
+              subtitle="Comparativo anual entre fiscaliza??es, abordados e casos de alcoolemia."
+            >
+              <div
+                className="stats-chart"
+                style={{ height: "420px" }}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={historicalYearlyTable.rows}>
+                    <CartesianGrid strokeDasharray="3 3" />
+
+                    <XAxis dataKey="year" />
+
+                    <YAxis
+                      yAxisId="approached"
+                      tickFormatter={(value) => integer(value)}
+                    />
+
+                    <YAxis
+                      yAxisId="other"
+                      orientation="right"
+                      tickFormatter={(value) => integer(value)}
+                    />
+
+                    <Tooltip
+                      formatter={(value, name) => [
+                        integer(value),
+                        name,
+                      ]}
+                    />
+
+                    <Legend />
+
+                    <Bar
+                      yAxisId="other"
+                      dataKey="operations"
+                      name="Fiscaliza??es"
+                    />
+
+                    <Bar
+                      yAxisId="approached"
+                      dataKey="approached"
+                      name="Abordados"
+                    />
+
+                    <Bar
+                      yAxisId="other"
+                      dataKey="alcohol_cases"
+                      name="Casos de alcoolemia"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Section>
+          ) : null}
 
           {historicalYearlyTable?.rows?.length ? (
             <Section

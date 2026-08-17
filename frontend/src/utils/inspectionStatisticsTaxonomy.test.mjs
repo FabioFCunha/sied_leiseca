@@ -163,9 +163,8 @@ assert.deepEqual(
     "MOTORISTA",
     "RESULTADO ETILÔMETRO",
     "SEGURANÇA PÚBLICA / CRIMINAL",
-    "ACONTECIMENTOS",
   ],
-  "a taxonomia oficial deve manter as cinco categorias esperadas"
+  "a taxonomia oficial deve manter as quatro categorias esperadas"
 );
 
 const driverCategory = categories.find(

@@ -1499,6 +1499,7 @@ class InspectionStatisticsUnifiedService:
             official_qs
             .values("reference_year")
             .annotate(
+                operations=Sum("historical_operations"),
                 approached=Sum("historical_approached"),
                 fined=Sum("fined"),
                 towed=Sum("towed"),
@@ -1544,6 +1545,7 @@ class InspectionStatisticsUnifiedService:
                 operation_date__year=HISTORICAL_CUTOFF_DATE.year,
             )
             .aggregate(
+                operations=Sum("operations_count"),
                 approached=Sum("approach"),
                 fined=Sum("fined"),
                 towed=Sum("towed"),
@@ -1574,6 +1576,7 @@ class InspectionStatisticsUnifiedService:
             year_2026,
             {
                 "year": year_2026,
+                "operations": None,
                 "approached": None,
                 "fined": None,
                 "towed": None,
@@ -1589,6 +1592,7 @@ class InspectionStatisticsUnifiedService:
         )
 
         additive_fields = (
+            "operations",
             "approached",
             "fined",
             "towed",
@@ -1644,6 +1648,7 @@ class InspectionStatisticsUnifiedService:
         ]
 
         total = {
+            "operations": 0,
             "approached": 0,
             "fined": 0,
             "towed": 0,
