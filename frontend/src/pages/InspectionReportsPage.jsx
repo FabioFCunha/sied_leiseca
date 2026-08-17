@@ -31,9 +31,9 @@ const statisticsClassificationLabels = {
   flagrante: "Flagrante",
   simulacrum: "Simulacro",
   weapons: "Arma",
-  recovered_vehicles: "Ve?culo recuperado",
-  stolen_vehicles: "Ve?culo furtado",
-  robbed_vehicles: "Ve?culo roubado",
+  recovered_vehicles: "Veículo recuperado",
+  stolen_vehicles: "Veículo furtado",
+  robbed_vehicles: "Veículo roubado",
   narcotics: "Entorpecentes",
   bribery: "Suborno",
   art311: "Art. 311 CP",
@@ -522,10 +522,10 @@ export default function InspectionReportsPage() {
                     </div>
                   </DetailSection>
 
-                  <DetailSection title="Classifica??o para Estat?stica">
+                  <DetailSection title="Classificação para Estatística">
                     <div style={{ display: "grid", gap: "12px" }}>
                       <p style={{ margin: 0, color: "var(--pico-muted-color)" }}>
-                        Confira as Observa??es gerais do relat?rio e marque manualmente os itens identificados.
+                        Confira as Observações gerais do relatório e marque manualmente os itens identificados.
                       </p>
 
                       <div
@@ -563,7 +563,7 @@ export default function InspectionReportsPage() {
 
                       {!showReviewActions && selectedReport.statistics_status !== "PENDING" ? (
                         <small style={{ color: "var(--pico-muted-color)" }}>
-                          Classifica??o registrada na homologa??o estat?stica.
+                          Classificação registrada na homologação estatística.
                         </small>
                       ) : null}
                     </div>
