@@ -164,6 +164,69 @@ function TaxonomyGrid({ category }) {
   );
 }
 
+const historicalTableIndicators = [
+  {
+    key: "approached",
+    label: "Abordados",
+  },
+  {
+    key: "fined",
+    label: "Multados",
+  },
+  {
+    key: "towed",
+    label: "Rebocados",
+  },
+  {
+    key: "cnh_collected",
+    label: "CNH Recolhidas",
+  },
+  {
+    key: "refusal",
+    label: "Recusas",
+  },
+  {
+    key: "administrative_art_165",
+    label: "Administrativo Art. 165 CTB",
+  },
+  {
+    key: "criminal_art_306",
+    label: "Criminal Art. 306 CTB",
+  },
+  {
+    key: "criminal_art_306_other_evidence",
+    label: "Por outros meios Art. 306 CTB",
+  },
+  {
+    key: "alcohol_cases",
+    label: "Casos de Alcoolemia",
+  },
+  {
+    key: "alcohol_percentage",
+    label: "Percentual de Alcoolemia",
+    percentage: true,
+  },
+  {
+    key: "art307",
+    label: "Art. 307",
+  },
+];
+
+function displayHistoricalValue(value, percentage = false) {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  if (percentage) {
+    return `${Number(value).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}%`;
+  }
+
+  return integer(value);
+}
+
 export default function InspectionStatisticsPage() {
   const [filters, setFilters] = useState(buildDefaultFilters);
   const [draftFilters, setDraftFilters] =
@@ -209,6 +272,8 @@ export default function InspectionStatisticsPage() {
 
   const timeSeries = dashboard?.time_series || [];
   const teamProduction = dashboard?.team_production || [];
+  const historicalYearlyTable =
+    dashboard?.historical_yearly_table || null;
   const hasData = Boolean(dashboard?.meta?.has_data);
 
   const handleApplyFilters = () => {
@@ -528,6 +593,96 @@ export default function InspectionStatisticsPage() {
               </div>
             </Section>
           </div>
+
+          {historicalYearlyTable?.rows?.length ? (
+            <Section
+              title="Série Histórica da Fiscalização"
+              subtitle="Consolidado institucional anual. Em 2026, o histórico até 09/08 é continuado pela produção homologada a partir de 10/08."
+            >
+              <div
+                className="stats-table-wrap"
+                style={{ overflowX: "auto" }}
+              >
+                <table
+                  className="stats-table"
+                  style={{
+                    minWidth: "2100px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <thead>
+                    <tr>
+                      <th
+                        style={{
+                          position: "sticky",
+                          left: 0,
+                          zIndex: 2,
+                          background: "var(--surface, #fff)",
+                          minWidth: "245px",
+                        }}
+                      >
+                        Indicador
+                      </th>
+
+                      {historicalYearlyTable.years.map((year) => (
+                        <th key={year}>{year}</th>
+                      ))}
+
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {historicalTableIndicators.map((indicator) => (
+                      <tr key={indicator.key}>
+                        <td
+                          style={{
+                            position: "sticky",
+                            left: 0,
+                            zIndex: 1,
+                            background: "var(--surface, #fff)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {indicator.label}
+                        </td>
+
+                        {historicalYearlyTable.rows.map((row) => (
+                          <td key={`${indicator.key}-${row.year}`}>
+                            {displayHistoricalValue(
+                              row[indicator.key],
+                              indicator.percentage
+                            )}
+                          </td>
+                        ))}
+
+                        <td style={{ fontWeight: 700 }}>
+                          {displayHistoricalValue(
+                            historicalYearlyTable.total?.[
+                              indicator.key
+                            ],
+                            indicator.percentage
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div
+                style={{
+                  marginTop: "12px",
+                  fontSize: "12px",
+                  color: "var(--muted)",
+                }}
+              >
+                Histórico consolidado até 09/08/2026. A coluna de 2026
+                continua sendo atualizada com a produção estatística
+                homologada a partir de 10/08/2026.
+              </div>
+            </Section>
+          ) : null}
         </>
       )}
     </section>

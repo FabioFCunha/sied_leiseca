@@ -1232,6 +1232,8 @@ class InspectionStatisticsUnifiedService:
 
             "public_security": public_security,
 
+            "historical_yearly_table": self._get_historical_yearly_table(),
+
             "team_production": team_production,
 
             "time_series": time_series,
@@ -1470,6 +1472,205 @@ class InspectionStatisticsUnifiedService:
         }
 
         return public_security, driver_extra
+
+
+    def _get_historical_yearly_table(self):
+        official_qs = (
+            InspectionHistoricalStatistic
+            .objects
+            .filter(
+                reference_date__isnull=True,
+                reference_month__isnull=True,
+                team="",
+            )
+            .filter(
+                Q(
+                    source_type=HistoricalSourceType.LEGACY,
+                    taxonomy_era=HistoricalTaxonomyEra.ERA_A,
+                )
+                | Q(
+                    source_type=HistoricalSourceType.ACCUMULATED,
+                    taxonomy_era=HistoricalTaxonomyEra.ERA_B,
+                )
+            )
+        )
+
+        historical_rows = list(
+            official_qs
+            .values("reference_year")
+            .annotate(
+                approached=Sum("historical_approached"),
+                fined=Sum("fined"),
+                towed=Sum("towed"),
+                cnh_collected=Sum("historical_cnh_retained"),
+                refusal=Sum("refusal"),
+                administrative_art_165=Sum("administrative_art_165"),
+                criminal_art_306=Sum("criminal_art_306"),
+                criminal_art_306_other_evidence=Sum(
+                    "criminal_art_306_other_evidence"
+                ),
+                alcohol_cases=Sum("historical_alcohol_cases"),
+                alcohol_percentage=Sum("historical_alcohol_percentage"),
+                art307=Sum("historical_art_307"),
+            )
+            .order_by("reference_year")
+        )
+
+        by_year = {}
+
+        for row in historical_rows:
+            year = row.pop("reference_year")
+
+            if year is None:
+                continue
+
+            row["year"] = year
+
+            if row.get("alcohol_percentage") is not None:
+                row["alcohol_percentage"] = float(
+                    row["alcohol_percentage"]
+                )
+
+            by_year[year] = row
+
+        operational = (
+            InspectionStatistic.objects
+            .filter(
+                operation_date__gte=INSPECTION_STATISTICS_CUTOFF_DATE,
+                operation_date__year=HISTORICAL_CUTOFF_DATE.year,
+            )
+            .aggregate(
+                approached=Sum("approach"),
+                fined=Sum("fined"),
+                towed=Sum("towed"),
+                cnh_collected=Sum("cnh_collected"),
+                refusal=Sum("refusal"),
+                administrative_art_165=Sum("thirtythree_ml"),
+                criminal_art_306=Sum("thirtyfour_ml"),
+                criminal_art_306_other_evidence=Sum(
+                    "arrests_means_evidence"
+                ),
+                art307=Sum("art307"),
+            )
+        )
+
+        operational_alcohol_cases = sum(
+            operational.get(field) or 0
+            for field in (
+                "refusal",
+                "administrative_art_165",
+                "criminal_art_306",
+                "criminal_art_306_other_evidence",
+            )
+        )
+
+        year_2026 = HISTORICAL_CUTOFF_DATE.year
+
+        base_2026 = by_year.get(
+            year_2026,
+            {
+                "year": year_2026,
+                "approached": None,
+                "fined": None,
+                "towed": None,
+                "cnh_collected": None,
+                "refusal": None,
+                "administrative_art_165": None,
+                "criminal_art_306": None,
+                "criminal_art_306_other_evidence": None,
+                "alcohol_cases": None,
+                "alcohol_percentage": None,
+                "art307": None,
+            },
+        )
+
+        additive_fields = (
+            "approached",
+            "fined",
+            "towed",
+            "cnh_collected",
+            "refusal",
+            "administrative_art_165",
+            "criminal_art_306",
+            "criminal_art_306_other_evidence",
+            "art307",
+        )
+
+        for field in additive_fields:
+            historical_value = base_2026.get(field)
+            operational_value = operational.get(field)
+
+            if historical_value is None and operational_value is None:
+                base_2026[field] = None
+            else:
+                base_2026[field] = (
+                    (historical_value or 0)
+                    + (operational_value or 0)
+                )
+
+        historical_alcohol_cases = base_2026.get("alcohol_cases")
+
+        if (
+            historical_alcohol_cases is None
+            and operational_alcohol_cases == 0
+        ):
+            base_2026["alcohol_cases"] = None
+        else:
+            base_2026["alcohol_cases"] = (
+                (historical_alcohol_cases or 0)
+                + operational_alcohol_cases
+            )
+
+        approached_2026 = base_2026.get("approached") or 0
+        alcohol_cases_2026 = base_2026.get("alcohol_cases") or 0
+
+        if approached_2026 > 0:
+            base_2026["alcohol_percentage"] = (
+                alcohol_cases_2026
+                / approached_2026
+                * 100
+            )
+
+        by_year[year_2026] = base_2026
+
+        rows = [
+            by_year[year]
+            for year in sorted(by_year)
+            if 2009 <= year <= year_2026
+        ]
+
+        total = {
+            "approached": 0,
+            "fined": 0,
+            "towed": 0,
+            "cnh_collected": 0,
+            "refusal": 0,
+            "administrative_art_165": 0,
+            "criminal_art_306": 0,
+            "criminal_art_306_other_evidence": 0,
+            "alcohol_cases": 0,
+            "art307": 0,
+        }
+
+        for row in rows:
+            for field in total:
+                total[field] += row.get(field) or 0
+
+        total["alcohol_percentage"] = (
+            total["alcohol_cases"] / total["approached"] * 100
+            if total["approached"] > 0
+            else None
+        )
+
+        return {
+            "years": [row["year"] for row in rows],
+            "rows": rows,
+            "total": total,
+            "historical_cutoff_date": HISTORICAL_CUTOFF_DATE.isoformat(),
+            "operational_start_date": (
+                INSPECTION_STATISTICS_CUTOFF_DATE.isoformat()
+            ),
+        }
 
 
     def _get_historical_data(self):
