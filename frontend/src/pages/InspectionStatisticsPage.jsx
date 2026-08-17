@@ -38,6 +38,7 @@ const executiveCardMeta = {
   refusal: { icon: TestTube2, color: "#b45309" },
   fined: { icon: CarFront, color: "#7c3aed" },
   cnh_collected: { icon: ClipboardCheck, color: "#0048d7" },
+  alcohol_cases: { icon: TestTube2, color: "#c2410c" },
 };
 
 const categoryIconMap = {
@@ -343,13 +344,101 @@ export default function InspectionStatisticsPage() {
     loadDashboard(filters);
   }, []);
 
-  const cards = useMemo(
-    () =>
-      buildInspectionExecutiveCards(
-        dashboard?.summary || {}
-      ),
-    [dashboard]
-  );
+  const cards = useMemo(() => {
+    const summary = dashboard?.summary || {};
+
+    const operations = Number(summary.operations || 0);
+
+    const approached = Number(
+      summary.approach_plus_reconductor ??
+      summary.approach ??
+      0
+    );
+
+    const refusal = Number(summary.refusal || 0);
+    const fined = Number(summary.fined || 0);
+    const cnhCollected = Number(summary.cnh_collected || 0);
+
+    const alcoholCases = Number(
+      dashboard?.historical_yearly_table?.total?.alcohol_cases ||
+      0
+    );
+
+    const percentage = (value, base) =>
+      base > 0 ? (value / base) * 100 : 0;
+
+    const baseCards =
+      buildInspectionExecutiveCards(summary);
+
+    return [
+      ...baseCards.map((card) => {
+        if (card.key === "approach") {
+          return {
+            ...card,
+            secondary:
+              operations > 0
+                ? `${(approached / operations).toLocaleString("pt-BR", {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })} por fiscaliza??o`
+                : null,
+          };
+        }
+
+        if (card.key === "refusal") {
+          return {
+            ...card,
+            secondary:
+              `${percentage(refusal, approached).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}% dos abordados`,
+          };
+        }
+
+        if (card.key === "fined") {
+          return {
+            ...card,
+            secondary:
+              `${(fined / Math.max(operations, 1)).toLocaleString("pt-BR", {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })} multas por fiscaliza??o`,
+          };
+        }
+
+        if (card.key === "cnh_collected") {
+          return {
+            ...card,
+            secondary:
+              `${percentage(
+                cnhCollected,
+                approached
+              ).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}% dos abordados`,
+          };
+        }
+
+        return card;
+      }),
+
+      {
+        key: "alcohol_cases",
+        label: "Casos de alcoolemia",
+        value: alcoholCases,
+        secondary:
+          `${percentage(
+            alcoholCases,
+            approached
+          ).toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}% dos abordados`,
+      },
+    ];
+  }, [dashboard]);
 
   const taxonomy = useMemo(
     () => buildInspectionStatisticsTaxonomy(dashboard || {}),
@@ -601,6 +690,19 @@ export default function InspectionStatisticsPage() {
                   <div className="stats-kpi-value">
                     {displayMetric(card.value)}
                   </div>
+
+                  {card.secondary ? (
+                    <div
+                      style={{
+                        marginTop: "6px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "var(--muted)",
+                      }}
+                    >
+                      {card.secondary}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
