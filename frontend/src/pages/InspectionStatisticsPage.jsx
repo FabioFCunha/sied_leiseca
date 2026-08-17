@@ -227,6 +227,50 @@ function displayHistoricalValue(value, percentage = false) {
   return integer(value);
 }
 
+function AlcoholBarLabel({
+  x,
+  y,
+  width,
+  height,
+  value,
+}) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const label = integer(value);
+  const boxWidth = Math.max(42, String(label).length * 7 + 12);
+  const boxHeight = 20;
+
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+
+  return (
+    <g>
+      <rect
+        x={centerX - boxWidth / 2}
+        y={centerY - boxHeight / 2}
+        width={boxWidth}
+        height={boxHeight}
+        rx={4}
+        fill="#b45309"
+      />
+
+      <text
+        x={centerX}
+        y={centerY}
+        fill="#ffffff"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={11}
+        fontWeight={700}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
 export default function InspectionStatisticsPage() {
   const [filters, setFilters] = useState(buildDefaultFilters);
   const [draftFilters, setDraftFilters] =
@@ -519,11 +563,7 @@ export default function InspectionStatisticsPage() {
                     >
                       <LabelList
                         dataKey="alcohol_cases"
-                        position="center"
-                        formatter={(value) => integer(value)}
-                        fill="#ffffff"
-                        fontSize={11}
-                        fontWeight={700}
+                        content={<AlcoholBarLabel />}
                       />
                     </Bar>
 
