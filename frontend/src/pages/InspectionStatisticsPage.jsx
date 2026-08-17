@@ -150,15 +150,13 @@ function TaxonomyGrid({ category }) {
                 : displayMetric(item.value)}
             </div>
 
-            <div className="inspection-taxonomy-meta">
-              {item.field ? (
+            {item.field && item.showField && (
+              <div className="inspection-taxonomy-meta">
                 <code>{item.field}</code>
-              ) : (
-                <span>Sem campo homologado</span>
-              )}
-            </div>
+              </div>
+            )}
 
-            <p>{item.note}</p>
+            {item.note && item.showNote && <p>{item.note}</p>}
           </article>
         ))}
       </div>
