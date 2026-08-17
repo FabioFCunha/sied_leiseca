@@ -109,16 +109,6 @@ export function buildInspectionStatisticsTaxonomy(
         "Indicadores relacionados ao condutor, habilitação, testes e medidas administrativas.",
       items: [
         {
-          key: "breathalyzer_test",
-          label: "Testes passivos",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            horusCards.passive_tests_performed?.value
-          ),
-          note:
-            "Registros disponíveis no Horus desde 03/10/2022.",
-        },
-        {
           key: "licensed_reconductors",
           label: "Recondutores",
           status: TAXONOMY_STATUS.MAPPED,
@@ -133,9 +123,6 @@ export function buildInspectionStatisticsTaxonomy(
           label: "Recusa ao teste",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(summary.refusal),
-          field: "summary.refusal",
-          note:
-            "Indicador consolidado de recusas ao teste.",
         },
         {
           key: "cnh_collected",
@@ -147,8 +134,6 @@ export function buildInspectionStatisticsTaxonomy(
               driver.historical_cnh_retained
             )
           ),
-          field:
-            "summary.cnh_collected / driver.historical_cnh_retained",
           note:
             "Utiliza o indicador consolidado atual e preserva o campo histórico específico quando necessário.",
         },
@@ -157,7 +142,6 @@ export function buildInspectionStatisticsTaxonomy(
           label: "CNH falsa",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(driver.fake_cnh),
-          field: "driver.fake_cnh",
           note: "Indicador histórico consolidado.",
         },
         {
@@ -165,7 +149,6 @@ export function buildInspectionStatisticsTaxonomy(
           label: "CNH suspensa",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(driver.suspended_cnh),
-          field: "driver.suspended_cnh",
           note: "Indicador histórico consolidado.",
         },
         {
@@ -173,7 +156,6 @@ export function buildInspectionStatisticsTaxonomy(
           label: "CNH cassada",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(driver.canceled_cnh),
-          field: "driver.canceled_cnh",
           note: "Indicador histórico consolidado.",
         },
       ],
