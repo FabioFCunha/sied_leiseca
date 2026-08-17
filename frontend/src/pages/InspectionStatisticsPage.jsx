@@ -414,7 +414,7 @@ export default function InspectionStatisticsPage() {
               marginBottom: "4px",
             }}
           >
-            Opera??es interrompidas por chuva
+            Operações interrompidas por chuva
           </div>
 
           <div
@@ -464,7 +464,7 @@ export default function InspectionStatisticsPage() {
               marginTop: "4px",
             }}
           >
-            do total de fiscaliza??es
+            do total de fiscalizações
           </div>
         </div>
       </div>
