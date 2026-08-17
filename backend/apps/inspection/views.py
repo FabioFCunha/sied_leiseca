@@ -12,6 +12,7 @@ from apps.inspection.permissions import (
 )
 from apps.inspection.serializers import (
     InspectionExcludeStatisticsSerializer,
+    InspectionIncludeStatisticsSerializer,
     InspectionHistoricalPushSerializer,
     InspectionStatisticsDashboardQuerySerializer,
     InspectionReportDetailSerializer,
@@ -173,8 +174,15 @@ class InspectionReportViewSet(viewsets.ReadOnlyModelViewSet):
 
     @decorators.action(detail=True, methods=["post"], url_path="include-in-statistics")
     def include_in_statistics(self, request, pk=None):
+        input_serializer = InspectionIncludeStatisticsSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+
         report = self.get_object()
-        result = InspectionStatisticsService().include_report(report.id, user=request.user)
+        result = InspectionStatisticsService().include_report(
+            report.id,
+            user=request.user,
+            classification=input_serializer.validated_data["classification"],
+        )
         serializer = InspectionReportDetailSerializer(result.report, context={"request": request})
         return Response(
             {

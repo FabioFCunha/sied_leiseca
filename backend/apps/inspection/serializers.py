@@ -87,6 +87,25 @@ class InspectionReportIngestionSerializer(serializers.Serializer):
         return attrs
 
 
+class InspectionStatisticsClassificationSerializer(serializers.Serializer):
+    fugitives = serializers.BooleanField(default=False)
+    flagrante = serializers.BooleanField(default=False)
+    simulacrum = serializers.BooleanField(default=False)
+    weapons = serializers.BooleanField(default=False)
+    recovered_vehicles = serializers.BooleanField(default=False)
+    stolen_vehicles = serializers.BooleanField(default=False)
+    robbed_vehicles = serializers.BooleanField(default=False)
+    narcotics = serializers.BooleanField(default=False)
+    bribery = serializers.BooleanField(default=False)
+    art311 = serializers.BooleanField(default=False)
+    art306 = serializers.BooleanField(default=False)
+    rain = serializers.BooleanField(default=False)
+
+
+class InspectionIncludeStatisticsSerializer(serializers.Serializer):
+    classification = InspectionStatisticsClassificationSerializer()
+
+
 class InspectionExcludeStatisticsSerializer(serializers.Serializer):
     reason = serializers.CharField(allow_blank=False, trim_whitespace=True)
 

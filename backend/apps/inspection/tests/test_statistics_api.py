@@ -115,7 +115,26 @@ class InspectionStatisticsApiTests(APITestCase):
     def test_visitor_ols_cooadm_can_include_report(self):
         self.client.force_authenticate(self.allowed_user)
 
-        response = self.client.post(reverse("inspection-reports-include-in-statistics", args=[self.report.id]), {}, format="json")
+        response = self.client.post(
+            reverse("inspection-reports-include-in-statistics", args=[self.report.id]),
+            {
+            "classification": {
+                "fugitives": False,
+                "flagrante": False,
+                "simulacrum": False,
+                "weapons": False,
+                "recovered_vehicles": False,
+                "stolen_vehicles": False,
+                "robbed_vehicles": False,
+                "narcotics": False,
+                "bribery": False,
+                "art311": False,
+                "art306": False,
+                "rain": False,
+            }
+        },
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
 
@@ -168,7 +187,26 @@ class InspectionStatisticsApiTests(APITestCase):
     def test_include_creates_snapshot_and_history(self):
         self.client.force_authenticate(self.allowed_user)
 
-        response = self.client.post(reverse("inspection-reports-include-in-statistics", args=[self.report.id]), {}, format="json")
+        response = self.client.post(
+            reverse("inspection-reports-include-in-statistics", args=[self.report.id]),
+            {
+            "classification": {
+                "fugitives": False,
+                "flagrante": False,
+                "simulacrum": False,
+                "weapons": False,
+                "recovered_vehicles": False,
+                "stolen_vehicles": False,
+                "robbed_vehicles": False,
+                "narcotics": False,
+                "bribery": False,
+                "art311": False,
+                "art306": False,
+                "rain": False,
+            }
+        },
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         self.assertEqual(response.data["result"], "included")
@@ -187,6 +225,72 @@ class InspectionStatisticsApiTests(APITestCase):
             ).exists()
         )
         self.assertTrue(InspectionStatistic.objects.filter(report=self.report).exists())
+
+    def test_include_stores_manual_classification_in_report_and_snapshot(self):
+        self.client.force_authenticate(self.allowed_user)
+
+        classification = {
+            "fugitives": True,
+            "flagrante": False,
+            "simulacrum": True,
+            "weapons": True,
+            "recovered_vehicles": True,
+            "stolen_vehicles": False,
+            "robbed_vehicles": True,
+            "narcotics": False,
+            "bribery": False,
+            "art311": True,
+            "art306": False,
+            "rain": True,
+        }
+
+        response = self.client.post(
+            reverse(
+                "inspection-reports-include-in-statistics",
+                args=[self.report.id],
+            ),
+            {"classification": classification},
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+            response.data,
+        )
+
+        self.report.refresh_from_db()
+
+        self.assertEqual(
+            self.report.statistics_classification,
+            classification,
+        )
+
+        self.assertEqual(
+            self.report.statistics_snapshot[
+                "statistics_classification"
+            ],
+            classification,
+        )
+
+        self.assertTrue(
+            self.report.statistics_snapshot[
+                "statistics_classification"
+            ]["weapons"]
+        )
+
+        self.assertFalse(
+            self.report.statistics_snapshot[
+                "statistics_classification"
+            ]["flagrante"]
+        )
+
+        self.assertTrue(
+            self.report.statistics_snapshot[
+                "statistics_classification"
+            ]["rain"]
+        )
+
 
     def test_exclude_requires_reason(self):
         self.client.force_authenticate(self.allowed_user)
@@ -222,10 +326,48 @@ class InspectionStatisticsApiTests(APITestCase):
 
     def test_included_report_cannot_be_included_again(self):
         self.client.force_authenticate(self.allowed_user)
-        first = self.client.post(reverse("inspection-reports-include-in-statistics", args=[self.report.id]), {}, format="json")
+        first = self.client.post(
+            reverse("inspection-reports-include-in-statistics", args=[self.report.id]),
+            {
+            "classification": {
+                "fugitives": False,
+                "flagrante": False,
+                "simulacrum": False,
+                "weapons": False,
+                "recovered_vehicles": False,
+                "stolen_vehicles": False,
+                "robbed_vehicles": False,
+                "narcotics": False,
+                "bribery": False,
+                "art311": False,
+                "art306": False,
+                "rain": False,
+            }
+        },
+            format="json",
+        )
         self.assertEqual(first.status_code, status.HTTP_200_OK, first.data)
 
-        response = self.client.post(reverse("inspection-reports-include-in-statistics", args=[self.report.id]), {}, format="json")
+        response = self.client.post(
+            reverse("inspection-reports-include-in-statistics", args=[self.report.id]),
+            {
+            "classification": {
+                "fugitives": False,
+                "flagrante": False,
+                "simulacrum": False,
+                "weapons": False,
+                "recovered_vehicles": False,
+                "stolen_vehicles": False,
+                "robbed_vehicles": False,
+                "narcotics": False,
+                "bribery": False,
+                "art311": False,
+                "art306": False,
+                "rain": False,
+            }
+        },
+            format="json",
+        )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(InspectionStatistic.objects.filter(report=self.report).count(), 1)

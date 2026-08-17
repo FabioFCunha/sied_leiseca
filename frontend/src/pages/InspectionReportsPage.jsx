@@ -11,6 +11,36 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR } from "../utils/date.js";
 import { canReviewInspectionStatistics as canReviewInspectionStatisticsUser } from "../utils/permissions.js";
 
+const emptyStatisticsClassification = {
+  fugitives: false,
+  flagrante: false,
+  simulacrum: false,
+  weapons: false,
+  recovered_vehicles: false,
+  stolen_vehicles: false,
+  robbed_vehicles: false,
+  narcotics: false,
+  bribery: false,
+  art311: false,
+  art306: false,
+  rain: false,
+};
+
+const statisticsClassificationLabels = {
+  fugitives: "Foragido",
+  flagrante: "Flagrante",
+  simulacrum: "Simulacro",
+  weapons: "Arma",
+  recovered_vehicles: "Ve?culo recuperado",
+  stolen_vehicles: "Ve?culo furtado",
+  robbed_vehicles: "Ve?culo roubado",
+  narcotics: "Entorpecentes",
+  bribery: "Suborno",
+  art311: "Art. 311 CP",
+  art306: "Art. 306 CTB",
+  rain: "Chuva",
+};
+
 const emptyFilters = {
   date_from: "",
   date_to: "",
@@ -140,6 +170,9 @@ export default function InspectionReportsPage() {
   const [showIncludeModal, setShowIncludeModal] = useState(false);
   const [showExcludeModal, setShowExcludeModal] = useState(false);
   const [excludeReason, setExcludeReason] = useState("");
+  const [statisticsClassification, setStatisticsClassification] = useState({
+    ...emptyStatisticsClassification,
+  });
 
   const canReviewStatistics = canReviewInspectionStatisticsUser(user);
 
@@ -168,6 +201,10 @@ export default function InspectionReportsPage() {
   const refreshSelectedReport = async (reportId) => {
     const data = await getInspectionReport(reportId);
     setSelectedReport(data);
+    setStatisticsClassification({
+      ...emptyStatisticsClassification,
+      ...(data.statistics_classification || {}),
+    });
     setExpandedOperations(
       Object.fromEntries((data.operations || []).map((operation, index) => [operation.source_id || `${index}`, true]))
     );
@@ -211,10 +248,20 @@ export default function InspectionReportsPage() {
     setShowIncludeModal(false);
     setShowExcludeModal(false);
     setExcludeReason("");
+    setStatisticsClassification({ ...emptyStatisticsClassification });
   };
 
   const toggleOperation = (key) => {
     setExpandedOperations((current) => ({ ...current, [key]: !current[key] }));
+  };
+
+  const toggleStatisticsClassification = (key) => {
+    if (!showReviewActions || actionLoading) return;
+
+    setStatisticsClassification((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
   };
 
   const handleInclude = async () => {
@@ -222,7 +269,10 @@ export default function InspectionReportsPage() {
     setActionLoading(true);
     setDecisionError("");
     try {
-      const response = await includeInspectionReportInStatistics(selectedReport.id);
+      const response = await includeInspectionReportInStatistics(
+        selectedReport.id,
+        statisticsClassification
+      );
       setSelectedReport(response.report);
       setShowIncludeModal(false);
       await loadReports(filters);
@@ -469,6 +519,53 @@ export default function InspectionReportsPage() {
                       <DetailField label="Alterações OLS" value={selectedReport.change_ols} />
                       <DetailField label="Alterações de apoio" value={selectedReport.change_support} />
                       <DetailField label="Observações gerais" value={selectedReport.changes_general} />
+                    </div>
+                  </DetailSection>
+
+                  <DetailSection title="Classifica??o para Estat?stica">
+                    <div style={{ display: "grid", gap: "12px" }}>
+                      <p style={{ margin: 0, color: "var(--pico-muted-color)" }}>
+                        Confira as Observa??es gerais do relat?rio e marque manualmente os itens identificados.
+                      </p>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                          gap: "10px 16px",
+                        }}
+                      >
+                        {Object.entries(statisticsClassificationLabels).map(([key, label]) => (
+                          <label
+                            key={key}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "9px",
+                              padding: "10px 12px",
+                              border: "1px solid var(--line)",
+                              borderRadius: "10px",
+                              cursor: showReviewActions ? "pointer" : "default",
+                              margin: 0,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(statisticsClassification[key])}
+                              disabled={!showReviewActions || actionLoading}
+                              onChange={() => toggleStatisticsClassification(key)}
+                              style={{ margin: 0 }}
+                            />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {!showReviewActions && selectedReport.statistics_status !== "PENDING" ? (
+                        <small style={{ color: "var(--pico-muted-color)" }}>
+                          Classifica??o registrada na homologa??o estat?stica.
+                        </small>
+                      ) : null}
                     </div>
                   </DetailSection>
 

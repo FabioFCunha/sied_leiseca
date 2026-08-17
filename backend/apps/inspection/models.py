@@ -56,6 +56,7 @@ class InspectionReport(models.Model):
     statistics_reviewed_at = models.DateTimeField(null=True, blank=True)
     statistics_exclusion_reason = models.TextField(blank=True)
     statistics_snapshot = models.JSONField(null=True, blank=True)
+    statistics_classification = models.JSONField(default=dict, blank=True)
     has_source_update_after_statistics_review = models.BooleanField(default=False)
     source_update_after_statistics_review_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

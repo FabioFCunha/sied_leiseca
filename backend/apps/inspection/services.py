@@ -138,6 +138,9 @@ def build_statistics_snapshot(report, *, reviewed_at, reviewed_by):
             "cars": report.cars,
             "changes_general": report.changes_general,
         },
+        "statistics_classification": dict(
+            report.statistics_classification or {}
+        ),
         "operations": [
             {
                 "source_id": str(operation.source_id),
@@ -481,7 +484,7 @@ class InspectionOfficialStatisticService:
 
 class InspectionStatisticsService:
     @transaction.atomic
-    def include_report(self, report_id, *, user):
+    def include_report(self, report_id, *, user, classification):
         report = (
             InspectionReport.objects.select_for_update()
             .prefetch_related("operations__fines")
@@ -491,7 +494,20 @@ class InspectionStatisticsService:
             raise ValidationError({"detail": "Somente relatorios aguardando analise podem ser incluidos na estatistica."})
 
         reviewed_at = timezone.now()
-        snapshot = build_statistics_snapshot(report, reviewed_at=reviewed_at, reviewed_by=user)
+
+        report.statistics_classification = dict(classification)
+        report.save(
+            update_fields=[
+                "statistics_classification",
+                "updated_at",
+            ]
+        )
+
+        snapshot = build_statistics_snapshot(
+            report,
+            reviewed_at=reviewed_at,
+            reviewed_by=user,
+        )
         old_status = report.statistics_status
 
         report.statistics_status = InspectionReport.StatisticsStatus.INCLUDED
@@ -1255,19 +1271,6 @@ class InspectionStatisticsUnifiedService:
             driving_canceled_license=Sum("driving_canceled_license"),
         )
 
-        operational_rain = (
-            InspectionReport.objects
-            .filter(
-                operation_date__gte=HORUS_OPERATIONAL_CUTOFF_DATE
-            )
-            .filter(
-                Q(changes_general__icontains="chuv")
-                | Q(changes_general__icontains="chove")
-            )
-            .distinct()
-            .count()
-        )
-
         result = {}
 
         for field_name in (
@@ -1305,10 +1308,7 @@ class InspectionStatisticsUnifiedService:
         rain_baseline = HORUS_CARD_BASELINES["rain"]
 
         result["rain"] = {
-            "value": (
-                rain_baseline["value"]
-                + operational_rain
-            ),
+            "value": rain_baseline["value"],
             "available_from": rain_baseline["available_from"],
             "source": "HORUS",
         }

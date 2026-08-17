@@ -20,10 +20,12 @@ export function getInspectionReport(id) {
   return api(`/inspection/reports/${id}/`);
 }
 
-export function includeInspectionReportInStatistics(id) {
+export function includeInspectionReportInStatistics(id, classification) {
   return api(`/inspection/reports/${id}/include-in-statistics/`, {
     method: "POST",
-    body: JSON.stringify({}),
+    body: JSON.stringify({
+      classification,
+    }),
   });
 }
 
