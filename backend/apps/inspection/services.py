@@ -1438,8 +1438,18 @@ class InspectionStatisticsUnifiedService:
             "simulacrum": combined("simulacrum"),
             "weapons": combined("weapons"),
             "recovered_vehicles": combined("recovered_vehicles"),
-            "stolen_vehicles": operational["stolen_vehicles"],
-            "robbed_vehicles": operational["robbed_vehicles"],
+            "stolen_vehicles": (
+                HORUS_CARD_BASELINES[
+                    "stolen_recovered_vehicles"
+                ]["breakdown"]["theft"]
+                + operational["stolen_vehicles"]
+            ),
+            "robbed_vehicles": (
+                HORUS_CARD_BASELINES[
+                    "stolen_recovered_vehicles"
+                ]["breakdown"]["stolen"]
+                + operational["robbed_vehicles"]
+            ),
             "narcotics": combined("narcotics"),
             "bribery": combined("bribery"),
             "art311": combined("art311"),
