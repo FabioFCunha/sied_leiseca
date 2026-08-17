@@ -72,16 +72,6 @@ export function buildInspectionStatisticsTaxonomy(
         "Indicadores relacionados à abordagem de veículos e às medidas adotadas nas operações.",
       items: [
         {
-          key: "stolen_recovered_vehicles",
-          label: "Roubado/Furtado",
-          status: TAXONOMY_STATUS.MAPPED,
-          value: formatMetricValue(
-            horusCards.stolen_recovered_vehicles?.value
-          ),
-          note:
-            "35 recuperados + 33 roubados + 398 furtados. Fonte: Horus.",
-        },
-        {
           key: "fined",
           label: "Multados",
           status: TAXONOMY_STATUS.MAPPED,

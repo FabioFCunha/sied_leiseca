@@ -1316,19 +1316,46 @@ class InspectionStatisticsUnifiedService:
         return result
 
     def _get_public_security_data(self):
-        qs = InspectionPublicSecurityYearlyStatistic.objects.all()
+        historical_qs = InspectionPublicSecurityYearlyStatistic.objects.all()
 
-        if self.date_from:
-            qs = qs.filter(
-                reference_year__gte=self.date_from.year
+        # A serie institucional e anual e nao possui granularidade
+        # por equipe ou por dia. Por isso, so utilizamos um ano
+        # historico quando todo o periodo consolidado daquele ano
+        # estiver coberto pelo filtro.
+        if self.team:
+            historical_qs = historical_qs.none()
+        else:
+            covered_years = []
+
+            for year in range(
+                2009,
+                HISTORICAL_CUTOFF_DATE.year + 1,
+            ):
+                period_start = date(year, 1, 1)
+                period_end = (
+                    HISTORICAL_CUTOFF_DATE
+                    if year == HISTORICAL_CUTOFF_DATE.year
+                    else date(year, 12, 31)
+                )
+
+                starts_before_or_on = (
+                    self.date_from is None
+                    or self.date_from <= period_start
+                )
+
+                ends_after_or_on = (
+                    self.date_to is None
+                    or self.date_to >= period_end
+                )
+
+                if starts_before_or_on and ends_after_or_on:
+                    covered_years.append(year)
+
+            historical_qs = historical_qs.filter(
+                reference_year__in=covered_years
             )
 
-        if self.date_to:
-            qs = qs.filter(
-                reference_year__lte=self.date_to.year
-            )
-
-        data = qs.aggregate(
+        historical = historical_qs.aggregate(
             fugitives=Sum("fugitives"),
             flagrante=Sum("flagrante"),
             simulacrum=Sum("simulacrum"),
@@ -1343,32 +1370,97 @@ class InspectionStatisticsUnifiedService:
             canceled_cnh=Sum("canceled_cnh"),
         )
 
+        operational_qs = (
+            InspectionStatistic.objects
+            .select_related("report")
+            .filter(
+                operation_date__gte=INSPECTION_STATISTICS_CUTOFF_DATE
+            )
+        )
+
+        if self.date_from:
+            operational_qs = operational_qs.filter(
+                operation_date__gte=self.date_from
+            )
+
+        if self.date_to:
+            operational_qs = operational_qs.filter(
+                operation_date__lte=self.date_to
+            )
+
+        if self.team:
+            operational_qs = operational_qs.filter(
+                team__iexact=self.team
+            )
+
+        classification_fields = (
+            "fugitives",
+            "flagrante",
+            "simulacrum",
+            "weapons",
+            "recovered_vehicles",
+            "stolen_vehicles",
+            "robbed_vehicles",
+            "narcotics",
+            "bribery",
+            "art311",
+            "art306",
+            "rain",
+        )
+
+        operational = {
+            field: 0
+            for field in classification_fields
+        }
+
+        for classification in operational_qs.values_list(
+            "report__statistics_classification",
+            flat=True,
+        ):
+            classification = classification or {}
+
+            for field in classification_fields:
+                if classification.get(field) is True:
+                    operational[field] += 1
+
+        def combined(field):
+            historical_value = historical.get(field)
+            operational_value = operational.get(field, 0)
+
+            if historical_value is None and operational_value == 0:
+                return None
+
+            return (historical_value or 0) + operational_value
+
         public_security = {
-            "fugitives": data.get("fugitives"),
-            "flagrante": data.get("flagrante"),
-            "simulacrum": data.get("simulacrum"),
-            "weapons": data.get("weapons"),
-            "recovered_vehicles": data.get(
-                "recovered_vehicles"
-            ),
-            "narcotics": data.get("narcotics"),
-            "bribery": data.get("bribery"),
-            "art311": data.get("art311"),
-            "art306": data.get("art306"),
+            "fugitives": combined("fugitives"),
+            "flagrante": combined("flagrante"),
+            "simulacrum": combined("simulacrum"),
+            "weapons": combined("weapons"),
+            "recovered_vehicles": combined("recovered_vehicles"),
+            "stolen_vehicles": operational["stolen_vehicles"],
+            "robbed_vehicles": operational["robbed_vehicles"],
+            "narcotics": combined("narcotics"),
+            "bribery": combined("bribery"),
+            "art311": combined("art311"),
+            "art306": combined("art306"),
+            "rain": operational["rain"],
         }
 
         public_security["total"] = sum(
             value or 0
-            for value in public_security.values()
+            for key, value in public_security.items()
+            if key != "rain"
         )
 
         driver_extra = {
-            "fake_cnh": data.get("fake_cnh"),
-            "suspended_cnh": data.get("suspended_cnh"),
-            "canceled_cnh": data.get("canceled_cnh"),
+            "fake_cnh": historical.get("fake_cnh"),
+            "suspended_cnh": historical.get("suspended_cnh"),
+            "canceled_cnh": historical.get("canceled_cnh"),
         }
 
         return public_security, driver_extra
+
 
     def _get_historical_data(self):
         #
