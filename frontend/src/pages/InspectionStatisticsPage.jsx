@@ -11,19 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Bar,
-  CartesianGrid,
-  ComposedChart,
-  Legend,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js";
-import { formatDateBR } from "../utils/date.js";
 import {
   TAXONOMY_STATUS,
   buildInspectionExecutiveCards,
@@ -270,8 +258,6 @@ export default function InspectionStatisticsPage() {
     [dashboard]
   );
 
-  const timeSeries = dashboard?.time_series || [];
-  const teamProduction = dashboard?.team_production || [];
   const historicalYearlyTable =
     dashboard?.historical_yearly_table || null;
   const hasData = Boolean(dashboard?.meta?.has_data);
@@ -461,137 +447,6 @@ export default function InspectionStatisticsPage() {
                 category={category}
               />
             ))}
-          </div>
-
-          <div className="stats-two-columns">
-            <Section
-              title="Série temporal"
-              subtitle="Evolução diária dos indicadores da Fiscalização no período selecionado."
-            >
-              <div className="stats-chart">
-                <ResponsiveContainer>
-                  <ComposedChart data={timeSeries}>
-                    <CartesianGrid strokeDasharray="3 3" />
-
-                    <XAxis
-                      dataKey="operation_date"
-                      tickFormatter={(value) =>
-                        formatDateBR(value)
-                      }
-                    />
-
-                    <YAxis yAxisId="left" />
-
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                    />
-
-                    <Tooltip
-                      formatter={(value) =>
-                        integer(value)
-                      }
-                      labelFormatter={(value) =>
-                        formatDateBR(value)
-                      }
-                    />
-
-                    <Legend />
-
-                    <Bar
-                      yAxisId="left"
-                      dataKey="approach"
-                      name="Abordados"
-                      fill="#0048d7"
-                      radius={[6, 6, 0, 0]}
-                    />
-
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="refusal"
-                      name="Recusas"
-                      stroke="#b45309"
-                      strokeWidth={3}
-                    />
-
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="fined"
-                      name="Multados"
-                      stroke="#7c3aed"
-                      strokeWidth={3}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </div>
-            </Section>
-
-            <Section
-              title="Produção por Equipe"
-              subtitle="Ordenação inicial por abordados em ordem decrescente."
-            >
-              <div className="stats-table-wrap">
-                <table className="stats-table">
-                  <thead>
-                    <tr>
-                      <th>Equipe</th>
-                      <th>Operações</th>
-                      <th>Abordados</th>
-                      <th>Recusas</th>
-                      <th>Multados</th>
-                      <th>Rebocados</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {teamProduction.map((row) => (
-                      <tr
-                        key={
-                          row.team || "sem-equipe"
-                        }
-                      >
-                        <td>
-                          {row.team ||
-                            "Não informado"}
-                        </td>
-
-                        <td>
-                          {displayMetric(
-                            row.operations
-                          )}
-                        </td>
-
-                        <td>
-                          {displayMetric(
-                            row.approach
-                          )}
-                        </td>
-
-                        <td>
-                          {displayMetric(
-                            row.refusal
-                          )}
-                        </td>
-
-                        <td>
-                          {displayMetric(
-                            row.fined
-                          )}
-                        </td>
-
-                        <td>
-                          {displayMetric(
-                            row.towed
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Section>
           </div>
 
           {historicalYearlyTable?.rows?.length ? (
