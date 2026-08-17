@@ -463,8 +463,8 @@ export default function InspectionStatisticsPage() {
 
           {historicalYearlyTable?.rows?.length ? (
             <Section
-              title="Evolu??o da Fiscaliza??o"
-              subtitle="Comparativo anual entre fiscaliza??es, abordados e casos de alcoolemia."
+              title="Evolução da Fiscalização"
+              subtitle="Comparativo anual entre fiscalizações, abordados e casos de alcoolemia."
             >
               <div
                 className="stats-chart"
@@ -499,7 +499,7 @@ export default function InspectionStatisticsPage() {
                     <Bar
                       yAxisId="other"
                       dataKey="operations"
-                      name="Fiscaliza??es"
+                      name="Fiscalizações"
                       fill="#0f766e"
                       radius={[5, 5, 0, 0]}
                     >
@@ -519,8 +519,11 @@ export default function InspectionStatisticsPage() {
                     >
                       <LabelList
                         dataKey="alcohol_cases"
-                        position="top"
+                        position="center"
                         formatter={(value) => integer(value)}
+                        fill="#ffffff"
+                        fontSize={11}
+                        fontWeight={700}
                       />
                     </Bar>
 
