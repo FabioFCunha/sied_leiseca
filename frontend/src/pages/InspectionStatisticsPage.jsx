@@ -15,7 +15,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  LabelList,
   Legend,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -498,19 +500,46 @@ export default function InspectionStatisticsPage() {
                       yAxisId="other"
                       dataKey="operations"
                       name="Fiscaliza??es"
-                    />
-
-                    <Bar
-                      yAxisId="approached"
-                      dataKey="approached"
-                      name="Abordados"
-                    />
+                      fill="#0f766e"
+                      radius={[5, 5, 0, 0]}
+                    >
+                      <LabelList
+                        dataKey="operations"
+                        position="top"
+                        formatter={(value) => integer(value)}
+                      />
+                    </Bar>
 
                     <Bar
                       yAxisId="other"
                       dataKey="alcohol_cases"
                       name="Casos de alcoolemia"
-                    />
+                      fill="#b45309"
+                      radius={[5, 5, 0, 0]}
+                    >
+                      <LabelList
+                        dataKey="alcohol_cases"
+                        position="top"
+                        formatter={(value) => integer(value)}
+                      />
+                    </Bar>
+
+                    <Line
+                      yAxisId="approached"
+                      type="monotone"
+                      dataKey="approached"
+                      name="Abordados"
+                      stroke="#1d4ed8"
+                      strokeWidth={3}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                    >
+                      <LabelList
+                        dataKey="approached"
+                        position="top"
+                        formatter={(value) => integer(value)}
+                      />
+                    </Line>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
