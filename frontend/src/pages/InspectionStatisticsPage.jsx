@@ -359,6 +359,20 @@ export default function InspectionStatisticsPage() {
     dashboard?.historical_yearly_table || null;
   const hasData = Boolean(dashboard?.meta?.has_data);
 
+  const rainTotal =
+    dashboard?.horus_cards?.rain?.value ??
+    dashboard?.occurrences?.rain ??
+    0;
+
+  const inspectionsTotal =
+    dashboard?.summary?.operations ??
+    0;
+
+  const rainPercentage =
+    inspectionsTotal > 0
+      ? (rainTotal / inspectionsTotal) * 100
+      : 0;
+
   const handleApplyFilters = () => {
     setFilters(draftFilters);
     loadDashboard(draftFilters);
@@ -389,13 +403,57 @@ export default function InspectionStatisticsPage() {
         <div
           style={{
             textAlign: "right",
-            fontSize: "12px",
-            color: "rgba(255,255,255,0.82)",
+            color: "#ffffff",
           }}
         >
-          <div>Base estatística consolidada</div>
-          <div>
-            Histórico + produção operacional homologada
+          <div
+            style={{
+              fontSize: "12px",
+              opacity: 0.85,
+              marginBottom: "4px",
+            }}
+          >
+            Opera??es interrompidas por chuva
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "baseline",
+              gap: "8px",
+            }}
+          >
+            <strong
+              style={{
+                fontSize: "24px",
+                lineHeight: 1,
+              }}
+            >
+              {integer(rainTotal)}
+            </strong>
+
+            <span
+              style={{
+                fontSize: "14px",
+                fontWeight: 700,
+              }}
+            >
+              {rainPercentage.toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}%
+            </span>
+          </div>
+
+          <div
+            style={{
+              fontSize: "11px",
+              opacity: 0.82,
+              marginTop: "4px",
+            }}
+          >
+            do total de fiscaliza??es
           </div>
         </div>
       </div>
