@@ -55,6 +55,45 @@ const dashboard = {
     driving_canceled_license: 1,
   },
 
+  horus_cards: {
+    stolen_recovered_vehicles: {
+      value: 466,
+    },
+    passive_tests_performed: {
+      value: 7,
+    },
+    reconductor: {
+      value: 10,
+    },
+    four_ml: {
+      value: 88,
+    },
+    thirtythree_ml: {
+      value: 0,
+    },
+    thirtyfour_ml: {
+      value: 0,
+    },
+    arrests_means_evidence: {
+      value: 0,
+    },
+    removal_resolutions: {
+      value: 270,
+    },
+    rain: {
+      value: 1,
+    },
+    criminal_occurrences: {
+      value: 2,
+    },
+    art307: {
+      value: 0,
+    },
+    driving_canceled_license: {
+      value: 1,
+    },
+  },
+
   coverage: {
     "summary.approach_plus_reconductor": "DIRECT",
     "taxi.approached": "HISTORICAL_ONLY",
@@ -88,7 +127,7 @@ assert.deepEqual(
   cards.map((card) => card.label),
   [
     "Fiscalizações",
-    "Abordados",
+    "Abordados e Recondutores",
     "Recusas",
     "Multados",
     "CNH Recolhidas",
@@ -123,7 +162,7 @@ assert.deepEqual(
     "VEÍCULOS",
     "MOTORISTA",
     "RESULTADO ETILÔMETRO",
-    "TÁXI",
+    "SEGURANÇA PÚBLICA / CRIMINAL",
     "ACONTECIMENTOS",
   ],
   "a taxonomia oficial deve manter as cinco categorias esperadas"
@@ -159,56 +198,77 @@ assert.equal(
   "CNH Recolhidas deve usar o valor consolidado disponível"
 );
 
+const fakeCnhItem = driverCategory.items.find(
+  (item) => item.key === "fake_cnh"
+);
+
+const suspendedCnhItem = driverCategory.items.find(
+  (item) => item.key === "suspended_cnh"
+);
+
+const canceledCnhItem = driverCategory.items.find(
+  (item) => item.key === "canceled_cnh"
+);
+
+assert.ok(
+  fakeCnhItem,
+  "CNH falsa deve permanecer dentro de MOTORISTA"
+);
+
+assert.ok(
+  suspendedCnhItem,
+  "CNH suspensa deve permanecer dentro de MOTORISTA"
+);
+
+assert.ok(
+  canceledCnhItem,
+  "CNH cassada deve permanecer dentro de MOTORISTA"
+);
+
 const vehiclesCategory = categories.find(
   (category) => category.key === "vehicles"
 );
 
-assert.equal(
-  vehiclesCategory.items.find(
-    (item) => item.key === "approached_reconductor"
-  ).status,
-  TAXONOMY_STATUS.MAPPED,
-  "Abordados + Recondutor deve ficar mapeado quando a cobertura for direta"
-);
-
-assert.equal(
-  vehiclesCategory.items.find(
-    (item) => item.key === "approached_reconductor"
-  ).value,
-  103,
-  "Abordados + Recondutor deve usar o valor unificado entregue pela API"
-);
-
-const taxiCategory = categories.find(
-  (category) => category.key === "taxi"
+const securityCategory = categories.find(
+  (category) => category.key === "public_security"
 );
 
 assert.ok(
-  taxiCategory,
-  "a categoria TÁXI deve existir"
+  securityCategory,
+  "a categoria SEGURAN\u00c7A P\u00daBLICA / CRIMINAL deve existir"
 );
 
-assert.ok(
-  taxiCategory.items.every(
-    (item) => item.status === TAXONOMY_STATUS.MAPPED
+assert.equal(
+  categories.some(
+    (category) => category.key === "taxi"
   ),
-  "os indicadores de táxi devem estar mapeados quando o backend fornecer os campos históricos"
+  false,
+  "a categoria T\u00c1XI n\u00e3o deve mais ser exibida"
+);
+
+assert.deepEqual(
+  securityCategory.items.map((item) => item.key),
+  [
+    "public_security_total",
+    "fugitives",
+    "flagrante",
+    "simulacrum",
+    "weapons",
+    "recovered_vehicles",
+    "narcotics",
+    "bribery",
+    "art311",
+    "art306",
+  ],
+  "o bloco de Seguran\u00e7a P\u00fablica / Criminal deve manter os indicadores definidos"
 );
 
 assert.equal(
-  taxiCategory.items.find(
-    (item) => item.key === "taxi_approached"
-  ).value,
-  15,
-  "Táxis abordados deve consumir taxi.approached"
-);
-
-assert.equal(
-  taxiCategory.items.find(
-    (item) => item.key === "taxi_pirate"
-  ).value,
-  2,
-  "Táxi pirata deve consumir taxi.illegal"
+  securityCategory.items.find(
+    (item) => item.key === "public_security_total"
+  ).label,
+  "Total de ocorr\u00eancias",
+  "o bloco deve possuir Total de ocorr\u00eancias"
 );
 
 const eventsCategory = categories.find(
@@ -236,14 +296,6 @@ assert.equal(
   "Chuva deve consumir occurrences.rain"
 );
 
-assert.equal(
-  eventsCategory.items.find(
-    (item) =>
-      item.key === "public_security_occurrence"
-  ).value,
-  3,
-  "Ocorrência de segurança pública deve consumir o campo histórico específico"
-);
 
 assert.equal(
   eventsCategory.items.find(
@@ -251,6 +303,22 @@ assert.equal(
   ).status,
   TAXONOMY_STATUS.MAPPED,
   "Operações deve continuar mapeado em acontecimentos"
+);
+
+assert.equal(
+  eventsCategory.items.some(
+    (item) => item.key === "public_security_occurrence"
+  ),
+  false,
+  "Ocorrencia de seguranca publica nao deve permanecer em ACONTECIMENTOS"
+);
+
+assert.equal(
+  eventsCategory.items.some(
+    (item) => item.key === "canceled_cnh"
+  ),
+  false,
+  "CNH cassada nao deve permanecer em ACONTECIMENTOS"
 );
 
 const partialDashboard = {
@@ -274,22 +342,6 @@ const partialVehicles =
   partialCategories.find(
     (category) => category.key === "vehicles"
   );
-
-assert.equal(
-  partialVehicles.items.find(
-    (item) => item.key === "approached_reconductor"
-  ).status,
-  TAXONOMY_STATUS.PARTIAL,
-  "Abordados + Recondutor deve permanecer parcial em períodos cruzados incompatíveis"
-);
-
-assert.equal(
-  partialVehicles.items.find(
-    (item) => item.key === "approached_reconductor"
-  ).value,
-  null,
-  "Abordados + Recondutor deve permanecer nulo em período cruzado incompatível"
-);
 
 console.log(
   "inspectionStatisticsTaxonomy.test.mjs: OK"

@@ -578,6 +578,7 @@ from apps.inspection.models import (
     HistoricalSourceType,
     HistoricalTaxonomyEra,
     InspectionHistoricalStatistic,
+    InspectionPublicSecurityYearlyStatistic,
     HISTORICAL_CUTOFF_DATE,
 
 
@@ -708,6 +709,10 @@ class InspectionStatisticsUnifiedService:
             self._get_operational_data()
             if self.use_operational
             else ({}, [], {})
+        )
+
+        public_security, driver_extra = (
+            self._get_public_security_data()
         )
 
         sources_used = []
@@ -950,6 +955,10 @@ class InspectionStatisticsUnifiedService:
                 if self.use_historical
                 else None
             ),
+
+            "fake_cnh": driver_extra["fake_cnh"],
+            "suspended_cnh": driver_extra["suspended_cnh"],
+            "canceled_cnh": driver_extra["canceled_cnh"],
         }
 
         #
@@ -1205,6 +1214,8 @@ class InspectionStatisticsUnifiedService:
 
             "occurrences": occurrences,
 
+            "public_security": public_security,
+
             "team_production": team_production,
 
             "time_series": time_series,
@@ -1303,6 +1314,61 @@ class InspectionStatisticsUnifiedService:
         }
 
         return result
+
+    def _get_public_security_data(self):
+        qs = InspectionPublicSecurityYearlyStatistic.objects.all()
+
+        if self.date_from:
+            qs = qs.filter(
+                reference_year__gte=self.date_from.year
+            )
+
+        if self.date_to:
+            qs = qs.filter(
+                reference_year__lte=self.date_to.year
+            )
+
+        data = qs.aggregate(
+            fugitives=Sum("fugitives"),
+            flagrante=Sum("flagrante"),
+            simulacrum=Sum("simulacrum"),
+            weapons=Sum("weapons"),
+            recovered_vehicles=Sum("recovered_vehicles"),
+            narcotics=Sum("narcotics"),
+            bribery=Sum("bribery"),
+            art311=Sum("art311"),
+            art306=Sum("art306"),
+            fake_cnh=Sum("fake_cnh"),
+            suspended_cnh=Sum("suspended_cnh"),
+            canceled_cnh=Sum("canceled_cnh"),
+        )
+
+        public_security = {
+            "fugitives": data.get("fugitives"),
+            "flagrante": data.get("flagrante"),
+            "simulacrum": data.get("simulacrum"),
+            "weapons": data.get("weapons"),
+            "recovered_vehicles": data.get(
+                "recovered_vehicles"
+            ),
+            "narcotics": data.get("narcotics"),
+            "bribery": data.get("bribery"),
+            "art311": data.get("art311"),
+            "art306": data.get("art306"),
+        }
+
+        public_security["total"] = sum(
+            value or 0
+            for value in public_security.values()
+        )
+
+        driver_extra = {
+            "fake_cnh": data.get("fake_cnh"),
+            "suspended_cnh": data.get("suspended_cnh"),
+            "canceled_cnh": data.get("canceled_cnh"),
+        }
+
+        return public_security, driver_extra
 
     def _get_historical_data(self):
         #

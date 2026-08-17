@@ -270,6 +270,47 @@ class InspectionStatistic(models.Model):
         return f"Estatistica oficial {self.team} - {self.operation_date}"
 
 
+class InspectionPublicSecurityYearlyStatistic(models.Model):
+    reference_year = models.PositiveSmallIntegerField(
+        unique=True,
+        db_index=True,
+    )
+
+    # Seguranca Publica / Criminal
+    fugitives = models.IntegerField(null=True, blank=True)
+    flagrante = models.IntegerField(null=True, blank=True)
+    simulacrum = models.IntegerField(null=True, blank=True)
+    weapons = models.IntegerField(null=True, blank=True)
+    recovered_vehicles = models.IntegerField(null=True, blank=True)
+    narcotics = models.IntegerField(null=True, blank=True)
+    bribery = models.IntegerField(null=True, blank=True)
+    art311 = models.IntegerField(null=True, blank=True)
+    art306 = models.IntegerField(null=True, blank=True)
+
+    # Motorista / CNH
+    fake_cnh = models.IntegerField(null=True, blank=True)
+    suspended_cnh = models.IntegerField(null=True, blank=True)
+    canceled_cnh = models.IntegerField(null=True, blank=True)
+
+    source_label = models.CharField(
+        max_length=255,
+        blank=True,
+        default="Serie historica de ocorrencias",
+    )
+    notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["reference_year"]
+        verbose_name = "Estatistica anual de seguranca publica"
+        verbose_name_plural = "Estatisticas anuais de seguranca publica"
+
+    def __str__(self):
+        return f"Seguranca Publica - {self.reference_year}"
+
+
 HISTORICAL_CUTOFF_DATE = date(2026, 8, 9)
 INSPECTION_STATISTICS_CUTOFF_DATE = HISTORICAL_CUTOFF_DATE + timedelta(days=1)
 
