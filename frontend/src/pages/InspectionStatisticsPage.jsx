@@ -377,10 +377,10 @@ export default function InspectionStatisticsPage() {
             ...card,
             secondary:
               operations > 0
-                ? `M?dia de ${(approached / operations).toLocaleString("pt-BR", {
+                ? `Média de ${(approached / operations).toLocaleString("pt-BR", {
                     minimumFractionDigits: 1,
                     maximumFractionDigits: 1,
-                  })} abordados por fiscaliza??o em m?dia`
+                  })} abordados por fiscalização em média`
                 : null,
           };
         }
@@ -400,10 +400,10 @@ export default function InspectionStatisticsPage() {
           return {
             ...card,
             secondary:
-              `M?dia de ${(fined / Math.max(operations, 1)).toLocaleString("pt-BR", {
+              `Média de ${(fined / Math.max(operations, 1)).toLocaleString("pt-BR", {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1,
-              })} multas aplicadas por fiscaliza??o em m?dia`,
+              })} multas aplicadas por fiscalização em média`,
           };
         }
 
