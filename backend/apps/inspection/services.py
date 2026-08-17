@@ -1526,10 +1526,14 @@ class InspectionStatisticsUnifiedService:
 
             row["year"] = year
 
-            if row.get("alcohol_percentage") is not None:
-                row["alcohol_percentage"] = float(
-                    row["alcohol_percentage"]
-                )
+            approached = row.get("approached") or 0
+            alcohol_cases = row.get("alcohol_cases") or 0
+
+            row["alcohol_percentage"] = (
+                alcohol_cases / approached * 100
+                if approached > 0
+                else None
+            )
 
             by_year[year] = row
 
