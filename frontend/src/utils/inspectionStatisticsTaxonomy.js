@@ -261,7 +261,7 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "stolen_vehicles",
-          label: "Ve?culos furtados",
+          label: "Veículos furtados",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.stolen_vehicles),
           field: "public_security.stolen_vehicles",
@@ -269,7 +269,7 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "robbed_vehicles",
-          label: "Ve?culos roubados",
+          label: "Veículos roubados",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.robbed_vehicles),
           field: "public_security.robbed_vehicles",
