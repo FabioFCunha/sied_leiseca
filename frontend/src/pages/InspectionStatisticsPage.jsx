@@ -1,4 +1,4 @@
-﻿import {
+import {
   AlertCircle,
   CarFront,
   ClipboardCheck,
@@ -110,7 +110,7 @@ function percentage(value) {
 
 function displayMetric(value) {
   return value === null || value === undefined
-    ? "NÃ£o informado"
+    ? "Não informado"
     : integer(value);
 }
 
@@ -446,8 +446,8 @@ function TerritorialMunicipalityTable({
           padding: "24px",
         }}
       >
-        Nenhuma fiscalizaÃ§Ã£o classificada
-        nesta regiÃ£o para o perÃ­odo
+        Nenhuma fiscalização classificada
+        nesta região para o período
         selecionado.
       </div>
     );
@@ -463,8 +463,8 @@ function TerritorialMunicipalityTable({
       <table className="stats-table">
         <thead>
           <tr>
-            <th>MunicÃ­pio</th>
-            <th>FiscalizaÃ§Ãµes</th>
+            <th>Município</th>
+            <th>Fiscalizações</th>
             <th>Abordados</th>
             <th>Multados</th>
             <th>Rebocados</th>
@@ -525,7 +525,7 @@ function TerritorialMunicipalityTable({
                             800,
                         }}
                       >
-                        â‰¥ 25%
+                        ≥ 25%
                       </span>
                     ) : null}
                   </td>
@@ -616,7 +616,7 @@ function TerritorialRegionSummary({
     >
       <span>
         <strong>
-          FiscalizaÃ§Ãµes:
+          Fiscalizações:
         </strong>{" "}
         {integer(metrics.operations)}
       </span>
@@ -666,7 +666,7 @@ function formatDate(isoStr) {
 
 function TerritorialContent({ territorial, loading, error, filters }) {
   if (loading) {
-    return <div className="stats-panel"><div className="stats-loading">Carregando anÃ¡lise territorial...</div></div>;
+    return <div className="stats-panel"><div className="stats-loading">Carregando análise territorial...</div></div>;
   }
   if (error) {
     return <div className="stats-panel"><div className="stats-loading" style={{ color: "var(--danger)" }}>{error}</div></div>;
@@ -692,21 +692,21 @@ function TerritorialContent({ territorial, loading, error, filters }) {
         <div className="territorial-header-top">
           <div className="territorial-logo-circle">OLS</div>
           <div className="territorial-header-text">
-            <p className="territorial-header-institution">Governo do Estado do Rio de Janeiro &nbsp;Â·&nbsp; OperaÃ§Ã£o Lei Seca</p>
-            <h1 className="territorial-header-title">AnÃ¡lise Territorial da FiscalizaÃ§Ã£o</h1>
-            <p className="territorial-header-sub">DistribuiÃ§Ã£o das aÃ§Ãµes de fiscalizaÃ§Ã£o por regiÃ£o e municÃ­pio</p>
+            <p className="territorial-header-institution">Governo do Estado do Rio de Janeiro &nbsp;·&nbsp; Operação Lei Seca</p>
+            <h1 className="territorial-header-title">Análise Territorial da Fiscalização</h1>
+            <p className="territorial-header-sub">Distribuição das ações de fiscalização por região e município</p>
           </div>
         </div>
         <div className="territorial-badges">
-          <div className="territorial-badge"><small>PerÃ­odo selecionado</small><strong>{formatDate(filters?.date_from)} a {formatDate(filters?.date_to)}</strong></div>
-          <div className="territorial-badge"><small>EmissÃ£o</small><strong>{new Date().toLocaleDateString('pt-BR')}</strong></div>
+          <div className="territorial-badge"><small>Período selecionado</small><strong>{formatDate(filters?.date_from)} a {formatDate(filters?.date_to)}</strong></div>
+          <div className="territorial-badge"><small>Emissão</small><strong>{new Date().toLocaleDateString('pt-BR')}</strong></div>
           <div className="territorial-badge"><small>Fonte</small><strong>HORUS / SIED</strong></div>
         </div>
       </header>
       <div className="territorial-stripe"></div>
 
       <section className="territorial-section">
-        <h2 className="territorial-section-title">Acumulados Â· PerÃ­odo Selecionado</h2>
+        <h2 className="territorial-section-title">Acumulados · Período Selecionado</h2>
         <div className="territorial-kpi-grid">
           <div className="territorial-kpi k1">
             <div className="territorial-kpi-ico"><Users size={14} /></div>
@@ -730,7 +730,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
           </div>
           <div className="territorial-kpi k5">
             <div className="territorial-kpi-ico"><ShieldAlert size={14} /></div>
-            <p className="territorial-kpi-label">FiscalizaÃ§Ãµes</p>
+            <p className="territorial-kpi-label">Fiscalizações</p>
             <p className="territorial-kpi-val">{integer(summary.classified_operations)}</p>
           </div>
           <div className="territorial-kpi k6">
@@ -744,22 +744,22 @@ function TerritorialContent({ territorial, loading, error, filters }) {
           <div className="territorial-alc-item">
             <div className="alc-num">{integer(summary.refusal)}</div>
             <div className="alc-lbl">Recusas</div>
-            <div className="alc-sub">ao etilÃ´metro</div>
+            <div className="alc-sub">ao etilômetro</div>
           </div>
           <div className="territorial-alc-item">
             <div className="alc-num">{integer(summary.administrative_art_165)}</div>
-            <div className="alc-lbl">ADM Â· Art. 165</div>
-            <div className="alc-sub">infraÃ§Ã£o administrativa</div>
+            <div className="alc-lbl">ADM · Art. 165</div>
+            <div className="alc-sub">infração administrativa</div>
           </div>
           <div className="territorial-alc-item">
             <div className="alc-num">{integer(summary.criminal_art_306)}</div>
-            <div className="alc-lbl">Criminal Â· Art. 306</div>
-            <div className="alc-sub">crime de trÃ¢nsito</div>
+            <div className="alc-lbl">Criminal · Art. 306</div>
+            <div className="alc-sub">crime de trânsito</div>
           </div>
           <div className="territorial-alc-item">
             <div className="alc-num">{integer(summary.criminal_art_306_other_evidence)}</div>
             <div className="alc-lbl">Outros meios</div>
-            <div className="alc-sub">sinais notÃ³rios / art. 306</div>
+            <div className="alc-sub">sinais notórios / art. 306</div>
           </div>
         </div>
       </section>
@@ -767,30 +767,30 @@ function TerritorialContent({ territorial, loading, error, filters }) {
       <div className="territorial-divider"></div>
 
       <section className="territorial-section">
-        <h2 className="territorial-section-title">FiscalizaÃ§Ã£o por TerritÃ³rio</h2>
+        <h2 className="territorial-section-title">Fiscalização por Território</h2>
 
         <div className="territorial-tbl-wrap">
           <table>
             <thead>
               <tr>
-                <th>RegiÃ£o / MunicÃ­pio</th>
+                <th>Região / Município</th>
                 <th>Abordados</th>
                 <th>Multados</th>
                 <th>Alcoolemia</th>
                 <th>% Alc.</th>
-                <th>FiscalizaÃ§Ãµes</th>
+                <th>Fiscalizações</th>
               </tr>
             </thead>
 
             {/* METROPOLITANA */}
             <tbody>
-              <tr className="territorial-main-region-title"><td colSpan={6}>RegiÃ£o Metropolitana</td></tr>
+              <tr className="territorial-main-region-title"><td colSpan={6}>Região Metropolitana</td></tr>
               {metropolitanRegion?.municipalities?.map(item => {
                 const isHigh = Number(item.metrics?.alcohol_percentage || 0) >= 25;
                 return (
                   <tr key={item.municipality_id} className={isHigh ? "territorial-row-highlight" : ""}>
                     <td className="territorial-muni">
-                      <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA â‰¥ 25%</span>}</strong>
+                      <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}</strong>
                     </td>
                     <td>{integer(item.metrics?.approach)}</td>
                     <td>{integer(item.metrics?.fined)}</td>
@@ -802,7 +802,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
               })}
               {metropolitanRegion && (
                 <tr className="territorial-region-subtotal">
-                  <td>Subtotal RegiÃ£o Metropolitana</td>
+                  <td>Subtotal Região Metropolitana</td>
                   <td>{integer(metropolitanRegion.metrics?.approach)}</td>
                   <td>{integer(metropolitanRegion.metrics?.fined)}</td>
                   <td>{integer(metropolitanRegion.metrics?.alcohol_cases)}</td>
@@ -826,7 +826,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                   return (
                     <tr key={item.municipality_id} className={isHigh ? "territorial-row-highlight" : ""}>
                       <td className="territorial-muni">
-                        <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA â‰¥ 25%</span>}</strong>
+                        <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}</strong>
                       </td>
                       <td>{integer(item.metrics?.approach)}</td>
                       <td>{integer(item.metrics?.fined)}</td>
@@ -850,7 +850,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
             <tfoot>
               {metropolitanRegion && (
                 <tr>
-                  <td>Total RegiÃ£o Metropolitana</td>
+                  <td>Total Região Metropolitana</td>
                   <td>{integer(metropolitanRegion.metrics?.approach)}</td>
                   <td>{integer(metropolitanRegion.metrics?.fined)}</td>
                   <td>{integer(metropolitanRegion.metrics?.alcohol_cases)}</td>
@@ -880,10 +880,10 @@ function TerritorialContent({ territorial, loading, error, filters }) {
           </table>
         </div>
 
-        <h3 style={{fontSize: 12.5, fontWeight: 800, color: "var(--t-navy)", textTransform: "uppercase", marginBottom: 10, borderBottom: "2px solid var(--t-danger)", display: "inline-block", paddingBottom: 4}}>FiscalizaÃ§Ãµes com Ã­ndice de alcoolemia â‰¥ 25%</h3>
+        <h3 style={{fontSize: 12.5, fontWeight: 800, color: "var(--t-navy)", textTransform: "uppercase", marginBottom: 10, borderBottom: "2px solid var(--t-danger)", display: "inline-block", paddingBottom: 4}}>Fiscalizações com índice de alcoolemia ≥ 25%</h3>
         {highlighted.length === 0 ? (
           <div className="territorial-nota" style={{marginBottom: 24}}>
-            NÃ£o foram registradas fiscalizaÃ§Ãµes com Ã­ndice de alcoolemia igual ou superior a 25% no perÃ­odo selecionado.
+            Não foram registradas fiscalizações com índice de alcoolemia igual ou superior a 25% no período selecionado.
           </div>
         ) : (
           <div className="territorial-tbl-wrap" style={{border: "1px solid var(--t-danger)", boxShadow: "0 2px 8px rgba(192,57,43,.15)"}}>
@@ -892,8 +892,8 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                 <tr>
                   <th>Data</th>
                   <th>Equipe</th>
-                  <th style={{textAlign: "left"}}>MunicÃ­pio</th>
-                  <th style={{textAlign: "left"}}>RegiÃ£o</th>
+                  <th style={{textAlign: "left"}}>Município</th>
+                  <th style={{textAlign: "left"}}>Região</th>
                   <th>Abordados</th>
                   <th>Alcoolemia</th>
                   <th>Percentual</th>
@@ -921,14 +921,14 @@ function TerritorialContent({ territorial, loading, error, filters }) {
         <>
           <div className="territorial-divider"></div>
           <section className="territorial-section">
-            <h2 className="territorial-section-title" style={{color: "var(--t-gray-5)"}}>Registros territoriais nÃ£o classificados</h2>
+            <h2 className="territorial-section-title" style={{color: "var(--t-gray-5)"}}>Registros territoriais não classificados</h2>
             <div className="territorial-tbl-wrap" style={{marginBottom: 0}}>
               <table>
                 <thead>
                   <tr style={{background: "var(--t-gray-5)"}}>
-                    <th>MunicÃ­pio recebido</th>
+                    <th>Município recebido</th>
                     <th>Nome normalizado</th>
-                    <th>FiscalizaÃ§Ãµes</th>
+                    <th>Fiscalizações</th>
                     <th>Abordados</th>
                   </tr>
                 </thead>
@@ -951,25 +951,25 @@ function TerritorialContent({ territorial, loading, error, filters }) {
       <div className="territorial-divider"></div>
 
       <section className="territorial-section">
-        <h2 className="territorial-section-title">Nota MetodolÃ³gica</h2>
+        <h2 className="territorial-section-title">Nota Metodológica</h2>
         <div className="territorial-nota">
-          <p style={{margin: "0 0 6px 0"}}><strong>Alcoolemia:</strong> soma de recusas + infraÃ§Ãµes administrativas Art. 165 + crimes Art. 306 + outros meios/sinais notÃ³rios.</p>
+          <p style={{margin: "0 0 6px 0"}}><strong>Alcoolemia:</strong> soma de recusas + infrações administrativas Art. 165 + crimes Art. 306 + outros meios/sinais notórios.</p>
           <p style={{margin: "0 0 6px 0"}}><strong>Percentual:</strong> total de casos de alcoolemia dividido pelo total de abordados.</p>
           <p style={{margin: "0 0 6px 0"}}><strong>Art. 307:</strong> contabilizado separadamente.</p>
-          <p style={{margin: "0 0 6px 0"}}><strong>Fonte territorial:</strong> municÃ­pio registrado na operaÃ§Ã£o e classificado pela tabela oficial InspectionMunicipality â†’ InspectionRegion.</p>
+          <p style={{margin: "0 0 6px 0"}}><strong>Fonte territorial:</strong> município registrado na operação e classificado pela tabela oficial InspectionMunicipality → InspectionRegion.</p>
           <p style={{margin: 0}}><strong>Fonte operacional:</strong> HORUS / SIED.</p>
         </div>
       </section>
 
       <footer className="territorial-footer">
         <p className="territorial-footer-note">
-          Documento gerado automaticamente pelo sistema SIED com dados extraÃ­dos do banco HORUS.<br/>
-          Para dÃºvidas ou retificaÃ§Ãµes, contate a equipe tÃ©cnica da OperaÃ§Ã£o Lei Seca.
+          Documento gerado automaticamente pelo sistema SIED com dados extraídos do banco HORUS.<br/>
+          Para dúvidas ou retificações, contate a equipe técnica da Operação Lei Seca.
         </p>
         <div className="territorial-footer-stamp">
           <small>Gerado em</small>
           <strong>{new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</strong>
-          <small style={{display: 'block', marginTop: 4}}>SIED Â· DETRAN-RJ Â· OperaÃ§Ã£o Lei Seca</small>
+          <small style={{display: 'block', marginTop: 4}}>SIED · DETRAN-RJ · Operação Lei Seca</small>
         </div>
       </footer>
     </div>
@@ -1044,7 +1044,7 @@ export default function InspectionStatisticsPage() {
     } catch (err) {
       setError(
         err?.message ||
-          "Erro ao carregar estatÃ­sticas."
+          "Erro ao carregar estatísticas."
       );
 
       setDashboard(null);
@@ -1070,7 +1070,7 @@ export default function InspectionStatisticsPage() {
     } catch (err) {
       setTerritorialError(
         err?.message ||
-          "Erro ao carregar anÃ¡lise territorial."
+          "Erro ao carregar análise territorial."
       );
 
       setTerritorial(null);
@@ -1143,7 +1143,7 @@ export default function InspectionStatisticsPage() {
 
               secondary:
                 operations > 0
-                  ? `MÃ©dia de ${(
+                  ? `Média de ${(
                       approached /
                       operations
                     ).toLocaleString(
@@ -1154,7 +1154,7 @@ export default function InspectionStatisticsPage() {
                         maximumFractionDigits:
                           1,
                       }
-                    )} abordados por fiscalizaÃ§Ã£o em mÃ©dia`
+                    )} abordados por fiscalização em média`
                   : null,
             };
           }
@@ -1177,7 +1177,7 @@ export default function InspectionStatisticsPage() {
                   maximumFractionDigits:
                     2,
                 }
-              )}% dos abordados recusaram o teste do etilÃ´metro`,
+              )}% dos abordados recusaram o teste do etilômetro`,
             };
           }
 
@@ -1188,7 +1188,7 @@ export default function InspectionStatisticsPage() {
             return {
               ...card,
 
-              secondary: `MÃ©dia de ${(
+              secondary: `Média de ${(
                 fined /
                 Math.max(
                   operations,
@@ -1202,7 +1202,7 @@ export default function InspectionStatisticsPage() {
                   maximumFractionDigits:
                     1,
                 }
-              )} multas aplicadas por fiscalizaÃ§Ã£o em mÃ©dia`,
+              )} multas aplicadas por fiscalização em média`,
             };
           }
 
@@ -1351,17 +1351,17 @@ export default function InspectionStatisticsPage() {
       <div className="stats-hero">
         <div>
           <span>
-            FiscalizaÃ§Ã£o
+            Fiscalização
           </span>
 
           <h1>
-            EstatÃ­stica FiscalizaÃ§Ã£o
+            Estatística Fiscalização
           </h1>
 
           <p>
-            Indicadores oficiais e anÃ¡lise
-            territorial da FiscalizaÃ§Ã£o da
-            OperaÃ§Ã£o Lei Seca.
+            Indicadores oficiais e análise
+            territorial da Fiscalização da
+            Operação Lei Seca.
           </p>
         </div>
 
@@ -1380,7 +1380,7 @@ export default function InspectionStatisticsPage() {
                 marginBottom: "4px",
               }}
             >
-              OperaÃ§Ãµes interrompidas por
+              Operações interrompidas por
               chuva
             </div>
 
@@ -1447,7 +1447,7 @@ export default function InspectionStatisticsPage() {
                 marginTop: "4px",
               }}
             >
-              do total de fiscalizaÃ§Ãµes
+              do total de fiscalizações
             </div>
           </div>
         ) : (
@@ -1464,7 +1464,7 @@ export default function InspectionStatisticsPage() {
                 marginBottom: "4px",
               }}
             >
-              ClassificaÃ§Ã£o territorial
+              Classificação territorial
             </div>
 
             <strong
@@ -1472,7 +1472,7 @@ export default function InspectionStatisticsPage() {
                 fontSize: "18px",
               }}
             >
-              RegiÃ£o Metropolitana Ã—
+              Região Metropolitana ×
               Interior
             </strong>
 
@@ -1483,7 +1483,7 @@ export default function InspectionStatisticsPage() {
                 marginTop: "4px",
               }}
             >
-              MunicÃ­pios e regiÃµes do
+              Municípios e regiões do
               Estado do Rio de Janeiro
             </div>
           </div>
@@ -1534,7 +1534,7 @@ export default function InspectionStatisticsPage() {
                 : "#475569",
           }}
         >
-          EstatÃ­stica Oficial
+          Estatística Oficial
         </button>
 
         <button
@@ -1565,7 +1565,7 @@ export default function InspectionStatisticsPage() {
                 : "#475569",
           }}
         >
-          AnÃ¡lise Territorial
+          Análise Territorial
         </button>
       </div>
 
@@ -1601,7 +1601,7 @@ export default function InspectionStatisticsPage() {
         </label>
 
         <label>
-          AtÃ©
+          Até
 
           <input
             type="date"
@@ -1687,8 +1687,8 @@ export default function InspectionStatisticsPage() {
       ) : loading ? (
         <div className="stats-panel">
           <div className="stats-loading">
-            Carregando estatÃ­sticas de
-            FiscalizaÃ§Ã£o...
+            Carregando estatísticas de
+            Fiscalização...
           </div>
         </div>
       ) : error ? (
@@ -1713,13 +1713,13 @@ export default function InspectionStatisticsPage() {
             }}
           >
             <strong>
-              Nenhum dado estatÃ­stico de
-              FiscalizaÃ§Ã£o para o perÃ­odo
+              Nenhum dado estatístico de
+              Fiscalização para o período
               selecionado.
             </strong>
 
             <span>
-              Verifique o perÃ­odo
+              Verifique o período
               informado ou os filtros
               aplicados.
             </span>
@@ -1814,8 +1814,8 @@ export default function InspectionStatisticsPage() {
           {historicalYearlyTable
             ?.rows?.length ? (
             <Section
-              title="EvoluÃ§Ã£o da FiscalizaÃ§Ã£o"
-              subtitle="Comparativo anual entre fiscalizaÃ§Ãµes, abordados e casos de alcoolemia."
+              title="Evolução da Fiscalização"
+              subtitle="Comparativo anual entre fiscalizações, abordados e casos de alcoolemia."
             >
               <div
                 className="stats-chart"
@@ -1887,7 +1887,7 @@ export default function InspectionStatisticsPage() {
                     <Bar
                       yAxisId="other"
                       dataKey="operations"
-                      name="FiscalizaÃ§Ãµes"
+                      name="Fiscalizações"
                       fill="#0f766e"
                       radius={[
                         5,
@@ -1962,8 +1962,8 @@ export default function InspectionStatisticsPage() {
           {historicalYearlyTable
             ?.rows?.length ? (
             <Section
-              title="SÃ©rie HistÃ³rica da FiscalizaÃ§Ã£o"
-              subtitle="Consolidado institucional anual. Em 2026, o histÃ³rico atÃ© 09/08 Ã© continuado pela produÃ§Ã£o homologada a partir de 10/08."
+              title="Série Histórica da Fiscalização"
+              subtitle="Consolidado institucional anual. Em 2026, o histórico até 09/08 é continuado pela produção homologada a partir de 10/08."
             >
               <div
                 className="stats-table-wrap"
@@ -2103,11 +2103,11 @@ export default function InspectionStatisticsPage() {
                     "var(--muted)",
                 }}
               >
-                HistÃ³rico consolidado atÃ©
+                Histórico consolidado até
                 09/08/2026. A coluna de
                 2026 continua sendo
-                atualizada com a produÃ§Ã£o
-                estatÃ­stica homologada a
+                atualizada com a produção
+                estatística homologada a
                 partir de 10/08/2026.
               </div>
             </Section>
