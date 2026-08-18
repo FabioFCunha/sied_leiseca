@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, FileText, Save } from "lucide-react";
+import { ArrowLeft, FileText, Plus, Save, Trash2 } from "lucide-react";
 import { api } from "../../api/client.js";
 import { STREET_ACTION_ID } from "../../utils/constants";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
@@ -210,13 +210,18 @@ export default function MobileReportFormPage() {
               report.contact_received ||
               getAgendaContact(repAgenda || {}),
             street_action_details: resolvedDetails,
-            actions: (
-              report.actions?.length
+            actions: (() => {
+              const reportActions = report.actions?.length
                 ? report.actions
-                : [{ ...emptyAction }]
-            ).map((action) =>
-              hydrateActionFromAgenda(action, repAgenda || {})
-            )
+                : [{ ...emptyAction }];
+              const hasAnySourceId = reportActions.some((action) => action?.source_id);
+              return reportActions.map((action, index) =>
+                hydrateActionFromAgenda({
+                  ...action,
+                  __userCreated: action.__userCreated ?? (hasAnySourceId ? !action.source_id : index > 0),
+                }, repAgenda || {})
+              );
+            })()
           });
         } else {
           const fetchedAgenda = await api(`/agendas/${agendaId}/`, { signal: controller.signal });
@@ -268,6 +273,7 @@ export default function MobileReportFormPage() {
             street_action_details: fetchedAgenda.street_action_details || [],
             actions: [hydrateActionFromAgenda({
               ...emptyAction,
+              __userCreated: false,
               approach: fetchedAgenda.quantity || 0,
               type_audience: fetchedAgenda.audience || ""
             }, fetchedAgenda)],
@@ -367,6 +373,36 @@ export default function MobileReportFormPage() {
       nextActions[idx] = { ...nextActions[idx], [field]: value };
       return { ...prev, actions: nextActions };
     });
+  };
+
+  const addAction = () => {
+    setForm((current) => {
+      const baseAction = current.actions?.[0] || emptyAction;
+      return {
+        ...current,
+        actions: [
+          ...(current.actions || []),
+          {
+            ...emptyAction,
+            agenda: current.agenda,
+            source_id: "",
+            __userCreated: true,
+            place_action: baseAction.place_action || "",
+            institution_name: baseAction.institution_name || "",
+            equipment_materials_removed: baseAction.equipment_materials_removed || "",
+            distribution_materials_removed: baseAction.distribution_materials_removed || "",
+          },
+        ],
+      };
+    });
+  };
+
+  const removeAction = (index) => {
+    if (index === 0) return;
+    setForm((current) => ({
+      ...current,
+      actions: current.actions.filter((_, actionIndex) => actionIndex !== index),
+    }));
   };
 
   const updateField = (field, value) => {
@@ -509,7 +545,6 @@ export default function MobileReportFormPage() {
   const isPublicRequest = agenda?.origin === "PUBLIC_FORM";
   const showEstimatedPublic = !isStreetAction || isPublicRequest;
 
-  const action = form.actions[0] || { ...emptyAction };
   const readOnlyIdentity = Boolean(agenda);
 
   return (
@@ -607,139 +642,207 @@ export default function MobileReportFormPage() {
       </div>
 
       <div className="mobile-card" style={{ padding: '20px' }}>
-        <h4 style={{ margin: '0 0 16px', color: '#0f172a' }}>
-          Dados da {isStreetAction ? "Ação" : "Palestra"}
-        </h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {isStreetAction && (
-             <div style={{ marginBottom: '8px' }}>
-               <h5 style={{ fontSize: '13px', margin: '0 0 8px', color: '#64748b' }}>Detalhes da Ação de Rua (Ordem de Serviço)</h5>
-               {(form.street_action_details || []).length > 0 ? (
-                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                   {(form.street_action_details || []).map((detail, idx) => (
-                     <div key={idx} style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', color: '#334155' }}>
-                        <strong>{detail.type ? streetActionTypeLabel(detail.type) : `Ação ${idx + 1}`}</strong>
-                        {showEstimatedPublic && (
-                           <div style={{ marginTop: '2px', color: '#64748b', fontSize: '12px' }}>
-                              {detail.public ? `Público estimado: ${detail.public}` : "Público estimado não informado"}
-                           </div>
-                        )}
-                     </div>
-                   ))}
-                 </div>
-               ) : (
-                 <div style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', color: '#64748b' }}>
-                    Nenhum tipo de ação pré-cadastrado na OS.
-                 </div>
-               )}
-             </div>
-          )}
-
-          {!isStreetAction && (
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-              Instituição / Local
-              <input
-                type="text"
-                value={action.institution_name || ""}
-                readOnly
-                title="Preenchido automaticamente pela Ordem de Serviço"
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#475569' }}
-              />
-            </label>
-          )}
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-            Endereço do Local
-            <input
-              type="text"
-              value={action.place_action || ""}
-              readOnly
-              title="Preenchido automaticamente pela Ordem de Serviço"
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#475569' }}
-            />
-          </label>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-              Horário Inicial
-              <input
-                type="time"
-                value={action.start_time || ""}
-                readOnly
-                title="Preenchido automaticamente pela Ordem de Serviço"
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#475569' }}
-              />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-              Horário Final
-              <input
-                type="time"
-                value={action.final_hour || ""}
-                readOnly
-                title="Preenchido automaticamente pela Ordem de Serviço"
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#475569' }}
-              />
-            </label>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <h4 style={{ margin: 0, color: '#0f172a' }}>Ações realizadas</h4>
+            <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>
+              Registre separadamente cada ação realizada nesta atividade.
+            </p>
           </div>
-
-
-
-          {isStreetAction && (
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-              Ação Definida pelo Chefe
-              <select
-                value={action.type_action || ""}
-                onChange={e => updateAction(0, "type_action", e.target.value)}
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
-              >
-                <option value="">Selecione</option>
-                {streetActionTypeOptions.map((opt) => (
-                  <option key={opt} value={opt}>{streetActionTypeLabel(opt)}</option>
-                ))}
-                {action.type_action && !streetActionTypeOptions.includes(action.type_action) && (
-                  <option value={action.type_action}>{streetActionTypeLabel(action.type_action)}</option>
-                )}
-              </select>
-            </label>
-          )}
-
-          {showEstimatedPublic && (
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-              Público Estimado (Solicitação)
-              <input
-                type="number"
-                value={action.approach ?? ""}
-                readOnly
-                title="Preenchido automaticamente a partir da solicitação"
-                style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#64748b' }}
-              />
-            </label>
-          )}
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-            {!isStreetAction ? "Abordados em Palestras" : "Número de Abordagens"}
-            <input
-              type="number"
-              min="0"
-              value={!isStreetAction ? (action.approached_lectures ?? "") : (action.approached_actions ?? "")}
-              onChange={e => updateAction(0, !isStreetAction ? "approached_lectures" : "approached_actions", e.target.value)}
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-            />
-          </label>
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-            Condições de Acessibilidade
-            <select
-              value={form.accessibility_conditions_met || ""}
-              onChange={e => updateField("accessibility_conditions_met", e.target.value)}
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
-            >
-              <option value="">Selecione</option>
-              <option value="YES">Sim</option>
-              <option value="NO">Não</option>
-            </select>
-          </label>
+          <button
+            type="button"
+            onClick={addAction}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            <Plus size={16} /> Adicionar
+          </button>
         </div>
+
+        {isStreetAction && (
+          <div style={{ marginBottom: '16px' }}>
+            <h5 style={{ fontSize: '13px', margin: '0 0 8px', color: '#64748b' }}>Detalhes da Ação de Rua (Ordem de Serviço)</h5>
+            {(form.street_action_details || []).length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {(form.street_action_details || []).map((detail, idx) => (
+                  <div key={idx} style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', color: '#334155' }}>
+                    <strong>{detail.type ? streetActionTypeLabel(detail.type) : `Ação ${idx + 1}`}</strong>
+                    {showEstimatedPublic && (
+                      <div style={{ marginTop: '2px', color: '#64748b', fontSize: '12px' }}>
+                        {detail.public ? `Público estimado: ${detail.public}` : "Público estimado não informado"}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', color: '#64748b' }}>
+                Nenhum tipo de ação pré-cadastrado na OS.
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {(form.actions || []).map((action, index) => {
+            const isUserCreated = Boolean(action.__userCreated || index > 0);
+            const sourceReadOnly = Boolean(agenda) && !isUserCreated;
+
+            return (
+              <div key={`${action.id || 'action'}-${index}`} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#f8fafc' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <strong style={{ color: '#0f172a' }}>{`AÇÃO ${String(index + 1).padStart(2, '0')}`}</strong>
+                    <div style={{ marginTop: '2px', fontSize: '11px', color: '#64748b' }}>
+                      {sourceReadOnly ? 'Dados principais carregados da Ordem de Serviço' : 'Ação adicionada pelo chefe'}
+                    </div>
+                  </div>
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => removeAction(index)}
+                      aria-label={`Remover ação ${index + 1}`}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fff', color: '#b91c1c', cursor: 'pointer' }}
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {!isStreetAction && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                      Instituição / Local
+                      <input
+                        type="text"
+                        value={action.institution_name || ""}
+                        onChange={e => updateAction(index, "institution_name", e.target.value)}
+                        readOnly={sourceReadOnly}
+                        title={sourceReadOnly ? "Preenchido automaticamente pela Ordem de Serviço" : undefined}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly ? '#f1f5f9' : '#fff', color: '#475569' }}
+                      />
+                    </label>
+                  )}
+
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                    Endereço do Local
+                    <input
+                      type="text"
+                      value={action.place_action || ""}
+                      onChange={e => updateAction(index, "place_action", e.target.value)}
+                      readOnly={sourceReadOnly}
+                      title={sourceReadOnly ? "Preenchido automaticamente pela Ordem de Serviço" : undefined}
+                      style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly ? '#f1f5f9' : '#fff', color: '#475569' }}
+                    />
+                  </label>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                      Horário Inicial
+                      <input
+                        type="time"
+                        value={action.start_time || ""}
+                        onChange={e => updateAction(index, "start_time", e.target.value)}
+                        readOnly={sourceReadOnly}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly ? '#f1f5f9' : '#fff' }}
+                      />
+                    </label>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                      Horário Final
+                      <input
+                        type="time"
+                        value={action.final_hour || ""}
+                        onChange={e => updateAction(index, "final_hour", e.target.value)}
+                        readOnly={sourceReadOnly}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly ? '#f1f5f9' : '#fff' }}
+                      />
+                    </label>
+                  </div>
+
+                  {isStreetAction && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                      Ação Definida pelo Chefe
+                      <select
+                        value={action.type_action || ""}
+                        onChange={e => updateAction(index, "type_action", e.target.value)}
+                        disabled={sourceReadOnly && Boolean(action.type_action)}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly && action.type_action ? '#f1f5f9' : '#fff' }}
+                      >
+                        <option value="">Selecione</option>
+                        {streetActionTypeOptions.map((opt) => (
+                          <option key={opt} value={opt}>{streetActionTypeLabel(opt)}</option>
+                        ))}
+                        {action.type_action && !streetActionTypeOptions.includes(action.type_action) && (
+                          <option value={action.type_action}>{streetActionTypeLabel(action.type_action)}</option>
+                        )}
+                      </select>
+                    </label>
+                  )}
+
+                  {showEstimatedPublic && index === 0 && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                      Público Estimado (Solicitação)
+                      <input
+                        type="number"
+                        value={action.approach ?? ""}
+                        readOnly
+                        title="Preenchido automaticamente a partir da solicitação"
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#64748b' }}
+                      />
+                    </label>
+                  )}
+
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                    {!isStreetAction ? "Abordados em Palestras" : "Número de Abordagens"}
+                    <input
+                      type="number"
+                      min="0"
+                      value={!isStreetAction ? (action.approached_lectures ?? "") : (action.approached_actions ?? "")}
+                      onChange={e => updateAction(index, !isStreetAction ? "approached_lectures" : "approached_actions", e.target.value)}
+                      style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff' }}
+                    />
+                  </label>
+
+                  <div style={{ paddingTop: '4px', borderTop: '1px solid #e2e8f0' }}>
+                    <h5 style={{ margin: '10px 0 12px', color: '#334155', fontSize: '13px' }}>Materiais desta ação</h5>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                        Material Distribuído nesta Ação (Kits / Categorias)
+                        <textarea
+                          value={action.distribution_materials_distributed || ""}
+                          onChange={e => updateAction(index, "distribution_materials_distributed", e.target.value)}
+                          placeholder={'Ex:\nCATEGORIA 1 - ITEM: 10\nCATEGORIA 2 - ITEM: 5'}
+                          style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '100px', fontFamily: 'inherit', whiteSpace: 'pre-wrap', background: '#fff' }}
+                        />
+                      </label>
+
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                        Equipamentos (Opcional)
+                        <textarea
+                          value={action.equipment_materials_distributed || ""}
+                          onChange={e => updateAction(index, "equipment_materials_distributed", e.target.value)}
+                          style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '60px', fontFamily: 'inherit', whiteSpace: 'pre-wrap', background: '#fff' }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155', marginTop: '16px' }}>
+          Condições de Acessibilidade
+          <select
+            value={form.accessibility_conditions_met || ""}
+            onChange={e => updateField("accessibility_conditions_met", e.target.value)}
+            style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
+          >
+            <option value="">Selecione</option>
+            <option value="YES">Sim</option>
+            <option value="NO">Não</option>
+          </select>
+        </label>
       </div>
 
       <div className="mobile-card" style={{ padding: '20px' }}>
@@ -969,33 +1072,6 @@ export default function MobileReportFormPage() {
               Não foi possível localizar a escala desta equipe.
             </p>
           )}
-      </div>
-
-      <div className="mobile-card" style={{ padding: '20px' }}>
-        <h4 style={{ margin: '0 0 16px', color: '#0f172a' }}>Materiais</h4>
-        <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>
-          Para preservar a integridade dos dados já registrados, você pode editar os materiais distribuídos diretamente em formato de texto.
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-            Material Distribuído nesta Ação (Kits / Categorias)
-            <textarea
-              value={action.distribution_materials_distributed || ""}
-              onChange={e => updateAction(0, "distribution_materials_distributed", e.target.value)}
-              placeholder="Ex:\nCATEGORIA 1 - ITEM: 10\nCATEGORIA 2 - ITEM: 5"
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '120px', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}
-            />
-          </label>
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-            Equipamentos (Opcional)
-            <textarea
-              value={action.equipment_materials_distributed || ""}
-              onChange={e => updateAction(0, "equipment_materials_distributed", e.target.value)}
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '60px', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}
-            />
-          </label>
-        </div>
       </div>
 
       <div style={{ padding: '0 8px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
