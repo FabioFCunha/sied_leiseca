@@ -897,6 +897,69 @@ class InspectionStatisticsUnifiedService:
         }
 
         #
+        # CASOS DE ALCOOLEMIA
+        #
+        # Hist?rico:
+        # utiliza o total institucional consolidado j? importado.
+        #
+        # Operacional:
+        # Recusa + Art. 165 administrativo + Art. 306 +
+        # pris?o por outros meios/sinais.
+        #
+        operational_alcohol_components = (
+            oper_agg.get("refusal"),
+            oper_agg.get("thirtythree_ml"),
+            oper_agg.get("thirtyfour_ml"),
+            oper_agg.get("arrests_means_evidence"),
+        )
+
+        operational_alcohol_cases = (
+            sum(
+                value or 0
+                for value in operational_alcohol_components
+            )
+            if (
+                self.use_operational
+                and any(
+                    value is not None
+                    for value in operational_alcohol_components
+                )
+            )
+            else None
+        )
+
+        historical_alcohol_cases = (
+            hist_agg.get("historical_alcohol_cases")
+            if self.use_historical
+            else None
+        )
+
+        alcohol["alcohol_cases"] = self._sum_nullable(
+            historical_alcohol_cases,
+            operational_alcohol_cases,
+        )
+
+        approached_for_alcohol = (
+            summary.get("approach_plus_reconductor")
+            if summary.get("approach_plus_reconductor") is not None
+            else summary.get("approach")
+        )
+
+        alcohol["alcohol_percentage"] = (
+            (
+                alcohol["alcohol_cases"]
+                / approached_for_alcohol
+                * 100
+            )
+            if (
+                alcohol["alcohol_cases"] is not None
+                and approached_for_alcohol
+                and approached_for_alcohol > 0
+            )
+            else None
+        )
+
+        #
         # MEDIDAS ADMINISTRATIVAS
         #
         admin = {

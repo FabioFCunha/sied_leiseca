@@ -360,7 +360,7 @@ export default function InspectionStatisticsPage() {
     const cnhCollected = Number(summary.cnh_collected || 0);
 
     const alcoholCases = Number(
-      dashboard?.historical_yearly_table?.total?.alcohol_cases ||
+      dashboard?.alcohol_results?.alcohol_cases ??
       0
     );
 
