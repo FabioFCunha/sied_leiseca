@@ -1,3 +1,4 @@
+
 import { api } from "./client.js";
 
 function buildQuery(params = {}) {
@@ -44,9 +45,20 @@ export function listInspectionReportsByPageUrl(pageUrl) {
   try {
     const parsed = new URL(pageUrl);
     const apiPath = `${parsed.pathname}${parsed.search}`;
-    const normalizedPath = apiPath.startsWith("/api") ? apiPath.slice(4) : apiPath;
+    const normalizedPath = apiPath.startsWith("/api")
+      ? apiPath.slice(4)
+      : apiPath;
+
     return api(normalizedPath);
   } catch {
     return api(pageUrl);
   }
+}
+
+export function getInspectionTerritorialStatistics(params = {}) {
+  const query = buildQuery(params);
+
+  return api(
+    `/inspection/statistics/territorial/${query ? `?${query}` : ""}`
+  );
 }
