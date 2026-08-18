@@ -121,6 +121,177 @@ function getAgendaContact(agenda = {}) {
     .join(", ");
 }
 
+
+function parseMaterialRows(value = "") {
+  return String(value || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const normalized = line.replace(/\[\s*\]/g, "|").replace(/\s+-\s+/g, " | ");
+      const [rawName, rawQuantity = ""] = normalized.split("|").map((part) => part.trim());
+      const quantity = rawQuantity.match(/\d+/)?.[0] || "";
+      return { name: rawName, quantity };
+    })
+    .filter((item) => item.name);
+}
+
+function serializeMaterialRows(rows = []) {
+  return rows
+    .filter((item) => item.name)
+    .map((item) => {
+      const quantity =
+        item.quantity !== "" &&
+        item.quantity !== undefined &&
+        item.quantity !== null
+          ? item.quantity
+          : "";
+      return `${item.name} | ${quantity}`;
+    })
+    .join("\n");
+}
+
+function serializeBlankMaterialRows(rows = []) {
+  return rows
+    .filter((item) => item.name)
+    .map((item) => `${item.name} | `)
+    .join("\n");
+}
+
+function extractMaterialCategories(agenda = {}) {
+  const dynamics = [];
+  const supports = [];
+  const kits = [];
+
+  const add = (list, name, quantity) => {
+    if (!name) return;
+    const normalizedName = String(name).trim();
+    if (!normalizedName) return;
+
+    const existing = list.find(
+      (item) => String(item.name).trim().toLowerCase() === normalizedName.toLowerCase()
+    );
+    const validQuantity =
+      quantity !== null && quantity !== undefined && quantity !== ""
+        ? Number(quantity)
+        : "";
+
+    if (!existing) {
+      list.push({ name: normalizedName, quantity: validQuantity });
+    } else if (validQuantity !== "" && existing.quantity === "") {
+      existing.quantity = validQuantity;
+    }
+  };
+
+  for (let index = 1; index <= 7; index += 1) {
+    add(supports, agenda[`kit_${index}`], agenda[`kit_${index}_quantity`]);
+    add(kits, agenda[`material_${index}`], "");
+  }
+
+  if (agenda.materials?.length) {
+    agenda.materials.forEach((item) => {
+      add(dynamics, item.dynamic_name, item.quantity);
+      add(kits, item.kit_name, item.quantity);
+      add(supports, item.material_name, item.quantity);
+    });
+  }
+
+  return { dynamics, supports, kits };
+}
+
+function sumActionDistributedMaterials(actions = [], materialRows = []) {
+  const totals = {};
+
+  materialRows.forEach((item) => {
+    totals[item.name.toLowerCase()] = { name: item.name, quantity: 0 };
+  });
+
+  actions.forEach((action) => {
+    const value =
+      action.distribution_materials_distributed ||
+      serializeBlankMaterialRows(materialRows);
+
+    parseMaterialRows(value).forEach((item) => {
+      const key = item.name.toLowerCase();
+      const quantity = parseInt(item.quantity, 10) || 0;
+
+      if (!totals[key]) {
+        totals[key] = { name: item.name, quantity: 0 };
+      }
+      totals[key].quantity += quantity;
+    });
+  });
+
+  return serializeMaterialRows(Object.values(totals));
+}
+
+function MobileMaterialQuantityEditor({ value, onChange }) {
+  const rows = parseMaterialRows(value);
+
+  const updateRow = (rowIndex, quantity) => {
+    const nextRows = rows.map((row, index) =>
+      index === rowIndex ? { ...row, quantity } : row
+    );
+    onChange(serializeMaterialRows(nextRows));
+  };
+
+  if (!rows.length) {
+    return (
+      <div
+        style={{
+          padding: "10px",
+          borderRadius: "8px",
+          border: "1px solid #e2e8f0",
+          background: "#f8fafc",
+          color: "#64748b",
+          fontSize: "12px",
+        }}
+      >
+        Nenhum material de distribuição vinculado a esta Ordem de Serviço.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      {rows.map((row, rowIndex) => (
+        <label
+          key={`${row.name}-${rowIndex}`}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 90px",
+            alignItems: "center",
+            gap: "10px",
+            padding: "10px",
+            borderRadius: "8px",
+            border: "1px solid #e2e8f0",
+            background: "#fff",
+          }}
+        >
+          <span style={{ fontSize: "13px", fontWeight: "600", color: "#334155" }}>
+            {row.name}
+          </span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            placeholder="0"
+            value={row.quantity}
+            onChange={(event) => updateRow(rowIndex, event.target.value)}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "8px",
+              borderRadius: "7px",
+              border: "1px solid #cbd5e1",
+            }}
+          />
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function hydrateActionFromAgenda(action = {}, agenda = {}) {
   return {
     ...action,
@@ -368,16 +539,37 @@ export default function MobileReportFormPage() {
   }, [form?.operation_date, form?.team, agenda, location.key]);
 
   const updateAction = (idx, field, value) => {
-    setForm(prev => {
+    setForm((prev) => {
       const nextActions = [...prev.actions];
       nextActions[idx] = { ...nextActions[idx], [field]: value };
-      return { ...prev, actions: nextActions };
+
+      const nextForm = { ...prev, actions: nextActions };
+
+      if (field === "distribution_materials_distributed") {
+        const categories = extractMaterialCategories(agenda || {});
+        nextForm.distribution_materials_distributed =
+          sumActionDistributedMaterials(nextActions, categories.kits);
+      }
+
+      return nextForm;
     });
   };
 
   const addAction = () => {
     setForm((current) => {
+      const categories = extractMaterialCategories(agenda || {});
       const baseAction = current.actions?.[0] || emptyAction;
+
+      let availableMaterials = categories.kits.filter(
+        (item) => (parseInt(item.quantity, 10) || 0) > 0
+      );
+
+      if (!availableMaterials.length) {
+        availableMaterials = parseMaterialRows(
+          baseAction.distribution_materials_removed || ""
+        ).filter((item) => (parseInt(item.quantity, 10) || 0) > 0);
+      }
+
       return {
         ...current,
         actions: [
@@ -387,10 +579,8 @@ export default function MobileReportFormPage() {
             agenda: current.agenda,
             source_id: "",
             __userCreated: true,
-            place_action: baseAction.place_action || "",
-            institution_name: baseAction.institution_name || "",
-            equipment_materials_removed: baseAction.equipment_materials_removed || "",
-            distribution_materials_removed: baseAction.distribution_materials_removed || "",
+            distribution_materials_removed: serializeMaterialRows(availableMaterials),
+            distribution_materials_distributed: serializeBlankMaterialRows(availableMaterials),
           },
         ],
       };
@@ -803,27 +993,71 @@ export default function MobileReportFormPage() {
                   </label>
 
                   <div style={{ paddingTop: '4px', borderTop: '1px solid #e2e8f0' }}>
-                    <h5 style={{ margin: '10px 0 12px', color: '#334155', fontSize: '13px' }}>Materiais desta ação</h5>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                        Material Distribuído nesta Ação (Kits / Categorias)
-                        <textarea
-                          value={action.distribution_materials_distributed || ""}
-                          onChange={e => updateAction(index, "distribution_materials_distributed", e.target.value)}
-                          placeholder={'Ex:\nCATEGORIA 1 - ITEM: 10\nCATEGORIA 2 - ITEM: 5'}
-                          style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '100px', fontFamily: 'inherit', whiteSpace: 'pre-wrap', background: '#fff' }}
-                        />
-                      </label>
+                    <h5 style={{ margin: '10px 0 12px', color: '#334155', fontSize: '13px' }}>
+                      Materiais desta ação
+                    </h5>
 
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                        Equipamentos (Opcional)
-                        <textarea
-                          value={action.equipment_materials_distributed || ""}
-                          onChange={e => updateAction(index, "equipment_materials_distributed", e.target.value)}
-                          style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '60px', fontFamily: 'inherit', whiteSpace: 'pre-wrap', background: '#fff' }}
-                        />
-                      </label>
-                    </div>
+                    {(() => {
+                      const categories = extractMaterialCategories(agenda || {});
+                      const baseAction = form.actions?.[0] || emptyAction;
+
+                      let availableMaterials = categories.kits.filter(
+                        (item) => (parseInt(item.quantity, 10) || 0) > 0
+                      );
+
+                      if (!availableMaterials.length) {
+                        availableMaterials = parseMaterialRows(
+                          baseAction.distribution_materials_removed || ""
+                        ).filter((item) => (parseInt(item.quantity, 10) || 0) > 0);
+                      }
+
+                      const distributedValue =
+                        action.distribution_materials_distributed ||
+                        serializeBlankMaterialRows(availableMaterials);
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {availableMaterials.length > 0 && (
+                            <div>
+                              <div style={{ marginBottom: '6px', fontSize: '12px', fontWeight: '700', color: '#475569' }}>
+                                Material retirado para esta Ordem de Serviço (OS)
+                              </div>
+                              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff', overflow: 'hidden' }}>
+                                {availableMaterials.map((row, rowIndex) => (
+                                  <div
+                                    key={`${row.name}-${rowIndex}`}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      gap: '12px',
+                                      padding: '9px 10px',
+                                      borderBottom: rowIndex === availableMaterials.length - 1 ? 'none' : '1px solid #e2e8f0',
+                                      fontSize: '12px',
+                                      color: '#334155'
+                                    }}
+                                  >
+                                    <strong>{row.name}</strong>
+                                    <span>{row.quantity}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div>
+                            <div style={{ marginBottom: '6px', fontSize: '12px', fontWeight: '700', color: '#475569' }}>
+                              Material Distribuído nesta Ação
+                            </div>
+                            <MobileMaterialQuantityEditor
+                              value={distributedValue}
+                              onChange={(value) =>
+                                updateAction(index, "distribution_materials_distributed", value)
+                              }
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
