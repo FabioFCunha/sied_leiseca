@@ -44,8 +44,11 @@ export function AuthProvider({ children }) {
       })
       .catch(() => {
         logout();
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
+        const isMobileRoute = window.location.pathname.startsWith("/app");
+        const loginPath = isMobileRoute ? "/app/login" : "/login";
+
+        if (window.location.pathname !== loginPath) {
+          window.location.href = loginPath;
         }
       });
   }, []);

@@ -16,15 +16,22 @@ export default function ProtectedRoute({ children, roles = [], moduleName = null
   }, [user]);
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const loginPath = window.location.pathname.startsWith("/app")
+      ? "/app/login"
+      : "/login";
+
+    return <Navigate to={loginPath} replace />;
   }
+
   if (!canAccessRoute(user, roles, moduleName)) {
     return <Navigate to="/" replace />;
   }
 
   return (
     <>
-      {!lgpdAccepted && <LGPDModal onConsent={(updatedUser) => setLgpdAccepted(true)} />}
+      {!lgpdAccepted && (
+        <LGPDModal onConsent={(updatedUser) => setLgpdAccepted(true)} />
+      )}
       {children}
     </>
   );

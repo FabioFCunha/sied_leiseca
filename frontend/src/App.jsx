@@ -25,6 +25,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 // PWA Mobile Components
 import MobileLayout from "./components/mobile/MobileLayout.jsx";
 import MobileHomePage from "./pages/mobile/MobileHomePage.jsx";
+import MobileLoginPage from "./pages/mobile/MobileLoginPage.jsx";
 import MobileMorePage from "./pages/mobile/MobileMorePage.jsx";
 import MobileAgendasPage from "./pages/mobile/MobileAgendasPage.jsx";
 import MobileAgendaDetailsPage from "./pages/mobile/MobileAgendaDetailsPage.jsx";
@@ -47,6 +48,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/app/login" element={<MobileLoginPage />} />
       <Route path="/definir-senha" element={<SetPasswordPage />} />
       <Route path="/solicitar-agenda" element={<PublicAgendaRequestPage />} />
       <Route path="/solicitar-agenda/:token" element={<PublicAgendaRequestPage />} />

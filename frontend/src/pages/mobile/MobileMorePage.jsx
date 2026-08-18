@@ -1,6 +1,6 @@
 import { useAuth } from "../../context/AuthContext.jsx";
 import { roleLabel } from "../../utils/permissions.js";
-import { LogOut, ExternalLink, ClipboardCheck, ChevronRight, FileText, Monitor } from "lucide-react";
+import { LogOut, ClipboardCheck, ChevronRight, FileText } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 
 export default function MobileMorePage() {
@@ -9,11 +9,7 @@ export default function MobileMorePage() {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
-  };
-
-  const handleOpenDesktop = () => {
-    navigate("/");
+    navigate("/app/login", { replace: true });
   };
 
   return (
@@ -46,11 +42,6 @@ export default function MobileMorePage() {
           <ChevronRight size={20} color="#cbd5e1" style={{ marginLeft: 'auto' }} />
         </Link>
       </div>
-
-      <button className="mobile-btn mobile-btn-primary" onClick={handleOpenDesktop} style={{ marginTop: '16px' }}>
-        <Monitor size={20} />
-        Versão completa
-      </button>
 
       <button className="mobile-btn mobile-btn-danger" onClick={handleLogout} style={{ marginTop: '16px' }}>
         <LogOut size={20} />
