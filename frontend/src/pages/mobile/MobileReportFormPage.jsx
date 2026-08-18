@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, FileText, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileText, MessageCircle, Plus, Save, Trash2 } from "lucide-react";
 import { api } from "../../api/client.js";
 import { STREET_ACTION_ID } from "../../utils/constants";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
@@ -326,6 +326,133 @@ function hydrateActionFromAgenda(action = {}, agenda = {}) {
   };
 }
 
+function formatShareDate(value) {
+  if (!value) return "";
+  const [year, month, day] = String(value).slice(0, 10).split("-");
+  if (!year || !month || !day) return String(value);
+  return `${day}/${month}/${year}`;
+}
+
+function exceptionalOccurrenceTypeLabel(value) {
+  const labels = {
+    VEHICLE_BREAKDOWN: "Quebra de Viatura",
+    WORK_ACCIDENT: "Acidente de Trabalho (Efetivo)",
+    WEATHER: "Condição Climática",
+    MATERIAL_SHORTAGE: "Falta de Material",
+    OTHER: "Outros",
+  };
+  return labels[value] || value || "";
+}
+
+function exceptionalOccurrenceImpactLabel(value) {
+  const labels = {
+    NONE: "Nenhum",
+    PARTIAL: "Parcial",
+    TOTAL: "Total",
+  };
+  return labels[value] || value || "";
+}
+
+function summarizeDistributedMaterials(value) {
+  return parseMaterialRows(value)
+    .filter((item) => (parseInt(item.quantity, 10) || 0) > 0)
+    .map((item) => `${item.name}: ${item.quantity}`)
+    .join(", ");
+}
+
+function buildReportShareSummary(report = {}, agenda = {}, attendanceStats = {}) {
+  const isStreetAction = isStreetActionAgenda(agenda);
+  const lines = [
+    "*RELATÓRIO TÉCNICO - OPERAÇÃO LEI SECA*",
+    "",
+    "Relatório enviado para conferência no SIED.",
+    "",
+  ];
+
+  const operationDate = report.operation_date || report.agenda_date || agenda.date;
+  const team = report.team || agenda.team_name || agenda.team_ref_name || agenda.sector_name;
+  const location =
+    report.agenda_location ||
+    agenda.institution_location ||
+    agenda.location ||
+    getAgendaActionPlace(agenda);
+
+  if (operationDate) lines.push(`📅 Data: ${formatShareDate(operationDate)}`);
+  if (team) lines.push(`👥 Equipe: ${team}`);
+  if (location) lines.push(`📍 Local: ${location}`);
+  lines.push(`🎯 Modalidade: ${isStreetAction ? "Ação de Rua" : "Palestra"}`);
+
+  if (attendanceStats?.loaded && attendanceStats.total > 0) {
+    lines.push(
+      `✅ Frequência: ${attendanceStats.present} presente(s), ${attendanceStats.absent} ausente(s)`
+    );
+  }
+
+  const actions = getValidatableActions(report.actions || []).map(({ action }) => action);
+
+  if (actions.length) {
+    lines.push("", "*AÇÕES REALIZADAS*");
+
+    actions.forEach((action, index) => {
+      const actionTitle = isStreetAction
+        ? streetActionTypeLabel(action.type_action || "")
+        : (action.institution_name || `Ação ${index + 1}`);
+
+      lines.push("");
+      lines.push(`*Ação ${String(index + 1).padStart(2, "0")}*${actionTitle ? ` - ${actionTitle}` : ""}`);
+
+      if (action.place_action) {
+        lines.push(`📍 ${action.place_action}`);
+      }
+
+      if (action.start_time || action.final_hour) {
+        const start = String(action.start_time || "").slice(0, 5);
+        const end = String(action.final_hour || "").slice(0, 5);
+        lines.push(`🕒 Horário: ${start || "-"}${end ? ` às ${end}` : ""}`);
+      }
+
+      const reached = isStreetAction
+        ? Number(action.approached_actions || 0)
+        : Number(action.approached_lectures || 0);
+
+      lines.push(
+        `${isStreetAction ? "👥 Abordagens" : "👥 Abordados em palestras"}: ${reached}`
+      );
+
+      const distributed = summarizeDistributedMaterials(
+        action.distribution_materials_distributed || ""
+      );
+      if (distributed) {
+        lines.push(`📦 Material distribuído: ${distributed}`);
+      }
+    });
+  }
+
+  if (report.has_exceptional_occurrence) {
+    lines.push("", "*OCORRÊNCIA EXCEPCIONAL*");
+
+    const type = exceptionalOccurrenceTypeLabel(report.exceptional_occurrence_type);
+    if (type) lines.push(`⚠️ Tipo: ${type}`);
+
+    if (report.exceptional_occurrence_description) {
+      lines.push(`Descrição: ${report.exceptional_occurrence_description}`);
+    }
+
+    if (report.exceptional_occurrence_actions_taken) {
+      lines.push(`Providências: ${report.exceptional_occurrence_actions_taken}`);
+    }
+
+    const impact = exceptionalOccurrenceImpactLabel(report.exceptional_occurrence_impact);
+    if (impact) lines.push(`Impacto: ${impact}`);
+  }
+
+  if (String(report.general_observations || "").trim()) {
+    lines.push("", `📝 Observações: ${String(report.general_observations).trim()}`);
+  }
+
+  return lines.join("\n");
+}
+
 export default function MobileReportFormPage() {
   const { agendaId, id } = useParams();
   const navigate = useNavigate();
@@ -339,6 +466,11 @@ export default function MobileReportFormPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const [sharePrompt, setSharePrompt] = useState({
+    open: false,
+    reportId: null,
+    summary: "",
+  });
   const location = useLocation();
 
   // Frequência state
@@ -655,6 +787,26 @@ export default function MobileReportFormPage() {
     }
   };
 
+  const closeSharePromptAndOpenReport = () => {
+    const reportId = sharePrompt.reportId;
+    setSharePrompt({ open: false, reportId: null, summary: "" });
+
+    if (reportId) {
+      navigate(`/app/relatorios/${reportId}`, { replace: true });
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!sharePrompt.summary) {
+      closeSharePromptAndOpenReport();
+      return;
+    }
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(sharePrompt.summary)}`;
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    closeSharePromptAndOpenReport();
+  };
+
   const handleSubmitForReview = async (e) => {
     e.preventDefault();
     if (isSubmitting || isSaving) return;
@@ -717,8 +869,31 @@ export default function MobileReportFormPage() {
         throw new Error("Relatório salvo, mas não foi possível enviá-lo para validação.");
       }
 
-      // 6. Navegar para detalhe
-      navigate(`/app/relatorios/${savedId}`, { replace: true });
+      // 6. Confirmar envio e oferecer compartilhamento do resumo
+      let submittedReport;
+
+      try {
+        submittedReport = await api(`/education-reports/${savedId}/`);
+      } catch {
+        submittedReport = {
+          ...form,
+          id: savedId,
+          status: "PENDING_REVIEW",
+        };
+      }
+
+      const summary = buildReportShareSummary(
+        submittedReport,
+        agenda || {},
+        attendanceStats
+      );
+
+      setMessage("Relatório enviado para conferência com sucesso.");
+      setSharePrompt({
+        open: true,
+        reportId: savedId,
+        summary,
+      });
 
     } catch (err) {
       setError(`⚠️ Não foi possível enviar o relatório\n\nMotivo:\n${err.message}`);
@@ -1321,6 +1496,130 @@ export default function MobileReportFormPage() {
           {isSubmitting ? "Enviando..." : "Enviar para validação"}
         </button>
       </div>
+
+      {sharePrompt.open && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="share-report-title"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            backgroundColor: "rgba(15, 23, 42, 0.58)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              maxHeight: "88vh",
+              overflowY: "auto",
+              backgroundColor: "#ffffff",
+              borderRadius: "16px",
+              padding: "22px",
+              boxShadow: "0 20px 50px rgba(15, 23, 42, 0.24)",
+            }}
+          >
+            <div
+              style={{
+                width: "52px",
+                height: "52px",
+                borderRadius: "50%",
+                margin: "0 auto 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#dcfce7",
+                color: "#166534",
+              }}
+            >
+              <CheckCircle2 size={30} />
+            </div>
+
+            <h3
+              id="share-report-title"
+              style={{
+                margin: "0 0 8px",
+                textAlign: "center",
+                color: "#0f172a",
+                fontSize: "19px",
+              }}
+            >
+              Relatório enviado para conferência
+            </h3>
+
+            <p
+              style={{
+                margin: "0 0 18px",
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: "14px",
+                lineHeight: "1.5",
+              }}
+            >
+              O relatório foi enviado com sucesso. Deseja compartilhar um resumo pelo WhatsApp?
+            </p>
+
+            <div
+              style={{
+                padding: "12px",
+                marginBottom: "18px",
+                borderRadius: "10px",
+                backgroundColor: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                color: "#475569",
+                fontSize: "12px",
+                lineHeight: "1.5",
+                whiteSpace: "pre-wrap",
+                maxHeight: "260px",
+                overflowY: "auto",
+              }}
+            >
+              {sharePrompt.summary}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <button
+                type="button"
+                className="mobile-btn mobile-btn-primary"
+                onClick={handleShareWhatsApp}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  backgroundColor: "#0a1e44",
+                  color: "#ffffff",
+                }}
+              >
+                <MessageCircle size={19} />
+                Compartilhar no WhatsApp
+              </button>
+
+              <button
+                type="button"
+                className="mobile-btn mobile-btn-outline"
+                onClick={closeSharePromptAndOpenReport}
+                style={{ width: "100%" }}
+              >
+                Agora não
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
