@@ -760,7 +760,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             )}
           </div>
 
-          {form.requester_entity_kind !== STREET_ACTION_ID && (
+          {!isStreetRequesterType(form.requester_entity_kind) && (
             <div className="form-section">
               <h3>{internalRequest ? "Sobre a ação pretendida" : "Palestra pretendida"}</h3>
               {internalRequest && (
@@ -873,7 +873,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               <span>Telefone (com DDD) <b>*</b></span>
               <input value={form.external_responsible_phone} onChange={(event) => update("external_responsible_phone", event.target.value)} required />
             </label>
-            {form.requester_entity_kind !== STREET_ACTION_ID && (
+            {!isStreetRequesterType(form.requester_entity_kind) && (
               <label className="field-label">
                 <span>Instituição/Organização <b>*</b></span>
                 <input value={form.institution_location} onChange={(event) => update("institution_location", event.target.value)} required />
@@ -886,7 +886,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             </label>
           </div>
 
-          {form.requester_entity_kind !== STREET_ACTION_ID && (
+          {!isStreetRequesterType(form.requester_entity_kind) && (
             <div className="form-section">
               <h3>Sobre o local</h3>
               <div className="notice-card">
@@ -941,7 +941,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             </div>
           )}
 
-          {form.requester_entity_kind !== STREET_ACTION_ID && (
+          {!isStreetRequesterType(form.requester_entity_kind) && (
             <div className="form-section">
               <h3>Recursos disponíveis</h3>
               <div className="field-card resource-card">
