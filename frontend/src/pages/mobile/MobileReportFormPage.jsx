@@ -1323,7 +1323,7 @@ export default function MobileReportFormPage() {
           className="mobile-btn mobile-btn-secondary"
           disabled={isSaving || isSubmitting}
           onClick={handleSubmitForReview}
-          style={{ width: '100%', opacity: (isSaving || isSubmitting) ? 0.7 : 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '14px', borderRadius: '8px', backgroundColor: '#f1f5f9', color: '#0f172a', border: '1px solid #cbd5e1', fontWeight: '600', fontSize: '16px' }}
+          style={{ width: '100%', opacity: (isSaving || isSubmitting) ? 0.7 : 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '14px', borderRadius: '8px', backgroundColor: '#0a1e44', color: '#ffffff', border: '1px solid #0a1e44', fontWeight: '600', fontSize: '16px' }}
         >
           <Save size={18} />
           {isSubmitting ? "Enviando..." : "Enviar para validação"}

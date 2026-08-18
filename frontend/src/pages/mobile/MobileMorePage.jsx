@@ -47,7 +47,7 @@ export default function MobileMorePage() {
         </Link>
       </div>
 
-      <button className="mobile-btn mobile-btn-outline" onClick={handleOpenDesktop} style={{ marginTop: '16px' }}>
+      <button className="mobile-btn mobile-btn-primary" onClick={handleOpenDesktop} style={{ marginTop: '16px' }}>
         <Monitor size={20} />
         Versão completa
       </button>

@@ -385,3 +385,38 @@
     grid-template-columns: 1fr 1fr 1fr;
   }
 }
+
+
+/* Isola os botões do aplicativo das regras globais do desktop */
+.mobile-app button {
+  background-image: none;
+}
+
+.mobile-app button:hover {
+  background-image: none;
+}
+
+/* Botões principais do aplicativo */
+.mobile-app .mobile-btn-primary,
+.mobile-app .mobile-btn-primary:hover,
+.mobile-app .mobile-btn-primary:focus,
+.mobile-app .mobile-btn-primary:active {
+  background: #0a1e44;
+  color: #ffffff !important;
+}
+
+.mobile-app .mobile-btn-primary *,
+.mobile-app .mobile-btn-primary svg {
+  color: #ffffff !important;
+  stroke: currentColor;
+}
+
+/* Botões de contorno permanecem claros */
+.mobile-app .mobile-btn-outline,
+.mobile-app .mobile-btn-outline:hover,
+.mobile-app .mobile-btn-outline:focus,
+.mobile-app .mobile-btn-outline:active {
+  background: transparent;
+  color: #0a1e44;
+  border: 1px solid #0a1e44;
+}
