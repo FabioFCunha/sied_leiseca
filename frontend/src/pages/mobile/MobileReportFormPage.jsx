@@ -671,7 +671,7 @@ export default function MobileReportFormPage() {
 
       getValidatableActions(form.actions).forEach(({ action, index }) => {
         if (isStreetActionAgenda(agenda) && (!action.type_action || action.type_action === "Selecione a ação")) {
-          missingFields.push(`Ação ${index + 1}: Ação Definida pelo Chefe`);
+          missingFields.push(`Ação ${index + 1}: Tipo da ação realizada *`);
         }
       });
 
@@ -950,7 +950,7 @@ export default function MobileReportFormPage() {
 
                   {isStreetAction && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                      Ação Definida pelo Chefe
+                      Tipo da ação realizada *
                       <select
                         value={action.type_action || ""}
                         onChange={e => updateAction(index, "type_action", e.target.value)}

@@ -106,7 +106,14 @@
 
 .mobile-app .mobile-btn-primary {
   background-color: #0a1e44;
-  color: white;
+  color: #ffffff !important;
+}
+
+.mobile-app .mobile-btn-primary,
+.mobile-app .mobile-btn-primary *,
+.mobile-app .mobile-btn-primary svg {
+  color: #ffffff !important;
+  stroke: currentColor;
 }
 
 .mobile-app .mobile-btn-danger {
