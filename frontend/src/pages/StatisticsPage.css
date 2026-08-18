@@ -175,13 +175,84 @@
 .territorial-footer-stamp small { font-size:10px; color:var(--t-gray-5); display:block; margin:0;}
 .territorial-footer-stamp strong { font-size:11px; color:var(--t-navy); font-weight:700; margin:0;}
 @media print {
-  body { background: #fff !important; }
-  .stats-hero, .stats-filters, .stats-tabs, .btn-print, .stats-export, .app-sidebar, nav, header { display: none !important; }
-  .territorial-report-area { box-shadow: none !important; margin: 0 !important; padding: 0 !important; max-width: 100% !important; border: none !important; border-radius: 0 !important; }
-  .territorial-header, .territorial-kpi, .territorial-tbl-wrap thead tr, .territorial-tbl-wrap tfoot tr, .territorial-region-header, .territorial-main-region-title, .territorial-region-subtotal, .territorial-row-highlight td, .territorial-badge-highlight, .territorial-sub-tbl thead th { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  @page { margin: 8mm 10mm; size: A4 portrait; }
-  .territorial-section { padding: 18px 28px !important; }
-  .territorial-divider { margin: 0 28px !important; }
-  .territorial-header { padding: 22px 28px 18px !important; }
-  .page-break { page-break-before: always; }
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .sidebar,
+  .app-sidebar,
+  .topbar,
+  .stats-hero,
+  .stats-filters,
+  .stats-tabs,
+  .btn-print,
+  .stats-export,
+  nav,
+  header:not(.territorial-header) {
+    display: none !important;
+  }
+
+  .app-shell,
+  .content,
+  .main-content,
+  .stats-dashboard {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .territorial-report-area {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  .territorial-header,
+  .territorial-kpi,
+  .territorial-tbl-wrap thead tr,
+  .territorial-tbl-wrap tfoot tr,
+  .territorial-region-header,
+  .territorial-main-region-title,
+  .territorial-region-subtotal,
+  .territorial-row-highlight td,
+  .territorial-badge-highlight,
+  .territorial-sub-tbl thead th {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .territorial-tbl-wrap {
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  .territorial-tbl-wrap table {
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  .territorial-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .territorial-tbl-wrap tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
 }
