@@ -1161,14 +1161,6 @@ export default function MobileReportFormPage() {
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-            Observação de Ocorrência (se houver)
-            <textarea
-              value={form.occurrence_observation || ""}
-              onChange={e => updateField("occurrence_observation", e.target.value)}
-              style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', minHeight: '60px', fontFamily: 'inherit' }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
             Contato Recebido
             <textarea
               value={form.contact_received || ""}
