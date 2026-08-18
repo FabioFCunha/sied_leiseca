@@ -1,52 +1,68 @@
 import re
 import unicodedata
 
-from apps.inspection.models import InspectionMunicipality
+from apps.inspection.models import (
+    InspectionMunicipality,
+    InspectionRegion,
+)
+
+
+MUNICIPALITY_ALIASES = {
+    "RUO DE JANEIRO": "RIO DE JANEIRO",
+}
 
 
 def normalize_municipality_name(value):
-    """
-    Normaliza nomes de município para comparação.
-
-    Exemplos:
-    "São Gonçalo"   -> "SAO GONCALO"
-    "  niterói  "   -> "NITEROI"
-    "Rio   Claro"   -> "RIO CLARO"
-    """
-    if not value:
+    if value is None:
         return ""
 
-    value = str(value).strip()
+    text = str(value).strip()
 
-    value = unicodedata.normalize("NFKD", value)
-    value = "".join(
-        char for char in value
-        if not unicodedata.combining(char)
+    if not text:
+        return ""
+
+    text = unicodedata.normalize(
+        "NFKD",
+        text,
     )
 
-    value = value.upper()
-    value = re.sub(r"\s+", " ", value)
+    text = "".join(
+        character
+        for character in text
+        if not unicodedata.combining(
+            character
+        )
+    )
 
-    return value.strip()
+    text = text.upper()
+
+    text = re.sub(
+        r"\s+",
+        " ",
+        text,
+    ).strip()
+
+    return MUNICIPALITY_ALIASES.get(
+        text,
+        text,
+    )
 
 
 def resolve_municipality(city):
-    """
-    Localiza o município cadastrado a partir do texto recebido da operação.
+    normalized_city = (
+        normalize_municipality_name(
+            city
+        )
+    )
 
-    Não altera o valor original da operação.
-    Retorna None quando não houver correspondência segura.
-    """
-    normalized_name = normalize_municipality_name(city)
-
-    if not normalized_name:
+    if not normalized_city:
         return None
 
     return (
         InspectionMunicipality.objects
         .select_related("region")
         .filter(
-            normalized_name=normalized_name,
+            normalized_name=normalized_city,
             is_active=True,
             region__is_active=True,
         )
@@ -55,10 +71,9 @@ def resolve_municipality(city):
 
 
 def resolve_region(city):
-    """
-    Retorna a região correspondente ao município informado.
-    """
-    municipality = resolve_municipality(city)
+    municipality = (
+        resolve_municipality(city)
+    )
 
     if municipality is None:
         return None
@@ -67,16 +82,30 @@ def resolve_region(city):
 
 
 def resolve_territory(city):
-    """
-    Retorna uma estrutura pronta para uso na estatística territorial.
-    """
-    normalized_name = normalize_municipality_name(city)
-    municipality = resolve_municipality(city)
+    source_city = (
+        ""
+        if city is None
+        else str(city)
+    )
+
+    normalized_city = (
+        normalize_municipality_name(
+            source_city
+        )
+    )
+
+    municipality = (
+        resolve_municipality(
+            source_city
+        )
+    )
 
     if municipality is None:
         return {
-            "source_city": city or "",
-            "normalized_city": normalized_name,
+            "source_city": source_city,
+            "normalized_city": (
+                normalized_city
+            ),
             "matched": False,
             "municipality_id": None,
             "municipality": None,
@@ -85,13 +114,21 @@ def resolve_territory(city):
             "region": None,
         }
 
+    region = municipality.region
+
     return {
-        "source_city": city or "",
-        "normalized_city": normalized_name,
+        "source_city": source_city,
+        "normalized_city": (
+            normalized_city
+        ),
         "matched": True,
-        "municipality_id": municipality.id,
-        "municipality": municipality.name,
-        "region_id": municipality.region_id,
-        "region_code": municipality.region.code,
-        "region": municipality.region.name,
+        "municipality_id": (
+            municipality.id
+        ),
+        "municipality": (
+            municipality.name
+        ),
+        "region_id": region.id,
+        "region_code": region.code,
+        "region": region.name,
     }

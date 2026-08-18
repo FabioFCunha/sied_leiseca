@@ -285,6 +285,25 @@ class InspectionTerritorialTestCase(TestCase):
             municipality,
         )
 
+    def test_known_typo_ruo_de_janeiro_resolves_to_rio_de_janeiro(self):
+        result = resolve_territory(
+            "Ruo de janeiro"
+        )
+
+        self.assertTrue(
+            result["matched"]
+        )
+
+        self.assertEqual(
+            result["municipality"],
+            "Rio de Janeiro",
+        )
+
+        self.assertEqual(
+            result["region_code"],
+            "METROPOLITANA",
+        )
+
     def test_all_92_registered_municipalities_can_be_resolved(self):
         municipalities = (
             InspectionMunicipality.objects

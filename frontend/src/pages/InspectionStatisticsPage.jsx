@@ -664,6 +664,57 @@ function formatDate(isoStr) {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
+function formatMunicipalityDates(dates) {
+  if (!Array.isArray(dates) || dates.length === 0) {
+    return "";
+  }
+
+  const sortedDates = [...dates].sort();
+
+  const parts = sortedDates.map((value) => {
+    const [year, month, day] = String(value).split("-");
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    return {
+      year,
+      month,
+      day,
+      full: `${day}/${month}/${year}`,
+    };
+  });
+
+  if (parts.some((item) => item === null)) {
+    return sortedDates.map(formatDate).join(" · ");
+  }
+
+  if (parts.length === 1) {
+    return parts[0].full;
+  }
+
+  const sameMonth = parts.every(
+    (item) => item.month === parts[0].month
+  );
+
+  const sameYear = parts.every(
+    (item) => item.year === parts[0].year
+  );
+
+  if (sameMonth && sameYear) {
+    const days = parts.map((item) => item.day);
+
+    if (days.length === 2) {
+      return `${days[0]} e ${days[1]}/${parts[0].month}/${parts[0].year}`;
+    }
+
+    return `${days.slice(0, -1).join(", ")} e ${days.at(-1)}/${parts[0].month}/${parts[0].year}`;
+  }
+
+  return parts.map((item) => item.full).join(" · ");
+}
+
 function TerritorialContent({ territorial, loading, error, filters }) {
   if (loading) {
     return <div className="stats-panel"><div className="stats-loading">Carregando análise territorial...</div></div>;
@@ -791,6 +842,9 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                   <tr key={item.municipality_id} className={isHigh ? "territorial-row-highlight" : ""}>
                     <td className="territorial-muni">
                       <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}</strong>
+                      {formatMunicipalityDates(item.dates) ? (
+                        <small>{formatMunicipalityDates(item.dates)}</small>
+                      ) : null}
                     </td>
                     <td>{integer(item.metrics?.approach)}</td>
                     <td>{integer(item.metrics?.fined)}</td>
@@ -827,6 +881,9 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                     <tr key={item.municipality_id} className={isHigh ? "territorial-row-highlight" : ""}>
                       <td className="territorial-muni">
                         <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}</strong>
+                        {formatMunicipalityDates(item.dates) ? (
+                          <small>{formatMunicipalityDates(item.dates)}</small>
+                        ) : null}
                       </td>
                       <td>{integer(item.metrics?.approach)}</td>
                       <td>{integer(item.metrics?.fined)}</td>
@@ -902,7 +959,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
               <tbody>
                 {highlighted.map(item => (
                   <tr key={item.operation_id}>
-                    <td style={{textAlign: "center"}}>{item.date}</td>
+                    <td style={{textAlign: "center"}}>{formatDate(item.date)}</td>
                     <td style={{textAlign: "center", fontWeight: 700}}>{item.team || "-"}</td>
                     <td style={{textAlign: "left"}}><strong>{item.municipality}</strong></td>
                     <td style={{textAlign: "left"}}>{item.region}</td>
@@ -1682,7 +1739,7 @@ export default function InspectionStatisticsPage() {
           error={
             territorialError
           }
-          filters={draftFilters}
+          filters={filters}
         />
       ) : loading ? (
         <div className="stats-panel">

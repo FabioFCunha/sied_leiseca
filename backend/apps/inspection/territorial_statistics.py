@@ -289,9 +289,11 @@ class InspectionTerritorialStatisticsService:
         )
 
         total = self._empty_metrics()
+
         metropolitan_total = (
             self._empty_metrics()
         )
+
         interior_total = (
             self._empty_metrics()
         )
@@ -333,10 +335,13 @@ class InspectionTerritorialStatisticsService:
                 item["source_city"] = (
                     operation.city or ""
                 )
+
                 item["normalized_city"] = (
                     territory["normalized_city"]
                 )
+
                 item["operations"] += 1
+
                 item["approach"] += (
                     metrics["approach"]
                 )
@@ -405,6 +410,7 @@ class InspectionTerritorialStatisticsService:
                     "normalized_name": (
                         municipality_key
                     ),
+                    "dates": set(),
                     "metrics": (
                         self._empty_metrics()
                     ),
@@ -416,8 +422,18 @@ class InspectionTerritorialStatisticsService:
                 ][municipality_key]
             )
 
+            municipality_item[
+                "dates"
+            ].add(
+                operation.report
+                .operation_date
+                .isoformat()
+            )
+
             self._add_metrics(
-                municipality_item["metrics"],
+                municipality_item[
+                    "metrics"
+                ],
                 metrics,
             )
 
@@ -508,6 +524,15 @@ class InspectionTerritorialStatisticsService:
                 ].values()
             )
 
+            for municipality_item in municipality_rows:
+                municipality_item[
+                    "dates"
+                ] = sorted(
+                    municipality_item[
+                        "dates"
+                    ]
+                )
+
             municipality_rows.sort(
                 key=lambda item: (
                     item["municipality"]
@@ -534,7 +559,9 @@ class InspectionTerritorialStatisticsService:
 
         highlighted_operations.sort(
             key=lambda item: (
-                -item["alcohol_percentage"],
+                -item[
+                    "alcohol_percentage"
+                ],
                 item["date"],
                 item["municipality"],
             )
@@ -589,6 +616,23 @@ class InspectionTerritorialStatisticsService:
                 "approach": (
                     total["approach"]
                 ),
+                "reconductor": (
+                    total["reconductor"]
+                ),
+                "refusal": (
+                    total["refusal"]
+                ),
+                "administrative_art_165": (
+                    total["thirtythree_ml"]
+                ),
+                "criminal_art_306": (
+                    total["thirtyfour_ml"]
+                ),
+                "criminal_art_306_other_evidence": (
+                    total[
+                        "arrests_means_evidence"
+                    ]
+                ),
                 "alcohol_cases": (
                     total["alcohol_cases"]
                 ),
@@ -602,6 +646,24 @@ class InspectionTerritorialStatisticsService:
                 ),
                 "towed": (
                     total["towed"]
+                ),
+                "cnh_collected": (
+                    total[
+                        "cnh_collected"
+                    ]
+                ),
+                "art307": (
+                    total["art307"]
+                ),
+                "criminal_occurrences": (
+                    total[
+                        "criminal_occurrences"
+                    ]
+                ),
+                "driving_canceled_license": (
+                    total[
+                        "driving_canceled_license"
+                    ]
                 ),
             },
             "metropolitan": (
