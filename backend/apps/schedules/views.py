@@ -190,19 +190,19 @@ def chief_agenda_filter(user, prefix=""):
     chief_ref_source = f"{prefix}chief_ref__source_id"
     chief_ref_cpf_field = f"{prefix}chief_ref__cpf"
     responsible_field = f"{prefix}responsible"
-    
+
     query = Q(**{responsible_field: user})
-    
+
     source_id = f"user:{user.id}"
     query |= Q(**{chief_ref_source: source_id})
-    
+
     cpf = "".join(char for char in str(user.cpf or "") if char.isdigit())
     if cpf and len(cpf) == 11:
         formatted_cpf = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
         query |= Q(**{chief_ref_cpf_field: cpf}) | Q(**{chief_ref_cpf_field: formatted_cpf})
     elif cpf:
         query |= Q(**{chief_ref_cpf_field: cpf})
-        
+
     return query
 
 
@@ -255,14 +255,14 @@ class ChiefViewSet(LookupViewSet):
 
     def get_queryset(self):
         queryset = Chief.objects.filter(is_active=True)
-        
+
         team_id = self.request.query_params.get("team")
         team_name = self.request.query_params.get("team_name")
         if team_id:
             queryset = queryset.filter(team_id=team_id)
         elif team_name:
             queryset = queryset.filter(team__name__iexact=team_name)
-            
+
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Chief.objects.all()
         else:
@@ -281,14 +281,14 @@ class AgentViewSet(LookupViewSet):
         if self.action in ["retrieve", "update", "partial_update", "destroy"] and self.request.user.is_admin_role:
             return Agent.objects.all().select_related("team").order_by("team__name", "name")
         queryset = Agent.objects.filter(is_active=True).exclude(role__icontains="APOIO")
-        
+
         team_id = self.request.query_params.get("team")
         team_name = self.request.query_params.get("team_name")
         if team_id:
             queryset = queryset.filter(team_id=team_id)
         elif team_name:
             queryset = queryset.filter(team__name__iexact=team_name)
-            
+
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Agent.objects.all()
         else:
@@ -309,14 +309,14 @@ class SupportViewSet(LookupViewSet):
         if self.action in ["retrieve", "update", "partial_update", "destroy"] and self.request.user.is_admin_role:
             return Support.objects.all().select_related("team").order_by("team__name", "name")
         queryset = Support.objects.filter(is_active=True)
-        
+
         team_id = self.request.query_params.get("team")
         team_name = self.request.query_params.get("team_name")
         if team_id:
             queryset = queryset.filter(team_id=team_id)
         elif team_name:
             queryset = queryset.filter(team__name__iexact=team_name)
-            
+
         if self.request.query_params.get("include_inactive") == "true" and self.request.user.is_admin_role:
             queryset = Support.objects.all()
         else:
@@ -361,12 +361,12 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(date__lte=params["date_to"])
         if params.get("team"):
             queryset = queryset.filter(team_id=params["team"])
-            
+
         user = self.request.user
         if not user.is_admin_role:
             from apps.schedules.models import Chief, Agent, Support
             source_id = f"user:{user.id}"
-            
+
             q_filter = Q()
             if user.sector_id and user.sector and user.sector.name:
                 q_filter |= Q(team__name__iexact=user.sector.name)
@@ -378,7 +378,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
                 chief_fallback_q |= Q(cpf=cpf_numeros) | Q(cpf=formatted_cpf)
             elif cpf_numeros:
                 chief_fallback_q |= Q(cpf=cpf_numeros)
-                
+
             agent_support_fallback_q = Q()
             if cpf_numeros and len(cpf_numeros) == 11:
                 agent_support_fallback_q |= Q(cpf=cpf_numeros) | Q(cpf=formatted_cpf)
@@ -386,11 +386,11 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
                 agent_support_fallback_q |= Q(cpf=cpf_numeros)
             if user.full_name and user.sector_id and user.sector and user.sector.name:
                 agent_support_fallback_q |= Q(name__iexact=user.full_name, team__name__iexact=user.sector.name)
-                
+
             chief_ids = list(Chief.objects.filter(Q(source_id=source_id) | chief_fallback_q).values_list("id", flat=True)) if (source_id or chief_fallback_q) else []
             agent_ids = list(Agent.objects.filter(Q(source_id=source_id) | agent_support_fallback_q).values_list("id", flat=True)) if (source_id or agent_support_fallback_q) else []
             support_ids = list(Support.objects.filter(Q(source_id=source_id) | agent_support_fallback_q).values_list("id", flat=True)) if (source_id or agent_support_fallback_q) else []
-            
+
             if chief_ids:
                 q_filter |= Q(extra_chiefs__in=chief_ids)
                 chief_team_ids = Chief.objects.filter(id__in=chief_ids, team__isnull=False).values_list('team_id', flat=True)
@@ -406,12 +406,12 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
                 support_team_ids = Support.objects.filter(id__in=support_ids, team__isnull=False).values_list('team_id', flat=True)
                 if support_team_ids:
                     q_filter |= Q(team_id__in=support_team_ids)
-                
+
             if not q_filter:
                 return queryset.none()
-                
+
             queryset = queryset.filter(q_filter).distinct()
-            
+
         return queryset.order_by("date", "team__name")
 
     def perform_create(self, serializer):
@@ -624,11 +624,11 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         lookup_model = self._member_model(member_type)
         if not lookup_model:
             return response.Response({"detail": "Tipo de integrante invÃ¡lido."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         member = lookup_model.objects.filter(id=member_id, is_active=True).first()
         if not member:
             return response.Response({"detail": "Integrante nÃ£o encontrado."}, status=status.HTTP_404_NOT_FOUND)
-            
+
         with transaction.atomic():
             from apps.schedules.models import ShiftManualInclusion
             ShiftManualInclusion.objects.get_or_create(
@@ -649,10 +649,10 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
             elif member_type == ShiftAbsence.MemberType.SUPPORT:
                 schedule.extra_supports.add(member)
                 schedule.removed_supports.remove(member)
-                
+
             schedule.updated_by = request.user
             schedule.save(update_fields=["updated_by", "updated_at"])
-            
+
         serializer = self.get_serializer(self.get_queryset().get(pk=schedule.pk))
         return response.Response(serializer.data)
 
@@ -661,13 +661,13 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         schedule = self.get_object()
         member_type = request.data.get("member_type")
         member_id = request.data.get("member_id")
-        
+
         from apps.schedules.models import ShiftManualInclusion
         inclusion = ShiftManualInclusion.objects.filter(schedule=schedule, member_type=member_type, member_id=member_id).first()
-        
+
         if not inclusion:
             return response.Response({"detail": "Apenas integrantes incluÃ­dos manualmente podem ser removidos."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         with transaction.atomic():
             inclusion.delete()
             lookup_model = self._member_model(member_type)
@@ -679,7 +679,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
                     schedule.extra_agents.remove(member)
                 elif member_type == ShiftAbsence.MemberType.SUPPORT:
                     schedule.extra_supports.remove(member)
-                    
+
         serializer = self.get_serializer(self.get_queryset().get(pk=schedule.pk))
         return response.Response(serializer.data)
 
@@ -802,29 +802,29 @@ class AgendaViewSet(viewsets.ModelViewSet):
         from django.contrib.auth import get_user_model
         User = get_user_model()
         agenda = self.get_object()
-        
+
         user_id = request.data.get("user_id")
         if not user_id:
             return response.Response({"detail": "Informe o ID do participante."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         try:
             user_id = int(user_id)
         except (TypeError, ValueError):
             return response.Response({"detail": "Informe um ID de participante vÃ¡lido."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         user = User.objects.filter(id=user_id, is_active=True).first()
         if not user:
             return response.Response({"detail": "Participante nÃ£o encontrado."}, status=status.HTTP_404_NOT_FOUND)
-            
+
         if not agenda.designated_users.filter(id=user_id).exists():
             return response.Response({"detail": "Participante nÃ£o estÃ¡ designado para esta Ordem de ServiÃ§o."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         with transaction.atomic():
             if request.method == "DELETE":
                 agenda.absent_designated_users.remove(user)
             else:
                 agenda.absent_designated_users.add(user)
-                
+
         serializer = self.get_serializer(agenda)
         return response.Response(serializer.data)
     serializer_class = AgendaSerializer
@@ -895,21 +895,33 @@ class AgendaViewSet(viewsets.ModelViewSet):
         exact_search_filter = None
 
         if search_term:
-            match = re.fullmatch(
-                r"(?i)(protocolo|os)[\s:#\-]*(?:n[\u00bao\u00b0][\s:#\-]*)?(\d+)",
+            identifier_match = re.match(
+                (
+                    r"(?i)^\s*"
+                    r"(protocolo|prot|os)"
+                    r"\s*"
+                    r"(?:[:#\-]\s*)?"
+                    r"(?:n\s*(?:Âº|º|°|o)?\s*)?"
+                    r"(\d+)"
+                ),
                 search_term,
             )
-            number_match = re.fullmatch(r"\d+", search_term)
+            number_match = re.fullmatch(
+                r"\d+",
+                search_term,
+            )
 
-            if match:
-                number = int(match.group(2))
-                if match.group(1).lower() == "protocolo":
-                    exact_search_filter = Q(id=number)
-                else:
-                    exact_search_filter = Q(service_order_number=number)
+            if identifier_match:
+                number = int(identifier_match.group(2))
+                exact_search_filter = Q(
+                    service_order_number=number
+                )
             elif number_match:
                 number = int(number_match.group(0))
-                exact_search_filter = Q(id=number) | Q(service_order_number=number)
+                exact_search_filter = (
+                    Q(id=number)
+                    | Q(service_order_number=number)
+                )
 
         if params.get("source") == "requests":
             if exact_search_filter is None:
@@ -1070,11 +1082,11 @@ class AgendaViewSet(viewsets.ModelViewSet):
     def reopen(self, request, pk=None):
         if not request.user.is_admin_role:
             return response.Response({"detail": "PermissÃ£o negada."}, status=status.HTTP_403_FORBIDDEN)
-        
+
         agenda = self.get_object()
         if agenda.status != Agenda.Status.CANCELLED:
             return response.Response({"detail": "A solicitaÃ§Ã£o nÃ£o estÃ¡ cancelada."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         reason = request.data.get("reason", "").strip()
         previous_valid_status = Agenda.Status.PENDING
         for hist in agenda.history.order_by("-created_at"):
@@ -1082,22 +1094,22 @@ class AgendaViewSet(viewsets.ModelViewSet):
             if hist_status and hist_status != Agenda.Status.CANCELLED:
                 previous_valid_status = hist_status
                 break
-                
+
         agenda.status = previous_valid_status
         agenda.save(update_fields=["status"])
-        
+
         snapshot = snapshot_for(agenda)
         snapshot["previous_status"] = Agenda.Status.CANCELLED
         snapshot["new_status"] = previous_valid_status
         snapshot["observation"] = reason
-        
+
         AgendaHistory.objects.create(
             agenda=agenda,
             changed_by=request.user,
             action="REOPENED",
             snapshot=snapshot,
         )
-        
+
         log_audit(
             request,
             AuditLog.Action.STATUS_CHANGE,
@@ -1188,12 +1200,12 @@ class AgendaViewSet(viewsets.ModelViewSet):
     def dashboard(self, request):
         from django.core.cache import cache
         import hashlib
-        
+
         query_string = request.META.get('QUERY_STRING', '')
         user_id = request.user.id if request.user.is_authenticated else 0
         cache_key = f"agenda_dash_{user_id}_{query_string}"
         cache_key = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
-        
+
         cached_data = cache.get(cache_key)
         if cached_data:
             return response.Response(cached_data)
@@ -1558,7 +1570,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         realized_qs = apply_dashboard_filters(unscoped_dashboard_queryset(), ignore_status=True).filter(
             Q(status=Agenda.Status.COMPLETED) | Q(technical_reports__status="APPROVED")
         )
-        
+
         by_neighborhood_counter = Counter(
             normalize_name(
                 row.get("neighborhood_ref__name")
@@ -2186,7 +2198,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         # Metrics only consider approved surveys or surveys without text (which don't need moderation)
         surveys_qs = SatisfactionSurvey.objects.filter(
             Q(is_approved=True) | Q(suggestion=""),
-            agenda__in=base_qs, 
+            agenda__in=base_qs,
             answered_at__isnull=False
         )
         overall_rating_avg = surveys_qs.aggregate(avg=Avg('overall_rating'))['avg'] or 0.0
@@ -2221,10 +2233,10 @@ class AgendaViewSet(viewsets.ModelViewSet):
             agenda_id__in=qs.values("id")
         ).exclude(status=EducationReport.ReportStatus.DRAFT).distinct()
         chief_actions = EducationAction.objects.filter(report_id__in=chief_reports.values("id"))
-        
+
         approved_reports = chief_reports.filter(status=EducationReport.ReportStatus.APPROVED)
         approved_actions = EducationAction.objects.filter(report_id__in=approved_reports.values("id"))
-        
+
         chief_reported_agendas = qs.filter(id__in=chief_reports.values("agenda_id")).distinct()
         chief_totals = chief_actions.aggregate(
             approaches=Sum("approach"),
@@ -2249,7 +2261,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         approaches = chief_totals["approaches"] or 0
         approved_actions_count = approved_totals["approved_actions_count"] or 0
         reports_waiting_approval = max(0, registered_actions - approved_actions_count)
-        
+
         chief_team_names = {
             team.strip().casefold()
             for team in chief_reports.values_list("team", flat=True)
@@ -2520,29 +2532,44 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         self._block_visitor_write()
         from apps.statistics.services import generate_statistics_for_report
         from django.utils import timezone
-        
+
         if not request.user.has_perm('statistics.add_consolidatedstatistic'):
             return response.Response({'error': 'VocÃª nÃ£o tem permissÃ£o para processar estatísticas oficiais.'}, status=status.HTTP_403_FORBIDDEN)
-            
+
         report = self.get_object()
-        
+
         if report.status != 'APPROVED':
             return response.Response({'error': 'Apenas relatórios aprovados podem ser validados para a estatística oficial.'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         if report.statistics_processed:
             # Re-processamento permitido se houver correÃ§Ã£o (lÃ³gica idempotente no services.py)
             pass
-            
+
         try:
-            generate_statistics_for_report(report, processed_by=request.user)
-            report.statistics_processed = True
-            report.statistics_processed_at = timezone.now()
-            report.statistics_processed_by = request.user
-            report.save(update_fields=['statistics_processed', 'statistics_processed_at', 'statistics_processed_by'])
-            return response.Response({'message': 'EstatÃ­stica processada e validada com sucesso.'}, status=status.HTTP_200_OK)
-        except Exception as e:
+            generate_statistics_for_report(
+                report,
+                processed_by=request.user,
+            )
+            return response.Response(
+                {
+                    "message": (
+                        "Estatística processada e validada "
+                        "com sucesso."
+                    )
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception:
             logger.exception("Error processing statistics")
-            return response.Response({'error': 'Erro ao processar estatística. Consulte os logs para mais detalhes.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return response.Response(
+                {
+                    "error": (
+                        "Erro ao processar estatística. "
+                        "Consulte os logs para mais detalhes."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     def partial_update(self, request, *args, **kwargs):
         self._block_visitor_write()
@@ -2669,10 +2696,15 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
             if "status" in serializer.validated_data:
                 del serializer.validated_data["status"]
-            
+
             agenda = serializer.validated_data.get("agenda", serializer.instance.agenda)
             self._validate_agenda_access(agenda)
             report = serializer.save()
+
+            if report.status == EducationReport.ReportStatus.APPROVED and report.statistics_processed:
+                from apps.statistics.services import invalidate_statistics
+                invalidate_statistics(report, self.request.user)
+
             SatisfactionSurvey.objects.filter(agenda=report.agenda, report__isnull=True).update(report=report)
             if report.status == EducationReport.ReportStatus.APPROVED:
                 from apps.statistics.services import generate_statistics_for_report
@@ -2682,7 +2714,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     def submit_for_review(self, request, pk=None):
         self._block_visitor_write()
         report = self.get_object()
-        
+
         if report.agenda:
             self._validate_agenda_access(report.agenda)
 
@@ -2693,10 +2725,10 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 self._log_permission_denied("REPORT_ALREADY_APPROVED", "Este relatório jÃ¡ foi aprovado e nÃ£o pode mais ser alterado.", report.agenda_id, report.id)
             else:
                 self._log_permission_denied("AGENDA_STATUS_INVALID", "Esta agenda nÃ£o permite mais alteraÃ§Ãµes.", report.agenda_id, report.id)
-        
+
         # ValidaÃ§Ã£o obrigatÃ³ria da conferência de frequência
         from apps.schedules.models import ShiftSchedule, Team
-        
+
         schedules_found = []
         if report.agenda and report.agenda.team_ref_id:
             schedules_found = list(ShiftSchedule.objects.filter(date=report.operation_date, team_id=report.agenda.team_ref_id))
@@ -2726,8 +2758,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 return response.Response(
                     {
                         "detail": (
-                            "N\u00e3o foi poss\u00edvel localizar a escala vinculada a este "
-                            "relat\u00f3rio. Verifique a agenda e tente novamente."
+                            "Não foi possível localizar a escala vinculada a este "
+                            "relatório. Verifique a agenda e tente novamente."
                         )
                     },
                     status=status.HTTP_400_BAD_REQUEST,
@@ -2746,7 +2778,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             report.submitted_for_review_at = timezone.now()
             report.submitted_for_review_by = request.user
             report.save(update_fields=["status", "submitted_for_review_at", "submitted_for_review_by", "updated_at"])
-            
+
             ReportStatusHistory.objects.create(
                 report=report,
                 old_status=old_status,
@@ -2774,7 +2806,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         self._block_visitor_write()
         if not request.user.is_admin_role:
             raise PermissionDenied("Apenas gestores ou administradores podem aprovar relatórios.")
-            
+
         report = self.get_object()
         if report.status != EducationReport.ReportStatus.PENDING_REVIEW:
             return response.Response({"detail": "Apenas relatórios aguardando conferência podem ser aprovados."}, status=status.HTTP_400_BAD_REQUEST)
@@ -2784,7 +2816,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             report.reviewed_at = timezone.now()
             report.reviewed_by = request.user
             report.save(update_fields=["status", "reviewed_at", "reviewed_by", "updated_at"])
-            
+
             ReportStatusHistory.objects.create(
                 report=report,
                 old_status=old_status,
@@ -2794,11 +2826,11 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
             from apps.statistics.services import generate_statistics_for_report
             generate_statistics_for_report(report, processed_by=request.user)
-        
+
         self._register_accessibility_block(report)
         transaction.on_commit(lambda: send_satisfaction_survey_email(report))
         transaction.on_commit(lambda: send_report_confirmation_email(report))
-        
+
         return response.Response({"detail": "Relatório aprovado com sucesso."})
 
     @decorators.action(detail=True, methods=["post"], url_path="return-for-correction")
@@ -2806,11 +2838,11 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         self._block_visitor_write()
         if not request.user.is_admin_role:
             raise PermissionDenied("Apenas gestores ou administradores podem devolver relatórios.")
-            
+
         notes = request.data.get("notes", "").strip()
         if not notes:
             return response.Response({"detail": "A justificativa Ã© obrigatÃ³ria."}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         report = self.get_object()
         if report.status != EducationReport.ReportStatus.PENDING_REVIEW:
             return response.Response({"detail": "Apenas relatórios aguardando conferência podem ser devolvidos."}, status=status.HTTP_400_BAD_REQUEST)
@@ -2820,8 +2852,14 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             report.review_notes = notes
             report.reviewed_at = timezone.now()
             report.reviewed_by = request.user
-            report.save(update_fields=["status", "review_notes", "reviewed_at", "reviewed_by", "updated_at"])
-            
+
+            update_fields = ["status", "review_notes", "reviewed_at", "reviewed_by", "updated_at"]
+            report.save(update_fields=update_fields)
+
+            if report.statistics_processed:
+                from apps.statistics.services import invalidate_statistics
+                invalidate_statistics(report, request.user)
+
             ReportStatusHistory.objects.create(
                 report=report,
                 old_status=old_status,
@@ -2829,7 +2867,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 changed_by=request.user,
                 notes=notes
             )
-            
+
         return response.Response({"detail": "Relatório devolvido para correÃ§Ã£o."})
 
     def _validate_agenda_access(self, agenda):
@@ -2875,15 +2913,15 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         is_allowed_visitor = request.user.role == User.Role.VISITOR and request.user.sector and request.user.sector.name in allowed_visitors
         if not (request.user.is_admin_role or request.user.role == User.Role.SUPERVISOR or is_allowed_visitor):
             raise PermissionDenied("Acesso restrito.")
-            
+
         from django.core.cache import cache
         import hashlib
-        
+
         query_string = request.META.get('QUERY_STRING', '')
         user_id = request.user.id if request.user.is_authenticated else 0
         cache_key = f"report_stats_{user_id}_{query_string}"
         cache_key = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
-        
+
         cached_data = cache.get(cache_key)
         if cached_data:
             return response.Response(cached_data)
@@ -3050,7 +3088,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 qs = qs.none()
             elif not user.is_admin_role:
                 qs = qs.filter(chief_agenda_filter(user, prefix="agenda__")).distinct()
-            
+
             if params.get("protocol"):
                 qs = qs.filter(agenda_id=params["protocol"])
             if params.get("team"):
@@ -3095,7 +3133,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         comparison_list = []
         cur_agg = cur_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
         prev_agg = prev_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
-        
+
         for key, label in comparison_fields:
             current_val = cur_agg.get(key) or 0
             prev_val = prev_agg.get(key) or 0
@@ -3184,7 +3222,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
             "by_age_range": by_age_range,
             "historical_totals": historical_totals,
         }
-        
+
         cache.set(cache_key, data, 60 * 15)
         return response.Response(data)
 
@@ -3516,7 +3554,7 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         ]]
         cmp_cur_agg = cmp_cur_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
         cmp_prev_agg = cmp_prev_actions.aggregate(**{key: Sum(key) for key, _ in comparison_fields})
-        
+
         for key, label in comparison_fields:
             cur_val = cmp_cur_agg.get(key) or 0
             prev_val = cmp_prev_agg.get(key) or 0
@@ -3653,7 +3691,7 @@ class AccessibilityBlocklistViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not (user.is_admin_role or user.role == User.Role.SUPERVISOR):
             raise PermissionDenied("Sem permissÃ£o para gerenciar a lista de restriÃ§Ãµes de acessibilidade.")
-        
+
         queryset = AccessibilityBlocklist.objects.all()
         term = self.request.query_params.get("search")
         if term:
@@ -3663,11 +3701,11 @@ class AccessibilityBlocklistViewSet(viewsets.ModelViewSet):
                 | Q(external_responsible__icontains=term)
                 | Q(external_email__icontains=term)
             )
-        
+
         include_inactive = self.request.query_params.get("include_inactive")
         if include_inactive != "true":
             queryset = queryset.filter(is_active=True)
-            
+
         return queryset.order_by("-created_at")
 
 
@@ -3717,13 +3755,13 @@ class PublicAgendaRequestView(APIView):
         date_str = request.query_params.get("date")
         if not date_str:
             return response.Response({"detail": "Informe a data."}, status=400)
-            
+
         try:
             from datetime import datetime
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             return response.Response({"detail": "Formato de data invÃ¡lido."}, status=400)
-            
+
         agenda_id = request.query_params.get("agenda_id")
         qs = Agenda.objects.filter(
             date=date_obj,
@@ -3812,7 +3850,7 @@ class PublicAgendaRequestView(APIView):
         block = find_accessibility_block(data)
         if block:
             schedule_accessibility_rejection(agenda, block)
-        
+
         transaction.on_commit(lambda: send_agenda_status_email(agenda, Agenda.Status.PENDING))
         return response.Response(
             {
@@ -3911,7 +3949,7 @@ class SatisfactionSurveyPublicView(APIView):
             return response.Response({"detail": "Esta pesquisa jÃ¡ foi respondida."}, status=400)
         serializer = SatisfactionSurveySerializer(survey, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        
+
         suggestion = request.data.get("suggestion", "").strip()
         moderation_status = (
             SatisfactionSurvey.ModerationStatus.PENDING
@@ -4203,13 +4241,13 @@ class ReportViewSet(viewsets.ViewSet):
         cell_style = ParagraphStyle("CellStyle", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#1a1a1a"))
         cell_bold = ParagraphStyle("CellBold", parent=cell_style, fontName="Helvetica-Bold")
         cell_center = ParagraphStyle("CellCenter", parent=cell_style, alignment=TA_CENTER)
-        
+
         HEADER_BG = colors.HexColor("#002766")
         HEADER_FG = colors.white
         ZEBRA_EVEN = colors.HexColor("#f4f6fb")
         ZEBRA_ODD = colors.white
         BORDER_COLOR = colors.HexColor("#dddddd")
-        
+
         header_cell = ParagraphStyle("HeaderCell", parent=cell_bold, textColor=colors.white, fontSize=8, alignment=TA_CENTER)
         header_left = ParagraphStyle("HeaderLeft", parent=header_cell, alignment=TA_LEFT)
         footer_style = ParagraphStyle("Footer", parent=styles["Normal"], fontSize=7, textColor=colors.HexColor("#999999"), alignment=TA_CENTER)
@@ -4813,7 +4851,7 @@ class GoogleFormsWebhookView(APIView):
             return response.Response({"detail": "Nao autorizado."}, status=403)
 
         named_values = request.data.get("namedValues")
-        
+
         # Fallback caso o script envie diretamente o objeto
         if not named_values and request.data:
             named_values = request.data
