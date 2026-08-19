@@ -183,10 +183,11 @@ export function buildInspectionStatisticsTaxonomy(
       title: "RESULTADO ETILÔMETRO",
       subtitle:
         "Resultados registrados nas faixas do etilômetro e prisões por outros meios de prova.",
+      sourceNote: "Fonte: Sistema Horus — dados disponíveis a partir de 03/10/2022.",
       items: [
         {
           key: "four_ml",
-          label: "Resultado 0,00 a 0,04",
+          label: "Resultado 0,00 a 0,04 — Negativo",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
             alcohol.four_ml
@@ -198,7 +199,7 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "thirtythree_ml",
-          label: "Resultado 0,05 a 0,33",
+          label: "Resultado 0,05 a 0,33 — Infração administrativa",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
             alcohol.thirtythree_ml
@@ -210,7 +211,7 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "thirtyfour_ml",
-          label: "Resultado acima de 0,33",
+          label: "Resultado acima de 0,33 — Infração criminal",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
             alcohol.thirtyfour_ml

@@ -172,6 +172,17 @@ function TaxonomyGrid({ category }) {
           <div>
             <h2>{category.title}</h2>
             <p>{category.subtitle}</p>
+            {category.sourceNote && (
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "var(--t-gray-5)",
+                  marginTop: "4px",
+                }}
+              >
+                {category.sourceNote}
+              </p>
+            )}
           </div>
         </div>
       </div>
