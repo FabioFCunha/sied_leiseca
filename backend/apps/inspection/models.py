@@ -545,3 +545,43 @@ class InspectionHistoricalStatistic(models.Model):
             else f"{self.reference_year}-{self.reference_month}"
         )
         return f"Historico {self.team or self.source_team_label} - {reference}"
+
+class InspectionHistoricalTerritorialStatistic(models.Model):
+    reference_date = models.DateField(db_index=True)
+    team = models.CharField(max_length=120, blank=True, db_index=True)
+    source_city = models.CharField(max_length=255, blank=True)
+    normalized_city = models.CharField(max_length=255, blank=True)
+    municipality = models.ForeignKey(
+        "InspectionMunicipality",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    region = models.ForeignKey(
+        "InspectionRegion",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    reports_count = models.IntegerField(default=0)
+    operations_count = models.IntegerField(default=0)
+    rain = models.IntegerField(default=0)
+    approach = models.IntegerField(default=0)
+    reconductor = models.IntegerField(default=0)
+    refusal = models.IntegerField(default=0)
+    fined = models.IntegerField(default=0)
+    towed = models.IntegerField(default=0)
+    cnh_collected = models.IntegerField(default=0)
+    four_ml = models.IntegerField(default=0)
+    thirtythree_ml = models.IntegerField(default=0)
+    thirtyfour_ml = models.IntegerField(default=0)
+    passive_tests_performed = models.IntegerField(default=0)
+    removal_resolutions = models.IntegerField(default=0)
+    arrests_means_evidence = models.IntegerField(default=0)
+    art307 = models.IntegerField(default=0)
+    criminal_occurrences = models.IntegerField(default=0)
+    driving_canceled_license = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "inspection_historical_territorial"

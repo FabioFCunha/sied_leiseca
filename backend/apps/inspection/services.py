@@ -667,12 +667,15 @@ HORUS_CARD_BASELINES = {
 class InspectionStatisticsUnifiedService:
     def __init__(self, filters):
         self.filters = filters
+        self.date_from = filters.get("date_from")
 
         self.date_from = (
             date.fromisoformat(filters["date_from"])
             if filters.get("date_from")
             else None
         )
+
+        self.region = filters.get("region")
 
         self.date_to = (
             date.fromisoformat(filters["date_to"])
@@ -716,17 +719,31 @@ class InspectionStatisticsUnifiedService:
         return (a or 0) + (b or 0)
 
     def get_dashboard_data(self):
-        hist_agg, hist_ts, hist_tp = (
-            self._get_historical_data()
-            if self.use_historical
-            else ({}, [], {})
-        )
+        if self.region:
+            hist_agg, hist_ts, hist_tp = (
+                self._get_territorial_historical_data()
+                if self.use_historical
+                else ({}, [], {})
+            )
+        else:
+            hist_agg, hist_ts, hist_tp = (
+                self._get_historical_data()
+                if self.use_historical
+                else ({}, [], {})
+            )
 
-        oper_agg, oper_ts, oper_tp = (
-            self._get_operational_data()
-            if self.use_operational
-            else ({}, [], {})
-        )
+        if self.region:
+            oper_agg, oper_ts, oper_tp = (
+                self._get_territorial_operational_data()
+                if self.use_operational
+                else ({}, [], {})
+            )
+        else:
+            oper_agg, oper_ts, oper_tp = (
+                self._get_operational_data()
+                if self.use_operational
+                else ({}, [], {})
+            )
 
         public_security, driver_extra = (
             self._get_public_security_data()
@@ -1311,6 +1328,12 @@ class InspectionStatisticsUnifiedService:
                 ),
 
                 "sources_used": sources_used,
+
+                **(
+                    {"territorial_coverage": self._calculate_territorial_coverage()}
+                    if self.region
+                    else {}
+                ),
             },
 
             "coverage": coverage,
@@ -2024,7 +2047,7 @@ class InspectionStatisticsUnifiedService:
             3,
         )
 
-        rain_qs = (
+        daily_qs = (
             InspectionHistoricalStatistic
             .objects
             .filter(
@@ -2043,7 +2066,7 @@ class InspectionStatisticsUnifiedService:
                 rain_available_from,
             )
 
-            rain_qs = rain_qs.filter(
+            daily_qs = daily_qs.filter(
                 reference_date__gte=effective_date_from
             )
 
@@ -2053,20 +2076,63 @@ class InspectionStatisticsUnifiedService:
                 HISTORICAL_CUTOFF_DATE,
             )
 
-            rain_qs = rain_qs.filter(
+            daily_qs = daily_qs.filter(
                 reference_date__lte=effective_date_to
             )
 
         if self.team:
-            rain_qs = rain_qs.filter(
+            daily_qs = daily_qs.filter(
                 team__iexact=self.team
             )
 
-        rain_aggregate = rain_qs.aggregate(
+        rain_aggregate = daily_qs.aggregate(
             total=Sum(
                 "rain"
             )
         )
+
+        if 'covered_years' not in locals():
+            covered_years = []
+        covered_years = locals().get("covered_years", [])
+
+        partial_daily_qs = daily_qs.exclude(reference_date__year__in=covered_years)
+        partial_aggregate = partial_daily_qs.aggregate(
+            approach=Sum("historical_approached"),
+            refusal=Sum("refusal"),
+            fined=Sum("fined"),
+            towed=Sum("towed"),
+            cnh_collected=Sum("historical_cnh_retained"),
+            passive_tests_performed=Sum("historical_passive_tests"),
+            removal_resolutions=Sum("removal_resolutions"),
+            arrests_means_evidence=Sum("arrests_means_evidence"),
+            four_ml=Sum("four_ml"),
+            thirtythree_ml=Sum("thirtythree_ml"),
+            thirtyfour_ml=Sum("thirtyfour_ml"),
+            taxi_approached=Sum("taxi_approached"),
+            taxi_illegal=Sum("taxi_illegal"),
+            planned_actions=Sum("planned_actions"),
+            external_occurrence=Sum("external_occurrence"),
+            public_security_occurrence=Sum("public_security_occurrence"),
+            historical_reconductors_licensed=Sum("historical_reconductors_licensed"),
+            historical_deliberations=Sum("historical_deliberations"),
+            historical_cnh_retained=Sum("historical_cnh_retained"),
+            historical_passive_tests=Sum("historical_passive_tests"),
+            historical_event_trailers=Sum("historical_event_trailers"),
+            negative_tests=Sum("negative_tests"),
+            historical_alcohol_cases=Sum("historical_alcohol_cases"),
+            criminal_art_306=Sum("criminal_art_306"),
+            criminal_art_306_other_evidence=Sum("criminal_art_306_other_evidence"),
+            operations=Sum("historical_operations"),
+            driving_canceled_license=Sum("driving_canceled_license"),
+            art307=Sum("historical_art_307"),
+        )
+
+        has_partial_data = False
+        for k, v in partial_aggregate.items():
+            if v is not None:
+                has_partial_data = True
+                agg[k] = (agg.get(k) or 0) + v
+
 
         #
         # Fora da cobertura histórica de chuva, retornamos None.
@@ -2362,3 +2428,212 @@ class InspectionStatisticsUnifiedService:
             oper_ts,
             oper_tp,
         )
+    def _get_territorial_historical_data(self):
+        from apps.inspection.models import InspectionHistoricalTerritorialStatistic
+        from django.db.models import Sum, Value
+        from django.db.models.functions import Coalesce
+
+        hist_agg = {}
+        hist_ts = []
+        hist_tp = {}
+
+        if self.date_from and self.date_from > HISTORICAL_CUTOFF_DATE:
+            return hist_agg, hist_ts, hist_tp
+
+        qs = InspectionHistoricalTerritorialStatistic.objects.all()
+
+        if self.date_from:
+            qs = qs.filter(reference_date__gte=self.date_from)
+
+        if self.date_to:
+            effective_date_to = min(self.date_to, HISTORICAL_CUTOFF_DATE)
+            qs = qs.filter(reference_date__lte=effective_date_to)
+        else:
+            qs = qs.filter(reference_date__lte=HISTORICAL_CUTOFF_DATE)
+
+        if self.team:
+            qs = qs.filter(team__iexact=self.team)
+
+        if self.region:
+            qs = qs.filter(region__name__iexact=self.region)
+
+        agg = qs.aggregate(
+            operations=Sum("operations_count"),
+            approach=Sum("approach"),
+            reconductor=Sum("reconductor"),
+            refusal=Sum("refusal"),
+            fined=Sum("fined"),
+            towed=Sum("towed"),
+            cnh_collected=Sum("cnh_collected"),
+            four_ml=Sum("four_ml"),
+            thirtythree_ml=Sum("thirtythree_ml"),
+            thirtyfour_ml=Sum("thirtyfour_ml"),
+            passive_tests_performed=Sum("passive_tests_performed"),
+            removal_resolutions=Sum("removal_resolutions"),
+            arrests_means_evidence=Sum("arrests_means_evidence"),
+            art307=Sum("art307"),
+            criminal_occurrences=Sum("criminal_occurrences"),
+            driving_canceled_license=Sum("driving_canceled_license"),
+
+        )
+
+        for key, val in agg.items():
+            hist_agg[key] = val
+
+        hist_agg["rain"] = None
+
+        hist_agg["approach_plus_reconductor"] = self._sum_nullable(
+            hist_agg.get("approach"), hist_agg.get("reconductor")
+        )
+
+        # Yearly aggregation for TS
+        yearly_rows = list(
+            qs.values("reference_date__year").annotate(
+                operations=Sum("operations_count"),
+                approach=Sum("approach"),
+                refusal=Sum("refusal"),
+                fined=Sum("fined")
+            ).order_by("reference_date__year")
+        )
+
+        for row in yearly_rows:
+            year = row.pop("reference_date__year")
+            row["operation_date"] = (
+                HISTORICAL_CUTOFF_DATE if year == HISTORICAL_CUTOFF_DATE.year else date(year, 12, 31)
+            )
+            hist_ts.append(row)
+
+        return hist_agg, hist_ts, hist_tp
+
+    def _get_territorial_operational_data(self):
+        from apps.inspection.models import InspectionReportOperation
+        from apps.inspection.territorial import resolve_territory
+        from django.db.models import Sum, Count, Value
+        from django.db.models.functions import Coalesce
+
+        oper_agg = {}
+        oper_ts = []
+        oper_tp = {}
+
+        if self.date_to and self.date_to <= HISTORICAL_CUTOFF_DATE:
+            return oper_agg, oper_ts, oper_tp
+
+        qs = InspectionReportOperation.objects.filter(report__official_statistic__isnull=False)
+
+        if self.date_from:
+            qs = qs.filter(report__operation_date__gte=self.date_from)
+        else:
+            qs = qs.filter(report__operation_date__gt=HISTORICAL_CUTOFF_DATE)
+
+        if self.date_to:
+            qs = qs.filter(report__operation_date__lte=self.date_to)
+
+        if self.team:
+            qs = qs.filter(report__team__iexact=self.team)
+
+        # Need to fetch and filter in Python because city is string
+        # To optimize, we can use an exact match on city if we pre-resolve
+        operations = list(qs.select_related('report'))
+
+        filtered_operations = []
+        for op in operations:
+            territory = resolve_territory(op.city)
+            if territory["region"] and territory["region"].lower() == self.region.lower():
+                filtered_operations.append(op)
+
+        # Aggregate manually
+        ops_count = len(filtered_operations)
+        reports_set = set()
+
+        for op in filtered_operations:
+            reports_set.add(op.report_id)
+            for k in ["approach", "reconductor", "refusal", "fined", "towed", "cnh_collected", "four_ml", "thirtythree_ml", "thirtyfour_ml", "passive_tests_performed", "removal_resolutions", "arrests_means_evidence", "art307", "criminal_occurrences", "driving_canceled_license", "celebrities_authorities"]:
+                val = getattr(op, k) or 0
+                oper_agg[k] = (oper_agg.get(k) or 0) + val
+
+        oper_agg["operations"] = ops_count
+        oper_agg["homologated_reports"] = len(reports_set)
+        oper_agg["sum_approach"] = oper_agg.get("approach", 0)
+        oper_agg["sum_reconductor"] = oper_agg.get("reconductor", 0)
+        oper_agg["approach_plus_reconductor"] = (oper_agg.get("approach") or 0) + (oper_agg.get("reconductor") or 0)
+
+        # Build oper_ts
+        ts_dict = {}
+        tp_dict = {}
+        for op in filtered_operations:
+            d = op.report.operation_date
+            if d not in ts_dict:
+                ts_dict[d] = {"operation_date": d, "operations": 0, "approach": 0, "refusal": 0, "fined": 0}
+            ts_dict[d]["operations"] += 1
+            ts_dict[d]["approach"] += (op.approach or 0)
+            ts_dict[d]["refusal"] += (op.refusal or 0)
+            ts_dict[d]["fined"] += (op.fined or 0)
+
+            t = op.report.team
+            if t not in tp_dict:
+                tp_dict[t] = {"team": t, "operations": 0, "approach": 0, "refusal": 0, "fined": 0, "towed": 0}
+            tp_dict[t]["operations"] += 1
+            tp_dict[t]["approach"] += (op.approach or 0)
+            tp_dict[t]["refusal"] += (op.refusal or 0)
+            tp_dict[t]["fined"] += (op.fined or 0)
+            tp_dict[t]["towed"] += (op.towed or 0)
+
+        oper_ts = sorted(ts_dict.values(), key=lambda x: x["operation_date"])
+        oper_tp = tp_dict
+
+        return oper_agg, oper_ts, oper_tp
+
+    def _calculate_territorial_coverage(self):
+        from apps.inspection.models import InspectionHistoricalTerritorialStatistic
+        from django.db.models import Sum
+
+        qs = InspectionHistoricalTerritorialStatistic.objects.all()
+
+        if self.date_from:
+            qs = qs.filter(reference_date__gte=self.date_from)
+
+        if self.date_to:
+            effective_date_to = min(self.date_to, HISTORICAL_CUTOFF_DATE)
+            qs = qs.filter(reference_date__lte=effective_date_to)
+        else:
+            qs = qs.filter(reference_date__lte=HISTORICAL_CUTOFF_DATE)
+
+        if self.team:
+            qs = qs.filter(team__iexact=self.team)
+
+        total_agg = qs.aggregate(
+            operations=Sum("operations_count"),
+            approach=Sum("approach")
+        )
+
+        classified_qs = qs.filter(region__isnull=False)
+        class_agg = classified_qs.aggregate(
+            operations=Sum("operations_count"),
+            approach=Sum("approach")
+        )
+
+        t_ops = total_agg["operations"] or 0
+        c_ops = class_agg["operations"] or 0
+        u_ops = t_ops - c_ops
+
+        t_app = total_agg["approach"] or 0
+        c_app = class_agg["approach"] or 0
+        u_app = t_app - c_app
+
+        pct_ops = (c_ops / t_ops * 100) if t_ops > 0 else 0
+        pct_app = (c_app / t_app * 100) if t_app > 0 else 0
+
+        return {
+            "operations": {
+                "classified": c_ops,
+                "unclassified": u_ops,
+                "total": t_ops,
+                "classified_percentage": round(pct_ops, 1)
+            },
+            "approach": {
+                "classified": c_app,
+                "unclassified": u_app,
+                "total": t_app,
+                "classified_percentage": round(pct_app, 1)
+            }
+        }

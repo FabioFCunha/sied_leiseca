@@ -431,6 +431,10 @@ class InspectionStatisticsDashboardView(
                 filters.get("team")
                 or None
             ),
+            "region": (
+                filters.get("region")
+                or None
+            ),
         }
 
         return Response(

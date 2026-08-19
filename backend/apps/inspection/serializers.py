@@ -114,12 +114,20 @@ class InspectionStatisticsDashboardQuerySerializer(serializers.Serializer):
     date_from = serializers.DateField(required=False)
     date_to = serializers.DateField(required=False)
     team = serializers.CharField(required=False, allow_blank=False, trim_whitespace=True)
+    region = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
     def validate(self, attrs):
         date_from = attrs.get("date_from")
         date_to = attrs.get("date_to")
         if date_from and date_to and date_from > date_to:
             raise serializers.ValidationError({"date_to": "date_to deve ser maior ou igual a date_from."})
+
+        region = attrs.get("region")
+        if region:
+            valid_regions = ["Metropolitana", "Costa Verde", "Centro Sul Fluminense", "Médio Paraíba", "Serrana", "Noroeste Fluminense", "Norte Fluminense", "Baixadas Litorâneas"]
+            if region not in valid_regions:
+                raise serializers.ValidationError({"region": "Região inválida."})
+
         return attrs
 
 

@@ -34,6 +34,18 @@ import {
 } from "../utils/inspectionStatisticsTaxonomy.js";
 import "./StatisticsPage.css";
 
+const REGIONS = [
+  "Metropolitana",
+  "Costa Verde",
+  "Centro Sul Fluminense",
+  "Médio Paraíba",
+  "Serrana",
+  "Noroeste Fluminense",
+  "Norte Fluminense",
+  "Baixadas Litorâneas"
+];
+
+
 
 const executiveCardMeta = {
   operations: {
@@ -85,6 +97,7 @@ function buildDefaultFilters() {
     date_from: toIsoDate(historicalStart),
     date_to: toIsoDate(today),
     team: "",
+    region: "",
   };
 }
 
@@ -1727,6 +1740,20 @@ export default function InspectionStatisticsPage() {
               )
             }
           />
+        </label>
+
+
+        <label>
+          Região
+          <select
+            value={draftFilters.region || ""}
+            onChange={(e) => setDraftFilters(current => ({ ...current, region: e.target.value }))}
+          >
+            <option value="">Todas as regiões</option>
+            {REGIONS.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
         </label>
 
         <div className="stats-filter-actions">
