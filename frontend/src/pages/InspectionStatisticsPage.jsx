@@ -1342,9 +1342,8 @@ export default function InspectionStatisticsPage() {
   );
 
   const rainTotal =
-    dashboard?.horus_cards?.rain
-      ?.value ??
     dashboard?.occurrences?.rain ??
+    dashboard?.public_security?.rain ??
     0;
 
   const inspectionsTotal =
