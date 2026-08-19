@@ -1,8 +1,8 @@
-export const TAXONOMY_STATUS = {
+﻿export const TAXONOMY_STATUS = {
   MAPPED: "MAPEADO",
   PARTIAL: "PARCIAL",
-  UNMAPPED: "NÃO MAPEADO",
-  NEEDS_DEFINITION: "PRECISA DEFINIÇÃO",
+  UNMAPPED: "NÃƒO MAPEADO",
+  NEEDS_DEFINITION: "PRECISA DEFINIÃ‡ÃƒO",
 };
 
 const isPresent = (value) =>
@@ -26,7 +26,7 @@ export function buildInspectionExecutiveCards(summary = {}) {
   return [
     {
       key: "operations",
-      label: "Fiscalizações",
+      label: "FiscalizaÃ§Ãµes",
       value: summary.operations,
     },
     {
@@ -64,12 +64,19 @@ export function buildInspectionStatisticsTaxonomy(
   const horusCards = dashboard.horus_cards || {};
   const coverage = dashboard.coverage || {};
 
+  const approachedForAlcohol = summary.approach_plus_reconductor ?? summary.approach ?? 0;
+
+  const calcPct = (val) => {
+    if (!isPresent(val) || !approachedForAlcohol || approachedForAlcohol === 0) return null;
+    return (val / approachedForAlcohol) * 100;
+  };
+
   return [
     {
       key: "vehicles",
-      title: "VEÍCULOS",
+      title: "VEÃCULOS",
       subtitle:
-        "Indicadores relacionados à abordagem de veículos e às medidas adotadas nas operações.",
+        "Indicadores relacionados Ã  abordagem de veÃ­culos e Ã s medidas adotadas nas operaÃ§Ãµes.",
       items: [
         {
           key: "fined",
@@ -78,7 +85,7 @@ export function buildInspectionStatisticsTaxonomy(
           value: formatMetricValue(summary.fined),
           field: "summary.fined",
           note:
-            "Indicador consolidado entre histórico e produção operacional quando disponível.",
+            "Indicador consolidado entre histÃ³rico e produÃ§Ã£o operacional quando disponÃ­vel.",
         },
         {
           key: "towed",
@@ -87,17 +94,17 @@ export function buildInspectionStatisticsTaxonomy(
           value: formatMetricValue(summary.towed),
           field: "summary.towed",
           note:
-            "Indicador consolidado entre histórico e produção operacional quando disponível.",
+            "Indicador consolidado entre histÃ³rico e produÃ§Ã£o operacional quando disponÃ­vel.",
         },
         {
           key: "deliberations",
-          label: "Deliberações de remoção",
+          label: "DeliberaÃ§Ãµes de remoÃ§Ã£o",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
             horusCards.removal_resolutions?.value
           ),
           note:
-            "Registros disponíveis no Horus desde 03/10/2022.",
+            "Registros disponÃ­veis no Horus desde 03/10/2022.",
         },
       ],
     },
@@ -106,7 +113,7 @@ export function buildInspectionStatisticsTaxonomy(
       key: "driver",
       title: "MOTORISTA",
       subtitle:
-        "Indicadores relacionados ao condutor, habilitação, testes e medidas administrativas.",
+        "Indicadores relacionados ao condutor, habilitaÃ§Ã£o, testes e medidas administrativas.",
       items: [
         {
           key: "licensed_reconductors",
@@ -116,7 +123,7 @@ export function buildInspectionStatisticsTaxonomy(
             horusCards.reconductor?.value
           ),
           note:
-            "Registros disponíveis no Horus desde 03/10/2022.",
+            "Registros disponÃ­veis no Horus desde 03/10/2022.",
         },
         {
           key: "refusal",
@@ -135,98 +142,102 @@ export function buildInspectionStatisticsTaxonomy(
             )
           ),
           note:
-            "Utiliza o indicador consolidado atual e preserva o campo histórico específico quando necessário.",
+            "Utiliza o indicador consolidado atual e preserva o campo histÃ³rico especÃ­fico quando necessÃ¡rio.",
         },
         {
           key: "fake_cnh",
           label: "CNH falsa",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(driver.fake_cnh),
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
         {
           key: "suspended_cnh",
           label: "CNH suspensa",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(driver.suspended_cnh),
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
         {
           key: "canceled_cnh",
           label: "CNH cassada",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(driver.canceled_cnh),
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
       ],
     },
 
     {
       key: "breathalyzer_results",
-      title: "RESULTADO ETILÔMETRO",
+      title: "RESULTADO ETILÃ”METRO",
       subtitle:
-        "Resultados registrados nas faixas do etilômetro e prisões por outros meios de prova.",
+        "Resultados registrados nas faixas do etilÃ´metro e prisÃµes por outros meios de prova.",
       items: [
         {
           key: "four_ml",
-          label: "Resultado negativo",
+          label: "Resultado 0,00 a 0,04",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            horusCards.four_ml?.value
+            alcohol.four_ml
           ),
+          percentage: calcPct(alcohol.four_ml),
           field: "0,00 a 0,04 mg/L",
           note:
-            "Registros disponíveis no Horus desde 03/10/2022.",
+            "Registros disponÃ­veis no Horus desde 03/10/2022.",
         },
         {
           key: "thirtythree_ml",
-          label: "Infração administrativa",
+          label: "Resultado 0,05 a 0,33",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            horusCards.thirtythree_ml?.value
+            alcohol.thirtythree_ml
           ),
+          percentage: calcPct(alcohol.thirtythree_ml),
           field: "0,05 a 0,33 mg/L",
           note:
-            "Registros disponíveis no Horus desde 04/10/2022.",
+            "Registros disponÃ­veis no Horus desde 04/10/2022.",
         },
         {
           key: "thirtyfour_ml",
-          label: "Faixa criminal — etilômetro",
+          label: "Resultado acima de 0,33",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            horusCards.thirtyfour_ml?.value
+            alcohol.thirtyfour_ml
           ),
+          percentage: calcPct(alcohol.thirtyfour_ml),
           field: "0,34 mg/L ou mais",
           note:
-            "Registros disponíveis no Horus desde 04/10/2022.",
+            "Registros disponÃ­veis no Horus desde 04/10/2022.",
         },
         {
-          key: "arrests_means_evidence",
-          label: "Presos por outros meios de prova",
+          key: "passive_tests_performed",
+          label: "Testes passivos realizados",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(
-            horusCards.arrests_means_evidence?.value
+            driver.passive_tests_performed
           ),
+          percentage: calcPct(driver.passive_tests_performed),
           note:
-            "Registros disponíveis no Horus desde 10/10/2022.",
+            "Registros disponÃ­veis no Horus desde 10/10/2022.",
         },
       ],
     },
 
     {
       key: "public_security",
-      title: "SEGURANÇA PÚBLICA / CRIMINAL",
+      title: "SEGURANÃ‡A PÃšBLICA / CRIMINAL",
       subtitle:
-        "Ocorrências de segurança pública e criminal consolidadas na série histórica.",
+        "OcorrÃªncias de seguranÃ§a pÃºblica e criminal consolidadas na sÃ©rie histÃ³rica.",
       items: [
         {
           key: "public_security_total",
-          label: "Total de ocorrências",
+          label: "Total de ocorrÃªncias",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.total),
           field: "public_security.total",
           note:
-            "Somatório dos indicadores que compõem este bloco.",
+            "SomatÃ³rio dos indicadores que compÃµem este bloco.",
         },
         {
           key: "fugitives",
@@ -234,7 +245,7 @@ export function buildInspectionStatisticsTaxonomy(
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.fugitives),
           field: "public_security.fugitives",
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
         {
           key: "flagrante",
@@ -242,7 +253,7 @@ export function buildInspectionStatisticsTaxonomy(
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.flagrante),
           field: "public_security.flagrante",
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
         {
           key: "simulacrum",
@@ -251,7 +262,7 @@ export function buildInspectionStatisticsTaxonomy(
           value: formatMetricValue(publicSecurity.simulacrum),
           field: "public_security.simulacrum",
           note:
-            "Indicador disponível a partir do período em que passou a ser registrado.",
+            "Indicador disponÃ­vel a partir do perÃ­odo em que passou a ser registrado.",
         },
         {
           key: "weapons",
@@ -259,19 +270,19 @@ export function buildInspectionStatisticsTaxonomy(
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.weapons),
           field: "public_security.weapons",
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
         {
           key: "recovered_vehicles",
-          label: "Veículos recuperados",
+          label: "VeÃ­culos recuperados",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.recovered_vehicles),
           field: "public_security.recovered_vehicles",
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
         {
           key: "stolen_vehicles",
-          label: "Veículos furtados",
+          label: "VeÃ­culos furtados",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.stolen_vehicles),
           field: "public_security.stolen_vehicles",
@@ -279,7 +290,7 @@ export function buildInspectionStatisticsTaxonomy(
         },
         {
           key: "robbed_vehicles",
-          label: "Veículos roubados",
+          label: "VeÃ­culos roubados",
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.robbed_vehicles),
           field: "public_security.robbed_vehicles",
@@ -291,7 +302,7 @@ export function buildInspectionStatisticsTaxonomy(
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.narcotics),
           field: "public_security.narcotics",
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
         {
           key: "bribery",
@@ -299,7 +310,7 @@ export function buildInspectionStatisticsTaxonomy(
           status: TAXONOMY_STATUS.MAPPED,
           value: formatMetricValue(publicSecurity.bribery),
           field: "public_security.bribery",
-          note: "Indicador histórico consolidado.",
+          note: "Indicador histÃ³rico consolidado.",
         },
         {
           key: "art311",
@@ -308,7 +319,7 @@ export function buildInspectionStatisticsTaxonomy(
           value: formatMetricValue(publicSecurity.art311),
           field: "public_security.art311",
           note:
-            "Indicador disponível conforme período de registro da série histórica.",
+            "Indicador disponÃ­vel conforme perÃ­odo de registro da sÃ©rie histÃ³rica.",
         },
         {
           key: "art306",
@@ -317,7 +328,7 @@ export function buildInspectionStatisticsTaxonomy(
           value: formatMetricValue(publicSecurity.art306),
           field: "public_security.art306",
           note:
-            "Indicador disponível conforme período de registro da série histórica.",
+            "Indicador disponÃ­vel conforme perÃ­odo de registro da sÃ©rie histÃ³rica.",
         },
       ],
     },

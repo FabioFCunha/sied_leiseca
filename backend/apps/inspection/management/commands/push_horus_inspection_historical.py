@@ -53,6 +53,8 @@ from django.core.management.base import BaseCommand, CommandError
 DEFAULT_TIMEOUT_SECONDS = 30
 DEFAULT_RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_DELAY_SECONDS = 2
+DEFAULT_REQUEST_DELAY_SECONDS = 0.5
+DEFAULT_RATE_LIMIT_DELAY_SECONDS = 10
 
 
 def _compute_sha256(path: Path) -> str:
@@ -169,6 +171,19 @@ def _post_single(
                     "body": body,
                 }
 
+            # 429 Too Many Requests: respeita Retry-After quando disponível
+            # e aplica espera maior antes de tentar novamente.
+            if exc.code == 429:
+                last_exc = exc
+                if attempt < retry_attempts:
+                    retry_after = exc.headers.get("Retry-After")
+                    try:
+                        wait_seconds = float(retry_after)
+                    except (TypeError, ValueError):
+                        wait_seconds = DEFAULT_RATE_LIMIT_DELAY_SECONDS * attempt
+                    time.sleep(max(wait_seconds, retry_delay))
+                    continue
+
             last_exc = exc
 
         except (urllib_error.URLError, OSError) as exc:
@@ -252,6 +267,16 @@ class Command(BaseCommand):
             help=f"Tentativas de reenvio em caso de erro de rede (padrão: {DEFAULT_RETRY_ATTEMPTS}).",
         )
 
+        parser.add_argument(
+            "--delay",
+            type=float,
+            default=DEFAULT_REQUEST_DELAY_SECONDS,
+            help=(
+                "Pausa em segundos entre registros enviados "
+                f"(padrão: {DEFAULT_REQUEST_DELAY_SECONDS})."
+            ),
+        )
+
     def handle(self, *args, **options):
         is_dry_run = bool(options.get("dry_run"))
         is_send = bool(options.get("send"))
@@ -327,6 +352,9 @@ class Command(BaseCommand):
 
         timeout = int(options.get("timeout") or DEFAULT_TIMEOUT_SECONDS)
         retry_attempts = int(options.get("retry") or DEFAULT_RETRY_ATTEMPTS)
+        request_delay = float(options.get("delay") or 0)
+        if request_delay < 0:
+            raise CommandError("--delay não pode ser negativo.")
 
         self.stdout.write(
             f"Enviando {len(rows_to_send)} registro(s) para {url} ..."
@@ -371,6 +399,10 @@ class Command(BaseCommand):
             )
 
             counters["sent"] += 1
+
+            # Evita rajadas de requisições contra o endpoint da VPS.
+            if request_delay > 0:
+                time.sleep(request_delay)
             result = response["result"]
 
             if result == "created":

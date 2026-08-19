@@ -204,6 +204,18 @@ function TaxonomyGrid({ category }) {
                 ? item.status
                 : displayMetric(item.value)}
             </div>
+            {item.percentage !== undefined && item.percentage !== null && (
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "var(--t-gray-5)",
+                  marginTop: "2px",
+                  fontWeight: 500,
+                }}
+              >
+                {percentage(item.percentage)}
+              </div>
+            )}
 
             {item.field &&
             item.showField ? (
@@ -1549,6 +1561,7 @@ export default function InspectionStatisticsPage() {
 
 
       <div
+        className="stats-tabs"
         style={{
           display: "flex",
           gap: "8px",

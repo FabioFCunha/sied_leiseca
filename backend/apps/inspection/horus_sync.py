@@ -2,6 +2,7 @@ import json
 import os
 import socket
 import tempfile
+import time
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -18,7 +19,7 @@ SAFETY_WINDOW = timedelta(minutes=5)
 DEFAULT_BATCH_SIZE = 100
 DEFAULT_TIMEOUT_SECONDS = 15
 DEFAULT_RETRY_ATTEMPTS = 3
-DEFAULT_STATE_FILE = Path("backend/.inspection_horus_sync_state.json")
+DEFAULT_STATE_FILE = Path(__file__).resolve().parents[2] / ".inspection_horus_sync_state.json"
 ZERO_UUID = "00000000-0000-0000-0000-000000000000"
 SUCCESS_RESULTS = {
     "created",
@@ -601,14 +602,25 @@ class HorusInspectionSyncer:
                 with self.opener(request, timeout=self.timeout_seconds) as response:
                     return json.loads(response.read().decode("utf-8"))
             except urllib_error.HTTPError as exc:
-                if exc.code in {502, 503, 504} and attempt < self.retry_attempts:
+                if exc.code in {429, 502, 503, 504} and attempt < self.retry_attempts:
                     last_error = exc
+                    retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                    try:
+                        wait_seconds = (
+                            max(1.0, float(retry_after))
+                            if retry_after
+                            else float(2 ** (attempt - 1))
+                        )
+                    except (TypeError, ValueError):
+                        wait_seconds = float(2 ** (attempt - 1))
+                    time.sleep(wait_seconds)
                     continue
                 body_text = exc.read().decode("utf-8", "ignore")
                 raise HorusSyncError(f"HTTP {exc.code}: {body_text[:300]}") from exc
             except (urllib_error.URLError, socket.timeout, TimeoutError) as exc:
                 if attempt < self.retry_attempts:
                     last_error = exc
+                    time.sleep(float(2 ** (attempt - 1)))
                     continue
                 raise HorusSyncError(f"Timeout ou erro de conexao com a API SIED: {exc}") from exc
         raise HorusSyncError(f"Falha apos retries limitados: {last_error}")
