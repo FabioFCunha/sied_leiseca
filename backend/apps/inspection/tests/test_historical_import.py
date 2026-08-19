@@ -1,4 +1,5 @@
 import json
+import shutil
 import tempfile
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -173,10 +174,28 @@ class InspectionHistoricalImportTests(TestCase):
         return path
 
     def test_sha256_does_not_depend_on_filename(self):
-        path_one = self.create_workbook(name="arquivo-1.xlsx")
-        path_two = self.create_workbook(name="arquivo-2.xlsx")
+        path_one = self.create_workbook(
+            name="arquivo-1.xlsx"
+        )
 
-        self.assertEqual(compute_sha256(path_one), compute_sha256(path_two))
+        path_two = self.workbook_path(
+            "arquivo-2.xlsx"
+        )
+
+        shutil.copyfile(
+            path_one,
+            path_two,
+        )
+
+        self.assertNotEqual(
+            path_one.name,
+            path_two.name,
+        )
+
+        self.assertEqual(
+            compute_sha256(path_one),
+            compute_sha256(path_two),
+        )
 
     def test_parser_identifies_eras_and_sheet_types(self):
         path = self.create_workbook()

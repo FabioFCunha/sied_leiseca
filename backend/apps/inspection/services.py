@@ -605,6 +605,7 @@ from apps.inspection.models import (
 # Indicadores cuja fonte oficial exibida no dashboard e exclusivamente o Horus.
 # O saldo-base corresponde ao acumulado auditado ate 09/08/2026.
 HORUS_OPERATIONAL_CUTOFF_DATE = date(2026, 8, 10)
+RAIN_STRUCTURED_CLASSIFICATION_FROM = date(2026, 8, 17)
 
 HORUS_CARD_BASELINES = {
     "four_ml": {
@@ -1478,15 +1479,48 @@ class InspectionStatisticsUnifiedService:
             for field in classification_fields
         }
 
-        for classification in operational_qs.values_list(
+        for (
+            operation_date,
+            classification,
+            changes_general,
+        ) in operational_qs.values_list(
+            "operation_date",
             "report__statistics_classification",
-            flat=True,
+            "report__changes_general",
         ):
             classification = classification or {}
 
+            #
+            # As demais classificações continuam utilizando
+            # exclusivamente a classificação estruturada registrada
+            # na homologação estatística.
+            #
             for field in classification_fields:
+                if field == "rain":
+                    continue
+
                 if classification.get(field) is True:
                     operational[field] += 1
+
+            #
+            # CHUVA — regra de transição
+            #
+            # - 10/08/2026 a 16/08/2026:
+            #   identifica chuva nas Observações gerais do relatório,
+            #   recuperando a regra anterior do SIED;
+            #
+            # - a partir de 17/08/2026:
+            #   utiliza exclusivamente o campo estruturado "rain"
+            #   da Classificação para Estatística.
+            #
+            if operation_date < RAIN_STRUCTURED_CLASSIFICATION_FROM:
+                observation = str(changes_general or "").lower()
+
+                if "chuv" in observation or "chove" in observation:
+                    operational["rain"] += 1
+
+            elif classification.get("rain") is True:
+                operational["rain"] += 1
 
         def combined(field):
             historical_value = historical.get(field)
@@ -1750,16 +1784,22 @@ class InspectionStatisticsUnifiedService:
         # ESTATÍSTICA OFICIAL CONSOLIDADA
         # ==========================================================
         #
-        # A primeira aba institucional NÃO utiliza DAILY / ERA_C
-        # (Horus) para compor seus totais. O Horus permanece no banco
-        # para a futura análise territorial por município/bairro/região.
+        # A primeira aba institucional utiliza como fonte oficial:
         #
-        # Fontes oficiais desta aba:
         # - LEGACY / ERA_A: 2009 a 2022;
         # - ACCUMULATED / ERA_B: 2023 a 09/08/2026.
         #
-        # Ambas são registros consolidados da planilha institucional,
+        # Esses registros são consolidados da planilha institucional,
         # sem equipe e sem granularidade diária.
+        #
+        # EXCEÇÃO — CHUVA:
+        #
+        # O indicador de chuva utiliza o histórico diário do Horus
+        # (DAILY / ERA_C), disponível de 03/10/2022 a 09/08/2026.
+        #
+        # Isso permite que chuva acompanhe corretamente os filtros
+        # de período e equipe, sem alterar a origem dos demais
+        # indicadores oficiais.
         #
         official_qs = (
             InspectionHistoricalStatistic
@@ -1782,37 +1822,60 @@ class InspectionStatisticsUnifiedService:
         )
 
         #
-        # A planilha oficial é consolidada por ano. Portanto, um ano
-        # só pode participar do total quando o filtro cobre integralmente
-        # o período oficial disponível daquele ano. Não distribuímos
-        # artificialmente um total anual por dias ou meses.
+        # A planilha oficial é consolidada por ano.
         #
-        # Para 2026, o período histórico oficial termina em 09/08/2026.
+        # Um ano somente participa do total quando o filtro cobre
+        # integralmente o período oficial disponível daquele ano.
+        #
+        # Não distribuímos artificialmente totais anuais por
+        # dias ou meses.
+        #
+        # Para 2026, o período histórico oficial termina
+        # em 09/08/2026.
         #
         if self.team:
             official_qs = official_qs.none()
+
         else:
             covered_years = []
 
-            for year in range(2009, HISTORICAL_CUTOFF_DATE.year + 1):
-                period_start = date(year, 1, 1)
+            for year in range(
+                2009,
+                HISTORICAL_CUTOFF_DATE.year + 1,
+            ):
+                period_start = date(
+                    year,
+                    1,
+                    1,
+                )
+
                 period_end = (
                     HISTORICAL_CUTOFF_DATE
                     if year == HISTORICAL_CUTOFF_DATE.year
-                    else date(year, 12, 31)
+                    else date(
+                        year,
+                        12,
+                        31,
+                    )
                 )
 
                 starts_before_or_on = (
                     self.date_from is None
                     or self.date_from <= period_start
                 )
+
                 ends_after_or_on = (
                     self.date_to is None
                     or self.date_to >= period_end
                 )
 
-                if starts_before_or_on and ends_after_or_on:
-                    covered_years.append(year)
+                if (
+                    starts_before_or_on
+                    and ends_after_or_on
+                ):
+                    covered_years.append(
+                        year
+                    )
 
             official_qs = official_qs.filter(
                 reference_year__in=covered_years
@@ -1820,55 +1883,236 @@ class InspectionStatisticsUnifiedService:
 
         #
         # CONSOLIDADO OFICIAL
+        # ==========================================================
+        #
+        # Todos os indicadores abaixo continuam vindo
+        # exclusivamente da planilha institucional consolidada.
+        #
+        # Chuva NÃO é agregada aqui.
         #
         agg = official_qs.aggregate(
-            approach=Sum("historical_approached"),
-            refusal=Sum("refusal"),
-            fined=Sum("fined"),
-            towed=Sum("towed"),
+            approach=Sum(
+                "historical_approached"
+            ),
 
+            refusal=Sum(
+                "refusal"
+            ),
+
+            fined=Sum(
+                "fined"
+            ),
+
+            towed=Sum(
+                "towed"
+            ),
+
+            #
             # Na planilha histórica, "CNH" corresponde a
             # "CNH Recolhidas" no SIED.
-            cnh_collected=Sum("historical_cnh_retained"),
+            #
+            cnh_collected=Sum(
+                "historical_cnh_retained"
+            ),
 
-            passive_tests_performed=Sum("historical_passive_tests"),
-            removal_resolutions=Sum("removal_resolutions"),
-            arrests_means_evidence=Sum("arrests_means_evidence"),
-            four_ml=Sum("four_ml"),
-            thirtythree_ml=Sum("thirtythree_ml"),
-            thirtyfour_ml=Sum("thirtyfour_ml"),
-            taxi_approached=Sum("taxi_approached"),
-            taxi_illegal=Sum("taxi_illegal"),
-            rain=Sum("rain"),
-            planned_actions=Sum("planned_actions"),
-            external_occurrence=Sum("external_occurrence"),
-            public_security_occurrence=Sum("public_security_occurrence"),
+            passive_tests_performed=Sum(
+                "historical_passive_tests"
+            ),
+
+            removal_resolutions=Sum(
+                "removal_resolutions"
+            ),
+
+            arrests_means_evidence=Sum(
+                "arrests_means_evidence"
+            ),
+
+            four_ml=Sum(
+                "four_ml"
+            ),
+
+            thirtythree_ml=Sum(
+                "thirtythree_ml"
+            ),
+
+            thirtyfour_ml=Sum(
+                "thirtyfour_ml"
+            ),
+
+            taxi_approached=Sum(
+                "taxi_approached"
+            ),
+
+            taxi_illegal=Sum(
+                "taxi_illegal"
+            ),
+
+            planned_actions=Sum(
+                "planned_actions"
+            ),
+
+            external_occurrence=Sum(
+                "external_occurrence"
+            ),
+
+            public_security_occurrence=Sum(
+                "public_security_occurrence"
+            ),
+
             historical_reconductors_licensed=Sum(
                 "historical_reconductors_licensed"
             ),
-            historical_deliberations=Sum("historical_deliberations"),
-            historical_cnh_retained=Sum("historical_cnh_retained"),
-            historical_passive_tests=Sum("historical_passive_tests"),
-            historical_event_trailers=Sum("historical_event_trailers"),
-            negative_tests=Sum("negative_tests"),
-            historical_alcohol_cases=Sum("historical_alcohol_cases"),
-            criminal_art_306=Sum("criminal_art_306"),
+
+            historical_deliberations=Sum(
+                "historical_deliberations"
+            ),
+
+            historical_cnh_retained=Sum(
+                "historical_cnh_retained"
+            ),
+
+            historical_passive_tests=Sum(
+                "historical_passive_tests"
+            ),
+
+            historical_event_trailers=Sum(
+                "historical_event_trailers"
+            ),
+
+            negative_tests=Sum(
+                "negative_tests"
+            ),
+
+            historical_alcohol_cases=Sum(
+                "historical_alcohol_cases"
+            ),
+
+            criminal_art_306=Sum(
+                "criminal_art_306"
+            ),
+
             criminal_art_306_other_evidence=Sum(
                 "criminal_art_306_other_evidence"
             ),
-            operations=Sum("historical_operations"),
-            driving_canceled_license=Sum("driving_canceled_license"),
-            art307=Sum("historical_art_307"),
+
+            operations=Sum(
+                "historical_operations"
+            ),
+
+            driving_canceled_license=Sum(
+                "driving_canceled_license"
+            ),
+
+            art307=Sum(
+                "historical_art_307"
+            ),
         )
 
-        criminal_art_306 = agg.pop("criminal_art_306", None)
+        #
+        # CHUVA HISTÓRICA — HORUS DAILY / ERA_C
+        # ==========================================================
+        #
+        # Disponibilidade histórica confirmada:
+        # 03/10/2022 a 09/08/2026.
+        #
+        # O filtro é aplicado diretamente na granularidade
+        # data + equipe do Horus.
+        #
+        rain_available_from = date(
+            2022,
+            10,
+            3,
+        )
+
+        rain_qs = (
+            InspectionHistoricalStatistic
+            .objects
+            .filter(
+                source_type=HistoricalSourceType.DAILY,
+                taxonomy_era=HistoricalTaxonomyEra.ERA_C,
+                is_validation_only=False,
+                reference_date__isnull=False,
+                reference_date__gte=rain_available_from,
+                reference_date__lte=HISTORICAL_CUTOFF_DATE,
+            )
+        )
+
+        if self.date_from:
+            effective_date_from = max(
+                self.date_from,
+                rain_available_from,
+            )
+
+            rain_qs = rain_qs.filter(
+                reference_date__gte=effective_date_from
+            )
+
+        if self.date_to:
+            effective_date_to = min(
+                self.date_to,
+                HISTORICAL_CUTOFF_DATE,
+            )
+
+            rain_qs = rain_qs.filter(
+                reference_date__lte=effective_date_to
+            )
+
+        if self.team:
+            rain_qs = rain_qs.filter(
+                team__iexact=self.team
+            )
+
+        rain_aggregate = rain_qs.aggregate(
+            total=Sum(
+                "rain"
+            )
+        )
+
+        #
+        # Fora da cobertura histórica de chuva, retornamos None.
+        # Dentro da cobertura, sem ocorrência positiva, retornamos 0.
+        #
+        rain_period_start = (
+            self.date_from
+            if self.date_from
+            else rain_available_from
+        )
+
+        rain_period_end = (
+            self.date_to
+            if self.date_to
+            else HISTORICAL_CUTOFF_DATE
+        )
+
+        rain_has_overlap = (
+            rain_period_start <= HISTORICAL_CUTOFF_DATE
+            and rain_period_end >= rain_available_from
+        )
+
+        if rain_has_overlap:
+            agg["rain"] = (
+                rain_aggregate.get("total")
+                if rain_aggregate.get("total") is not None
+                else 0
+            )
+        else:
+            agg["rain"] = None
+
+        criminal_art_306 = agg.pop(
+            "criminal_art_306",
+            None,
+        )
+
         criminal_other = agg.pop(
             "criminal_art_306_other_evidence",
             None,
         )
-        agg["criminal_occurrences"] = self._sum_nullable(
-            criminal_art_306,
-            criminal_other,
+
+        agg["criminal_occurrences"] = (
+            self._sum_nullable(
+                criminal_art_306,
+                criminal_other,
+            )
         )
 
         # A série oficial consolidada não possui recondutor equivalente
@@ -1880,34 +2124,59 @@ class InspectionStatisticsUnifiedService:
         # SÉRIE TEMPORAL OFICIAL
         # ==========================================================
         #
-        # Como a fonte é anual, cada ponto representa o encerramento do
-        # período oficial do ano. Em 2026, o ponto termina em 09/08/2026.
+        # Como a fonte institucional é anual, cada ponto representa
+        # o encerramento do período oficial daquele ano.
+        # Em 2026, o ponto termina em 09/08/2026.
         #
         hist_ts = []
+
         yearly_rows = list(
             official_qs
-            .values("reference_year")
-            .annotate(
-                approach=Sum("historical_approached"),
-                refusal=Sum("refusal"),
-                fined=Sum("fined"),
-                operations=Sum("historical_operations"),
+            .values(
+                "reference_year"
             )
-            .order_by("reference_year")
+            .annotate(
+                approach=Sum(
+                    "historical_approached"
+                ),
+                refusal=Sum(
+                    "refusal"
+                ),
+                fined=Sum(
+                    "fined"
+                ),
+                operations=Sum(
+                    "historical_operations"
+                ),
+            )
+            .order_by(
+                "reference_year"
+            )
         )
 
         for row in yearly_rows:
-            year = row.pop("reference_year")
+            year = row.pop(
+                "reference_year"
+            )
+
             row["operation_date"] = (
                 HISTORICAL_CUTOFF_DATE
                 if year == HISTORICAL_CUTOFF_DATE.year
-                else date(year, 12, 31)
+                else date(
+                    year,
+                    12,
+                    31,
+                )
             )
-            hist_ts.append(row)
+
+            hist_ts.append(
+                row
+            )
 
         # O consolidado institucional não possui dimensão por equipe.
-        # A análise histórica por equipe/município/bairro ficará na aba
-        # territorial baseada em Horus DAILY / ERA_C.
+        # A única exceção nesta função é chuva, consultada diretamente
+        # no Horus DAILY / ERA_C. Não alteramos team_production para
+        # evitar misturar metodologias diferentes na tabela institucional.
         hist_tp = {}
 
         return (

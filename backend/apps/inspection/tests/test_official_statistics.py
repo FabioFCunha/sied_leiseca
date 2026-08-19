@@ -302,7 +302,11 @@ class InspectionStatisticsServiceIntegrationTests(TestCase):
         )
 
     def test_include_generates_official_statistic(self):
-        result = InspectionStatisticsService().include_report(self.report.id, user=self.user)
+        result = InspectionStatisticsService().include_report(
+            self.report.id,
+            user=self.user,
+            classification={},
+        )
 
         self.assertEqual(result.outcome, "included")
         self.report.refresh_from_db()
@@ -315,7 +319,11 @@ class InspectionStatisticsServiceIntegrationTests(TestCase):
             side_effect=RuntimeError("boom"),
         ):
             with self.assertRaises(RuntimeError):
-                InspectionStatisticsService().include_report(self.report.id, user=self.user)
+                InspectionStatisticsService().include_report(
+                    self.report.id,
+                    user=self.user,
+                    classification={},
+                )
 
         self.report.refresh_from_db()
         self.assertEqual(self.report.statistics_status, InspectionReport.StatisticsStatus.PENDING)

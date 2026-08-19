@@ -13,7 +13,7 @@ from apps.inspection.horus_historical_export import (
 class Command(BaseCommand):
     help = (
         "Exporta o historico da Fiscalizacao "
-        "do Horus entre 2023-01-01 e "
+        "do Horus entre 2022-10-03 e "
         "2026-08-09, somente por SELECT."
     )
 
@@ -35,9 +35,10 @@ class Command(BaseCommand):
                 HorusHistoricalExporter()
                 .export(output)
             )
+
         except Exception as exc:
             raise CommandError(
-                f"Falha na exportacao "
+                "Falha na exportacao "
                 f"historica do Horus: {exc}"
             ) from exc
 
