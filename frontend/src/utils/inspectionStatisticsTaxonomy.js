@@ -87,6 +87,7 @@ export function buildInspectionStatisticsTaxonomy(
       title: "VEÍCULOS",
       subtitle:
         "Indicadores relacionados à abordagem de veículos e às medidas adotadas nas operações.",
+      sourceNote: "Fonte: histórico consolidado e produção operacional homologada do SIED/Horus. Indicadores detalhados do Horus são incorporados conforme sua disponibilidade histórica.",
       items: [
         {
           key: "fined",
@@ -124,6 +125,7 @@ export function buildInspectionStatisticsTaxonomy(
       title: "MOTORISTA",
       subtitle:
         "Indicadores relacionados ao condutor, habilitação, testes e medidas administrativas.",
+      sourceNote: "Fonte: histórico consolidado e Sistema Horus. Os dados continuam sendo atualizados pela produção operacional homologada quando o indicador possui correspondência operacional.",
       items: [
         {
           key: "licensed_reconductors",
@@ -240,6 +242,7 @@ export function buildInspectionStatisticsTaxonomy(
       title: "SEGURANÇA PÚBLICA / CRIMINAL",
       subtitle:
         "Ocorrências de segurança pública e criminal consolidadas na série histórica.",
+      sourceNote: "Fonte: histórico consolidado e Sistema Horus. Os indicadores permanecem sendo alimentados pela produção operacional homologada quando disponíveis no fluxo atual.",
       items: [
         {
           key: "public_security_total",

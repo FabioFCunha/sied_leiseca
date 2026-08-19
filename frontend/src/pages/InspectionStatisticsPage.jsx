@@ -1453,6 +1453,7 @@ export default function InspectionStatisticsPage() {
             }}
           >
             <div
+              title="Fonte: registros históricos do Horus e produção operacional disponível para o período."
               style={{
                 fontSize: "12px",
                 opacity: 0.85,
@@ -1807,6 +1808,9 @@ export default function InspectionStatisticsPage() {
         </div>
       ) : (
         <>
+          <div style={{ fontSize: "12px", color: "var(--t-gray-5)", marginBottom: "12px", marginTop: "16px" }}>
+            Indicadores oficiais: histórico consolidado + produção estatística homologada do SIED.
+          </div>
           <div className="stats-kpi-grid inspection-kpi-grid">
             {cards.map(
               (card) => {
@@ -1897,6 +1901,9 @@ export default function InspectionStatisticsPage() {
               title="Evolução da Fiscalização"
               subtitle="Comparativo anual entre fiscalizações, abordados e casos de alcoolemia."
             >
+              <div style={{ fontSize: "12px", color: "var(--t-gray-5)", marginBottom: "16px", marginTop: "-8px" }}>
+                Fonte: série histórica institucional consolidada, complementada pela produção estatística homologada do SIED a partir de 10/08/2026.
+              </div>
               <div
                 className="stats-chart"
                 style={{
