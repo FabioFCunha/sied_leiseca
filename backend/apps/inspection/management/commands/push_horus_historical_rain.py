@@ -304,6 +304,16 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
+            "--start-source-row",
+            type=int,
+            default=None,
+            help=(
+                "Envia somente registros com source_row "
+                "maior ou igual ao valor informado."
+            ),
+        )
+
+        parser.add_argument(
             "--token",
             default=None,
         )
@@ -430,10 +440,45 @@ class Command(BaseCommand):
                 "--limit deve ser maior que zero."
             )
 
+        start_source_row = options.get(
+            "start_source_row"
+        )
+
+        if (
+            start_source_row is not None
+            and start_source_row <= 0
+        ):
+            raise CommandError(
+                "--start-source-row deve ser maior que zero."
+            )
+
+        selected_rows = positive_rows
+
+        if start_source_row is not None:
+            selected_rows = [
+                row
+                for row in positive_rows
+                if int(
+                    row.get("source_row")
+                    or 0
+                ) >= start_source_row
+            ]
+
         rows_to_send = (
-            positive_rows[:limit]
+            selected_rows[:limit]
             if limit is not None
-            else positive_rows
+            else selected_rows
+        )
+
+        if start_source_row is not None:
+            self.stdout.write(
+                f"Retomada: source_row >= "
+                f"{start_source_row}"
+            )
+
+        self.stdout.write(
+            f"Linhas selecionadas para envio: "
+            f"{len(rows_to_send)}"
         )
 
         counters = {
@@ -518,6 +563,13 @@ class Command(BaseCommand):
                 )
 
         self.stdout.write("")
+
+        if rows_to_send:
+            self.stdout.write(
+                f"?ltimo source_row enviado: "
+                f"{rows_to_send[-1].get('source_row')}"
+            )
+
         self.stdout.write(
             json.dumps(
                 counters,
