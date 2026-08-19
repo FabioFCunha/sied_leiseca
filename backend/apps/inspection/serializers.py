@@ -235,9 +235,21 @@ class InspectionHistoricalPushSerializer(serializers.Serializer):
     """
     Serializer para o endpoint POST /api/inspection/sync/historical/push/
 
-    Recebe um único registro do array ``rows`` do JSON exportado do Horus,
-    mais o SHA-256 do arquivo de extração para rastreabilidade do lote.
+    Mantém o comportamento histórico padrão e também aceita duas
+    operações técnicas explicitamente restritas:
+    - IMPORT_2022: criação da extensão 03/10/2022 a 31/12/2022;
+    - UPDATE_RAIN: atualização exclusiva do campo rain.
     """
+
+    maintenance_action = serializers.ChoiceField(
+        choices=[
+            "UPSERT_HISTORICAL",
+            "IMPORT_2022",
+            "UPDATE_RAIN",
+        ],
+        required=False,
+        default="UPSERT_HISTORICAL",
+    )
 
     # Identificação do lote (rastreabilidade)
     file_sha256 = serializers.CharField(
@@ -280,6 +292,36 @@ class InspectionHistoricalPushSerializer(serializers.Serializer):
     art307 = serializers.IntegerField(required=False, allow_null=True, default=None)
     criminal_occurrences = serializers.IntegerField(required=False, allow_null=True, default=None)
     driving_canceled_license = serializers.IntegerField(required=False, allow_null=True, default=None)
+
+    rain = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=0,
+        default=None,
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        action = attrs.get(
+            "maintenance_action",
+            "UPSERT_HISTORICAL",
+        )
+
+        if action in {
+            "IMPORT_2022",
+            "UPDATE_RAIN",
+        } and attrs.get("rain") is None:
+            raise serializers.ValidationError(
+                {
+                    "rain": (
+                        "rain é obrigatório para "
+                        f"{action}."
+                    )
+                }
+            )
+
+        return attrs
 
     def validate_team(self, value):
         normalized = str(value or "").strip().upper()

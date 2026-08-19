@@ -32,9 +32,14 @@ from apps.inspection.territorial_statistics import (
     InspectionTerritorialStatisticsService,
 )
 from apps.inspection.horus_historical_push import (
+    MAINTENANCE_ACTION_IMPORT_2022,
+    MAINTENANCE_ACTION_STANDARD,
+    MAINTENANCE_ACTION_UPDATE_RAIN,
+    HorusHistorical2022PushService,
     HorusHistoricalPushConflict,
     HorusHistoricalPushError,
     HorusHistoricalPushService,
+    HorusHistoricalRainUpdateService,
 )
 
 
@@ -546,20 +551,51 @@ class InspectionHistoricalPushView(
             raise_exception=True
         )
 
-        validated = serializer.validated_data
+        validated = dict(
+            serializer.validated_data
+        )
 
         file_sha256 = validated.pop(
             "file_sha256"
         )
 
+        maintenance_action = validated.pop(
+            "maintenance_action",
+            MAINTENANCE_ACTION_STANDARD,
+        )
+
         try:
-            result = (
-                HorusHistoricalPushService()
-                .push_single(
-                    validated,
-                    file_sha256=file_sha256,
+            if (
+                maintenance_action
+                == MAINTENANCE_ACTION_IMPORT_2022
+            ):
+                result = (
+                    HorusHistorical2022PushService()
+                    .push_single(
+                        validated,
+                        file_sha256=file_sha256,
+                    )
                 )
-            )
+
+            elif (
+                maintenance_action
+                == MAINTENANCE_ACTION_UPDATE_RAIN
+            ):
+                result = (
+                    HorusHistoricalRainUpdateService()
+                    .update_single(
+                        validated
+                    )
+                )
+
+            else:
+                result = (
+                    HorusHistoricalPushService()
+                    .push_single(
+                        validated,
+                        file_sha256=file_sha256,
+                    )
+                )
 
         except HorusHistoricalPushError as exc:
             return Response(
