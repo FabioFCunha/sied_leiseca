@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { api } from "../../api/client.js";
 import { formatDateBR } from "../../utils/date.js";
+import { buildEducationAgentsText } from "../../utils/reportPreview.js";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileReportStatusBadge, { reportStatusLabel } from "../../components/mobile/MobileReportStatusBadge.jsx";
@@ -71,12 +72,30 @@ function fullFormButtonText(status) {
   return "Abrir na versao completa";
 }
 
+const EMPTY_CONTEXT_MEMBERS = {
+  context_resolved: true,
+  chiefs: [],
+  agents: [],
+  supports: [],
+};
+
+function findMatchingSchedule(schedules, report, agenda) {
+  return (schedules || []).find((schedule) =>
+    String(schedule.team) === String(report.team)
+    || String(schedule.team_name) === String(report.team)
+    || String(schedule.team) === String(agenda.team_ref)
+    || String(schedule.team_name) === String(agenda.sector_name)
+  );
+}
+
 export default function MobileReportDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [contextAgenda, setContextAgenda] = useState(null);
+  const [effectiveMembers, setEffectiveMembers] = useState(null);
   const abortControllerRef = useRef(null);
 
   const fetchReport = async () => {
@@ -89,6 +108,25 @@ export default function MobileReportDetailsPage() {
     try {
       const data = await api(`/education-reports/${id}/`, { signal, redirectOnUnauthorized: false });
       setReport(data);
+      setContextAgenda(null);
+      setEffectiveMembers(null);
+
+      if (data.agenda && data.agenda_service_order_mode === "TEAM") {
+        try {
+          const agenda = await api(`/agendas/${data.agenda}/`, { signal, redirectOnUnauthorized: false });
+          const schedulesResponse = await api(`/shift-schedules/?date=${data.operation_date}`, { signal, redirectOnUnauthorized: false });
+          const schedule = findMatchingSchedule(schedulesResponse.results || schedulesResponse, data, agenda);
+          const detail = schedule
+            ? await api(`/shift-schedules/${schedule.id}/?agenda=${agenda.id}`, { signal, redirectOnUnauthorized: false })
+            : null;
+          setContextAgenda(agenda);
+          setEffectiveMembers(detail?.members || EMPTY_CONTEXT_MEMBERS);
+        } catch (contextError) {
+          if (contextError.name === "AbortError") throw contextError;
+          // A contextual TEAM report must not fall back to stale textual members.
+          setEffectiveMembers(EMPTY_CONTEXT_MEMBERS);
+        }
+      }
     } catch (err) {
       if (err.name === "AbortError") return;
       const message = String(err.message || "");
@@ -118,6 +156,9 @@ export default function MobileReportDetailsPage() {
   if (!report) return <MobileErrorState message="Relatorio Tecnico nao encontrado." />;
 
   const actions = Array.isArray(report.actions) ? report.actions : [];
+  const agentsText = report.agenda_service_order_mode === "TEAM"
+    ? buildEducationAgentsText(report, contextAgenda, effectiveMembers || EMPTY_CONTEXT_MEMBERS)
+    : report.education_agents;
   const materialFields = [
     ["Materiais retirados", report.materials_removed],
     ["Materiais utilizados", report.materials_spent],
@@ -166,7 +207,7 @@ export default function MobileReportDetailsPage() {
 
       <Section title="Participantes registrados">
         <TextBlock label="Gestao" value={report.management_name} />
-        <TextBlock label="Agentes de Educacao" value={report.education_agents} />
+        <TextBlock label="Agentes de Educacao" value={agentsText} />
         <TextBlock label="Alteracoes de efetivo" value={report.changes_staff} />
       </Section>
 

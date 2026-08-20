@@ -128,6 +128,17 @@ const effectiveMembersWithoutRemovedSupport = {
   ...effectiveMembers,
   supports: [{ id: 20, name: support1 }],
 };
+
+const emptyResolvedMembers = {
+  context_resolved: true,
+  chiefs: [],
+  agents: [],
+  supports: [],
+};
+const emptyContextText = buildEducationAgentsText(legacyReport, selectedAgenda, emptyResolvedMembers);
+assert.doesNotMatch(emptyContextText, new RegExp(chief), "OS TEAM sem referencias nao usa chefe textual legado");
+assert.doesNotMatch(emptyContextText, new RegExp(agent1), "OS TEAM sem referencias nao usa agentes textuais legados");
+assert.doesNotMatch(emptyContextText, new RegExp(ronaldo), "OS TEAM sem referencias nao usa apoios textuais legados");
 const removedSupportResponsibility = buildOperationalResponsibility(
   legacyRemovedSupportReport,
   selectedAgenda,
@@ -207,6 +218,6 @@ const pdfSource = fs.readFileSync(new URL("./reportPdfGenerator.js", import.meta
 const pageSource = fs.readFileSync(new URL("../pages/TechnicalReportsPage.jsx", import.meta.url), "utf8");
 assert.match(pdfSource, /buildSupportsSummary/, "PDF continua consumindo helper compartilhado de apoios");
 assert.match(pageSource, /generateTechnicalReportPdf\(form, selectedAgendaForPreview, attendanceForm, true, showEstimatedPublic\)/, "preview e PDF recebem a mesma agenda efetiva");
-assert.match(pageSource, /buildPreview\(form, selectedAgendaForPreview, showEstimatedPublic, reportSchedule\?\.members\)/, "preview usa a mesma composicao efetiva da escala");
+assert.match(pageSource, /buildPreview\(form, selectedAgendaForPreview, showEstimatedPublic, membersForPresentation\)/, "preview usa a mesma composicao efetiva da escala");
 
 console.log("reportPreview.test.mjs: OK");

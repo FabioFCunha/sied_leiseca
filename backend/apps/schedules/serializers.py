@@ -328,9 +328,9 @@ class ShiftSwapRequestSerializer(serializers.ModelSerializer):
         return attrs
 
 
-def build_schedule_members(obj):
+def build_schedule_members(obj, agenda=None):
     from apps.schedules.services import get_effective_members
-    return get_effective_members(obj)
+    return get_effective_members(obj, agenda)
 
 
 class ShiftScheduleChangeSerializer(serializers.ModelSerializer):
@@ -403,7 +403,10 @@ class ShiftScheduleSerializer(serializers.ModelSerializer):
         return attrs
 
     def get_members(self, obj):
-        return build_schedule_members(obj)
+        return build_schedule_members(
+            obj,
+            self.context.get("context_agenda"),
+        )
 
 
     def get_swap_requests(self, obj):
@@ -1042,6 +1045,7 @@ class EducationReportSerializer(serializers.ModelSerializer):
     agenda_date = serializers.DateField(source="agenda.date", read_only=True)
     agenda_location = serializers.CharField(source="agenda.institution_location", read_only=True)
     agenda_service_order_number = serializers.IntegerField(source="agenda.service_order_number", read_only=True)
+    agenda_service_order_mode = serializers.CharField(source="agenda.service_order_mode", read_only=True)
     agenda_phone = serializers.CharField(source="agenda.external_responsible_phone", read_only=True)
     created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
     actions = EducationActionSerializer(many=True, required=False)
@@ -1059,6 +1063,7 @@ class EducationReportSerializer(serializers.ModelSerializer):
             "agenda_date",
             "agenda_location",
             "agenda_service_order_number",
+            "agenda_service_order_mode",
             "agenda_phone",
             "operation_date",
             "team",

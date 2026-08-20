@@ -7,6 +7,7 @@ import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileAttendanceSummaryCard from "../../components/mobile/MobileAttendanceSummaryCard.jsx";
 import { getValidatableActions } from "../technicalReportsActionHelpers.js";
+import { buildReportShareSummary } from "../../utils/reportShareSummary.js";
 
 const numberFields = ["approach"];
 
@@ -326,133 +327,6 @@ function hydrateActionFromAgenda(action = {}, agenda = {}) {
   };
 }
 
-function formatShareDate(value) {
-  if (!value) return "";
-  const [year, month, day] = String(value).slice(0, 10).split("-");
-  if (!year || !month || !day) return String(value);
-  return `${day}/${month}/${year}`;
-}
-
-function exceptionalOccurrenceTypeLabel(value) {
-  const labels = {
-    VEHICLE_BREAKDOWN: "Quebra de Viatura",
-    WORK_ACCIDENT: "Acidente de Trabalho (Efetivo)",
-    WEATHER: "Condição Climática",
-    MATERIAL_SHORTAGE: "Falta de Material",
-    OTHER: "Outros",
-  };
-  return labels[value] || value || "";
-}
-
-function exceptionalOccurrenceImpactLabel(value) {
-  const labels = {
-    NONE: "Nenhum",
-    PARTIAL: "Parcial",
-    TOTAL: "Total",
-  };
-  return labels[value] || value || "";
-}
-
-function summarizeDistributedMaterials(value) {
-  return parseMaterialRows(value)
-    .filter((item) => (parseInt(item.quantity, 10) || 0) > 0)
-    .map((item) => `${item.name}: ${item.quantity}`)
-    .join(", ");
-}
-
-function buildReportShareSummary(report = {}, agenda = {}, attendanceStats = {}) {
-  const isStreetAction = isStreetActionAgenda(agenda);
-  const lines = [
-    "*RELATÓRIO TÉCNICO - OPERAÇÃO LEI SECA*",
-    "",
-    "Relatório enviado para conferência no SIED.",
-    "",
-  ];
-
-  const operationDate = report.operation_date || report.agenda_date || agenda.date;
-  const team = report.team || agenda.team_name || agenda.team_ref_name || agenda.sector_name;
-  const location =
-    report.agenda_location ||
-    agenda.institution_location ||
-    agenda.location ||
-    getAgendaActionPlace(agenda);
-
-  if (operationDate) lines.push(`📅 Data: ${formatShareDate(operationDate)}`);
-  if (team) lines.push(`👥 Equipe: ${team}`);
-  if (location) lines.push(`📍 Local: ${location}`);
-  lines.push(`🎯 Modalidade: ${isStreetAction ? "Ação de Rua" : "Palestra"}`);
-
-  if (attendanceStats?.loaded && attendanceStats.total > 0) {
-    lines.push(
-      `✅ Frequência: ${attendanceStats.present} presente(s), ${attendanceStats.absent} ausente(s)`
-    );
-  }
-
-  const actions = getValidatableActions(report.actions || []).map(({ action }) => action);
-
-  if (actions.length) {
-    lines.push("", "*AÇÕES REALIZADAS*");
-
-    actions.forEach((action, index) => {
-      const actionTitle = isStreetAction
-        ? streetActionTypeLabel(action.type_action || "")
-        : (action.institution_name || `Ação ${index + 1}`);
-
-      lines.push("");
-      lines.push(`*Ação ${String(index + 1).padStart(2, "0")}*${actionTitle ? ` - ${actionTitle}` : ""}`);
-
-      if (action.place_action) {
-        lines.push(`📍 ${action.place_action}`);
-      }
-
-      if (action.start_time || action.final_hour) {
-        const start = String(action.start_time || "").slice(0, 5);
-        const end = String(action.final_hour || "").slice(0, 5);
-        lines.push(`🕒 Horário: ${start || "-"}${end ? ` às ${end}` : ""}`);
-      }
-
-      const reached = isStreetAction
-        ? Number(action.approached_actions || 0)
-        : Number(action.approached_lectures || 0);
-
-      lines.push(
-        `${isStreetAction ? "👥 Abordagens" : "👥 Abordados em palestras"}: ${reached}`
-      );
-
-      const distributed = summarizeDistributedMaterials(
-        action.distribution_materials_distributed || ""
-      );
-      if (distributed) {
-        lines.push(`📦 Material distribuído: ${distributed}`);
-      }
-    });
-  }
-
-  if (report.has_exceptional_occurrence) {
-    lines.push("", "*OCORRÊNCIA EXCEPCIONAL*");
-
-    const type = exceptionalOccurrenceTypeLabel(report.exceptional_occurrence_type);
-    if (type) lines.push(`⚠️ Tipo: ${type}`);
-
-    if (report.exceptional_occurrence_description) {
-      lines.push(`Descrição: ${report.exceptional_occurrence_description}`);
-    }
-
-    if (report.exceptional_occurrence_actions_taken) {
-      lines.push(`Providências: ${report.exceptional_occurrence_actions_taken}`);
-    }
-
-    const impact = exceptionalOccurrenceImpactLabel(report.exceptional_occurrence_impact);
-    if (impact) lines.push(`Impacto: ${impact}`);
-  }
-
-  if (String(report.general_observations || "").trim()) {
-    lines.push("", `📝 Observações: ${String(report.general_observations).trim()}`);
-  }
-
-  return lines.join("\n");
-}
-
 export default function MobileReportFormPage() {
   const { agendaId, id } = useParams();
   const navigate = useNavigate();
@@ -638,7 +512,9 @@ export default function MobileReportFormPage() {
           );
 
           if (scheduleInfo) {
-            const detailSchedule = await api(`/shift-schedules/${scheduleInfo.id}/`);
+            const detailSchedule = await api(
+              `/shift-schedules/${scheduleInfo.id}/?agenda=${agenda.id}`
+            );
             setReportSchedule(detailSchedule);
 
             let total = 0, present = 0, absent = 0, pending = 0;

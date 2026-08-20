@@ -1,7 +1,7 @@
 from apps.accounts.models import User
 from django.db.models import Q
 
-def get_effective_members(obj):
+def get_effective_members(obj, agenda=None):
     from apps.schedules.models import Chief, Agent, Support, ShiftAbsence, ShiftSwapRequest
     
     absent_chief_ids = set(obj.absent_chiefs.values_list("id", flat=True))
@@ -60,21 +60,62 @@ def get_effective_members(obj):
             return item.vacation_start <= obj.date <= item.vacation_end
         return False
 
-    chief_objs = [c for c in Chief.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_chief_ids).select_related("team").order_by("name") if get_historical_team_id(c) == obj.team_id and not is_on_vacation(c)]
-    agent_objs = [a for a in Agent.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_agent_ids).select_related("team").order_by("name") if get_historical_team_id(a) == obj.team_id and not is_on_vacation(a)]
-    support_objs = [s for s in Support.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_support_ids).select_related("team").order_by("name") if get_historical_team_id(s) == obj.team_id and not is_on_vacation(s)]
+    if agenda is not None:
+        # The service order is the source of truth after it has been edited.
+        # Text fields on an old report must not reintroduce a team member.
+        chief_objs = []
+        if agenda.chief_ref_id:
+            chief_objs = list(
+                Chief.objects.filter(
+                    id=agenda.chief_ref_id,
+                    is_active=True,
+                )
+                .exclude(id__in=removed_chief_ids)
+                .select_related("team")
+            )
+        agent_objs = list(
+            agenda.agents_ref.filter(is_active=True)
+            .exclude(id__in=removed_agent_ids)
+            .select_related("team")
+            .order_by("name")
+        )
+        support_ids = [
+            support_id
+            for support_id in (
+                agenda.support_1_ref_id,
+                agenda.support_2_ref_id,
+            )
+            if support_id
+        ]
+        support_objs = list(
+            Support.objects.filter(
+                id__in=support_ids,
+                is_active=True,
+            )
+            .exclude(id__in=removed_support_ids)
+            .select_related("team")
+            .order_by("name")
+        )
+    else:
+        chief_objs = [c for c in Chief.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_chief_ids).select_related("team").order_by("name") if get_historical_team_id(c) == obj.team_id and not is_on_vacation(c)]
+        agent_objs = [a for a in Agent.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_agent_ids).select_related("team").order_by("name") if get_historical_team_id(a) == obj.team_id and not is_on_vacation(a)]
+        support_objs = [s for s in Support.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_support_ids).select_related("team").order_by("name") if get_historical_team_id(s) == obj.team_id and not is_on_vacation(s)]
 
     chiefs = [row(item, is_absent=item.id in absent_chief_ids) for item in chief_objs]
     agents = [row(item, is_absent=item.id in absent_agent_ids) for item in agent_objs]
     supports = [row(item, is_absent=item.id in absent_support_ids) for item in support_objs]
 
-    for item in obj.extra_chiefs.filter(is_active=True, source_id__startswith="user:").select_related("team"):
+    extra_filters = {"is_active": True}
+    if agenda is None:
+        extra_filters["source_id__startswith"] = "user:"
+
+    for item in obj.extra_chiefs.filter(**extra_filters).select_related("team"):
         if item.id not in removed_chief_ids and not any(m["id"] == item.id for m in chiefs):
             chiefs.append(row(item, is_extra=True, is_absent=item.id in absent_chief_ids))
-    for item in obj.extra_agents.filter(is_active=True, source_id__startswith="user:").select_related("team"):
+    for item in obj.extra_agents.filter(**extra_filters).select_related("team"):
         if item.id not in removed_agent_ids and not any(m["id"] == item.id for m in agents):
             agents.append(row(item, is_extra=True, is_absent=item.id in absent_agent_ids))
-    for item in obj.extra_supports.filter(is_active=True, source_id__startswith="user:").select_related("team"):
+    for item in obj.extra_supports.filter(**extra_filters).select_related("team"):
         if item.id not in removed_support_ids and not any(m["id"] == item.id for m in supports):
             supports.append(row(item, is_extra=True, is_absent=item.id in absent_support_ids))
 
@@ -202,6 +243,8 @@ def get_effective_members(obj):
             "team": swap.target_team_id,
             "team_name": swap.target_team.name,
             "swapped": True,
+            "is_swap": True,
+            "swap_for": swap.from_member_name,
             "is_absent": is_swap_absent,
             "absence_reason": swap_absence.reason if swap_absence else "",
             "absence_attachment_url": swap_absence.attachment.url if swap_absence and swap_absence.attachment else "",
@@ -211,12 +254,14 @@ def get_effective_members(obj):
                 members[group][index] = replacement
                 break
         else:
-            members[group].append(replacement)
+            if agenda is None:
+                members[group].append(replacement)
+    members["context_resolved"] = agenda is not None
     return members
 
 
-def get_expected_member_keys(schedule):
-    members_data = get_effective_members(schedule)
+def get_expected_member_keys(schedule, agenda=None):
+    members_data = get_effective_members(schedule, agenda)
     expected_members = set()
     for c in members_data.get("chiefs", []):
         expected_members.add(f"CHIEF_{c['id']}")
@@ -277,4 +322,4 @@ def get_expected_attendance_member_keys(agenda, shift_schedule=None):
         return expected
     if shift_schedule is None:
         return set()
-    return get_expected_member_keys(shift_schedule)
+    return get_expected_member_keys(shift_schedule, agenda)

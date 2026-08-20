@@ -44,6 +44,10 @@ function hasEffectiveMembers(effectiveMembers) {
   return ["chiefs", "agents", "supports"].some((group) => Array.isArray(effectiveMembers[group]) && effectiveMembers[group].length > 0);
 }
 
+function hasResolvedServiceOrderContext(effectiveMembers) {
+  return Boolean(effectiveMembers?.context_resolved);
+}
+
 export function getReachedAudienceForAction(action, index) {
   if (!action) return undefined;
   if (index === 0) {
@@ -63,6 +67,10 @@ export function getReachedAudienceForAction(action, index) {
 }
 
 export function getSupports(report, selectedAgenda, effectiveMembers) {
+  if (hasResolvedServiceOrderContext(effectiveMembers)) {
+    return memberNames(effectiveMembers.supports || []);
+  }
+
   if (hasEffectiveMembers(effectiveMembers)) {
     return memberNames(effectiveMembers.supports || []);
   }
@@ -95,6 +103,23 @@ export function getSupports(report, selectedAgenda, effectiveMembers) {
 }
 
 export function buildEducationAgentsText(report, selectedAgenda, effectiveMembers) {
+  if (hasResolvedServiceOrderContext(effectiveMembers)) {
+    const chief = memberNames(effectiveMembers.chiefs || [])[0] || "";
+    const phone = String(selectedAgenda?.team_phone || "").trim();
+    const agents = memberNames(effectiveMembers.agents || []);
+    const supports = memberNames(effectiveMembers.supports || []);
+    const lines = [];
+
+    if (chief) lines.push(`Chefe responsável: ${chief}`);
+    if (phone) lines.push(`Telefone do chefe/equipe: ${phone}`);
+    if (agents.length) lines.push(`Agentes: ${agents.join(" - ")}`);
+    supports.forEach((support, index) => {
+      lines.push(`Apoio ${index + 1}: ${support}`);
+    });
+
+    return lines.join("\n");
+  }
+
   if (!hasEffectiveMembers(effectiveMembers)) {
     return report?.education_agents || "";
   }
@@ -116,10 +141,12 @@ export function buildEducationAgentsText(report, selectedAgenda, effectiveMember
 }
 
 export function buildOperationalResponsibility(report, selectedAgenda, effectiveMembers) {
-  const chief = hasEffectiveMembers(effectiveMembers)
+  const useEffectiveMembers = hasResolvedServiceOrderContext(effectiveMembers)
+    || hasEffectiveMembers(effectiveMembers);
+  const chief = useEffectiveMembers
     ? memberNames(effectiveMembers.chiefs || [])[0] || ""
     : chiefFromReport(report);
-  const agentsSummary = hasEffectiveMembers(effectiveMembers)
+  const agentsSummary = useEffectiveMembers
     ? memberNames(effectiveMembers.agents || []).join(" - ")
     : agentsFromReport(report);
   const supports = getSupports(report, selectedAgenda, effectiveMembers);

@@ -206,6 +206,29 @@ def chief_agenda_filter(user, prefix=""):
     return query
 
 
+def get_scoped_agendas_queryset(request, allow_calendar_view=False):
+    user = request.user
+    queryset = Agenda.objects.select_related("responsible", "sector", "created_by").prefetch_related(
+        "history",
+        "satisfaction_surveys",
+        "designated_users",
+    ).annotate(linked_requests_count_annotated=Count("linked_requests", distinct=True))
+
+    is_calendar_view = allow_calendar_view and request.query_params.get("calendar_view") == "1"
+
+    if user.is_admin_role:
+        return queryset
+    if user.role == User.Role.ALMOXARIFADO:
+        return queryset
+    if user.role == User.Role.VISITOR:
+        return queryset.exclude(status__in=[Agenda.Status.PENDING, Agenda.Status.CANCELLED])
+    if user.role == User.Role.SUPERVISOR:
+        if is_calendar_view:
+            return queryset
+        return queryset.filter(supervisor_agenda_filter(user)).distinct()
+    return queryset.filter(agent_agenda_filter(user)).distinct()
+
+
 def filter_active_user_bound_lookups(queryset):
     active_source_ids = [f"user:{user_id}" for user_id in User.objects.filter(is_active=True).values_list("id", flat=True)]
     return queryset.filter(
@@ -332,6 +355,36 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
     serializer_class = ShiftScheduleSerializer
     permission_classes = [IsAuthenticated, ShiftSchedulePermission]
     parser_classes = [parsers.JSONParser, parsers.MultiPartParser, parsers.FormParser]
+
+    def _get_context_agenda(self, schedule):
+        raw_agenda_id = self.request.query_params.get("agenda")
+        if raw_agenda_id is None:
+            return None
+        if not raw_agenda_id.isdigit():
+            raise ValidationError({"agenda": "Informe um identificador numérico de Ordem de Serviço."})
+
+        agenda = get_scoped_agendas_queryset(self.request).filter(
+            id=int(raw_agenda_id)
+        ).first()
+        if agenda is None:
+            raise NotFound("Ordem de Serviço não encontrada.")
+        if agenda.date != schedule.date:
+            raise ValidationError({"agenda": "A Ordem de Serviço deve ser da mesma data da escala."})
+        if agenda.team_ref_id != schedule.team_id:
+            raise ValidationError({"agenda": "A Ordem de Serviço deve pertencer à mesma equipe da escala."})
+        if agenda.service_order_mode != Agenda.ServiceOrderMode.TEAM:
+            raise ValidationError({"agenda": "A Ordem de Serviço deve estar no modo equipe operacional."})
+        return agenda
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["context_agenda"] = getattr(self, "_context_agenda", None)
+        return context
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._context_agenda = self._get_context_agenda(instance)
+        return response.Response(self.get_serializer(instance).data)
 
     def get_queryset(self):
         queryset = ShiftSchedule.objects.select_related("team", "created_by").prefetch_related(
@@ -831,27 +884,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, AgendaPermission]
 
     def get_scoped_queryset(self):
-        user = self.request.user
-        queryset = Agenda.objects.select_related("responsible", "sector", "created_by").prefetch_related(
-            "history",
-            "satisfaction_surveys",
-            "designated_users",
-        ).annotate(linked_requests_count_annotated=Count('linked_requests', distinct=True))
-
-        is_calendar_view = self.request.query_params.get("calendar_view") == "1"
-
-        if user.is_admin_role:
-            return queryset
-        elif user.role == User.Role.ALMOXARIFADO:
-            return queryset
-        elif user.role == User.Role.VISITOR:
-            return queryset.exclude(status__in=[Agenda.Status.PENDING, Agenda.Status.CANCELLED])
-        elif user.role == User.Role.SUPERVISOR:
-            if is_calendar_view:
-                return queryset
-            supervisor_filter = supervisor_agenda_filter(user)
-            return queryset.filter(supervisor_filter).distinct()
-        return queryset.filter(agent_agenda_filter(user)).distinct()
+        return get_scoped_agendas_queryset(self.request, allow_calendar_view=True)
 
     def get_queryset(self):
         scoped = self.get_scoped_queryset()
@@ -4888,7 +4921,3 @@ class GoogleFormsWebhookView(APIView):
         except Exception as e:
             _wh_logger.exception("Erro ao processar webhook do Google Forms")
             return response.Response({"detail": "Erro interno ao processar a solicitacao."}, status=500)
-
-
-
-

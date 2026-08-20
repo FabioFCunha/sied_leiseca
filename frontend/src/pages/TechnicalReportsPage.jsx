@@ -11,6 +11,7 @@ import { formatDateBR } from "../utils/date.js";
 import { buildEducationAgentsText, buildOperationalResponsibility, buildPreview, chiefFromReport, reportName, getReachedAudienceForAction } from "../utils/reportPreview.js";
 import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
 import { getValidatableActions } from "./technicalReportsActionHelpers.js";
+import { buildStaffChanges } from "../utils/reportStaffChanges.js";
 
 function memberRows(members = {}) {
   return [
@@ -19,6 +20,13 @@ function memberRows(members = {}) {
     ...(members.supports || []).map((item) => ({ ...item, type: "SUPPORT", typeLabel: "Apoio" })),
   ];
 }
+
+const EMPTY_CONTEXT_MEMBERS = {
+  context_resolved: true,
+  chiefs: [],
+  agents: [],
+  supports: [],
+};
 
 function findMatchingScheduleInfo(schedules, teamValue, agenda) {
   return (schedules || []).find((schedule) =>
@@ -604,17 +612,19 @@ export default function TechnicalReportsPage() {
     if (!originalType) return false;
     return normalizeTypeLabel(action?.type_action) !== normalizeTypeLabel(originalType);
   };
+  const membersForPresentation = reportSchedule?.members
+    || (selectedAgenda?.service_order_mode === "TEAM" ? EMPTY_CONTEXT_MEMBERS : null);
   const selectedAgendaForPreview = useMemo(
-    () => buildAgendaForOperationalPreview(selectedAgenda, form, reportSchedule?.members),
-    [selectedAgenda, form, reportSchedule]
+    () => buildAgendaForOperationalPreview(selectedAgenda, form, membersForPresentation),
+    [selectedAgenda, form, membersForPresentation]
   );
   const operationalResponsibility = useMemo(
-    () => buildOperationalResponsibility(form, selectedAgendaForPreview, reportSchedule?.members),
-    [form, selectedAgendaForPreview, reportSchedule]
+    () => buildOperationalResponsibility(form, selectedAgendaForPreview, membersForPresentation),
+    [form, selectedAgendaForPreview, membersForPresentation]
   );
   const preview = useMemo(
-    () => buildPreview(form, selectedAgendaForPreview, showEstimatedPublic, reportSchedule?.members),
-    [form, selectedAgendaForPreview, showEstimatedPublic, reportSchedule]
+    () => buildPreview(form, selectedAgendaForPreview, showEstimatedPublic, membersForPresentation),
+    [form, selectedAgendaForPreview, showEstimatedPublic, membersForPresentation]
   );
 
   const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(r.agenda))), [reports]);
@@ -753,11 +763,7 @@ export default function TechnicalReportsPage() {
 
   const buildAttendanceForm = (detailSchedule) => {
     const formObj = {};
-    const staffChanges = [];
     memberRows(detailSchedule.members).forEach((member) => {
-      if (member.is_extra) staffChanges.push(`Extra: ${member.name}`);
-      if (member.is_swap) staffChanges.push(`Troca: ${member.name} (no lugar de ${member.swap_for})`);
-
       const memberKey = `${member.type}_${member.id}`;
       const isChecked = detailSchedule.checked_members && detailSchedule.checked_members[memberKey] !== undefined;
       formObj[memberKey] = {
@@ -767,25 +773,34 @@ export default function TechnicalReportsPage() {
         member,
       };
     });
-    return { formObj, staffChanges };
+    return { formObj, staffChanges: buildStaffChanges(detailSchedule) };
   };
 
   const loadScheduleAttendance = async (scheduleId, agendaContext = selectedAgenda) => {
-    const detailSchedule = await api(`/shift-schedules/${scheduleId}/`);
-    setReportSchedule(detailSchedule);
-    const { formObj, staffChanges } = buildAttendanceForm(detailSchedule);
-    setAttendanceForm(formObj);
-    setForm((current) => ({
-      ...current,
-      education_agents: buildEducationAgentsText(current, agendaContext, detailSchedule.members),
-    }));
-    if (staffChanges.length > 0) {
+    try {
+      const agendaQuery = agendaContext?.id ? `?agenda=${agendaContext.id}` : "";
+      const detailSchedule = await api(`/shift-schedules/${scheduleId}/${agendaQuery}`);
+      setReportSchedule(detailSchedule);
+      const { formObj, staffChanges } = buildAttendanceForm(detailSchedule);
+      setAttendanceForm(formObj);
       setForm((current) => ({
         ...current,
+        education_agents: buildEducationAgentsText(current, agendaContext, detailSchedule.members),
         changes_staff: staffChanges.join("\n"),
       }));
+      return detailSchedule;
+    } catch (error) {
+      if (agendaContext?.service_order_mode === "TEAM") {
+        setReportSchedule(null);
+        setAttendanceForm({});
+        setForm((current) => ({
+          ...current,
+          education_agents: buildEducationAgentsText(current, agendaContext, EMPTY_CONTEXT_MEMBERS),
+          changes_staff: "",
+        }));
+      }
+      throw error;
     }
-    return detailSchedule;
   };
 
   const fetchScheduleMembersForContext = async (operationDate, teamValue, agendaContext) => {
@@ -800,7 +815,9 @@ export default function TechnicalReportsPage() {
       return null;
     }
 
-    const detailSchedule = await api(`/shift-schedules/${scheduleInfo.id}/`);
+    const detailSchedule = await api(
+      `/shift-schedules/${scheduleInfo.id}/?agenda=${agendaContext.id}`
+    );
     return detailSchedule?.members || null;
   };
 
@@ -840,6 +857,13 @@ export default function TechnicalReportsPage() {
         } else {
            setReportSchedule(null);
            setAttendanceForm({});
+          if (selectedAgenda?.service_order_mode === "TEAM") {
+            setForm((current) => ({
+              ...current,
+              education_agents: buildEducationAgentsText(current, selectedAgenda, EMPTY_CONTEXT_MEMBERS),
+              changes_staff: "",
+            }));
+          }
         }
       }).catch(() => {
         setReportSchedule(null);
@@ -917,7 +941,7 @@ export default function TechnicalReportsPage() {
         agenda_location: agenda.institution_location || agenda.location,
         operation_date: agenda.date || source.operation_date,
         team: agenda.team_name || agenda.team_ref_name || agenda.sector_name || source.team,
-        education_agents: source.education_agents || details.agents,
+        education_agents: agenda.service_order_mode === "TEAM" ? "" : (source.education_agents || details.agents),
         changes_staff: source.changes_staff || "",
         approximate_public: source.approximate_public || numericApproximatePublic(agenda.quantity),
         request_details: source.request_details || details.audience,
@@ -1338,6 +1362,13 @@ export default function TechnicalReportsPage() {
       } else {
         setReportSchedule(null);
         setAttendanceForm({});
+        if (reportAgenda?.service_order_mode === "TEAM") {
+          setForm((current) => ({
+            ...current,
+            education_agents: buildEducationAgentsText(current, reportAgenda, EMPTY_CONTEXT_MEMBERS),
+            changes_staff: "",
+          }));
+        }
       }
     } catch {
       setReportSchedule(null);
