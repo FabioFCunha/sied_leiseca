@@ -9,7 +9,10 @@ from apps.inspection.models import (
     InspectionHistoricalTerritorialStatistic,
     InspectionMunicipality,
 )
-from apps.inspection.territorial import normalize_municipality_name
+from apps.inspection.territorial import (
+    normalize_municipality_name,
+    resolve_municipality,
+)
 
 
 HISTORICAL_DATE_FROM = date(2022, 10, 3)
@@ -197,6 +200,13 @@ def load_municipalities_by_prefix():
     }
 
 
+def resolve_municipality_from_city(source_city):
+    if not source_city:
+        return None
+
+    return resolve_municipality(source_city)
+
+
 def resolve_municipality_from_prefix(prefix, municipalities_by_name):
     municipality_name = municipality_name_for_prefix(prefix)
     if not municipality_name:
@@ -303,16 +313,29 @@ class Command(BaseCommand):
             )
 
             effective_prefix = None
+            municipality = None
+
+            # Resolution order is intentionally strict for auditability:
+            # 1. own valid prefix
+            # 2. exactly one valid prefix elsewhere in the same report
+            # 3. exact municipality match by source_city only when there is
+            #    no valid territorial prefix evidence in the report
             if operation["own_prefix"] is not None:
                 if operation["own_prefix_is_valid"]:
                     effective_prefix = operation["own_prefix"]
             elif len(section_prefixes) == 1:
                 effective_prefix = next(iter(section_prefixes))
 
-            municipality = resolve_municipality_from_prefix(
-                effective_prefix,
-                municipalities_by_name,
-            )
+            if effective_prefix is not None:
+                municipality = resolve_municipality_from_prefix(
+                    effective_prefix,
+                    municipalities_by_name,
+                )
+            elif len(section_prefixes) == 0:
+                municipality = resolve_municipality_from_city(
+                    operation["source_city"]
+                )
+
             region = municipality.region if municipality else None
 
             key = (

@@ -246,13 +246,18 @@ class InspectionTerritorialStatisticsService:
 
     @classmethod
     def _historical_metrics(cls, row):
+        # Historical territorial coverage was audited against the
+        # official legacy sheet using approached = approach + reconductor.
+        effective_approach = (
+            cls._number(row.approach)
+            + cls._number(row.reconductor)
+        )
+
         return cls._build_metrics(
             operations=cls._number(
                 row.operations_count
             ),
-            approach=cls._number(
-                row.approach
-            ),
+            approach=effective_approach,
             reconductor=cls._number(
                 row.reconductor
             ),

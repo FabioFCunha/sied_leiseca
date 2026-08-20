@@ -245,6 +245,68 @@ class InspectionTerritorialStatisticsServiceTestCase(
             ]
         )
 
+    def test_historical_approach_uses_approach_plus_reconductor(self):
+        self._create_historical_row(
+            reference_date=date(2025, 8, 22),
+            team="C3",
+            municipality=self.niteroi,
+            operations_count=2,
+            approach=54,
+            reconductor=15,
+            refusal=12,
+            thirtythree_ml=2,
+            fined=27,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2025-08-22",
+                    "date_to": "2025-08-22",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["approach"],
+            69,
+        )
+        self.assertAlmostEqual(
+            data["summary"]["alcohol_percentage"],
+            14 / 69 * 100,
+        )
+
+    def test_operational_approach_rule_remains_unchanged(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=54,
+            reconductor=15,
+            refusal=12,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["approach"],
+            54,
+        )
+        self.assertAlmostEqual(
+            data["summary"]["alcohol_percentage"],
+            12 / 54 * 100,
+        )
+
     def test_only_operational_period_uses_operational_source(self):
         report = self._create_report(
             team="A1",
@@ -514,6 +576,94 @@ class InspectionTerritorialStatisticsServiceTestCase(
         self.assertEqual(
             data["summary"]["refusal"],
             10,
+        )
+
+    def test_porciuncula_historical_regression_2025_08_22(self):
+        self._create_historical_row(
+            reference_date=date(2025, 8, 22),
+            team="C3",
+            municipality=InspectionMunicipality.objects.get(
+                name="Porciúncula"
+            ),
+            operations_count=2,
+            approach=54,
+            reconductor=15,
+            refusal=12,
+            thirtythree_ml=2,
+            fined=27,
+            source_city="Porciúncula",
+            normalized_city="PORCIUNCULA",
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2025-08-22",
+                    "date_to": "2025-08-22",
+                    "municipality": "Porciúncula",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["operations"],
+            2,
+        )
+        self.assertEqual(
+            data["summary"]["approach"],
+            69,
+        )
+        self.assertEqual(
+            data["summary"]["fined"],
+            27,
+        )
+        self.assertEqual(
+            data["summary"]["alcohol_cases"],
+            14,
+        )
+
+    def test_porciuncula_historical_regression_2025_08_23(self):
+        self._create_historical_row(
+            reference_date=date(2025, 8, 23),
+            team="C3",
+            municipality=InspectionMunicipality.objects.get(
+                name="Porciúncula"
+            ),
+            operations_count=1,
+            approach=115,
+            reconductor=15,
+            refusal=16,
+            arrests_means_evidence=1,
+            fined=22,
+            source_city="Porciúncula",
+            normalized_city="PORCIUNCULA",
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2025-08-23",
+                    "date_to": "2025-08-23",
+                    "municipality": "Porciúncula",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["operations"],
+            1,
+        )
+        self.assertEqual(
+            data["ranking"][0]["approach"],
+            130,
+        )
+        self.assertEqual(
+            data["ranking"][0]["fined"],
+            22,
+        )
+        self.assertEqual(
+            data["ranking"][0]["alcohol_cases"],
+            17,
         )
 
     def test_start_before_coverage_does_not_invent_territorialization(self):

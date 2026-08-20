@@ -8,7 +8,10 @@ from apps.inspection.management.commands.import_horus_territorial_historical imp
     HISTORICAL_DATE_FROM,
     HISTORICAL_DATE_TO,
 )
-from apps.inspection.models import InspectionHistoricalTerritorialStatistic
+from apps.inspection.models import (
+    InspectionHistoricalTerritorialStatistic,
+    InspectionMunicipality,
+)
 
 
 class FakeCursor:
@@ -236,7 +239,7 @@ class ImportHorusTerritorialHistoricalTests(TestCase):
             "Cachoeiras de Macacu",
         )
 
-    def test_city_without_prefix_does_not_classify(self):
+    def test_fallback_exact_city_classifies_when_no_other_evidence(self):
         rows = [
             self._row(
                 section_id="s1",
@@ -255,6 +258,88 @@ class ImportHorusTerritorialHistoricalTests(TestCase):
         row = InspectionHistoricalTerritorialStatistic.objects.get()
         self.assertEqual(row.source_city, "Niterói")
         self.assertEqual(row.normalized_city, "NITEROI")
+        self.assertEqual(row.municipality.name, "Niterói")
+        self.assertEqual(row.region.name, "Metropolitana")
+
+    def test_prefix_priority_wins_over_city(self):
+        rows = [
+            self._row(
+                section_id="s1",
+                operation_id="o1",
+                operation_date=date(2025, 1, 1),
+                source_city="Niterói",
+                address_operation="Trecho 4.07",
+                approach=10,
+            )
+        ]
+
+        self._run_command(rows)
+
+        row = InspectionHistoricalTerritorialStatistic.objects.get()
+        self.assertEqual(row.municipality.name, "Magé")
+
+    def test_unique_prefix_inheritance_wins_over_city(self):
+        rows = [
+            self._row(
+                section_id="s1",
+                operation_id="o1",
+                operation_date=date(2025, 1, 1),
+                source_city="Niterói",
+                address_operation="Trecho 5.01",
+                approach=10,
+            ),
+            self._row(
+                section_id="s1",
+                operation_id="o2",
+                operation_date=date(2025, 1, 1),
+                source_city="Magé",
+                address_operation="Sem codigo",
+                approach=20,
+            ),
+        ]
+
+        self._run_command(rows)
+
+        inherited = (
+            InspectionHistoricalTerritorialStatistic.objects
+            .filter(source_city="Magé")
+            .get()
+        )
+        self.assertEqual(inherited.municipality.name, "Niterói")
+
+    def test_city_conflict_with_multiple_prefixes_stays_unclassified(self):
+        rows = [
+            self._row(
+                section_id="s1",
+                operation_id="o1",
+                operation_date=date(2025, 1, 1),
+                address_operation="Trecho 5.01",
+                approach=10,
+            ),
+            self._row(
+                section_id="s1",
+                operation_id="o2",
+                operation_date=date(2025, 1, 1),
+                address_operation="Trecho 4.07",
+                approach=20,
+            ),
+            self._row(
+                section_id="s1",
+                operation_id="o3",
+                operation_date=date(2025, 1, 1),
+                source_city="Porciúncula",
+                address_operation="Sem codigo",
+                approach=30,
+            ),
+        ]
+
+        self._run_command(rows)
+
+        row = (
+            InspectionHistoricalTerritorialStatistic.objects
+            .filter(source_city="Porciúncula")
+            .get()
+        )
         self.assertIsNone(row.municipality)
         self.assertIsNone(row.region)
 
@@ -351,3 +436,92 @@ class ImportHorusTerritorialHistoricalTests(TestCase):
         self.assertEqual(row.approach, 15)
         self.assertEqual(row.fined, 7)
         self.assertEqual(row.refusal, 2)
+
+    def test_unknown_city_without_other_evidence_stays_unclassified(self):
+        rows = [
+            self._row(
+                section_id="s1",
+                operation_id="o1",
+                operation_date=date(2025, 1, 1),
+                source_city="Cidade Inventada",
+                address_operation="Sem codigo",
+                approach=15,
+            )
+        ]
+
+        self._run_command(rows)
+
+        row = InspectionHistoricalTerritorialStatistic.objects.get()
+        self.assertIsNone(row.municipality)
+        self.assertIsNone(row.region)
+
+    def test_porciuncula_without_address_operation_classifies_by_city_when_safe(self):
+        rows = [
+            self._row(
+                section_id="s22",
+                operation_id="o22a",
+                operation_date=date(2025, 8, 22),
+                team="C3",
+                source_city="Porciúncula",
+                address_operation="",
+                approach=50,
+                reconductor=14,
+                fined=25,
+                refusal=11,
+                four_ml=37,
+                thirtythree_ml=2,
+            ),
+            self._row(
+                section_id="s22",
+                operation_id="o22b",
+                operation_date=date(2025, 8, 22),
+                team="C3",
+                source_city="Porciúncula",
+                address_operation="",
+                approach=4,
+                reconductor=1,
+                fined=2,
+                refusal=1,
+                four_ml=3,
+            ),
+            self._row(
+                section_id="s23",
+                operation_id="o23",
+                operation_date=date(2025, 8, 23),
+                team="C3",
+                source_city="Porciúncula",
+                address_operation="",
+                approach=115,
+                reconductor=15,
+                fined=22,
+                refusal=16,
+                four_ml=99,
+                arrests_means_evidence=1,
+            ),
+        ]
+
+        self._run_command(rows)
+
+        porciuncula = InspectionMunicipality.objects.get(
+            name="Porciúncula"
+        )
+        rows = list(
+            InspectionHistoricalTerritorialStatistic.objects
+            .filter(municipality=porciuncula)
+            .order_by("reference_date")
+        )
+
+        self.assertEqual(len(rows), 2)
+
+        row_22, row_23 = rows
+        self.assertEqual(row_22.reference_date, date(2025, 8, 22))
+        self.assertEqual(row_22.operations_count, 2)
+        self.assertEqual(row_22.approach, 54)
+        self.assertEqual(row_22.reconductor, 15)
+        self.assertEqual(row_22.fined, 27)
+
+        self.assertEqual(row_23.reference_date, date(2025, 8, 23))
+        self.assertEqual(row_23.operations_count, 1)
+        self.assertEqual(row_23.approach, 115)
+        self.assertEqual(row_23.reconductor, 15)
+        self.assertEqual(row_23.fined, 22)
