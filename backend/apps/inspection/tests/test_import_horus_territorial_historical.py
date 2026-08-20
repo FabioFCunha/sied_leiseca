@@ -455,6 +455,49 @@ class ImportHorusTerritorialHistoricalTests(TestCase):
         self.assertIsNone(row.municipality)
         self.assertIsNone(row.region)
 
+    def test_varre_sai_aliases_classify_by_safe_city_fallback(self):
+        rows = [
+            self._row(
+                section_id="s25",
+                operation_id="o25",
+                operation_date=date(2025, 7, 25),
+                team="B7",
+                source_city="Varre-Sai",
+                address_operation="",
+                approach=10,
+            ),
+            self._row(
+                section_id="s26",
+                operation_id="o26",
+                operation_date=date(2025, 7, 26),
+                team="B7",
+                source_city="Varre e Sai",
+                address_operation="",
+                approach=20,
+            ),
+        ]
+
+        self._run_command(rows)
+
+        imported = list(
+            InspectionHistoricalTerritorialStatistic.objects.order_by(
+                "reference_date"
+            )
+        )
+
+        self.assertEqual([row.source_city for row in imported], [
+            "Varre-Sai",
+            "Varre e Sai",
+        ])
+        self.assertTrue(all(
+            row.municipality.name == "Varre-Sai"
+            for row in imported
+        ))
+        self.assertTrue(all(
+            row.region.name == "Noroeste Fluminense"
+            for row in imported
+        ))
+
     def test_porciuncula_without_address_operation_classifies_by_city_when_safe(self):
         rows = [
             self._row(
