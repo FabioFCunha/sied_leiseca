@@ -12,7 +12,12 @@ import {
   TestTube2,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Bar,
   BarChart,
@@ -1255,8 +1260,7 @@ function TerritorialRankingContent({
                             {selectedMunicipality
                               ? `${item.position}º lugar entre ${item.total_municipalities} municípios`
                               : rankingContextSummary(
-                                  item,
-                                  filters
+                                  item
                                 )}
                           </small>
                         </div>
@@ -1362,6 +1366,12 @@ export default function InspectionStatisticsPage() {
         todayIso
       )
   );
+  const [
+    isRankingIndicatorsOpen,
+    setIsRankingIndicatorsOpen,
+  ] = useState(false);
+  const rankingIndicatorsRef =
+    useRef(null);
 
   const [
     activeTab,
@@ -1922,8 +1932,49 @@ export default function InspectionStatisticsPage() {
         ranking,
         rankingDraftFilters.territorial_area,
         rankingDraftFilters.region,
-      ]
+    ]
+  );
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (
+        !rankingIndicatorsRef.current ||
+        rankingIndicatorsRef.current.contains(
+          event.target
+        )
+      ) {
+        return;
+      }
+
+      setIsRankingIndicatorsOpen(false);
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setIsRankingIndicatorsOpen(false);
+      }
+    }
+
+    document.addEventListener(
+      "mousedown",
+      handlePointerDown
     );
+    document.addEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handlePointerDown
+      );
+      document.removeEventListener(
+        "keydown",
+        handleEscape
+      );
+    };
+  }, []);
 
   const rankingRegionOptions =
     useMemo(
@@ -2463,11 +2514,26 @@ export default function InspectionStatisticsPage() {
         ) : null}
 
         {isRankingTab ? (
-          <details className="stats-filter-multiselect">
-            <span className="stats-filter-multiselect-label">
+          <div
+            className="stats-filter-multiselect"
+            ref={rankingIndicatorsRef}
+          >
+            <label className="stats-filter-multiselect-label">
               Indicadores
-            </span>
-            <summary className="stats-filter-multiselect-trigger">
+            </label>
+            <button
+              type="button"
+              className="stats-filter-multiselect-trigger"
+              onClick={() =>
+                setIsRankingIndicatorsOpen(
+                  (current) => !current
+                )
+              }
+              aria-haspopup="listbox"
+              aria-expanded={
+                isRankingIndicatorsOpen
+              }
+            >
               <span className="stats-filter-multiselect-value">
                 {buildRankingIndicatorSummary(
                   rankingDraftFilters.indicators
@@ -2479,47 +2545,49 @@ export default function InspectionStatisticsPage() {
               >
                 ▾
               </span>
-            </summary>
-            <div className="stats-filter-multiselect-options">
-              {RANKING_INDICATORS.map((item) => {
-                const checked =
-                  rankingDraftFilters.indicators?.includes(
-                    item.value
+            </button>
+            {isRankingIndicatorsOpen ? (
+              <div className="stats-filter-multiselect-options">
+                {RANKING_INDICATORS.map((item) => {
+                  const checked =
+                    rankingDraftFilters.indicators?.includes(
+                      item.value
+                    );
+
+                  return (
+                    <label
+                      key={item.value}
+                      className="stats-filter-checkbox"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setRankingDraftFilters((current) => {
+                            const currentIndicators =
+                              current.indicators || [];
+
+                            return {
+                              ...current,
+                              indicators: checked
+                                ? currentIndicators.filter(
+                                    (value) => value !== item.value
+                                  )
+                                : [
+                                    ...currentIndicators,
+                                    item.value,
+                                  ],
+                            };
+                          })
+                        }
+                      />
+                      <span>{item.label}</span>
+                    </label>
                   );
-
-                return (
-                  <label
-                    key={item.value}
-                    className="stats-filter-checkbox"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() =>
-                        setRankingDraftFilters((current) => {
-                          const currentIndicators =
-                            current.indicators || [];
-
-                          return {
-                            ...current,
-                            indicators: checked
-                              ? currentIndicators.filter(
-                                  (value) => value !== item.value
-                                )
-                              : [
-                                  ...currentIndicators,
-                                  item.value,
-                                ],
-                          };
-                        })
-                      }
-                    />
-                    <span>{item.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </details>
+                })}
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         <div className="stats-filter-actions">
@@ -3135,32 +3203,41 @@ function buildRankingColumns(
 }
 
 function rankingContextSummary(
-  item,
-  filters
+  item
 ) {
   if (!item) {
     return "";
   }
 
-  const selectedPeriod =
-    filters?.date_from &&
-    filters?.date_to
-      ? `${formatDate(
-          filters.date_from
-        )} a ${formatDate(
-          filters.date_to
-        )}`
-      : "";
+  const operationDates =
+    formatRankingContextDate(
+      item.dates
+    );
 
   return `${integer(
     item.approach
   )} abordados | ${integer(
     item.alcohol_cases
   )} alcoolemia${
-    selectedPeriod
-      ? ` | ${selectedPeriod}`
+    operationDates
+      ? ` | ${operationDates}`
       : ""
   }`;
+}
+
+function formatRankingContextDate(
+  dates
+) {
+  if (
+    !Array.isArray(dates) ||
+    dates.length === 0
+  ) {
+    return "";
+  }
+
+  return formatMunicipalityDates(
+    dates
+  );
 }
 
 function formatRankingIndicatorValue(

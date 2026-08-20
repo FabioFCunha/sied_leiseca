@@ -409,6 +409,20 @@ assert.equal(
   true
 );
 
+assert.equal(
+  pageSource.includes(
+    "setIsRankingIndicatorsOpen(false)"
+  ),
+  true
+);
+
+assert.equal(
+  pageSource.includes(
+    "formatRankingContextDate("
+  ),
+  true
+);
+
 const pdfSource = fs.readFileSync(
   new URL(
     "./inspectionTerritorialPdfGenerator.js",
