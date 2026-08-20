@@ -1569,7 +1569,247 @@ class InspectionTerritorialRankingServiceTestCase(
             3,
         )
 
-    def test_indicator_fined(self):
+    def test_default_ranking_returns_four_fixed_indicators(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=2,
+            approach=100,
+            refusal=10,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                }
+            ).get_data()
+        )
+
+        row = data["ranking"][0]
+
+        self.assertIn("operations", row)
+        self.assertIn("approach", row)
+        self.assertIn("alcohol_cases", row)
+        self.assertIn("alcohol_percentage", row)
+
+    def test_default_ranking_orders_by_alcohol_percentage_desc(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=10,
+            refusal=4,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.sao_goncalo,
+            operations_count=1,
+            approach=100,
+            refusal=20,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Niterói",
+        )
+
+    def test_tiebreak_uses_alcohol_cases_then_approach(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            refusal=10,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.sao_goncalo,
+            operations_count=1,
+            approach=200,
+            refusal=20,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.angra,
+            operations_count=1,
+            approach=300,
+            refusal=30,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Angra dos Reis",
+        )
+        self.assertEqual(
+            data["ranking"][1]["municipality"],
+            "São Gonçalo",
+        )
+
+    def test_fixed_indicators_are_ignored_as_additional(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            refusal=10,
+            fined=5,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicators": [
+                        "operations",
+                        "approach",
+                        "alcohol_cases",
+                        "alcohol_percentage",
+                        "fined",
+                    ],
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["meta"]["selected_indicators"],
+            ["fined"],
+        )
+
+    def test_multiple_additional_indicators_are_preserved(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            refusal=10,
+            fined=5,
+            cnh_collected=2,
+            towed=1,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicators": "fined,cnh_collected,towed",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["meta"]["selected_indicators"],
+            [
+                "fined",
+                "cnh_collected",
+                "towed",
+            ],
+        )
+
+    def test_territorial_area_metropolitan(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=10,
+            refusal=2,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.angra,
+            operations_count=1,
+            approach=10,
+            refusal=5,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "territorial_area": "metropolitan",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["municipalities_considered"],
+            1,
+        )
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Niterói",
+        )
+
+    def test_territorial_area_interior(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=10,
+            refusal=2,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.angra,
+            operations_count=1,
+            approach=10,
+            refusal=5,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "territorial_area": "interior",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["municipalities_considered"],
+            1,
+        )
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Angra dos Reis",
+        )
+
+    def test_additional_indicator_fined(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1584,17 +1824,21 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "fined",
+                    "indicators": ["fined"],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            data["ranking"][0]["value"],
+            data["meta"]["selected_indicators"],
+            ["fined"],
+        )
+        self.assertEqual(
+            data["ranking"][0]["fined"],
             25,
         )
 
-    def test_indicator_cnh_collected(self):
+    def test_additional_indicator_cnh_collected(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1609,17 +1853,17 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "cnh_collected",
+                    "indicators": ["cnh_collected"],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0]["cnh_collected"],
             7,
         )
 
-    def test_indicator_towed(self):
+    def test_additional_indicator_towed(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1634,17 +1878,17 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "towed",
+                    "indicators": ["towed"],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0]["towed"],
             3,
         )
 
-    def test_indicator_refusal(self):
+    def test_additional_indicator_refusal(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1659,17 +1903,17 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "refusal",
+                    "indicators": ["refusal"],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0]["refusal"],
             6,
         )
 
-    def test_indicator_reconductor(self):
+    def test_additional_indicator_reconductor(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1684,17 +1928,17 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "reconductor",
+                    "indicators": ["reconductor"],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0]["reconductor"],
             4,
         )
 
-    def test_indicator_removal_resolutions(self):
+    def test_additional_indicator_removal_resolutions(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1709,17 +1953,21 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "removal_resolutions",
+                    "indicators": [
+                        "removal_resolutions"
+                    ],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0][
+                "removal_resolutions"
+            ],
             5,
         )
 
-    def test_indicator_criminal_occurrences(self):
+    def test_additional_indicator_criminal_occurrences(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1734,17 +1982,21 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "criminal_occurrences",
+                    "indicators": [
+                        "criminal_occurrences"
+                    ],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0][
+                "criminal_occurrences"
+            ],
             2,
         )
 
-    def test_indicator_arrests_means_evidence(self):
+    def test_additional_indicator_arrests_means_evidence(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1759,13 +2011,17 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "arrests_means_evidence",
+                    "indicators": [
+                        "arrests_means_evidence"
+                    ],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0][
+                "arrests_means_evidence"
+            ],
             9,
         )
 
@@ -1794,7 +2050,6 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2026-08-20",
-                    "indicator": "alcohol_percentage",
                 }
             ).get_data()
         )
@@ -1808,11 +2063,13 @@ class InspectionTerritorialRankingServiceTestCase(
             100,
         )
         self.assertAlmostEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0][
+                "alcohol_percentage"
+            ],
             20.0,
         )
 
-    def test_fined_per_100_approaches_is_recalculated(self):
+    def test_additional_indicator_fined_per_100_approaches_is_recalculated(self):
         self._create_historical_row(
             reference_date=date(2024, 1, 1),
             team="A1",
@@ -1837,7 +2094,9 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2026-08-20",
-                    "indicator": "fined_per_100_approaches",
+                    "indicators": [
+                        "fined_per_100_approaches"
+                    ],
                 }
             ).get_data()
         )
@@ -1851,7 +2110,9 @@ class InspectionTerritorialRankingServiceTestCase(
             100,
         )
         self.assertAlmostEqual(
-            data["ranking"][0]["value"],
+            data["ranking"][0][
+                "fined_per_100_approaches"
+            ],
             30.0,
         )
 
@@ -1871,7 +2132,6 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "alcohol_percentage",
                 }
             ).get_data()
         )
@@ -1880,17 +2140,23 @@ class InspectionTerritorialRankingServiceTestCase(
                 {
                     "date_from": "2024-01-01",
                     "date_to": "2024-01-31",
-                    "indicator": "fined_per_100_approaches",
+                    "indicators": [
+                        "fined_per_100_approaches"
+                    ],
                 }
             ).get_data()
         )
 
         self.assertEqual(
-            alcohol_data["ranking"][0]["value"],
+            alcohol_data["ranking"][0][
+                "alcohol_percentage"
+            ],
             0,
         )
         self.assertEqual(
-            fined_data["ranking"][0]["value"],
+            fined_data["ranking"][0][
+                "fined_per_100_approaches"
+            ],
             0,
         )
 

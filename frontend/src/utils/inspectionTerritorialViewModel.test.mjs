@@ -8,6 +8,7 @@ import {
   buildPdfMunicipalityLabel,
   buildTerritorialCoverageNote,
   clampTerritorialDateFrom,
+  filterRankingRegions,
   filterRankingMunicipalities,
   formatMunicipalityDates,
   hasMunicipalityRain,
@@ -107,9 +108,10 @@ assert.deepEqual(
     date_from: "2022-10-03",
     date_to: "2026-08-20",
     team: "",
+    territorial_area: "all",
     region: "",
     municipality: "",
-    indicator: "alcohol_cases",
+    indicators: [],
   }
 );
 
@@ -133,18 +135,45 @@ assert.deepEqual(
     date_from: "2020-01-01",
     date_to: "2026-08-20",
     team: "A1",
+    territorial_area: "interior",
     region: "Metropolitana",
     municipality: "Niterói",
-    indicator: "fined",
+    indicators: ["fined", "towed", "fined"],
   }),
   {
     date_from: "2022-10-03",
     date_to: "2026-08-20",
     team: "A1",
+    territorial_area: "interior",
     region: "Metropolitana",
     municipality: "Niterói",
-    indicator: "fined",
+    indicators: ["fined", "towed"],
   }
+);
+
+assert.deepEqual(
+  filterRankingRegions(
+    [
+      {
+        region: "Metropolitana",
+        region_code: "METROPOLITANA",
+        territorial_group: "metropolitan",
+      },
+      {
+        region: "Costa Verde",
+        region_code: "COSTA_VERDE",
+        territorial_group: "interior",
+      },
+    ],
+    "interior"
+  ),
+  [
+    {
+      region: "Costa Verde",
+      region_code: "COSTA_VERDE",
+      territorial_group: "interior",
+    },
+  ]
 );
 
 assert.deepEqual(
@@ -155,14 +184,17 @@ assert.deepEqual(
         municipality: "Angra dos Reis",
         region: "Costa Verde",
         region_code: "COSTA_VERDE",
+        territorial_group: "interior",
       },
       {
         municipality_id: 2,
         municipality: "Niterói",
         region: "Metropolitana",
         region_code: "METROPOLITANA",
+        territorial_group: "metropolitan",
       },
     ],
+    "metropolitan",
     "Metropolitana"
   ),
   [
@@ -171,6 +203,7 @@ assert.deepEqual(
       municipality: "Niterói",
       region: "Metropolitana",
       region_code: "METROPOLITANA",
+      territorial_group: "metropolitan",
     },
   ]
 );

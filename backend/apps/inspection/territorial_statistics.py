@@ -1,8 +1,6 @@
 from collections import defaultdict
 from datetime import date
 
-from django.db.models import Q
-
 from apps.inspection.models import (
     HISTORICAL_CUTOFF_DATE,
     INSPECTION_STATISTICS_CUTOFF_DATE,
@@ -35,6 +33,9 @@ class InspectionTerritorialStatisticsService:
     METROPOLITAN_REGION_CODE = "METROPOLITANA"
     HISTORICAL_TERRITORIAL_FROM = date(2022, 10, 3)
     HISTORICAL_TERRITORIAL_TO = HISTORICAL_CUTOFF_DATE
+    TERRITORIAL_AREA_ALL = "all"
+    TERRITORIAL_AREA_METROPOLITAN = "metropolitan"
+    TERRITORIAL_AREA_INTERIOR = "interior"
     RAIN_STRUCTURED_CLASSIFICATION_FROM = date(
         2026,
         8,
@@ -65,6 +66,13 @@ class InspectionTerritorialStatisticsService:
             ).strip()
             or None
         )
+        self.territorial_area = (
+            self._normalize_territorial_area(
+                self.filters.get(
+                    "territorial_area"
+                )
+            )
+        )
 
     @staticmethod
     def _parse_date(value):
@@ -79,6 +87,36 @@ class InspectionTerritorialStatisticsService:
     @staticmethod
     def _number(value):
         return value or 0
+
+    @classmethod
+    def _normalize_territorial_area(
+        cls,
+        value,
+    ):
+        normalized = str(
+            value or cls.TERRITORIAL_AREA_ALL
+        ).strip().lower()
+
+        if normalized not in {
+            cls.TERRITORIAL_AREA_ALL,
+            cls.TERRITORIAL_AREA_METROPOLITAN,
+            cls.TERRITORIAL_AREA_INTERIOR,
+        }:
+            return cls.TERRITORIAL_AREA_ALL
+
+        return normalized
+
+    @classmethod
+    def _territorial_group_for_region_code(
+        cls,
+        region_code,
+    ):
+        return (
+            cls.TERRITORIAL_AREA_METROPOLITAN
+            if region_code
+            == cls.METROPOLITAN_REGION_CODE
+            else cls.TERRITORIAL_AREA_INTERIOR
+        )
 
     @staticmethod
     def _empty_metrics():
@@ -435,12 +473,29 @@ class InspectionTerritorialStatisticsService:
     ):
         if not territory["matched"]:
             return (
+                self.territorial_area
+                == self.TERRITORIAL_AREA_ALL
+                and
                 self.region is None
                 and (
                     self.municipality is None
                     or not include_municipality
                 )
             )
+
+        territorial_group = (
+            self._territorial_group_for_region_code(
+                territory["region_code"]
+            )
+        )
+
+        if (
+            self.territorial_area
+            != self.TERRITORIAL_AREA_ALL
+            and territorial_group
+            != self.territorial_area
+        ):
+            return False
 
         if self.region:
             region_filter = (
@@ -564,6 +619,9 @@ class InspectionTerritorialStatisticsService:
                 else None
             ),
             "team": self.team,
+            "territorial_area": (
+                self.territorial_area
+            ),
             "region": self.region,
             "municipality": (
                 self.municipality
@@ -868,10 +926,9 @@ class InspectionTerritorialStatisticsService:
                 "region_code": region_code,
                 "region": territory["region"],
                 "territorial_group": (
-                    "METROPOLITANA"
-                    if region_code
-                    == self.METROPOLITAN_REGION_CODE
-                    else "INTERIOR"
+                    self._territorial_group_for_region_code(
+                        region_code
+                    ).upper()
                 ),
                 "metrics": (
                     self._empty_metrics()
@@ -1071,10 +1128,9 @@ class InspectionTerritorialStatisticsService:
                 territory["region_code"]
             ),
             "territorial_group": (
-                "METROPOLITANA"
-                if territory["region_code"]
-                == self.METROPOLITAN_REGION_CODE
-                else "INTERIOR"
+                self._territorial_group_for_region_code(
+                    territory["region_code"]
+                ).upper()
             ),
             "approach": metrics["approach"],
             "alcohol_cases": (
@@ -1093,19 +1149,13 @@ class InspectionTerritorialStatisticsService:
 class InspectionTerritorialRankingService(
     InspectionTerritorialStatisticsService
 ):
-    INDICATOR_DEFINITIONS = {
-        "operations": {
-            "label": "Fiscalizações",
-            "value_key": "operations",
-        },
-        "approach": {
-            "label": "Abordados",
-            "value_key": "approach",
-        },
-        "alcohol_cases": {
-            "label": "Alcoolemia",
-            "value_key": "alcohol_cases",
-        },
+    FIXED_INDICATOR_KEYS = (
+        "operations",
+        "approach",
+        "alcohol_cases",
+        "alcohol_percentage",
+    )
+    ADDITIONAL_INDICATOR_DEFINITIONS = {
         "fined": {
             "label": "Multados",
             "value_key": "fined",
@@ -1138,16 +1188,29 @@ class InspectionTerritorialRankingService(
             "label": "Prisões / meios de prova",
             "value_key": "arrests_means_evidence",
         },
-        "alcohol_percentage": {
-            "label": "Percentual de alcoolemia",
-            "value_key": "alcohol_percentage",
-        },
         "fined_per_100_approaches": {
             "label": "Multados por 100 abordagens",
             "value_key": "fined_per_100_approaches",
         },
+        "art307": {
+            "label": "Art. 307",
+            "value_key": "art307",
+        },
     }
-    DEFAULT_INDICATOR = "alcohol_cases"
+    FIXED_INDICATOR_DEFINITIONS = {
+        "operations": {
+            "label": "Ações",
+        },
+        "approach": {
+            "label": "Abordados",
+        },
+        "alcohol_cases": {
+            "label": "Alcoolemia",
+        },
+        "alcohol_percentage": {
+            "label": "% Alcoolemia",
+        },
+    }
     DEFAULT_LIMIT = 10
     MIN_LIMIT = 1
     MAX_LIMIT = 50
@@ -1155,23 +1218,15 @@ class InspectionTerritorialRankingService(
     def __init__(self, filters=None):
         super().__init__(filters=filters)
 
-        requested_indicator = str(
-            self.filters.get("indicator")
-            or self.DEFAULT_INDICATOR
-        ).strip()
         requested_limit = self.filters.get("limit")
-
-        if (
-            requested_indicator
-            not in self.INDICATOR_DEFINITIONS
-        ):
-            requested_indicator = (
-                self.DEFAULT_INDICATOR
-            )
-
-        self.indicator = requested_indicator
         self.limit = self._normalize_limit(
             requested_limit
+        )
+        self.selected_indicators = (
+            self._normalize_selected_indicators(
+                self.filters.get("indicators"),
+                self.filters.get("indicator"),
+            )
         )
 
     @classmethod
@@ -1189,6 +1244,56 @@ class InspectionTerritorialRankingService(
             min(cls.MAX_LIMIT, normalized),
         )
 
+    @classmethod
+    def _normalize_selected_indicators(
+        cls,
+        indicators,
+        legacy_indicator=None,
+    ):
+        values = []
+
+        if isinstance(indicators, str):
+            values.extend(
+                item.strip()
+                for item in indicators.split(",")
+                if item.strip()
+            )
+        elif indicators:
+            for item in indicators:
+                item = str(item).strip()
+                if not item:
+                    continue
+
+                values.extend(
+                    piece.strip()
+                    for piece in item.split(",")
+                    if piece.strip()
+                )
+
+        if legacy_indicator:
+            legacy_value = str(
+                legacy_indicator
+            ).strip()
+            if legacy_value:
+                values.append(legacy_value)
+
+        normalized = []
+        seen = set()
+
+        for item in values:
+            if (
+                item in cls.FIXED_INDICATOR_KEYS
+                or item
+                not in cls.ADDITIONAL_INDICATOR_DEFINITIONS
+                or item in seen
+            ):
+                continue
+
+            seen.add(item)
+            normalized.append(item)
+
+        return normalized
+
     @staticmethod
     def _safe_rate(
         numerator,
@@ -1198,36 +1303,6 @@ class InspectionTerritorialRankingService(
             return 0.0
 
         return numerator / denominator * 100
-
-    def _indicator_value(
-        self,
-        municipality_item,
-    ):
-        metrics = municipality_item["metrics"]
-
-        if self.indicator == "alcohol_percentage":
-            return self._safe_rate(
-                metrics["alcohol_cases"],
-                metrics["approach"],
-            )
-
-        if (
-            self.indicator
-            == "fined_per_100_approaches"
-        ):
-            return self._safe_rate(
-                metrics["fined"],
-                metrics["approach"],
-            )
-
-        return float(
-            metrics[
-                self.INDICATOR_DEFINITIONS[
-                    self.indicator
-                ]["value_key"]
-            ]
-            or 0
-        )
 
     def _build_ranking_row(
         self,
@@ -1265,9 +1340,6 @@ class InspectionTerritorialRankingService(
             "region_code": municipality_item[
                 "region_code"
             ],
-            "value": self._indicator_value(
-                municipality_item
-            ),
             "operations": metrics["operations"],
             "approach": metrics["approach"],
             "alcohol_cases": (
@@ -1303,6 +1375,7 @@ class InspectionTerritorialRankingService(
             "fined_per_100_approaches": (
                 fined_per_100
             ),
+            "art307": metrics["art307"],
             "rain": municipality_item["rain"],
         }
 
@@ -1332,7 +1405,20 @@ class InspectionTerritorialRankingService(
 
         return rows
 
-    def _available_municipalities(self):
+    @classmethod
+    def _matches_area_group(
+        cls,
+        territorial_group,
+        territorial_area,
+    ):
+        return (
+            territorial_area
+            == cls.TERRITORIAL_AREA_ALL
+            or territorial_group
+            == territorial_area
+        )
+
+    def _official_territorial_options(self):
         queryset = (
             InspectionMunicipality.objects
             .select_related("region")
@@ -1344,34 +1430,49 @@ class InspectionTerritorialRankingService(
                 "name"
             )
         )
-
-        if self.region:
-            region_filter = (
-                self.region.strip().upper()
-            )
-            queryset = queryset.filter(
-                Q(
-                    region__code__iexact=(
-                        region_filter
-                    )
-                )
-                | Q(
-                    region__name__iexact=(
-                        self.region.strip()
-                    )
-                )
-            )
-
         municipalities = []
+        regions = []
         seen_ids = set()
+        seen_region_codes = set()
 
         for municipality in queryset:
+            territorial_group = (
+                self._territorial_group_for_region_code(
+                    municipality.region.code
+                )
+            )
+
             if municipality.id in seen_ids:
                 continue
 
             seen_ids.add(
                 municipality.id
             )
+
+            if (
+                municipality.region.code
+                not in seen_region_codes
+            ):
+                seen_region_codes.add(
+                    municipality.region.code
+                )
+                regions.append(
+                    {
+                        "region_id": (
+                            municipality.region.id
+                        ),
+                        "region": (
+                            municipality.region.name
+                        ),
+                        "region_code": (
+                            municipality.region.code
+                        ),
+                        "territorial_group": (
+                            territorial_group
+                        ),
+                    }
+                )
+
             municipalities.append(
                 {
                     "municipality_id": (
@@ -1386,10 +1487,26 @@ class InspectionTerritorialRankingService(
                     "region_code": (
                         municipality.region.code
                     ),
+                    "territorial_group": (
+                        territorial_group
+                    ),
                 }
             )
 
-        return municipalities
+        regions.sort(
+            key=lambda item: (
+                0
+                if item["region_code"]
+                == self.METROPOLITAN_REGION_CODE
+                else 1,
+                item["region"],
+            )
+        )
+
+        return {
+            "regions": regions,
+            "municipalities": municipalities,
+        }
 
     def get_data(self):
         aggregated = self._aggregate_data(
@@ -1407,7 +1524,9 @@ class InspectionTerritorialRankingService(
 
         ranking_rows.sort(
             key=lambda item: (
-                -item["value"],
+                -item["alcohol_percentage"],
+                -item["alcohol_cases"],
+                -item["approach"],
                 item["municipality"],
             )
         )
@@ -1447,23 +1566,12 @@ class InspectionTerritorialRankingService(
             ranking = ranking_rows[
                 : self.limit
             ]
-
-        indicator_definition = (
-            self.INDICATOR_DEFINITIONS[
-                self.indicator
-            ]
+        official_options = (
+            self._official_territorial_options()
         )
 
         return {
             "summary": {
-                "indicator": (
-                    self.indicator
-                ),
-                "indicator_label": (
-                    indicator_definition[
-                        "label"
-                    ]
-                ),
                 "municipalities_considered": (
                     total_municipalities
                 ),
@@ -1471,17 +1579,26 @@ class InspectionTerritorialRankingService(
             "ranking": ranking,
             "meta": {
                 **aggregated["meta"],
-                "indicator": (
-                    self.indicator
+                "ranking_criterion": (
+                    "alcohol_percentage"
                 ),
-                "indicator_label": (
-                    indicator_definition[
-                        "label"
-                    ]
+                "ranking_criterion_label": (
+                    "% Alcoolemia"
                 ),
                 "limit": self.limit,
+                "selected_indicators": (
+                    self.selected_indicators
+                ),
+                "fixed_indicators": list(
+                    self.FIXED_INDICATOR_KEYS
+                ),
+                "available_regions": (
+                    official_options["regions"]
+                ),
                 "available_municipalities": (
-                    self._available_municipalities()
+                    official_options[
+                        "municipalities"
+                    ]
                 ),
             },
         }

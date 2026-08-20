@@ -533,6 +533,11 @@ class InspectionTerritorialRankingView(
                     "team"
                 )
             ),
+            "territorial_area": (
+                request.query_params.get(
+                    "territorial_area"
+                )
+            ),
             "region": (
                 request.query_params.get(
                     "region"
@@ -546,6 +551,14 @@ class InspectionTerritorialRankingView(
             "indicator": (
                 request.query_params.get(
                     "indicator"
+                )
+            ),
+            "indicators": (
+                request.query_params.getlist(
+                    "indicators"
+                )
+                or request.query_params.get(
+                    "indicators"
                 )
             ),
             "limit": (

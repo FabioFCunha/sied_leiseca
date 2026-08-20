@@ -69,24 +69,35 @@
 .territorial-ranking-kpi{border:1px solid var(--sd-line);border-radius:10px;background:linear-gradient(180deg,#fff,#f7fbff);padding:14px 16px;display:grid;gap:4px}
 .territorial-ranking-kpi small{font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--sd-muted)}
 .territorial-ranking-kpi strong{font-size:16px;color:#071b3a;line-height:1.25}
-.territorial-ranking-list{display:grid;gap:12px}
-.territorial-ranking-item{display:grid;grid-template-columns:64px minmax(0,1fr) minmax(170px,.5fr) 24px;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--sd-line);border-radius:12px;background:linear-gradient(180deg,#fff,#f8fbff);box-shadow:0 8px 20px rgba(0,19,56,.05)}
-.territorial-ranking-item.is-first{border-color:#f5c842;background:linear-gradient(180deg,#fffdf6,#fff7da)}
-.territorial-ranking-item.is-second{border-color:#cbd5e1;background:linear-gradient(180deg,#ffffff,#f8fafc)}
-.territorial-ranking-item.is-third{border-color:#f0c6a6;background:linear-gradient(180deg,#fffefc,#fff5ee)}
-.territorial-ranking-position span{display:grid;place-items:center;width:46px;height:46px;border-radius:12px;background:#eaf1fb;color:#0a1f44;font-weight:900;font-size:18px}
-.territorial-ranking-main{display:grid;gap:5px;min-width:0}
+.territorial-ranking-table-wrap{overflow-x:auto;border:1px solid var(--sd-line);border-radius:12px;box-shadow:0 8px 20px rgba(0,19,56,.05)}
+.territorial-ranking-table{width:100%;min-width:980px;border-collapse:collapse;background:#fff}
+.territorial-ranking-table th{padding:12px 14px;background:linear-gradient(135deg,#001338,#0048d7);color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;text-align:right;white-space:nowrap}
+.territorial-ranking-table th:nth-child(1),.territorial-ranking-table td:nth-child(1),.territorial-ranking-table th:nth-child(2),.territorial-ranking-table td:nth-child(2){text-align:left}
+.territorial-ranking-table td{padding:12px 14px;border-bottom:1px solid var(--sd-line);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.territorial-ranking-table tbody tr:nth-child(even) td{background:#f8fbff}
+.territorial-ranking-row.is-first td{background:#fff9e8}
+.territorial-ranking-row.is-second td{background:#f8fafc}
+.territorial-ranking-row.is-third td{background:#fff6ef}
+.territorial-ranking-col-municipality{min-width:220px}
 .territorial-ranking-city{display:grid;gap:2px}
-.territorial-ranking-city strong{font-size:18px;color:#071b3a;line-height:1.2}
-.territorial-ranking-city span{font-size:12px;font-weight:700;color:var(--sd-muted)}
-.territorial-ranking-context{font-size:12px;color:var(--sd-muted);font-weight:700;line-height:1.35}
-.territorial-ranking-value{display:grid;gap:3px;text-align:right}
-.territorial-ranking-value small{font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--sd-muted)}
-.territorial-ranking-value strong{font-size:24px;color:#0a1f44;line-height:1}
-.territorial-ranking-value span{font-size:11px;color:var(--sd-muted);font-weight:700;line-height:1.3}
-.territorial-ranking-badge{display:grid;place-items:center;color:#0b5fff}
+.territorial-ranking-city strong{font-size:15px;color:#071b3a;line-height:1.25}
+.territorial-ranking-city span{font-size:11px;font-weight:700;color:var(--sd-muted)}
+.territorial-ranking-city small{font-size:11px;color:var(--sd-muted);line-height:1.35}
+.territorial-ranking-position-chip{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:28px;padding:0 8px;border-radius:999px;background:#eaf1fb;color:#0a1f44;font-weight:900}
+.territorial-ranking-percentage-pill{display:inline-flex;align-items:center;justify-content:center;background:#fff3e0;color:var(--t-warn,#b45309);border-radius:999px;padding:4px 10px;font-weight:900}
+.territorial-ranking-row.is-first .territorial-ranking-percentage-pill{background:#fef3c7;color:#92400e}
+.territorial-ranking-row.is-second .territorial-ranking-percentage-pill{background:#e2e8f0;color:#334155}
+.territorial-ranking-row.is-third .territorial-ranking-percentage-pill{background:#ffedd5;color:#9a3412}
 .territorial-ranking-empty,.territorial-ranking-meta{border:1px solid var(--sd-line);border-radius:10px;background:#f7fbff;padding:14px 16px;color:var(--sd-muted);font-size:12px;line-height:1.5}
 .territorial-ranking-meta{margin-top:18px}
+.stats-filter-multiselect{display:grid;gap:6px;min-width:280px}
+.stats-filter-multiselect-label{font-size:11px;font-weight:800;color:var(--sd-muted)}
+.stats-filter-multiselect-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:10px;border:1px solid var(--sd-line);border-radius:8px;background:#fff;max-height:168px;overflow:auto}
+.stats-filter-checkbox{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--sd-text);font-weight:600}
+.stats-filter-checkbox input{margin-top:1px}
+.stats-filter-chip-list{display:flex;flex-wrap:wrap;gap:6px}
+.stats-filter-chip{border:1px solid var(--sd-line);background:#eef4fb;color:var(--sd-primary-strong);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer}
+.stats-filter-chip.is-empty{cursor:default;color:var(--sd-muted);background:#f8fafc}
 
 @media(max-width:1100px){
   .inspection-kpi-grid{
@@ -104,18 +115,8 @@
   .territorial-ranking-kpis{
     grid-template-columns:1fr
   }
-  .territorial-ranking-item{
-    grid-template-columns:52px 1fr;
-    gap:12px
-  }
-  .territorial-ranking-value,
-  .territorial-ranking-badge{
-    grid-column:2;
-    text-align:left
-  }
-  .territorial-ranking-badge{
-    display:none
-  }
+  .territorial-ranking-table{min-width:760px}
+  .stats-filter-multiselect-options{grid-template-columns:1fr}
 }
 
 /* =====================================================================

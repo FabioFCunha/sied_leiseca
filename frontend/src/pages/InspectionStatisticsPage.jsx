@@ -36,6 +36,7 @@ import {
   buildDefaultOfficialFilters,
   buildDefaultTerritorialRankingFilters,
   buildDefaultTerritorialFilters,
+  filterRankingRegions,
   filterRankingMunicipalities,
   formatMunicipalityDates,
   hasMunicipalityRain,
@@ -53,7 +54,22 @@ import {
 } from "../utils/inspectionStatisticsTaxonomy.js";
 import "./StatisticsPage.css";
 
-const REGIONS = [
+const TERRITORIAL_AREAS = [
+  {
+    value: "all",
+    label: "Todas",
+  },
+  {
+    value: "metropolitan",
+    label: "Metropolitana",
+  },
+  {
+    value: "interior",
+    label: "Interior",
+  },
+];
+
+const TERRITORIAL_REGIONS = [
   "Metropolitana",
   "Costa Verde",
   "Centro Sul Fluminense",
@@ -61,14 +77,10 @@ const REGIONS = [
   "Serrana",
   "Noroeste Fluminense",
   "Norte Fluminense",
-  "Baixadas Litorâneas"
+  "Baixadas Litorâneas",
 ];
 
 const RANKING_INDICATORS = [
-  {
-    value: "alcohol_cases",
-    label: "Alcoolemia",
-  },
   {
     value: "fined",
     label: "Multados",
@@ -106,16 +118,12 @@ const RANKING_INDICATORS = [
     label: "Prisões / meios de prova",
   },
   {
-    value: "operations",
-    label: "Fiscalizações",
-  },
-  {
-    value: "alcohol_percentage",
-    label: "Percentual de alcoolemia",
-  },
-  {
     value: "fined_per_100_approaches",
     label: "Multados por 100 abordagens",
+  },
+  {
+    value: "art307",
+    label: "Art. 307",
   },
 ];
 
@@ -1145,8 +1153,13 @@ function TerritorialRankingContent({
   const summary = ranking.summary || {};
   const rows = ranking.ranking || [];
   const meta = ranking.meta || {};
-  const indicator = meta.indicator || summary.indicator || "alcohol_cases";
   const selectedMunicipality = Boolean(filters?.municipality);
+  const selectedIndicators =
+    meta.selected_indicators || [];
+  const columns =
+    buildRankingColumns(
+      selectedIndicators
+    );
 
   return (
     <section className="stats-panel">
@@ -1164,16 +1177,16 @@ function TerritorialRankingContent({
       <div className="stats-panel-body">
         <div className="territorial-ranking-kpis">
           <div className="territorial-ranking-kpi">
-            <small>Indicador</small>
-            <strong>{summary.indicator_label || "-"}</strong>
+            <small>Ordenação</small>
+            <strong>% Alcoolemia</strong>
           </div>
           <div className="territorial-ranking-kpi">
             <small>Período</small>
             <strong>{formatDate(filters?.date_from)} a {formatDate(filters?.date_to)}</strong>
           </div>
           <div className="territorial-ranking-kpi">
-            <small>Região</small>
-            <strong>{filters?.region || "Todas as regiões"}</strong>
+            <small>Abrangência</small>
+            <strong>{territorialAreaLabel(filters?.territorial_area)}</strong>
           </div>
           <div className="territorial-ranking-kpi">
             <small>Municípios considerados</small>
@@ -1186,59 +1199,85 @@ function TerritorialRankingContent({
             Nenhum município classificado no recorte selecionado.
           </div>
         ) : (
-          <div className="territorial-ranking-list">
-            {rows.map((item) => {
-              const medalClass =
-                item.position === 1
-                  ? "is-first"
-                  : item.position === 2
-                    ? "is-second"
-                    : item.position === 3
-                      ? "is-third"
-                      : "";
+          <div className="territorial-ranking-table-wrap">
+            <table className="territorial-ranking-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Município</th>
+                  <th>Ações</th>
+                  <th>Abordados</th>
+                  <th>Alcoolemia</th>
+                  <th>% Alcoolemia</th>
+                  {columns.map((column) => (
+                    <th key={column.key}>
+                      {column.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((item) => {
+                  const medalClass =
+                    item.position === 1
+                      ? "is-first"
+                      : item.position === 2
+                        ? "is-second"
+                        : item.position === 3
+                          ? "is-third"
+                          : "";
 
-              return (
-                <article
-                  key={`${item.municipality_id}-${item.position}`}
-                  className={`territorial-ranking-item ${medalClass}`}
-                >
-                  <div className="territorial-ranking-position">
-                    <span>{item.position}º</span>
-                  </div>
-
-                  <div className="territorial-ranking-main">
-                    <div className="territorial-ranking-city">
-                      <strong>{item.municipality}</strong>
-                      <span>{item.region}</span>
-                    </div>
-                    <div className="territorial-ranking-context">
-                      {selectedMunicipality ? `${item.position}º lugar entre ${item.total_municipalities} municípios` : rankingContext(item, indicator)}
-                    </div>
-                  </div>
-
-                  <div className="territorial-ranking-value">
-                    <small>{summary.indicator_label}</small>
-                    <strong>{rankingPrimaryValue(item, indicator)}</strong>
-                    {selectedMunicipality ? (
-                      <span>{rankingContext(item, indicator)}</span>
-                    ) : null}
-                  </div>
-
-                  {item.position <= 3 ? (
-                    <div className="territorial-ranking-badge">
-                      <Award size={15} />
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
+                  return (
+                    <tr
+                      key={`${item.municipality_id}-${item.position}`}
+                      className={`territorial-ranking-row ${medalClass}`}
+                    >
+                      <td className="territorial-ranking-col-position">
+                        <span className="territorial-ranking-position-chip">
+                          {item.position}º
+                        </span>
+                      </td>
+                      <td className="territorial-ranking-col-municipality">
+                        <div className="territorial-ranking-city">
+                          <strong>{item.municipality}</strong>
+                          <span>{item.region}</span>
+                          <small>
+                            {selectedMunicipality
+                              ? `${item.position}º lugar entre ${item.total_municipalities} municípios`
+                              : rankingContextSummary(item)}
+                          </small>
+                        </div>
+                      </td>
+                      <td>{integer(item.operations)}</td>
+                      <td>{integer(item.approach)}</td>
+                      <td>{integer(item.alcohol_cases)}</td>
+                      <td className="territorial-ranking-col-percentage">
+                        <span className="territorial-ranking-percentage-pill">
+                          {percentage(item.alcohol_percentage)}
+                        </span>
+                      </td>
+                      {columns.map((column) => (
+                        <td key={column.key}>
+                          {formatAdditionalIndicatorValue(
+                            item,
+                            column.key
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
         <div className="territorial-ranking-meta">
           <strong>Fontes utilizadas:</strong>{" "}
           {(meta.sources_used || []).join(" + ") || "sem dados"}.
-          Cobertura territorial desde {formatDate(meta.territorial_coverage_from)}.
+          {" "}Cobertura territorial desde {formatDate(meta.territorial_coverage_from)}.
+          {" "}Região: {filters?.region || "Todas"}.
+          {" "}Indicadores adicionais: {selectedIndicators.length ? selectedIndicators.map(indicatorLabel).join(", ") : "nenhum"}.
         </div>
       </div>
     </section>
@@ -1825,19 +1864,23 @@ export default function InspectionStatisticsPage() {
         : activeTab === "territorial"
           ? {
               ...territorialFilters,
+              territorial_area:
+                rankingFilters.territorial_area || "all",
               municipality:
                 rankingFilters.municipality || "",
-              indicator:
-                rankingFilters.indicator || "alcohol_cases",
+              indicators:
+                rankingFilters.indicators || [],
             }
           : {
               ...officialFilters,
+              territorial_area:
+                rankingFilters.territorial_area || "all",
               region:
                 rankingFilters.region || "",
               municipality:
                 rankingFilters.municipality || "",
-              indicator:
-                rankingFilters.indicator || "alcohol_cases",
+              indicators:
+                rankingFilters.indicators || [],
             };
 
     const nextFilters =
@@ -1859,11 +1902,27 @@ export default function InspectionStatisticsPage() {
         filterRankingMunicipalities(
           ranking?.meta
             ?.available_municipalities || [],
+          rankingDraftFilters.territorial_area,
           rankingDraftFilters.region
         ),
       [
         ranking,
+        rankingDraftFilters.territorial_area,
         rankingDraftFilters.region,
+      ]
+    );
+
+  const rankingRegionOptions =
+    useMemo(
+      () =>
+        filterRankingRegions(
+          ranking?.meta
+            ?.available_regions || [],
+          rankingDraftFilters.territorial_area
+        ),
+      [
+        ranking,
+        rankingDraftFilters.territorial_area,
       ]
     );
 
@@ -2251,6 +2310,74 @@ export default function InspectionStatisticsPage() {
           />
         </label>
 
+        {isRankingTab ? (
+          <label>
+            Abrangência
+            <select
+              value={
+                rankingDraftFilters.territorial_area || "all"
+              }
+              onChange={(e) => {
+                const nextArea =
+                  e.target.value;
+
+                setRankingDraftFilters((current) => {
+                  const nextRegions =
+                    filterRankingRegions(
+                      ranking?.meta
+                        ?.available_regions || [],
+                      nextArea
+                    );
+                  const nextMunicipalities =
+                    filterRankingMunicipalities(
+                      ranking?.meta
+                        ?.available_municipalities || [],
+                      nextArea,
+                      current.region
+                    );
+                  const regionStillValid =
+                    !current.region ||
+                    nextRegions.some(
+                      (item) =>
+                        item.region ===
+                          current.region ||
+                        item.region_code ===
+                          current.region
+                    );
+                  const municipalityStillValid =
+                    !current.municipality ||
+                    nextMunicipalities.some(
+                      (item) =>
+                        item.municipality ===
+                        current.municipality
+                    );
+
+                  return {
+                    ...current,
+                    territorial_area:
+                      nextArea,
+                    region:
+                      regionStillValid
+                        ? current.region
+                        : "",
+                    municipality:
+                      regionStillValid &&
+                      municipalityStillValid
+                        ? current.municipality
+                        : "",
+                  };
+                });
+              }}
+            >
+              {TERRITORIAL_AREAS.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
         {isTerritorialLikeTab ? (
           <label>
             Região
@@ -2276,9 +2403,23 @@ export default function InspectionStatisticsPage() {
               }}
             >
               <option value="">Todas as regiões</option>
-              {REGIONS.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
+              {isRankingTab
+                ? rankingRegionOptions.map((item) => (
+                    <option
+                      key={item.region_code}
+                      value={item.region}
+                    >
+                      {item.region}
+                    </option>
+                  ))
+                : TERRITORIAL_REGIONS.map((region) => (
+                    <option
+                      key={region}
+                      value={region}
+                    >
+                      {region}
+                    </option>
+                  ))}
             </select>
           </label>
         ) : null}
@@ -2309,24 +2450,75 @@ export default function InspectionStatisticsPage() {
         ) : null}
 
         {isRankingTab ? (
-          <label>
-            Indicador
-            <select
-              value={rankingDraftFilters.indicator || "alcohol_cases"}
-              onChange={(e) =>
-                setRankingDraftFilters((current) => ({
-                  ...current,
-                  indicator: e.target.value,
-                }))
-              }
-            >
-              {RANKING_INDICATORS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="stats-filter-multiselect">
+            <span className="stats-filter-multiselect-label">
+              Indicadores adicionais
+            </span>
+            <div className="stats-filter-multiselect-options">
+              {RANKING_INDICATORS.map((item) => {
+                const checked =
+                  rankingDraftFilters.indicators?.includes(
+                    item.value
+                  );
+
+                return (
+                  <label
+                    key={item.value}
+                    className="stats-filter-checkbox"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setRankingDraftFilters((current) => {
+                          const currentIndicators =
+                            current.indicators || [];
+
+                          return {
+                            ...current,
+                            indicators: checked
+                              ? currentIndicators.filter(
+                                  (value) => value !== item.value
+                                )
+                              : [
+                                  ...currentIndicators,
+                                  item.value,
+                                ],
+                          };
+                        })
+                      }
+                    />
+                    <span>{item.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="stats-filter-chip-list">
+              {(rankingDraftFilters.indicators || []).length === 0 ? (
+                <span className="stats-filter-chip is-empty">
+                  Nenhum
+                </span>
+              ) : (
+                (rankingDraftFilters.indicators || []).map((value) => (
+                  <button
+                    type="button"
+                    key={value}
+                    className="stats-filter-chip"
+                    onClick={() =>
+                      setRankingDraftFilters((current) => ({
+                        ...current,
+                        indicators: (current.indicators || []).filter(
+                          (item) => item !== value
+                        ),
+                      }))
+                    }
+                  >
+                    {indicatorLabel(value)} ×
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         ) : null}
 
         <div className="stats-filter-actions">
@@ -2905,55 +3097,63 @@ function decimal(value) {
   );
 }
 
-function rankingPrimaryValue(
-  item,
-  indicator
+function territorialAreaLabel(
+  value
 ) {
-  if (
-    indicator === "alcohol_percentage" ||
-    indicator ===
-      "fined_per_100_approaches"
-  ) {
-    return `${decimal(item.value)}%`;
-  }
-
-  return integer(item.value);
+  return (
+    TERRITORIAL_AREAS.find(
+      (item) => item.value === value
+    )?.label || "Todas"
+  );
 }
 
-function rankingContext(
-  item,
-  indicator
+function indicatorLabel(
+  key
+) {
+  return (
+    RANKING_INDICATORS.find(
+      (item) => item.value === key
+    )?.label || key
+  );
+}
+
+function buildRankingColumns(
+  selectedIndicators = []
+) {
+  return selectedIndicators.map(
+    (key) => ({
+      key,
+      label: indicatorLabel(key),
+    })
+  );
+}
+
+function rankingContextSummary(
+  item
 ) {
   if (!item) {
     return "";
   }
 
-  if (
-    indicator === "alcohol_cases" ||
-    indicator === "alcohol_percentage"
-  ) {
-    return `${integer(
-      item.approach
-    )} abordados | ${decimal(
-      item.alcohol_percentage
-    )}%`;
-  }
-
-  if (
-    indicator === "fined" ||
-    indicator ===
-      "fined_per_100_approaches"
-  ) {
-    return `${integer(
-      item.approach
-    )} abordados | ${decimal(
-      item.fined_per_100_approaches
-    )} por 100`;
-  }
-
   return `${integer(
     item.approach
   )} abordados | ${integer(
-    item.operations
-  )} fiscalizações`;
+    item.alcohol_cases
+  )} alcoolemia`;
+}
+
+function formatAdditionalIndicatorValue(
+  item,
+  key
+) {
+  if (
+    key ===
+    "fined_per_100_approaches"
+  ) {
+    return `${decimal(
+      item.fined_per_100_approaches
+    )}`;
+  }
+
+  return integer(item[key]);
 }

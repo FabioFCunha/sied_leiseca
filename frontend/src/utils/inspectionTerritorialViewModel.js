@@ -49,10 +49,10 @@ export function buildDefaultTerritorialRankingFilters(
       TERRITORIAL_FILTER_START,
     date_to: today,
     team: "",
+    territorial_area: "all",
     region: "",
     municipality: "",
-    indicator:
-      "alcohol_cases",
+    indicators: [],
   };
 }
 
@@ -75,16 +75,42 @@ export function normalizeTerritorialRankingFilters(
     date_from: clampTerritorialDateFrom(
       filters.date_from
     ),
+    territorial_area:
+      filters.territorial_area ||
+      "all",
     municipality:
       filters.municipality || "",
-    indicator:
-      filters.indicator ||
-      "alcohol_cases",
+    indicators: Array.isArray(
+      filters.indicators
+    )
+      ? [
+          ...new Set(
+            filters.indicators.filter(Boolean)
+          ),
+        ]
+      : [],
   };
+}
+
+export function filterRankingRegions(
+  regions = [],
+  territorialArea = "all"
+) {
+  return regions.filter((item) => {
+    if (territorialArea === "all") {
+      return true;
+    }
+
+    return (
+      item.territorial_group ===
+      territorialArea
+    );
+  });
 }
 
 export function filterRankingMunicipalities(
   municipalities = [],
+  territorialArea = "all",
   region = ""
 ) {
   const normalizedRegion = String(
@@ -93,6 +119,14 @@ export function filterRankingMunicipalities(
 
   return municipalities
     .filter((item) => {
+      if (
+        territorialArea !== "all" &&
+        item.territorial_group !==
+          territorialArea
+      ) {
+        return false;
+      }
+
       if (!normalizedRegion) {
         return true;
       }
