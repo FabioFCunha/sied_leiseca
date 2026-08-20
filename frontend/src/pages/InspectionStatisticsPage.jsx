@@ -148,6 +148,7 @@ function statusClassName(status) {
 function Section({
   title,
   subtitle,
+  actions,
   children,
 }) {
   return (
@@ -159,6 +160,12 @@ function Section({
             <p>{subtitle}</p>
           </div>
         </div>
+
+        {actions ? (
+          <div className="stats-panel-actions">
+            {actions}
+          </div>
+        ) : null}
       </div>
 
       <div className="stats-panel-body">
@@ -1361,15 +1368,25 @@ export default function InspectionStatisticsPage() {
     dashboard?.historical_yearly_table ||
     null;
 
+  const [
+    showPreviousYears,
+    setShowPreviousYears,
+  ] = useState(false);
+
   const visibleHistoricalYears =
-    historicalYearlyTable?.years?.filter(
-      (year) => year >= 2017
-    ) || [];
+    showPreviousYears
+      ? historicalYearlyTable?.years || []
+      : historicalYearlyTable?.years?.filter(
+          (year) => Number(year) >= 2017
+        ) || [];
 
   const visibleHistoricalRows =
-    historicalYearlyTable?.rows?.filter(
-      (row) => row.year >= 2017
-    ) || [];
+    showPreviousYears
+      ? historicalYearlyTable?.rows || []
+      : historicalYearlyTable?.rows?.filter(
+          (row) =>
+            Number(row.year) >= 2017
+        ) || [];
 
   const hasData = Boolean(
     dashboard?.meta?.has_data
@@ -2087,19 +2104,58 @@ export default function InspectionStatisticsPage() {
             <Section
               title="Série Histórica da Fiscalização"
               subtitle="Consolidado institucional anual. Em 2026, o histórico até 09/08 é continuado pela produção homologada a partir de 10/08."
+              actions={
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPreviousYears(
+                      (current) =>
+                        !current
+                    )
+                  }
+                  style={{
+                    border:
+                      "1px solid var(--sd-line)",
+                    background:
+                      "#eef4fb",
+                    color:
+                      "var(--sd-primary-strong)",
+                    padding:
+                      "8px 12px",
+                    borderRadius:
+                      "8px",
+                    fontWeight:
+                      800,
+                    fontSize:
+                      "12px",
+                    cursor:
+                      "pointer",
+                    whiteSpace:
+                      "nowrap",
+                  }}
+                >
+                  {showPreviousYears
+                    ? "Ocultar anos anteriores"
+                    : "Mostrar anos anteriores"}
+                </button>
+              }
             >
               <div
                 className="stats-table-wrap"
                 style={{
                   overflowX:
-                    "auto",
+                    showPreviousYears
+                      ? "auto"
+                      : "visible",
                 }}
               >
                 <table
                   className="stats-table"
                   style={{
                     minWidth:
-                      "1360px",
+                      showPreviousYears
+                        ? "2100px"
+                        : "1360px",
 
                     whiteSpace:
                       "nowrap",
