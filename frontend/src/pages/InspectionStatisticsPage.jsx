@@ -1361,6 +1361,16 @@ export default function InspectionStatisticsPage() {
     dashboard?.historical_yearly_table ||
     null;
 
+  const visibleHistoricalYears =
+    historicalYearlyTable?.years?.filter(
+      (year) => year >= 2017
+    ) || [];
+
+  const visibleHistoricalRows =
+    historicalYearlyTable?.rows?.filter(
+      (row) => row.year >= 2017
+    ) || [];
+
   const hasData = Boolean(
     dashboard?.meta?.has_data
   );
@@ -2073,8 +2083,7 @@ export default function InspectionStatisticsPage() {
           ) : null}
 
 
-          {historicalYearlyTable
-            ?.rows?.length ? (
+          {visibleHistoricalRows.length ? (
             <Section
               title="Série Histórica da Fiscalização"
               subtitle="Consolidado institucional anual. Em 2026, o histórico até 09/08 é continuado pela produção homologada a partir de 10/08."
@@ -2090,7 +2099,7 @@ export default function InspectionStatisticsPage() {
                   className="stats-table"
                   style={{
                     minWidth:
-                      "2100px",
+                      "1360px",
 
                     whiteSpace:
                       "nowrap",
@@ -2109,25 +2118,41 @@ export default function InspectionStatisticsPage() {
                             "var(--surface, #fff)",
 
                           minWidth:
-                            "245px",
+                            "220px",
+
+                          padding:
+                            "10px 12px",
                         }}
                       >
                         Indicador
                       </th>
 
-                      {historicalYearlyTable.years.map(
+                      {visibleHistoricalYears.map(
                         (year) => (
                           <th
                             key={
                               year
                             }
+                            style={{
+                              minWidth:
+                                "86px",
+                              padding:
+                                "10px 12px",
+                            }}
                           >
                             {year}
                           </th>
                         )
                       )}
 
-                      <th>
+                      <th
+                        style={{
+                          minWidth:
+                            "86px",
+                          padding:
+                            "10px 12px",
+                        }}
+                      >
                         Total
                       </th>
                     </tr>
@@ -2158,6 +2183,12 @@ export default function InspectionStatisticsPage() {
 
                               fontWeight:
                                 600,
+
+                              minWidth:
+                                "220px",
+
+                              padding:
+                                "10px 12px",
                             }}
                           >
                             {
@@ -2165,12 +2196,16 @@ export default function InspectionStatisticsPage() {
                             }
                           </td>
 
-                          {historicalYearlyTable.rows.map(
+                          {visibleHistoricalRows.map(
                             (
                               row
                             ) => (
                               <td
                                 key={`${indicator.key}-${row.year}`}
+                                style={{
+                                  padding:
+                                    "10px 12px",
+                                }}
                               >
                                 {displayHistoricalValue(
                                   row[
@@ -2188,6 +2223,9 @@ export default function InspectionStatisticsPage() {
                             style={{
                               fontWeight:
                                 700,
+
+                              padding:
+                                "10px 12px",
                             }}
                           >
                             {displayHistoricalValue(
