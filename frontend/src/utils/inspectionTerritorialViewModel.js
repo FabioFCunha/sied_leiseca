@@ -99,16 +99,112 @@ export function hasMunicipalityRain(
   );
 }
 
+export function isShortTerritorialPeriod(
+  filters = {}
+) {
+  if (
+    !filters?.date_from ||
+    !filters?.date_to
+  ) {
+    return false;
+  }
+
+  const start = new Date(
+    `${filters.date_from}T00:00:00`
+  );
+  const end = new Date(
+    `${filters.date_to}T00:00:00`
+  );
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    end < start
+  ) {
+    return false;
+  }
+
+  const diffDays = Math.floor(
+    (end - start) / 86400000
+  );
+
+  return diffDays <= 4;
+}
+
+export function formatMunicipalityDates(
+  dates = []
+) {
+  if (!Array.isArray(dates) || dates.length === 0) {
+    return "";
+  }
+
+  const uniqueDates = [
+    ...new Set(dates.map(String)),
+  ].sort();
+
+  const parts = uniqueDates.map((value) => {
+    const [year, month, day] = value.split("-");
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    return {
+      year,
+      month,
+      day,
+      full: `${day}/${month}/${year}`,
+    };
+  });
+
+  if (parts.some((item) => item === null)) {
+    return uniqueDates.join(" · ");
+  }
+
+  if (parts.length === 1) {
+    return parts[0].full;
+  }
+
+  const sameMonth = parts.every(
+    (item) => item.month === parts[0].month
+  );
+  const sameYear = parts.every(
+    (item) => item.year === parts[0].year
+  );
+
+  if (sameMonth && sameYear) {
+    const days = parts.map((item) => item.day);
+
+    if (days.length === 2) {
+      return `${days[0]} e ${days[1]}/${parts[0].month}/${parts[0].year}`;
+    }
+
+    return `${days.slice(0, -1).join(", ")} e ${days.at(-1)}/${parts[0].month}/${parts[0].year}`;
+  }
+
+  return parts.map((item) => item.full).join(" · ");
+}
+
 export function buildPdfMunicipalityLabel(
-  municipality = {}
+  municipality = {},
+  filters = {}
 ) {
   const name = String(
     municipality.municipality || ""
   );
+  const prefix = hasMunicipalityRain(municipality)
+    ? "Chuva (Teve chuva) "
+    : "";
+  const dateSummary =
+    isShortTerritorialPeriod(filters)
+      ? formatMunicipalityDates(
+          municipality.dates
+        )
+      : "";
 
-  if (!hasMunicipalityRain(municipality)) {
-    return name;
+  if (dateSummary) {
+    return `${prefix}${name}\n${dateSummary}`;
   }
 
-  return `Chuva • ${name}`;
+  return `${prefix}${name}`;
 }

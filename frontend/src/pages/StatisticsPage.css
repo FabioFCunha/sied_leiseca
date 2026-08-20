@@ -152,6 +152,7 @@
 .territorial-tbl-wrap tfoot td { padding:10px 13px; font-weight:700; font-size:12px; color:var(--t-white); border: none; }
 .territorial-tbl-wrap tfoot td:not(:first-child) { text-align:right; font-variant-numeric:tabular-nums; }
 .territorial-muni strong { display:block; font-weight:600; color:var(--t-navy); font-size:12.5px; margin-bottom: 3px;}
+.territorial-rain-indicator { display:inline-flex; vertical-align:middle; align-items:center; color:var(--t-blue); margin-right:12px; margin-left:2px; gap:4px; font-size:10px; font-weight:700; }
 .territorial-muni small { font-size:10px; color:var(--t-gray-5); }
 .territorial-region-header { background:var(--t-gray-2) !important; }
 .territorial-region-header td { padding:8px 13px !important; font-size:11.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--t-navy) !important; text-align: left !important; }

@@ -31,7 +31,9 @@ import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js
 import {
   buildDefaultOfficialFilters,
   buildDefaultTerritorialFilters,
+  formatMunicipalityDates,
   hasMunicipalityRain,
+  isShortTerritorialPeriod,
   buildTerritorialCoverageNote,
   normalizeTerritorialFilters,
   TERRITORIAL_FILTER_START,
@@ -724,6 +726,8 @@ function TerritorialContent({ territorial, loading, error, filters }) {
     buildTerritorialCoverageNote(
       territorial
     );
+  const showMunicipalityPeriodSummary =
+    isShortTerritorialPeriod(filters);
 
   const handleExportPdf = async () => {
     try {
@@ -867,12 +871,16 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                             aria-label="Ocorrência de chuva"
                           >
                             <CloudRain size={14} />
+                            <span>(Teve chuva)</span>
                           </span>
                         ) : null}
                         {item.municipality}
                         {" "}
                         {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}
                       </strong>
+                      {showMunicipalityPeriodSummary && formatMunicipalityDates(item.dates) ? (
+                        <small>{formatMunicipalityDates(item.dates)}</small>
+                      ) : null}
                     </td>
                     <td>{integer(item.metrics?.approach)}</td>
                     <td>{integer(item.metrics?.fined)}</td>
@@ -917,12 +925,16 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                               aria-label="Ocorrência de chuva"
                             >
                               <CloudRain size={14} />
+                              <span>(Teve chuva)</span>
                             </span>
                           ) : null}
                           {item.municipality}
                           {" "}
                           {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}
                         </strong>
+                        {showMunicipalityPeriodSummary && formatMunicipalityDates(item.dates) ? (
+                          <small>{formatMunicipalityDates(item.dates)}</small>
+                        ) : null}
                       </td>
                       <td>{integer(item.metrics?.approach)}</td>
                       <td>{integer(item.metrics?.fined)}</td>

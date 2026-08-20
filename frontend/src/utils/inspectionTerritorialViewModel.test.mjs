@@ -7,7 +7,9 @@ import {
   buildPdfMunicipalityLabel,
   buildTerritorialCoverageNote,
   clampTerritorialDateFrom,
+  formatMunicipalityDates,
   hasMunicipalityRain,
+  isShortTerritorialPeriod,
   normalizeTerritorialFilters,
   OFFICIAL_FILTER_START,
   TERRITORIAL_FILTER_START,
@@ -141,17 +143,49 @@ assert.equal(
 );
 
 assert.equal(
+  isShortTerritorialPeriod({
+    date_from: "2026-08-14",
+    date_to: "2026-08-18",
+  }),
+  true
+);
+
+assert.equal(
+  isShortTerritorialPeriod({
+    date_from: "2026-08-14",
+    date_to: "2026-08-19",
+  }),
+  false
+);
+
+assert.equal(
+  formatMunicipalityDates([
+    "2026-08-14",
+    "2026-08-16",
+  ]),
+  "14 e 16/08/2026"
+);
+
+assert.equal(
   buildPdfMunicipalityLabel({
     municipality: "Petrópolis",
     rain: 1,
+    dates: ["2026-08-14"],
+  }, {
+    date_from: "2026-08-14",
+    date_to: "2026-08-18",
   }),
-  "Chuva • Petrópolis"
+  "Chuva (Teve chuva) Petrópolis\n14/08/2026"
 );
 
 assert.equal(
   buildPdfMunicipalityLabel({
     municipality: "Petrópolis",
     rain: 0,
+    dates: ["2026-08-14"],
+  }, {
+    date_from: "2026-08-14",
+    date_to: "2026-08-20",
   }),
   "Petrópolis"
 );
@@ -194,9 +228,9 @@ assert.equal(
 
 assert.equal(
   pageSource.includes(
-    "formatMunicipalityDates(item.dates)"
+    "showMunicipalityPeriodSummary && formatMunicipalityDates(item.dates)"
   ),
-  false
+  true
 );
 
 assert.equal(
@@ -220,6 +254,13 @@ assert.equal(
   true
 );
 
+assert.equal(
+  pageSource.includes(
+    "(Teve chuva)"
+  ),
+  true
+);
+
 const pdfSource = fs.readFileSync(
   new URL(
     "./inspectionTerritorialPdfGenerator.js",
@@ -230,14 +271,7 @@ const pdfSource = fs.readFileSync(
 
 assert.equal(
   pdfSource.includes(
-    "formatMunicipalityDates(item.dates)"
-  ),
-  false
-);
-
-assert.equal(
-  pdfSource.includes(
-    "buildPdfMunicipalityLabel(item)"
+    "buildPdfMunicipalityLabel(\n          item,\n          filters"
   ),
   true
 );

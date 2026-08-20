@@ -62,7 +62,10 @@ const formatDate = (isoStr) => {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 };
 
-function buildTerritoryRows(territorial) {
+function buildTerritoryRows(
+  territorial,
+  filters
+) {
   const rows = [];
   const regions = territorial?.regions || [];
   const metropolitanRegion = regions.find(
@@ -88,7 +91,10 @@ function buildTerritoryRows(territorial) {
       const isHigh =
         Number(item.metrics?.alcohol_percentage || 0) >= 25;
       const row = [
-        buildPdfMunicipalityLabel(item),
+        buildPdfMunicipalityLabel(
+          item,
+          filters
+        ),
         integer(item.metrics?.approach),
         integer(item.metrics?.fined),
         integer(item.metrics?.alcohol_cases),
@@ -140,7 +146,10 @@ function buildTerritoryRows(territorial) {
       const isHigh =
         Number(item.metrics?.alcohol_percentage || 0) >= 25;
       const row = [
-        buildPdfMunicipalityLabel(item),
+        buildPdfMunicipalityLabel(
+          item,
+          filters
+        ),
         integer(item.metrics?.approach),
         integer(item.metrics?.fined),
         integer(item.metrics?.alcohol_cases),
@@ -236,7 +245,10 @@ export async function generateInspectionTerritorialPdf({
   const metropolitanRegion = regions.find(
     (region) => region.region_code === "METROPOLITANA"
   );
-  const territoryRows = buildTerritoryRows(territorial);
+  const territoryRows = buildTerritoryRows(
+    territorial,
+    filters
+  );
   const highlighted = territorial.highlighted_operations || [];
   const unclassified = territorial.unclassified || [];
   const issued = issuedAt instanceof Date ? issuedAt : new Date();
