@@ -25,6 +25,7 @@ import {
   YAxis,
 } from "recharts";
 
+import territorialLogo from "../assets/operacao-lei-seca-logo.png";
 import { getInspectionTerritorialStatistics } from "../api/inspection.js";
 import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js";
 import {
@@ -784,7 +785,13 @@ function TerritorialContent({ territorial, loading, error, filters }) {
           Exportar PDF
         </button>
         <div className="territorial-header-top">
-          <div className="territorial-logo-circle">OLS</div>
+          <div className="territorial-logo-circle">
+            <img
+              src={territorialLogo}
+              alt="Operação Lei Seca"
+              className="territorial-logo-image"
+            />
+          </div>
           <div className="territorial-header-text">
             <p className="territorial-header-institution">Governo do Estado do Rio de Janeiro &nbsp;·&nbsp; Operação Lei Seca</p>
             <h1 className="territorial-header-title">Análise Territorial da Fiscalização</h1>
