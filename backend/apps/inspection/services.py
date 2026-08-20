@@ -605,6 +605,7 @@ from apps.inspection.models import (
 # Indicadores cuja fonte oficial exibida no dashboard e exclusivamente o Horus.
 # O saldo-base corresponde ao acumulado auditado ate 09/08/2026.
 HORUS_OPERATIONAL_CUTOFF_DATE = date(2026, 8, 10)
+HORUS_DAILY_AVAILABLE_FROM = date(2022, 10, 3)
 RAIN_STRUCTURED_CLASSIFICATION_FROM = date(2026, 8, 17)
 
 HORUS_CARD_BASELINES = {
@@ -1404,6 +1405,72 @@ class InspectionStatisticsUnifiedService:
 
         return result
 
+    def _get_horus_daily_alcohol_aggregate(self):
+        metric_names = (
+            "four_ml",
+            "thirtythree_ml",
+            "thirtyfour_ml",
+            "passive_tests_performed",
+        )
+
+        effective_start = max(
+            self.date_from or HORUS_DAILY_AVAILABLE_FROM,
+            HORUS_DAILY_AVAILABLE_FROM,
+        )
+        effective_end = min(
+            self.date_to or HISTORICAL_CUTOFF_DATE,
+            HISTORICAL_CUTOFF_DATE,
+        )
+
+        if effective_start > effective_end:
+            return {
+                metric_name: None
+                for metric_name in metric_names
+            }
+
+        if self.region:
+            from apps.inspection.models import (
+                InspectionHistoricalTerritorialStatistic,
+            )
+
+            qs = (
+                InspectionHistoricalTerritorialStatistic.objects
+                .filter(
+                    reference_date__gte=effective_start,
+                    reference_date__lte=effective_end,
+                )
+            )
+
+            if self.team:
+                qs = qs.filter(team__iexact=self.team)
+
+            qs = qs.filter(region__name__iexact=self.region)
+
+        else:
+            qs = (
+                InspectionHistoricalStatistic.objects
+                .filter(
+                    source_type=HistoricalSourceType.DAILY,
+                    taxonomy_era=HistoricalTaxonomyEra.ERA_C,
+                    is_validation_only=False,
+                    reference_date__isnull=False,
+                    reference_date__gte=effective_start,
+                    reference_date__lte=effective_end,
+                )
+            )
+
+            if self.team:
+                qs = qs.filter(team__iexact=self.team)
+
+        return qs.aggregate(
+            four_ml=Sum("four_ml"),
+            thirtythree_ml=Sum("thirtythree_ml"),
+            thirtyfour_ml=Sum("thirtyfour_ml"),
+            passive_tests_performed=Sum(
+                "passive_tests_performed"
+            ),
+        )
+
     def _get_public_security_data(self):
         historical_qs = InspectionPublicSecurityYearlyStatistic.objects.all()
 
@@ -2041,11 +2108,7 @@ class InspectionStatisticsUnifiedService:
         # O filtro é aplicado diretamente na granularidade
         # data + equipe do Horus.
         #
-        rain_available_from = date(
-            2022,
-            10,
-            3,
-        )
+        rain_available_from = HORUS_DAILY_AVAILABLE_FROM
 
         daily_qs = (
             InspectionHistoricalStatistic
@@ -2163,6 +2226,20 @@ class InspectionStatisticsUnifiedService:
             )
         else:
             agg["rain"] = None
+
+        horus_daily_alcohol = (
+            self._get_horus_daily_alcohol_aggregate()
+        )
+
+        for metric_name in (
+            "four_ml",
+            "thirtythree_ml",
+            "thirtyfour_ml",
+            "passive_tests_performed",
+        ):
+            agg[metric_name] = horus_daily_alcohol[
+                metric_name
+            ]
 
         criminal_art_306 = agg.pop(
             "criminal_art_306",
@@ -2476,6 +2553,20 @@ class InspectionStatisticsUnifiedService:
             driving_canceled_license=Sum("driving_canceled_license"),
 
         )
+
+        horus_daily_alcohol = (
+            self._get_horus_daily_alcohol_aggregate()
+        )
+
+        for metric_name in (
+            "four_ml",
+            "thirtythree_ml",
+            "thirtyfour_ml",
+            "passive_tests_performed",
+        ):
+            agg[metric_name] = horus_daily_alcohol[
+                metric_name
+            ]
 
         for key, val in agg.items():
             hist_agg[key] = val
