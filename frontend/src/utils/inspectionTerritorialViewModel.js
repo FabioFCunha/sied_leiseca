@@ -4,6 +4,14 @@ export const OFFICIAL_FILTER_START =
 export const TERRITORIAL_FILTER_START =
   "2022-10-03";
 
+export const DEFAULT_TERRITORIAL_RANKING_INDICATORS =
+  [
+    "operations",
+    "approach",
+    "alcohol_cases",
+    "alcohol_percentage",
+  ];
+
 export function clampTerritorialDateFrom(
   value
 ) {
@@ -52,7 +60,9 @@ export function buildDefaultTerritorialRankingFilters(
     territorial_area: "all",
     region: "",
     municipality: "",
-    indicators: [],
+    indicators: [
+      ...DEFAULT_TERRITORIAL_RANKING_INDICATORS,
+    ],
   };
 }
 

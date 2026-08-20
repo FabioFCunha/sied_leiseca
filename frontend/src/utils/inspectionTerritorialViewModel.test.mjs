@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 import {
+  DEFAULT_TERRITORIAL_RANKING_INDICATORS,
   buildDefaultOfficialFilters,
   buildDefaultTerritorialRankingFilters,
   buildDefaultTerritorialFilters,
@@ -101,6 +102,16 @@ assert.equal(
 );
 
 assert.deepEqual(
+  DEFAULT_TERRITORIAL_RANKING_INDICATORS,
+  [
+    "operations",
+    "approach",
+    "alcohol_cases",
+    "alcohol_percentage",
+  ]
+);
+
+assert.deepEqual(
   buildDefaultTerritorialRankingFilters(
     "2026-08-20"
   ),
@@ -111,7 +122,12 @@ assert.deepEqual(
     territorial_area: "all",
     region: "",
     municipality: "",
-    indicators: [],
+    indicators: [
+      "operations",
+      "approach",
+      "alcohol_cases",
+      "alcohol_percentage",
+    ],
   }
 );
 
@@ -368,6 +384,27 @@ assert.equal(
 assert.equal(
   pageSource.includes(
     "(Teve chuva)"
+  ),
+  true
+);
+
+assert.equal(
+  pageSource.includes(
+    "Indicadores adicionais"
+  ),
+  false
+);
+
+assert.equal(
+  pageSource.includes(
+    "stats-filter-multiselect-trigger"
+  ),
+  true
+);
+
+assert.equal(
+  pageSource.includes(
+    "buildRankingIndicatorSummary("
   ),
   true
 );

@@ -82,6 +82,22 @@ const TERRITORIAL_REGIONS = [
 
 const RANKING_INDICATORS = [
   {
+    value: "operations",
+    label: "Ações",
+  },
+  {
+    value: "approach",
+    label: "Abordados",
+  },
+  {
+    value: "alcohol_cases",
+    label: "Alcoolemia",
+  },
+  {
+    value: "alcohol_percentage",
+    label: "% Alcoolemia",
+  },
+  {
     value: "fined",
     label: "Multados",
   },
@@ -92,10 +108,6 @@ const RANKING_INDICATORS = [
   {
     value: "towed",
     label: "Veículos rebocados",
-  },
-  {
-    value: "approach",
-    label: "Abordados",
   },
   {
     value: "refusal",
@@ -1155,7 +1167,9 @@ function TerritorialRankingContent({
   const meta = ranking.meta || {};
   const selectedMunicipality = Boolean(filters?.municipality);
   const selectedIndicators =
-    meta.selected_indicators || [];
+    Array.isArray(filters?.indicators)
+      ? filters.indicators
+      : [];
   const columns =
     buildRankingColumns(
       selectedIndicators
@@ -1205,10 +1219,6 @@ function TerritorialRankingContent({
                 <tr>
                   <th>#</th>
                   <th>Município</th>
-                  <th>Ações</th>
-                  <th>Abordados</th>
-                  <th>Alcoolemia</th>
-                  <th>% Alcoolemia</th>
                   {columns.map((column) => (
                     <th key={column.key}>
                       {column.label}
@@ -1244,23 +1254,26 @@ function TerritorialRankingContent({
                           <small>
                             {selectedMunicipality
                               ? `${item.position}º lugar entre ${item.total_municipalities} municípios`
-                              : rankingContextSummary(item)}
+                              : rankingContextSummary(
+                                  item,
+                                  filters
+                                )}
                           </small>
                         </div>
                       </td>
-                      <td>{integer(item.operations)}</td>
-                      <td>{integer(item.approach)}</td>
-                      <td>{integer(item.alcohol_cases)}</td>
-                      <td className="territorial-ranking-col-percentage">
-                        <span className="territorial-ranking-percentage-pill">
-                          {percentage(item.alcohol_percentage)}
-                        </span>
-                      </td>
                       {columns.map((column) => (
-                        <td key={column.key}>
-                          {formatAdditionalIndicatorValue(
+                        <td
+                          key={column.key}
+                          className={
+                            column.key ===
+                            "alcohol_percentage"
+                              ? "territorial-ranking-col-percentage"
+                              : undefined
+                          }
+                        >
+                          {formatRankingIndicatorValue(
                             item,
-                            column.key
+                            column
                           )}
                         </td>
                       ))}
@@ -1277,7 +1290,7 @@ function TerritorialRankingContent({
           {(meta.sources_used || []).join(" + ") || "sem dados"}.
           {" "}Cobertura territorial desde {formatDate(meta.territorial_coverage_from)}.
           {" "}Região: {filters?.region || "Todas"}.
-          {" "}Indicadores adicionais: {selectedIndicators.length ? selectedIndicators.map(indicatorLabel).join(", ") : "nenhum"}.
+          {" "}Indicadores exibidos: {selectedIndicators.length ? buildRankingColumns(selectedIndicators).map((column) => column.label).join(", ") : "nenhum"}.
         </div>
       </div>
     </section>
@@ -2450,10 +2463,23 @@ export default function InspectionStatisticsPage() {
         ) : null}
 
         {isRankingTab ? (
-          <div className="stats-filter-multiselect">
+          <details className="stats-filter-multiselect">
             <span className="stats-filter-multiselect-label">
-              Indicadores adicionais
+              Indicadores
             </span>
+            <summary className="stats-filter-multiselect-trigger">
+              <span className="stats-filter-multiselect-value">
+                {buildRankingIndicatorSummary(
+                  rankingDraftFilters.indicators
+                )}
+              </span>
+              <span
+                className="stats-filter-multiselect-caret"
+                aria-hidden="true"
+              >
+                ▾
+              </span>
+            </summary>
             <div className="stats-filter-multiselect-options">
               {RANKING_INDICATORS.map((item) => {
                 const checked =
@@ -2493,32 +2519,7 @@ export default function InspectionStatisticsPage() {
                 );
               })}
             </div>
-            <div className="stats-filter-chip-list">
-              {(rankingDraftFilters.indicators || []).length === 0 ? (
-                <span className="stats-filter-chip is-empty">
-                  Nenhum
-                </span>
-              ) : (
-                (rankingDraftFilters.indicators || []).map((value) => (
-                  <button
-                    type="button"
-                    key={value}
-                    className="stats-filter-chip"
-                    onClick={() =>
-                      setRankingDraftFilters((current) => ({
-                        ...current,
-                        indicators: (current.indicators || []).filter(
-                          (item) => item !== value
-                        ),
-                      }))
-                    }
-                  >
-                    {indicatorLabel(value)} ×
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
+          </details>
         ) : null}
 
         <div className="stats-filter-actions">
@@ -3120,34 +3121,67 @@ function indicatorLabel(
 function buildRankingColumns(
   selectedIndicators = []
 ) {
-  return selectedIndicators.map(
-    (key) => ({
-      key,
-      label: indicatorLabel(key),
-    })
+  const selectedSet = new Set(
+    selectedIndicators
   );
+
+  return RANKING_INDICATORS.filter(
+    (item) =>
+      selectedSet.has(item.value)
+  ).map((item) => ({
+      key: item.value,
+      label: indicatorLabel(item.value),
+    }));
 }
 
 function rankingContextSummary(
-  item
+  item,
+  filters
 ) {
   if (!item) {
     return "";
   }
 
+  const selectedPeriod =
+    filters?.date_from &&
+    filters?.date_to
+      ? `${formatDate(
+          filters.date_from
+        )} a ${formatDate(
+          filters.date_to
+        )}`
+      : "";
+
   return `${integer(
     item.approach
   )} abordados | ${integer(
     item.alcohol_cases
-  )} alcoolemia`;
+  )} alcoolemia${
+    selectedPeriod
+      ? ` | ${selectedPeriod}`
+      : ""
+  }`;
 }
 
-function formatAdditionalIndicatorValue(
+function formatRankingIndicatorValue(
   item,
-  key
+  column
 ) {
   if (
-    key ===
+    column.key ===
+    "alcohol_percentage"
+  ) {
+    return (
+      <span className="territorial-ranking-percentage-pill">
+        {percentage(
+          item.alcohol_percentage
+        )}
+      </span>
+    );
+  }
+
+  if (
+    column.key ===
     "fined_per_100_approaches"
   ) {
     return `${decimal(
@@ -3155,5 +3189,24 @@ function formatAdditionalIndicatorValue(
     )}`;
   }
 
-  return integer(item[key]);
+  return integer(item[column.key]);
+}
+
+function buildRankingIndicatorSummary(
+  indicators = []
+) {
+  const columns =
+    buildRankingColumns(indicators);
+
+  if (columns.length === 0) {
+    return "Nenhum indicador";
+  }
+
+  if (columns.length <= 2) {
+    return columns
+      .map((column) => column.label)
+      .join(", ");
+  }
+
+  return `${columns.length} selecionados`;
 }

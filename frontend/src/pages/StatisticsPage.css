@@ -90,14 +90,17 @@
 .territorial-ranking-row.is-third .territorial-ranking-percentage-pill{background:#ffedd5;color:#9a3412}
 .territorial-ranking-empty,.territorial-ranking-meta{border:1px solid var(--sd-line);border-radius:10px;background:#f7fbff;padding:14px 16px;color:var(--sd-muted);font-size:12px;line-height:1.5}
 .territorial-ranking-meta{margin-top:18px}
-.stats-filter-multiselect{display:grid;gap:6px;min-width:280px}
+.stats-filter-multiselect{position:relative;display:grid;gap:6px;min-width:220px}
 .stats-filter-multiselect-label{font-size:11px;font-weight:800;color:var(--sd-muted)}
-.stats-filter-multiselect-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:10px;border:1px solid var(--sd-line);border-radius:8px;background:#fff;max-height:168px;overflow:auto}
+.stats-filter-multiselect summary{list-style:none}
+.stats-filter-multiselect summary::-webkit-details-marker{display:none}
+.stats-filter-multiselect-trigger{min-width:130px;max-width:190px;border:1px solid var(--sd-line);border-radius:8px;padding:9px 10px;background:#fff;color:var(--sd-text);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer}
+.stats-filter-multiselect-value{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--sd-text)}
+.stats-filter-multiselect-caret{font-size:12px;color:var(--sd-muted);flex:0 0 auto}
+.stats-filter-multiselect[open] .stats-filter-multiselect-trigger{border-color:color-mix(in srgb,var(--sd-primary) 35%,var(--sd-line));box-shadow:0 0 0 3px rgba(0,72,215,.08)}
+.stats-filter-multiselect-options{position:absolute;top:100%;left:0;z-index:20;margin-top:4px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:10px;border:1px solid var(--sd-line);border-radius:10px;background:#fff;box-shadow:0 14px 28px rgba(0,19,56,.14);min-width:280px;max-height:220px;overflow:auto}
 .stats-filter-checkbox{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--sd-text);font-weight:600}
 .stats-filter-checkbox input{margin-top:1px}
-.stats-filter-chip-list{display:flex;flex-wrap:wrap;gap:6px}
-.stats-filter-chip{border:1px solid var(--sd-line);background:#eef4fb;color:var(--sd-primary-strong);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer}
-.stats-filter-chip.is-empty{cursor:default;color:var(--sd-muted);background:#f8fafc}
 
 @media(max-width:1100px){
   .inspection-kpi-grid{
@@ -116,7 +119,9 @@
     grid-template-columns:1fr
   }
   .territorial-ranking-table{min-width:760px}
-  .stats-filter-multiselect-options{grid-template-columns:1fr}
+  .stats-filter-multiselect{min-width:100%}
+  .stats-filter-multiselect-trigger{max-width:none;width:100%}
+  .stats-filter-multiselect-options{grid-template-columns:1fr;min-width:100%}
 }
 
 /* =====================================================================
