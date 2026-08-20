@@ -28,6 +28,7 @@ import {
 import territorialLogo from "../assets/operacao-lei-seca-logo.png";
 import { getInspectionTerritorialStatistics } from "../api/inspection.js";
 import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js";
+import { generateInspectionTerritorialPdf } from "../utils/inspectionTerritorialPdfGenerator.js";
 import {
   TAXONOMY_STATUS,
   buildInspectionExecutiveCards,
@@ -778,10 +779,30 @@ function TerritorialContent({ territorial, loading, error, filters }) {
 
   const summary = territorial.summary || {};
 
+  const handleExportPdf = async () => {
+    try {
+      await generateInspectionTerritorialPdf({
+        territorial,
+        filters,
+        issuedAt: new Date(),
+        logoUrl: new URL(
+          territorialLogo,
+          window.location.href
+        ).href,
+        openInNewTab: true,
+      });
+    } catch (exportError) {
+      window.alert(
+        exportError?.message ||
+          "Não foi possível gerar o PDF."
+      );
+    }
+  };
+
   return (
     <div className="territorial-report-area">
       <header className="territorial-header">
-        <button className="btn-print no-print" onClick={() => window.print()} style={{ position: 'absolute', top: 32, right: 44, background: 'var(--t-gold)', color: 'var(--t-navy)', border: 'none', borderRadius: 6, padding: '7px 18px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', zIndex: 10 }}>
+        <button className="btn-print no-print" onClick={handleExportPdf} style={{ position: 'absolute', top: 32, right: 44, background: 'var(--t-gold)', color: 'var(--t-navy)', border: 'none', borderRadius: 6, padding: '7px 18px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer', zIndex: 10 }}>
           Exportar PDF
         </button>
         <div className="territorial-header-top">
