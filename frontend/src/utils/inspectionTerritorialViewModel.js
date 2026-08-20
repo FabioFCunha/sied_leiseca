@@ -41,6 +41,21 @@ export function buildDefaultTerritorialFilters(
   };
 }
 
+export function buildDefaultTerritorialRankingFilters(
+  today
+) {
+  return {
+    date_from:
+      TERRITORIAL_FILTER_START,
+    date_to: today,
+    team: "",
+    region: "",
+    municipality: "",
+    indicator:
+      "alcohol_cases",
+  };
+}
+
 export function normalizeTerritorialFilters(
   filters = {}
 ) {
@@ -50,6 +65,55 @@ export function normalizeTerritorialFilters(
       filters.date_from
     ),
   };
+}
+
+export function normalizeTerritorialRankingFilters(
+  filters = {}
+) {
+  return {
+    ...filters,
+    date_from: clampTerritorialDateFrom(
+      filters.date_from
+    ),
+    municipality:
+      filters.municipality || "",
+    indicator:
+      filters.indicator ||
+      "alcohol_cases",
+  };
+}
+
+export function filterRankingMunicipalities(
+  municipalities = [],
+  region = ""
+) {
+  const normalizedRegion = String(
+    region || ""
+  ).trim();
+
+  return municipalities
+    .filter((item) => {
+      if (!normalizedRegion) {
+        return true;
+      }
+
+      return (
+        item.region ===
+          normalizedRegion ||
+        item.region_code ===
+          normalizedRegion.toUpperCase()
+      );
+    })
+    .sort((left, right) =>
+      String(
+        left.municipality || ""
+      ).localeCompare(
+        String(
+          right.municipality || ""
+        ),
+        "pt-BR"
+      )
+    );
 }
 
 export function buildTerritorialCoverageNote(

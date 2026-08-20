@@ -62,3 +62,11 @@ export function getInspectionTerritorialStatistics(params = {}) {
     `/inspection/statistics/territorial/${query ? `?${query}` : ""}`
   );
 }
+
+export function getInspectionTerritorialRanking(params = {}) {
+  const query = buildQuery(params);
+
+  return api(
+    `/inspection/statistics/territorial-ranking/${query ? `?${query}` : ""}`
+  );
+}

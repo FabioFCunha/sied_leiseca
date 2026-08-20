@@ -65,15 +65,56 @@
   margin:10px 0 4px
 }
 
+.territorial-ranking-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.territorial-ranking-kpi{border:1px solid var(--sd-line);border-radius:10px;background:linear-gradient(180deg,#fff,#f7fbff);padding:14px 16px;display:grid;gap:4px}
+.territorial-ranking-kpi small{font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--sd-muted)}
+.territorial-ranking-kpi strong{font-size:16px;color:#071b3a;line-height:1.25}
+.territorial-ranking-list{display:grid;gap:12px}
+.territorial-ranking-item{display:grid;grid-template-columns:64px minmax(0,1fr) minmax(170px,.5fr) 24px;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--sd-line);border-radius:12px;background:linear-gradient(180deg,#fff,#f8fbff);box-shadow:0 8px 20px rgba(0,19,56,.05)}
+.territorial-ranking-item.is-first{border-color:#f5c842;background:linear-gradient(180deg,#fffdf6,#fff7da)}
+.territorial-ranking-item.is-second{border-color:#cbd5e1;background:linear-gradient(180deg,#ffffff,#f8fafc)}
+.territorial-ranking-item.is-third{border-color:#f0c6a6;background:linear-gradient(180deg,#fffefc,#fff5ee)}
+.territorial-ranking-position span{display:grid;place-items:center;width:46px;height:46px;border-radius:12px;background:#eaf1fb;color:#0a1f44;font-weight:900;font-size:18px}
+.territorial-ranking-main{display:grid;gap:5px;min-width:0}
+.territorial-ranking-city{display:grid;gap:2px}
+.territorial-ranking-city strong{font-size:18px;color:#071b3a;line-height:1.2}
+.territorial-ranking-city span{font-size:12px;font-weight:700;color:var(--sd-muted)}
+.territorial-ranking-context{font-size:12px;color:var(--sd-muted);font-weight:700;line-height:1.35}
+.territorial-ranking-value{display:grid;gap:3px;text-align:right}
+.territorial-ranking-value small{font-size:10px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--sd-muted)}
+.territorial-ranking-value strong{font-size:24px;color:#0a1f44;line-height:1}
+.territorial-ranking-value span{font-size:11px;color:var(--sd-muted);font-weight:700;line-height:1.3}
+.territorial-ranking-badge{display:grid;place-items:center;color:#0b5fff}
+.territorial-ranking-empty,.territorial-ranking-meta{border:1px solid var(--sd-line);border-radius:10px;background:#f7fbff;padding:14px 16px;color:var(--sd-muted);font-size:12px;line-height:1.5}
+.territorial-ranking-meta{margin-top:18px}
+
 @media(max-width:1100px){
   .inspection-kpi-grid{
     grid-template-columns:repeat(2,minmax(190px,1fr))
+  }
+  .territorial-ranking-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr))
   }
 }
 
 @media(max-width:650px){
   .inspection-kpi-grid{
     grid-template-columns:1fr
+  }
+  .territorial-ranking-kpis{
+    grid-template-columns:1fr
+  }
+  .territorial-ranking-item{
+    grid-template-columns:52px 1fr;
+    gap:12px
+  }
+  .territorial-ranking-value,
+  .territorial-ranking-badge{
+    grid-column:2;
+    text-align:left
+  }
+  .territorial-ranking-badge{
+    display:none
   }
 }
 

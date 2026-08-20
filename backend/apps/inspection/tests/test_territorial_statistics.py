@@ -14,6 +14,7 @@ from apps.inspection.models import (
     InspectionReportOperation,
 )
 from apps.inspection.territorial_statistics import (
+    InspectionTerritorialRankingService,
     InspectionTerritorialStatisticsService,
 )
 
@@ -95,12 +96,16 @@ class InspectionTerritorialStatisticsServiceTestCase(
         report,
         city,
         approach,
+        reconductor=0,
         refusal=0,
         thirtythree_ml=0,
         thirtyfour_ml=0,
         arrests_means_evidence=0,
         fined=0,
         towed=0,
+        cnh_collected=0,
+        removal_resolutions=0,
+        criminal_occurrences=0,
     ):
         now = datetime.now(timezone.utc)
 
@@ -111,12 +116,16 @@ class InspectionTerritorialStatisticsServiceTestCase(
             source_updated_at=now,
             city=city,
             approach=approach,
+            reconductor=reconductor,
             refusal=refusal,
             thirtythree_ml=thirtythree_ml,
             thirtyfour_ml=thirtyfour_ml,
             arrests_means_evidence=arrests_means_evidence,
             fined=fined,
             towed=towed,
+            cnh_collected=cnh_collected,
+            removal_resolutions=removal_resolutions,
+            criminal_occurrences=criminal_occurrences,
         )
 
     def _create_historical_row(
@@ -127,11 +136,16 @@ class InspectionTerritorialStatisticsServiceTestCase(
         municipality=None,
         operations_count,
         approach,
+        reconductor=0,
         refusal=0,
         thirtythree_ml=0,
         thirtyfour_ml=0,
         arrests_means_evidence=0,
         fined=0,
+        towed=0,
+        cnh_collected=0,
+        removal_resolutions=0,
+        criminal_occurrences=0,
         source_city=None,
         normalized_city=None,
         rain=0,
@@ -171,6 +185,7 @@ class InspectionTerritorialStatisticsServiceTestCase(
                 operations_count=operations_count,
                 rain=rain,
                 approach=approach,
+                reconductor=reconductor,
                 refusal=refusal,
                 thirtythree_ml=thirtythree_ml,
                 thirtyfour_ml=thirtyfour_ml,
@@ -178,6 +193,10 @@ class InspectionTerritorialStatisticsServiceTestCase(
                     arrests_means_evidence
                 ),
                 fined=fined,
+                towed=towed,
+                cnh_collected=cnh_collected,
+                removal_resolutions=removal_resolutions,
+                criminal_occurrences=criminal_occurrences,
             )
         )
 
@@ -1175,5 +1194,813 @@ class InspectionTerritorialStatisticsEndpointTestCase(
                 "regions",
                 "highlighted_operations",
                 "unclassified",
+            },
+        )
+
+
+class InspectionTerritorialRankingServiceTestCase(
+    InspectionTerritorialStatisticsServiceTestCase
+):
+    def test_top_10_is_sorted_desc_and_name_tiebreaker(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.sao_goncalo,
+            operations_count=1,
+            approach=100,
+            refusal=11,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            refusal=11,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.angra,
+            operations_count=1,
+            approach=100,
+            refusal=5,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "alcohol_cases",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Niterói",
+        )
+        self.assertEqual(
+            data["ranking"][1]["municipality"],
+            "São Gonçalo",
+        )
+        self.assertEqual(
+            data["ranking"][2]["municipality"],
+            "Angra dos Reis",
+        )
+
+    def test_only_historical_period_uses_historical_source(self):
+        self._create_historical_row(
+            reference_date=date(2023, 7, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=3,
+            approach=120,
+            refusal=12,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2023-01-01",
+                    "date_to": "2023-12-31",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["meta"]["sources_used"],
+            ["historical"],
+        )
+        self.assertEqual(
+            data["ranking"][0]["operations"],
+            3,
+        )
+
+    def test_only_operational_period_uses_operational_source(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=100,
+            refusal=8,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["meta"]["sources_used"],
+            ["operational"],
+        )
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Niterói",
+        )
+
+    def test_pending_is_excluded_from_ranking(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+            statistics_status=InspectionReport.StatisticsStatus.PENDING,
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=100,
+            refusal=8,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"],
+            [],
+        )
+
+    def test_excluded_is_excluded_from_ranking(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+            statistics_status=InspectionReport.StatisticsStatus.EXCLUDED,
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=100,
+            refusal=8,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"],
+            [],
+        )
+
+    def test_included_operational_enters_ranking(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+            statistics_status=InspectionReport.StatisticsStatus.INCLUDED,
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=100,
+            refusal=8,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Niterói",
+        )
+
+    def test_mixed_period_sums_without_overlap(self):
+        self._create_historical_row(
+            reference_date=date(2026, 8, 9),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=2,
+            approach=40,
+            refusal=4,
+        )
+        post_cut = self._create_report(
+            team="A1",
+            operation_date="2026-08-10",
+        )
+        self._create_operation(
+            report=post_cut,
+            city="Niterói",
+            approach=60,
+            refusal=6,
+        )
+        pre_cut = self._create_report(
+            team="A1",
+            operation_date="2026-08-09",
+        )
+        self._create_operation(
+            report=pre_cut,
+            city="Niterói",
+            approach=999,
+            refusal=999,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2026-08-09",
+                    "date_to": "2026-08-10",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["operations"],
+            3,
+        )
+        self.assertEqual(
+            data["ranking"][0]["approach"],
+            100,
+        )
+        self.assertEqual(
+            data["ranking"][0]["alcohol_cases"],
+            10,
+        )
+
+    def test_region_filter_limits_ranking(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            refusal=10,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.angra,
+            operations_count=1,
+            approach=100,
+            refusal=20,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "region": "Metropolitana",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            len(data["ranking"]),
+            1,
+        )
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Niterói",
+        )
+
+    def test_team_filter_limits_ranking(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            refusal=10,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="B2",
+            municipality=self.sao_goncalo,
+            operations_count=1,
+            approach=100,
+            refusal=20,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "team": "A1",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            len(data["ranking"]),
+            1,
+        )
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Niterói",
+        )
+
+    def test_specific_municipality_returns_position_without_destroying_reference_ranking(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.rio,
+            operations_count=1,
+            approach=100,
+            refusal=30,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            refusal=20,
+        )
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.sao_goncalo,
+            operations_count=1,
+            approach=100,
+            refusal=10,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "region": "Metropolitana",
+                    "municipality": "Niterói",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            len(data["ranking"]),
+            1,
+        )
+        self.assertEqual(
+            data["ranking"][0]["municipality"],
+            "Niterói",
+        )
+        self.assertEqual(
+            data["ranking"][0]["position"],
+            2,
+        )
+        self.assertEqual(
+            data["ranking"][0]["total_municipalities"],
+            3,
+        )
+
+    def test_indicator_fined(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            fined=25,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "fined",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["value"],
+            25,
+        )
+
+    def test_indicator_cnh_collected(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            cnh_collected=7,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "cnh_collected",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["value"],
+            7,
+        )
+
+    def test_indicator_towed(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            towed=3,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "towed",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["value"],
+            3,
+        )
+
+    def test_indicator_refusal(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            refusal=6,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "refusal",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["value"],
+            6,
+        )
+
+    def test_indicator_reconductor(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            reconductor=4,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "reconductor",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["value"],
+            4,
+        )
+
+    def test_indicator_removal_resolutions(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            removal_resolutions=5,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "removal_resolutions",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["value"],
+            5,
+        )
+
+    def test_indicator_criminal_occurrences(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            criminal_occurrences=2,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "criminal_occurrences",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["value"],
+            2,
+        )
+
+    def test_indicator_arrests_means_evidence(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=100,
+            arrests_means_evidence=9,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "arrests_means_evidence",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["value"],
+            9,
+        )
+
+    def test_alcohol_percentage_is_recalculated(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=50,
+            refusal=5,
+        )
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=50,
+            refusal=15,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2026-08-20",
+                    "indicator": "alcohol_percentage",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["alcohol_cases"],
+            20,
+        )
+        self.assertEqual(
+            data["ranking"][0]["approach"],
+            100,
+        )
+        self.assertAlmostEqual(
+            data["ranking"][0]["value"],
+            20.0,
+        )
+
+    def test_fined_per_100_approaches_is_recalculated(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=20,
+            fined=10,
+        )
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=80,
+            fined=20,
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2026-08-20",
+                    "indicator": "fined_per_100_approaches",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["ranking"][0]["fined"],
+            30,
+        )
+        self.assertEqual(
+            data["ranking"][0]["approach"],
+            100,
+        )
+        self.assertAlmostEqual(
+            data["ranking"][0]["value"],
+            30.0,
+        )
+
+    def test_relative_indicators_return_zero_when_approach_is_zero(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=0,
+            refusal=5,
+            fined=7,
+        )
+
+        alcohol_data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "alcohol_percentage",
+                }
+            ).get_data()
+        )
+        fined_data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                    "indicator": "fined_per_100_approaches",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            alcohol_data["ranking"][0]["value"],
+            0,
+        )
+        self.assertEqual(
+            fined_data["ranking"][0]["value"],
+            0,
+        )
+
+    def test_unclassified_are_excluded_from_ranking(self):
+        self._create_historical_row(
+            reference_date=date(2024, 1, 1),
+            team="A1",
+            municipality=None,
+            operations_count=5,
+            approach=50,
+            refusal=5,
+            source_city="NÃO CLASSIFICADO",
+            normalized_city="NAO CLASSIFICADO",
+        )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["municipalities_considered"],
+            0,
+        )
+        self.assertEqual(
+            data["ranking"],
+            [],
+        )
+
+    def test_default_limit_is_10(self):
+        for index in range(11):
+            self._create_historical_row(
+                reference_date=date(2024, 1, 1),
+                team="A1",
+                municipality=self.niteroi if index == 0 else self.sao_goncalo if index == 1 else self.angra if index == 2 else self.rio if index == 3 else self.duque_de_caxias if index == 4 else self.comendador_levy,
+                operations_count=1,
+                approach=100 + index,
+                refusal=index,
+                source_city=None,
+            )
+
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "date_from": "2024-01-01",
+                    "date_to": "2024-01-31",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["meta"]["limit"],
+            10,
+        )
+
+    def test_max_limit_is_50(self):
+        data = (
+            InspectionTerritorialRankingService(
+                {
+                    "limit": 999,
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["meta"]["limit"],
+            50,
+        )
+
+
+class InspectionTerritorialRankingEndpointTestCase(
+    TestCase
+):
+    def setUp(self):
+        user_model = get_user_model()
+        self.user = user_model.objects.create(
+            email="ranking@example.com",
+            password="secret123",
+            role=user_model.Role.ADMIN,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(
+            user=self.user
+        )
+        self.url = reverse(
+            "inspection-territorial-ranking"
+        )
+
+    def test_endpoint_contract(self):
+        response = self.client.get(
+            self.url,
+            {
+                "date_from": "2022-10-03",
+                "date_to": "2026-08-20",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+        self.assertEqual(
+            set(response.data.keys()),
+            {
+                "summary",
+                "ranking",
+                "meta",
             },
         )

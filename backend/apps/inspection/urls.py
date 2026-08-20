@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from apps.inspection.views import (
     InspectionHistoricalPushView,
     InspectionReportSyncView,
+    InspectionTerritorialRankingView,
     InspectionReportViewSet,
     InspectionStatisticsDashboardView,
     InspectionTerritorialStatisticsView,
@@ -39,6 +40,11 @@ urlpatterns = [
         "statistics/territorial/",
         InspectionTerritorialStatisticsView.as_view(),
         name="inspection-territorial-statistics",
+    ),
+    path(
+        "statistics/territorial-ranking/",
+        InspectionTerritorialRankingView.as_view(),
+        name="inspection-territorial-ranking",
     ),
     path(
         "",

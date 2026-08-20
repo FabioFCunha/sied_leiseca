@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  Award,
   CarFront,
   ClipboardCheck,
   CloudRain,
@@ -26,15 +27,21 @@ import {
 } from "recharts";
 
 import territorialLogo from "../assets/operacao-lei-seca-logo.png";
-import { getInspectionTerritorialStatistics } from "../api/inspection.js";
+import {
+  getInspectionTerritorialRanking,
+  getInspectionTerritorialStatistics,
+} from "../api/inspection.js";
 import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js";
 import {
   buildDefaultOfficialFilters,
+  buildDefaultTerritorialRankingFilters,
   buildDefaultTerritorialFilters,
+  filterRankingMunicipalities,
   formatMunicipalityDates,
   hasMunicipalityRain,
   isShortTerritorialPeriod,
   buildTerritorialCoverageNote,
+  normalizeTerritorialRankingFilters,
   normalizeTerritorialFilters,
   TERRITORIAL_FILTER_START,
 } from "../utils/inspectionTerritorialViewModel.js";
@@ -55,6 +62,61 @@ const REGIONS = [
   "Noroeste Fluminense",
   "Norte Fluminense",
   "Baixadas Litorâneas"
+];
+
+const RANKING_INDICATORS = [
+  {
+    value: "alcohol_cases",
+    label: "Alcoolemia",
+  },
+  {
+    value: "fined",
+    label: "Multados",
+  },
+  {
+    value: "cnh_collected",
+    label: "CNH recolhidas",
+  },
+  {
+    value: "towed",
+    label: "Veículos rebocados",
+  },
+  {
+    value: "approach",
+    label: "Abordados",
+  },
+  {
+    value: "refusal",
+    label: "Recusas",
+  },
+  {
+    value: "reconductor",
+    label: "Reconduções",
+  },
+  {
+    value: "removal_resolutions",
+    label: "Resoluções de remoção",
+  },
+  {
+    value: "criminal_occurrences",
+    label: "Ocorrências criminais",
+  },
+  {
+    value: "arrests_means_evidence",
+    label: "Prisões / meios de prova",
+  },
+  {
+    value: "operations",
+    label: "Fiscalizações",
+  },
+  {
+    value: "alcohol_percentage",
+    label: "Percentual de alcoolemia",
+  },
+  {
+    value: "fined_per_100_approaches",
+    label: "Multados por 100 abordagens",
+  },
 ];
 
 
@@ -1064,6 +1126,125 @@ function TerritorialContent({ territorial, loading, error, filters }) {
   );
 }
 
+function TerritorialRankingContent({
+  ranking,
+  loading,
+  error,
+  filters,
+}) {
+  if (loading) {
+    return <div className="stats-panel"><div className="stats-loading">Carregando ranking territorial...</div></div>;
+  }
+  if (error) {
+    return <div className="stats-panel"><div className="stats-loading" style={{ color: "var(--danger)" }}>{error}</div></div>;
+  }
+  if (!ranking) {
+    return <div className="stats-panel"><div className="stats-empty">Nenhum dado do ranking territorial carregado.</div></div>;
+  }
+
+  const summary = ranking.summary || {};
+  const rows = ranking.ranking || [];
+  const meta = ranking.meta || {};
+  const indicator = meta.indicator || summary.indicator || "alcohol_cases";
+  const selectedMunicipality = Boolean(filters?.municipality);
+
+  return (
+    <section className="stats-panel">
+      <div className="stats-panel-header">
+        <div className="stats-panel-title">
+          <div>
+            <h2>Ranking Territorial</h2>
+            <p>
+              Comparativo municipal com a mesma base territorial unificada da Análise Territorial.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="stats-panel-body">
+        <div className="territorial-ranking-kpis">
+          <div className="territorial-ranking-kpi">
+            <small>Indicador</small>
+            <strong>{summary.indicator_label || "-"}</strong>
+          </div>
+          <div className="territorial-ranking-kpi">
+            <small>Período</small>
+            <strong>{formatDate(filters?.date_from)} a {formatDate(filters?.date_to)}</strong>
+          </div>
+          <div className="territorial-ranking-kpi">
+            <small>Região</small>
+            <strong>{filters?.region || "Todas as regiões"}</strong>
+          </div>
+          <div className="territorial-ranking-kpi">
+            <small>Municípios considerados</small>
+            <strong>{integer(summary.municipalities_considered)}</strong>
+          </div>
+        </div>
+
+        {rows.length === 0 ? (
+          <div className="territorial-ranking-empty">
+            Nenhum município classificado no recorte selecionado.
+          </div>
+        ) : (
+          <div className="territorial-ranking-list">
+            {rows.map((item) => {
+              const medalClass =
+                item.position === 1
+                  ? "is-first"
+                  : item.position === 2
+                    ? "is-second"
+                    : item.position === 3
+                      ? "is-third"
+                      : "";
+
+              return (
+                <article
+                  key={`${item.municipality_id}-${item.position}`}
+                  className={`territorial-ranking-item ${medalClass}`}
+                >
+                  <div className="territorial-ranking-position">
+                    <span>{item.position}º</span>
+                  </div>
+
+                  <div className="territorial-ranking-main">
+                    <div className="territorial-ranking-city">
+                      <strong>{item.municipality}</strong>
+                      <span>{item.region}</span>
+                    </div>
+                    <div className="territorial-ranking-context">
+                      {selectedMunicipality ? `${item.position}º lugar entre ${item.total_municipalities} municípios` : rankingContext(item, indicator)}
+                    </div>
+                  </div>
+
+                  <div className="territorial-ranking-value">
+                    <small>{summary.indicator_label}</small>
+                    <strong>{rankingPrimaryValue(item, indicator)}</strong>
+                    {selectedMunicipality ? (
+                      <span>{rankingContext(item, indicator)}</span>
+                    ) : null}
+                  </div>
+
+                  {item.position <= 3 ? (
+                    <div className="territorial-ranking-badge">
+                      <Award size={15} />
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="territorial-ranking-meta">
+          <strong>Fontes utilizadas:</strong>{" "}
+          {(meta.sources_used || []).join(" + ") || "sem dados"}.
+          Cobertura territorial desde {formatDate(meta.territorial_coverage_from)}.
+        </div>
+      </div>
+    </section>
+  );
+}
+
 
 export default function InspectionStatisticsPage() {
   const todayIso = toIsoDate(
@@ -1111,6 +1292,26 @@ export default function InspectionStatisticsPage() {
   );
 
   const [
+    rankingFilters,
+    setRankingFilters,
+  ] = useState(
+    () =>
+      buildDefaultTerritorialRankingFilters(
+        todayIso
+      )
+  );
+
+  const [
+    rankingDraftFilters,
+    setRankingDraftFilters,
+  ] = useState(
+    () =>
+      buildDefaultTerritorialRankingFilters(
+        todayIso
+      )
+  );
+
+  const [
     activeTab,
     setActiveTab,
   ] = useState("official");
@@ -1145,13 +1346,35 @@ export default function InspectionStatisticsPage() {
     setTerritorialError,
   ] = useState("");
 
+  const [
+    ranking,
+    setRanking,
+  ] = useState(null);
+
+  const [
+    rankingLoading,
+    setRankingLoading,
+  ] = useState(false);
+
+  const [
+    rankingError,
+    setRankingError,
+  ] = useState("");
+
   const isTerritorialTab =
     activeTab === "territorial";
+  const isRankingTab =
+    activeTab === "ranking";
+  const isTerritorialLikeTab =
+    isTerritorialTab ||
+    isRankingTab;
 
   const draftFilters =
     isTerritorialTab
       ? territorialDraftFilters
-      : officialDraftFilters;
+      : isRankingTab
+        ? rankingDraftFilters
+        : officialDraftFilters;
 
   const buildOfficialFilters = (
     params = {}
@@ -1462,6 +1685,21 @@ export default function InspectionStatisticsPage() {
       loadTerritorial(
         nextFilters
       );
+    } else if (isRankingTab) {
+      const nextFilters =
+        normalizeTerritorialRankingFilters(
+          rankingDraftFilters
+        );
+
+      setRankingDraftFilters(
+        nextFilters
+      );
+      setRankingFilters(
+        nextFilters
+      );
+      loadRanking(
+        nextFilters
+      );
     } else {
       setOfficialDraftFilters(
         officialDraftFilters
@@ -1474,6 +1712,33 @@ export default function InspectionStatisticsPage() {
           officialDraftFilters
         )
       );
+    }
+  };
+
+  const loadRanking = async (
+    params = rankingFilters
+  ) => {
+    setRankingLoading(true);
+    setRankingError("");
+
+    try {
+      const response =
+        await getInspectionTerritorialRanking(
+          normalizeTerritorialRankingFilters(
+            params
+          )
+        );
+
+      setRanking(response);
+    } catch (err) {
+      setRankingError(
+        err?.message ||
+          "Erro ao carregar ranking territorial."
+      );
+
+      setRanking(null);
+    } finally {
+      setRankingLoading(false);
     }
   };
 
@@ -1490,6 +1755,17 @@ export default function InspectionStatisticsPage() {
       );
       setTerritorialFilters(next);
       loadTerritorial(next);
+    } else if (isRankingTab) {
+      const next =
+        buildDefaultTerritorialRankingFilters(
+          todayIso
+        );
+
+      setRankingDraftFilters(
+        next
+      );
+      setRankingFilters(next);
+      loadRanking(next);
     } else {
       const next =
         buildDefaultOfficialFilters(
@@ -1513,6 +1789,14 @@ export default function InspectionStatisticsPage() {
     const sourceFilters =
       activeTab === "territorial"
         ? territorialFilters
+        : activeTab === "ranking"
+          ? {
+              ...rankingFilters,
+              region:
+                territorialFilters.region ||
+                rankingFilters.region ||
+                "",
+            }
         : {
             ...officialFilters,
             region:
@@ -1533,6 +1817,55 @@ export default function InspectionStatisticsPage() {
     setTerritorialFilters(nextFilters);
     loadTerritorial(nextFilters);
   };
+
+  const openRankingTab = () => {
+    const sourceFilters =
+      activeTab === "ranking"
+        ? rankingFilters
+        : activeTab === "territorial"
+          ? {
+              ...territorialFilters,
+              municipality:
+                rankingFilters.municipality || "",
+              indicator:
+                rankingFilters.indicator || "alcohol_cases",
+            }
+          : {
+              ...officialFilters,
+              region:
+                rankingFilters.region || "",
+              municipality:
+                rankingFilters.municipality || "",
+              indicator:
+                rankingFilters.indicator || "alcohol_cases",
+            };
+
+    const nextFilters =
+      normalizeTerritorialRankingFilters(
+        sourceFilters
+      );
+
+    setActiveTab("ranking");
+    setRankingDraftFilters(
+      nextFilters
+    );
+    setRankingFilters(nextFilters);
+    loadRanking(nextFilters);
+  };
+
+  const rankingMunicipalityOptions =
+    useMemo(
+      () =>
+        filterRankingMunicipalities(
+          ranking?.meta
+            ?.available_municipalities || [],
+          rankingDraftFilters.region
+        ),
+      [
+        ranking,
+        rankingDraftFilters.region,
+      ]
+    );
 
 
   return (
@@ -1654,7 +1987,9 @@ export default function InspectionStatisticsPage() {
                 marginBottom: "4px",
               }}
             >
-              Classificação territorial
+              {isRankingTab
+                ? "Comparativo municipal"
+                : "Classificação territorial"}
             </div>
 
             <strong
@@ -1662,8 +1997,9 @@ export default function InspectionStatisticsPage() {
                 fontSize: "18px",
               }}
             >
-              Região Metropolitana ×
-              Interior
+              {isRankingTab
+                ? "Top municípios por indicador"
+                : "Região Metropolitana × Interior"}
             </strong>
 
             <div
@@ -1673,8 +2009,9 @@ export default function InspectionStatisticsPage() {
                 marginTop: "4px",
               }}
             >
-              Municípios e regiões do
-              Estado do Rio de Janeiro
+              {isRankingTab
+                ? "Ranking territorial unificado por município"
+                : "Municípios e regiões do Estado do Rio de Janeiro"}
             </div>
           </div>
         )}
@@ -1758,6 +2095,37 @@ export default function InspectionStatisticsPage() {
         >
           Análise Territorial
         </button>
+
+        <button
+          type="button"
+          onClick={
+            openRankingTab
+          }
+          style={{
+            border: 0,
+            borderRadius:
+              "8px",
+            padding:
+              "10px 18px",
+            cursor:
+              "pointer",
+            fontWeight: 700,
+
+            background:
+              activeTab ===
+              "ranking"
+                ? "#0f172a"
+                : "transparent",
+
+            color:
+              activeTab ===
+              "ranking"
+                ? "#ffffff"
+                : "#475569",
+          }}
+        >
+          Ranking Territorial
+        </button>
       </div>
 
 
@@ -1773,7 +2141,7 @@ export default function InspectionStatisticsPage() {
           <input
             type="date"
             min={
-              isTerritorialTab
+              isTerritorialLikeTab
                 ? TERRITORIAL_FILTER_START
                 : undefined
             }
@@ -1793,6 +2161,10 @@ export default function InspectionStatisticsPage() {
 
               if (isTerritorialTab) {
                 setTerritorialDraftFilters(
+                  update
+                );
+              } else if (isRankingTab) {
+                setRankingDraftFilters(
                   update
                 );
               } else {
@@ -1828,6 +2200,10 @@ export default function InspectionStatisticsPage() {
                 setTerritorialDraftFilters(
                   update
                 );
+              } else if (isRankingTab) {
+                setRankingDraftFilters(
+                  update
+                );
               } else {
                 setOfficialDraftFilters(
                   update
@@ -1861,6 +2237,10 @@ export default function InspectionStatisticsPage() {
                 setTerritorialDraftFilters(
                   update
                 );
+              } else if (isRankingTab) {
+                setRankingDraftFilters(
+                  update
+                );
               } else {
                 setOfficialDraftFilters(
                   update
@@ -1871,17 +2251,79 @@ export default function InspectionStatisticsPage() {
           />
         </label>
 
-        {activeTab ===
-        "territorial" ? (
+        {isTerritorialLikeTab ? (
           <label>
             Região
             <select
               value={draftFilters.region || ""}
-              onChange={(e) => setTerritorialDraftFilters(current => ({ ...current, region: e.target.value }))}
+              onChange={(e) => {
+                const nextRegion =
+                  e.target.value;
+
+                if (isTerritorialTab) {
+                  setTerritorialDraftFilters((current) => ({
+                    ...current,
+                    region: nextRegion,
+                  }));
+                  return;
+                }
+
+                setRankingDraftFilters((current) => ({
+                  ...current,
+                  region: nextRegion,
+                  municipality: "",
+                }));
+              }}
             >
               <option value="">Todas as regiões</option>
               {REGIONS.map(r => (
                 <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {isRankingTab ? (
+          <label>
+            Município
+            <select
+              value={rankingDraftFilters.municipality || ""}
+              onChange={(e) =>
+                setRankingDraftFilters((current) => ({
+                  ...current,
+                  municipality: e.target.value,
+                }))
+              }
+            >
+              <option value="">Top municípios</option>
+              {rankingMunicipalityOptions.map((item) => (
+                <option
+                  key={item.municipality_id}
+                  value={item.municipality}
+                >
+                  {item.municipality}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        {isRankingTab ? (
+          <label>
+            Indicador
+            <select
+              value={rankingDraftFilters.indicator || "alcohol_cases"}
+              onChange={(e) =>
+                setRankingDraftFilters((current) => ({
+                  ...current,
+                  indicator: e.target.value,
+                }))
+              }
+            >
+              {RANKING_INDICATORS.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
               ))}
             </select>
           </label>
@@ -1919,7 +2361,7 @@ export default function InspectionStatisticsPage() {
           }}
         >
           O recorte por região está disponível
-          apenas na aba Análise Territorial.
+          apenas nas abas Análise Territorial e Ranking Territorial.
         </div>
       ) : null}
 
@@ -1937,6 +2379,14 @@ export default function InspectionStatisticsPage() {
             territorialError
           }
           filters={territorialFilters}
+        />
+      ) : activeTab ===
+      "ranking" ? (
+        <TerritorialRankingContent
+          ranking={ranking}
+          loading={rankingLoading}
+          error={rankingError}
+          filters={rankingFilters}
         />
       ) : loading ? (
         <div className="stats-panel">
@@ -2443,4 +2893,67 @@ export default function InspectionStatisticsPage() {
       )}
     </section>
   );
+}
+
+function decimal(value) {
+  return Number(value || 0).toLocaleString(
+    "pt-BR",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  );
+}
+
+function rankingPrimaryValue(
+  item,
+  indicator
+) {
+  if (
+    indicator === "alcohol_percentage" ||
+    indicator ===
+      "fined_per_100_approaches"
+  ) {
+    return `${decimal(item.value)}%`;
+  }
+
+  return integer(item.value);
+}
+
+function rankingContext(
+  item,
+  indicator
+) {
+  if (!item) {
+    return "";
+  }
+
+  if (
+    indicator === "alcohol_cases" ||
+    indicator === "alcohol_percentage"
+  ) {
+    return `${integer(
+      item.approach
+    )} abordados | ${decimal(
+      item.alcohol_percentage
+    )}%`;
+  }
+
+  if (
+    indicator === "fined" ||
+    indicator ===
+      "fined_per_100_approaches"
+  ) {
+    return `${integer(
+      item.approach
+    )} abordados | ${decimal(
+      item.fined_per_100_approaches
+    )} por 100`;
+  }
+
+  return `${integer(
+    item.approach
+  )} abordados | ${integer(
+    item.operations
+  )} fiscalizações`;
 }

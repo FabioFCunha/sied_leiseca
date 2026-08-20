@@ -29,6 +29,7 @@ from apps.inspection.services import (
     InspectionStatisticsUnifiedService,
 )
 from apps.inspection.territorial_statistics import (
+    InspectionTerritorialRankingService,
     InspectionTerritorialStatisticsService,
 )
 from apps.inspection.horus_historical_push import (
@@ -431,17 +432,26 @@ class InspectionStatisticsDashboardView(
                 filters.get("team")
                 or None
             ),
-            "region": (
-                filters.get("region")
-                or None
-            ),
+            "region": None,
         }
 
-        return Response(
+        data = (
             InspectionStatisticsUnifiedService(
                 normalized_filters
             ).get_dashboard_data()
         )
+
+        if filters.get("region"):
+            data.setdefault("meta", {})[
+                "region_notice"
+            ] = (
+                "O filtro por região não se aplica à "
+                "Estatística Oficial. Utilize a aba "
+                "Análise Territorial para recortes "
+                "regionais."
+            )
+
+        return Response(data)
 
 
 class InspectionTerritorialStatisticsView(
@@ -491,6 +501,62 @@ class InspectionTerritorialStatisticsView(
 
         data = (
             InspectionTerritorialStatisticsService(
+                filters
+            )
+            .get_data()
+        )
+
+        return Response(data)
+
+
+class InspectionTerritorialRankingView(
+    APIView
+):
+    permission_classes = [
+        CanViewInspectionStatisticsDashboard
+    ]
+
+    def get(self, request):
+        filters = {
+            "date_from": (
+                request.query_params.get(
+                    "date_from"
+                )
+            ),
+            "date_to": (
+                request.query_params.get(
+                    "date_to"
+                )
+            ),
+            "team": (
+                request.query_params.get(
+                    "team"
+                )
+            ),
+            "region": (
+                request.query_params.get(
+                    "region"
+                )
+            ),
+            "municipality": (
+                request.query_params.get(
+                    "municipality"
+                )
+            ),
+            "indicator": (
+                request.query_params.get(
+                    "indicator"
+                )
+            ),
+            "limit": (
+                request.query_params.get(
+                    "limit"
+                )
+            ),
+        }
+
+        data = (
+            InspectionTerritorialRankingService(
                 filters
             )
             .get_data()

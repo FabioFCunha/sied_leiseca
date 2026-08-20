@@ -3,13 +3,16 @@ import fs from "node:fs";
 
 import {
   buildDefaultOfficialFilters,
+  buildDefaultTerritorialRankingFilters,
   buildDefaultTerritorialFilters,
   buildPdfMunicipalityLabel,
   buildTerritorialCoverageNote,
   clampTerritorialDateFrom,
+  filterRankingMunicipalities,
   formatMunicipalityDates,
   hasMunicipalityRain,
   isShortTerritorialPeriod,
+  normalizeTerritorialRankingFilters,
   normalizeTerritorialFilters,
   OFFICIAL_FILTER_START,
   TERRITORIAL_FILTER_START,
@@ -97,6 +100,20 @@ assert.equal(
 );
 
 assert.deepEqual(
+  buildDefaultTerritorialRankingFilters(
+    "2026-08-20"
+  ),
+  {
+    date_from: "2022-10-03",
+    date_to: "2026-08-20",
+    team: "",
+    region: "",
+    municipality: "",
+    indicator: "alcohol_cases",
+  }
+);
+
+assert.deepEqual(
   normalizeTerritorialFilters({
     date_from: "2020-01-01",
     date_to: "2026-08-20",
@@ -109,6 +126,53 @@ assert.deepEqual(
     team: "A1",
     region: "Metropolitana",
   }
+);
+
+assert.deepEqual(
+  normalizeTerritorialRankingFilters({
+    date_from: "2020-01-01",
+    date_to: "2026-08-20",
+    team: "A1",
+    region: "Metropolitana",
+    municipality: "Niterói",
+    indicator: "fined",
+  }),
+  {
+    date_from: "2022-10-03",
+    date_to: "2026-08-20",
+    team: "A1",
+    region: "Metropolitana",
+    municipality: "Niterói",
+    indicator: "fined",
+  }
+);
+
+assert.deepEqual(
+  filterRankingMunicipalities(
+    [
+      {
+        municipality_id: 1,
+        municipality: "Angra dos Reis",
+        region: "Costa Verde",
+        region_code: "COSTA_VERDE",
+      },
+      {
+        municipality_id: 2,
+        municipality: "Niterói",
+        region: "Metropolitana",
+        region_code: "METROPOLITANA",
+      },
+    ],
+    "Metropolitana"
+  ),
+  [
+    {
+      municipality_id: 2,
+      municipality: "Niterói",
+      region: "Metropolitana",
+      region_code: "METROPOLITANA",
+    },
+  ]
 );
 
 const note =
@@ -200,7 +264,7 @@ const pageSource = fs.readFileSync(
 
 assert.equal(
   pageSource.includes(
-    'min={\n              isTerritorialTab\n                ? TERRITORIAL_FILTER_START'
+    'min={\n              isTerritorialLikeTab\n                ? TERRITORIAL_FILTER_START'
   ),
   true
 );
@@ -217,6 +281,20 @@ assert.equal(
     'disabled={\n              isTerritorialTab'
   ),
   false
+);
+
+assert.equal(
+  pageSource.includes(
+    "Ranking Territorial"
+  ),
+  true
+);
+
+assert.equal(
+  pageSource.includes(
+    "getInspectionTerritorialRanking"
+  ),
+  true
 );
 
 assert.equal(

@@ -1,10 +1,13 @@
 from collections import defaultdict
 from datetime import date
 
+from django.db.models import Q
+
 from apps.inspection.models import (
     HISTORICAL_CUTOFF_DATE,
     INSPECTION_STATISTICS_CUTOFF_DATE,
     InspectionHistoricalTerritorialStatistic,
+    InspectionMunicipality,
     InspectionReport,
     InspectionReportOperation,
 )
@@ -427,11 +430,16 @@ class InspectionTerritorialStatisticsService:
     def _matches_territorial_filters(
         self,
         territory,
+        *,
+        include_municipality=True,
     ):
         if not territory["matched"]:
             return (
                 self.region is None
-                and self.municipality is None
+                and (
+                    self.municipality is None
+                    or not include_municipality
+                )
             )
 
         if self.region:
@@ -447,7 +455,10 @@ class InspectionTerritorialStatisticsService:
             ):
                 return False
 
-        if self.municipality:
+        if (
+            include_municipality
+            and self.municipality
+        ):
             municipality_filter = (
                 normalize_municipality_name(
                     self.municipality
@@ -461,6 +472,386 @@ class InspectionTerritorialStatisticsService:
                 return False
 
         return True
+
+    @staticmethod
+    def _serialize_region_rows(regions):
+        region_rows = []
+
+        for region_item in regions.values():
+            municipality_rows = list(
+                region_item[
+                    "municipalities"
+                ].values()
+            )
+
+            for municipality_item in municipality_rows:
+                municipality_item.pop(
+                    "_rain_report_ids",
+                    None,
+                )
+                municipality_item["dates"] = sorted(
+                    municipality_item["dates"]
+                )
+
+            municipality_rows.sort(
+                key=lambda item: (
+                    item["municipality"]
+                )
+            )
+
+            region_item[
+                "municipalities"
+            ] = municipality_rows
+            region_rows.append(region_item)
+
+        return region_rows
+
+    def _build_sources_used(
+        self,
+        historical_queryset,
+        operational_queryset,
+    ):
+        sources_used = []
+
+        if historical_queryset.exists():
+            sources_used.append("historical")
+
+        if operational_queryset.exists():
+            sources_used.append("operational")
+
+        return sources_used
+
+    def _build_meta(
+        self,
+        *,
+        sources_used,
+    ):
+        return {
+            "source": "unified",
+            "sources_used": sources_used,
+            "territorial_source": (
+                "InspectionHistoricalTerritorialStatistic + "
+                "InspectionReportOperation.city"
+            ),
+            "historical_from": (
+                self.HISTORICAL_TERRITORIAL_FROM
+                .isoformat()
+            ),
+            "historical_to": (
+                self.HISTORICAL_TERRITORIAL_TO
+                .isoformat()
+            ),
+            "operational_from": (
+                INSPECTION_STATISTICS_CUTOFF_DATE
+                .isoformat()
+            ),
+            "territorial_coverage_from": (
+                self.HISTORICAL_TERRITORIAL_FROM
+                .isoformat()
+            ),
+            "highlighted_operations_source": (
+                "operational_only"
+            ),
+            "historical_highlighted_supported": False,
+            "date_from": (
+                self.date_from.isoformat()
+                if self.date_from
+                else None
+            ),
+            "date_to": (
+                self.date_to.isoformat()
+                if self.date_to
+                else None
+            ),
+            "team": self.team,
+            "region": self.region,
+            "municipality": (
+                self.municipality
+            ),
+        }
+
+    def _aggregate_data(
+        self,
+        *,
+        include_municipality_filter=True,
+    ):
+        historical_queryset = (
+            self._get_historical_queryset()
+        )
+        operational_queryset = (
+            self._get_operational_queryset()
+        )
+
+        sources_used = self._build_sources_used(
+            historical_queryset,
+            operational_queryset,
+        )
+
+        regions = {}
+        unclassified = defaultdict(
+            lambda: {
+                "source_city": "",
+                "normalized_city": "",
+                "operations": 0,
+                "approach": 0,
+            }
+        )
+
+        total = self._empty_metrics()
+        metropolitan_total = (
+            self._empty_metrics()
+        )
+        interior_total = (
+            self._empty_metrics()
+        )
+
+        classified_operations = 0
+        unclassified_operations = 0
+        highlighted_operations = []
+
+        for row in historical_queryset:
+            territory = self._historical_territory(
+                row
+            )
+
+            if not self._matches_territorial_filters(
+                territory,
+                include_municipality=(
+                    include_municipality_filter
+                ),
+            ):
+                continue
+
+            metrics = self._historical_metrics(
+                row
+            )
+
+            self._add_metrics(total, metrics)
+
+            if not territory["matched"]:
+                unclassified_operations += (
+                    metrics["operations"]
+                )
+                self._accumulate_unclassified(
+                    unclassified=unclassified,
+                    source_city=row.source_city,
+                    normalized_city=(
+                        row.normalized_city
+                    ),
+                    metrics=metrics,
+                )
+                continue
+
+            classified_operations += (
+                metrics["operations"]
+            )
+            self._accumulate_classified(
+                territory=territory,
+                metrics=metrics,
+                reference_date=(
+                    row.reference_date
+                ),
+                rain_count=self._number(
+                    row.rain
+                ),
+                rain_report_id=None,
+                regions=regions,
+                metropolitan_total=(
+                    metropolitan_total
+                ),
+                interior_total=(
+                    interior_total
+                ),
+            )
+
+        for operation in operational_queryset:
+            territory = resolve_territory(
+                operation.city
+            )
+
+            if not self._matches_territorial_filters(
+                territory,
+                include_municipality=(
+                    include_municipality_filter
+                ),
+            ):
+                continue
+
+            metrics = self._operation_metrics(
+                operation
+            )
+
+            self._add_metrics(total, metrics)
+
+            if not territory["matched"]:
+                unclassified_operations += 1
+                self._accumulate_unclassified(
+                    unclassified=unclassified,
+                    source_city=operation.city,
+                    normalized_city=(
+                        territory[
+                            "normalized_city"
+                        ]
+                    ),
+                    metrics=metrics,
+                )
+                continue
+
+            classified_operations += 1
+            self._accumulate_classified(
+                territory=territory,
+                metrics=metrics,
+                reference_date=(
+                    operation.report
+                    .operation_date
+                ),
+                rain_count=(
+                    1
+                    if self._operation_has_rain(
+                        operation
+                    )
+                    else 0
+                ),
+                rain_report_id=(
+                    operation.report_id
+                ),
+                regions=regions,
+                metropolitan_total=(
+                    metropolitan_total
+                ),
+                interior_total=(
+                    interior_total
+                ),
+            )
+
+            if (
+                metrics["alcohol_percentage"]
+                is not None
+                and metrics[
+                    "alcohol_percentage"
+                ] >= 25
+            ):
+                highlighted_operations.append(
+                    self._build_highlighted_operation(
+                        operation,
+                        territory,
+                        metrics,
+                    )
+                )
+
+        region_rows = self._serialize_region_rows(
+            regions
+        )
+        region_rows.sort(
+            key=lambda item: (
+                0
+                if item["region_code"]
+                == self.METROPOLITAN_REGION_CODE
+                else 1,
+                item["region"],
+            )
+        )
+
+        highlighted_operations.sort(
+            key=lambda item: (
+                -item[
+                    "alcohol_percentage"
+                ],
+                item["date"],
+                item["municipality"],
+            )
+        )
+
+        unclassified_rows = list(
+            unclassified.values()
+        )
+        unclassified_rows.sort(
+            key=lambda item: (
+                item["source_city"]
+            )
+        )
+
+        return {
+            "meta": self._build_meta(
+                sources_used=sources_used
+            ),
+            "summary": {
+                "operations": (
+                    total["operations"]
+                ),
+                "classified_operations": (
+                    classified_operations
+                ),
+                "unclassified_operations": (
+                    unclassified_operations
+                ),
+                "approach": (
+                    total["approach"]
+                ),
+                "reconductor": (
+                    total["reconductor"]
+                ),
+                "refusal": (
+                    total["refusal"]
+                ),
+                "administrative_art_165": (
+                    total["thirtythree_ml"]
+                ),
+                "criminal_art_306": (
+                    total["thirtyfour_ml"]
+                ),
+                "criminal_art_306_other_evidence": (
+                    total[
+                        "arrests_means_evidence"
+                    ]
+                ),
+                "alcohol_cases": (
+                    total["alcohol_cases"]
+                ),
+                "alcohol_percentage": (
+                    total[
+                        "alcohol_percentage"
+                    ]
+                ),
+                "fined": (
+                    total["fined"]
+                ),
+                "towed": (
+                    total["towed"]
+                ),
+                "cnh_collected": (
+                    total[
+                        "cnh_collected"
+                    ]
+                ),
+                "art307": (
+                    total["art307"]
+                ),
+                "criminal_occurrences": (
+                    total[
+                        "criminal_occurrences"
+                    ]
+                ),
+                "driving_canceled_license": (
+                    total[
+                        "driving_canceled_license"
+                    ]
+                ),
+            },
+            "metropolitan": (
+                metropolitan_total
+            ),
+            "interior": (
+                interior_total
+            ),
+            "regions": region_rows,
+            "highlighted_operations": (
+                highlighted_operations
+            ),
+            "unclassified": (
+                unclassified_rows
+            ),
+        }
 
     def _ensure_region(
         self,
@@ -696,343 +1087,401 @@ class InspectionTerritorialStatisticsService:
         }
 
     def get_data(self):
-        historical_queryset = (
-            self._get_historical_queryset()
+        return self._aggregate_data()
+
+
+class InspectionTerritorialRankingService(
+    InspectionTerritorialStatisticsService
+):
+    INDICATOR_DEFINITIONS = {
+        "operations": {
+            "label": "Fiscalizações",
+            "value_key": "operations",
+        },
+        "approach": {
+            "label": "Abordados",
+            "value_key": "approach",
+        },
+        "alcohol_cases": {
+            "label": "Alcoolemia",
+            "value_key": "alcohol_cases",
+        },
+        "fined": {
+            "label": "Multados",
+            "value_key": "fined",
+        },
+        "cnh_collected": {
+            "label": "CNH recolhidas",
+            "value_key": "cnh_collected",
+        },
+        "towed": {
+            "label": "Veículos rebocados",
+            "value_key": "towed",
+        },
+        "refusal": {
+            "label": "Recusas",
+            "value_key": "refusal",
+        },
+        "reconductor": {
+            "label": "Reconduções",
+            "value_key": "reconductor",
+        },
+        "removal_resolutions": {
+            "label": "Resoluções de remoção",
+            "value_key": "removal_resolutions",
+        },
+        "criminal_occurrences": {
+            "label": "Ocorrências criminais",
+            "value_key": "criminal_occurrences",
+        },
+        "arrests_means_evidence": {
+            "label": "Prisões / meios de prova",
+            "value_key": "arrests_means_evidence",
+        },
+        "alcohol_percentage": {
+            "label": "Percentual de alcoolemia",
+            "value_key": "alcohol_percentage",
+        },
+        "fined_per_100_approaches": {
+            "label": "Multados por 100 abordagens",
+            "value_key": "fined_per_100_approaches",
+        },
+    }
+    DEFAULT_INDICATOR = "alcohol_cases"
+    DEFAULT_LIMIT = 10
+    MIN_LIMIT = 1
+    MAX_LIMIT = 50
+
+    def __init__(self, filters=None):
+        super().__init__(filters=filters)
+
+        requested_indicator = str(
+            self.filters.get("indicator")
+            or self.DEFAULT_INDICATOR
+        ).strip()
+        requested_limit = self.filters.get("limit")
+
+        if (
+            requested_indicator
+            not in self.INDICATOR_DEFINITIONS
+        ):
+            requested_indicator = (
+                self.DEFAULT_INDICATOR
+            )
+
+        self.indicator = requested_indicator
+        self.limit = self._normalize_limit(
+            requested_limit
         )
-        operational_queryset = (
-            self._get_operational_queryset()
+
+    @classmethod
+    def _normalize_limit(cls, value):
+        try:
+            normalized = int(value)
+        except (
+            TypeError,
+            ValueError,
+        ):
+            normalized = cls.DEFAULT_LIMIT
+
+        return max(
+            cls.MIN_LIMIT,
+            min(cls.MAX_LIMIT, normalized),
         )
 
-        sources_used = []
+    @staticmethod
+    def _safe_rate(
+        numerator,
+        denominator,
+    ):
+        if not denominator:
+            return 0.0
 
-        if historical_queryset.exists():
-            sources_used.append("historical")
+        return numerator / denominator * 100
 
-        if operational_queryset.exists():
-            sources_used.append("operational")
+    def _indicator_value(
+        self,
+        municipality_item,
+    ):
+        metrics = municipality_item["metrics"]
 
-        regions = {}
-        unclassified = defaultdict(
-            lambda: {
-                "source_city": "",
-                "normalized_city": "",
-                "operations": 0,
-                "approach": 0,
-            }
+        if self.indicator == "alcohol_percentage":
+            return self._safe_rate(
+                metrics["alcohol_cases"],
+                metrics["approach"],
+            )
+
+        if (
+            self.indicator
+            == "fined_per_100_approaches"
+        ):
+            return self._safe_rate(
+                metrics["fined"],
+                metrics["approach"],
+            )
+
+        return float(
+            metrics[
+                self.INDICATOR_DEFINITIONS[
+                    self.indicator
+                ]["value_key"]
+            ]
+            or 0
         )
 
-        total = self._empty_metrics()
-        metropolitan_total = (
-            self._empty_metrics()
+    def _build_ranking_row(
+        self,
+        municipality_item,
+    ):
+        metrics = municipality_item["metrics"]
+        alcohol_percentage = self._safe_rate(
+            metrics["alcohol_cases"],
+            metrics["approach"],
         )
-        interior_total = (
-            self._empty_metrics()
+        fined_per_100 = self._safe_rate(
+            metrics["fined"],
+            metrics["approach"],
         )
 
-        classified_operations = 0
-        unclassified_operations = 0
-        highlighted_operations = []
+        return {
+            "municipality_id": (
+                municipality_item[
+                    "municipality_id"
+                ]
+            ),
+            "municipality": (
+                municipality_item[
+                    "municipality"
+                ]
+            ),
+            "normalized_name": (
+                municipality_item[
+                    "normalized_name"
+                ]
+            ),
+            "region": municipality_item[
+                "region"
+            ],
+            "region_code": municipality_item[
+                "region_code"
+            ],
+            "value": self._indicator_value(
+                municipality_item
+            ),
+            "operations": metrics["operations"],
+            "approach": metrics["approach"],
+            "alcohol_cases": (
+                metrics["alcohol_cases"]
+            ),
+            "fined": metrics["fined"],
+            "cnh_collected": (
+                metrics["cnh_collected"]
+            ),
+            "towed": metrics["towed"],
+            "refusal": metrics["refusal"],
+            "reconductor": (
+                metrics["reconductor"]
+            ),
+            "removal_resolutions": (
+                metrics[
+                    "removal_resolutions"
+                ]
+            ),
+            "criminal_occurrences": (
+                metrics[
+                    "criminal_occurrences"
+                ]
+            ),
+            "arrests_means_evidence": (
+                metrics[
+                    "arrests_means_evidence"
+                ]
+            ),
+            "alcohol_percentage": (
+                alcohol_percentage
+            ),
+            "fined_per_100_approaches": (
+                fined_per_100
+            ),
+            "rain": municipality_item["rain"],
+        }
 
-        for row in historical_queryset:
-            territory = self._historical_territory(
-                row
-            )
+    def _flatten_rankable_municipalities(
+        self,
+        aggregated,
+    ):
+        rows = []
 
-            if not self._matches_territorial_filters(
-                territory
-            ):
-                continue
-
-            metrics = self._historical_metrics(
-                row
-            )
-
-            self._add_metrics(total, metrics)
-
-            if not territory["matched"]:
-                unclassified_operations += (
-                    metrics["operations"]
-                )
-                self._accumulate_unclassified(
-                    unclassified=unclassified,
-                    source_city=row.source_city,
-                    normalized_city=(
-                        row.normalized_city
-                    ),
-                    metrics=metrics,
-                )
-                continue
-
-            classified_operations += (
-                metrics["operations"]
-            )
-            self._accumulate_classified(
-                territory=territory,
-                metrics=metrics,
-                reference_date=(
-                    row.reference_date
-                ),
-                rain_count=self._number(
-                    row.rain
-                ),
-                rain_report_id=None,
-                regions=regions,
-                metropolitan_total=(
-                    metropolitan_total
-                ),
-                interior_total=(
-                    interior_total
-                ),
-            )
-
-        for operation in operational_queryset:
-            territory = resolve_territory(
-                operation.city
-            )
-
-            if not self._matches_territorial_filters(
-                territory
-            ):
-                continue
-
-            metrics = self._operation_metrics(
-                operation
-            )
-
-            self._add_metrics(total, metrics)
-
-            if not territory["matched"]:
-                unclassified_operations += 1
-                self._accumulate_unclassified(
-                    unclassified=unclassified,
-                    source_city=operation.city,
-                    normalized_city=(
-                        territory[
-                            "normalized_city"
-                        ]
-                    ),
-                    metrics=metrics,
-                )
-                continue
-
-            classified_operations += 1
-            self._accumulate_classified(
-                territory=territory,
-                metrics=metrics,
-                reference_date=(
-                    operation.report
-                    .operation_date
-                ),
-                rain_count=(
-                    1
-                    if self._operation_has_rain(
-                        operation
-                    )
-                    else 0
-                ),
-                rain_report_id=(
-                    operation.report_id
-                ),
-                regions=regions,
-                metropolitan_total=(
-                    metropolitan_total
-                ),
-                interior_total=(
-                    interior_total
-                ),
-            )
-
-            if (
-                metrics["alcohol_percentage"]
-                is not None
-                and metrics[
-                    "alcohol_percentage"
-                ] >= 25
-            ):
-                highlighted_operations.append(
-                    self._build_highlighted_operation(
-                        operation,
-                        territory,
-                        metrics,
-                    )
-                )
-
-        region_rows = []
-
-        for region_item in regions.values():
-            municipality_rows = list(
-                region_item[
-                    "municipalities"
-                ].values()
-            )
-
-            for municipality_item in municipality_rows:
-                municipality_item.pop(
-                    "_rain_report_ids",
-                    None,
-                )
-                municipality_item["dates"] = sorted(
-                    municipality_item["dates"]
-                )
-
-            municipality_rows.sort(
-                key=lambda item: (
-                    item["municipality"]
-                )
-            )
-
-            region_item[
+        for region_item in aggregated["regions"]:
+            for municipality_item in region_item[
                 "municipalities"
-            ] = municipality_rows
-            region_rows.append(region_item)
+            ]:
+                rows.append(
+                    {
+                        **municipality_item,
+                        "region": region_item[
+                            "region"
+                        ],
+                        "region_code": (
+                            region_item[
+                                "region_code"
+                            ]
+                        ),
+                    }
+                )
 
-        region_rows.sort(
-            key=lambda item: (
-                0
-                if item["region_code"]
-                == self.METROPOLITAN_REGION_CODE
-                else 1,
-                item["region"],
+        return rows
+
+    def _available_municipalities(self):
+        queryset = (
+            InspectionMunicipality.objects
+            .select_related("region")
+            .filter(
+                is_active=True,
+                region__is_active=True,
+            )
+            .order_by(
+                "name"
             )
         )
 
-        highlighted_operations.sort(
+        if self.region:
+            region_filter = (
+                self.region.strip().upper()
+            )
+            queryset = queryset.filter(
+                Q(
+                    region__code__iexact=(
+                        region_filter
+                    )
+                )
+                | Q(
+                    region__name__iexact=(
+                        self.region.strip()
+                    )
+                )
+            )
+
+        municipalities = []
+        seen_ids = set()
+
+        for municipality in queryset:
+            if municipality.id in seen_ids:
+                continue
+
+            seen_ids.add(
+                municipality.id
+            )
+            municipalities.append(
+                {
+                    "municipality_id": (
+                        municipality.id
+                    ),
+                    "municipality": (
+                        municipality.name
+                    ),
+                    "region": (
+                        municipality.region.name
+                    ),
+                    "region_code": (
+                        municipality.region.code
+                    ),
+                }
+            )
+
+        return municipalities
+
+    def get_data(self):
+        aggregated = self._aggregate_data(
+            include_municipality_filter=False
+        )
+        base_rows = (
+            self._flatten_rankable_municipalities(
+                aggregated
+            )
+        )
+        ranking_rows = [
+            self._build_ranking_row(item)
+            for item in base_rows
+        ]
+
+        ranking_rows.sort(
             key=lambda item: (
-                -item[
-                    "alcohol_percentage"
-                ],
-                item["date"],
+                -item["value"],
                 item["municipality"],
             )
         )
 
-        unclassified_rows = list(
-            unclassified.values()
+        total_municipalities = len(
+            ranking_rows
         )
-        unclassified_rows.sort(
-            key=lambda item: (
-                item["source_city"]
+
+        for position, item in enumerate(
+            ranking_rows,
+            start=1,
+        ):
+            item["position"] = position
+            item[
+                "total_municipalities"
+            ] = total_municipalities
+            item.pop(
+                "normalized_name",
+                None,
             )
+
+        if self.municipality:
+            municipality_filter = (
+                normalize_municipality_name(
+                    self.municipality
+                )
+            )
+            ranking = [
+                item
+                for item in ranking_rows
+                if normalize_municipality_name(
+                    item["municipality"]
+                )
+                == municipality_filter
+            ][:1]
+        else:
+            ranking = ranking_rows[
+                : self.limit
+            ]
+
+        indicator_definition = (
+            self.INDICATOR_DEFINITIONS[
+                self.indicator
+            ]
         )
 
         return {
-            "meta": {
-                "source": "unified",
-                "sources_used": sources_used,
-                "territorial_source": (
-                    "InspectionHistoricalTerritorialStatistic + "
-                    "InspectionReportOperation.city"
-                ),
-                "historical_from": (
-                    self.HISTORICAL_TERRITORIAL_FROM
-                    .isoformat()
-                ),
-                "historical_to": (
-                    self.HISTORICAL_TERRITORIAL_TO
-                    .isoformat()
-                ),
-                "operational_from": (
-                    INSPECTION_STATISTICS_CUTOFF_DATE
-                    .isoformat()
-                ),
-                "territorial_coverage_from": (
-                    self.HISTORICAL_TERRITORIAL_FROM
-                    .isoformat()
-                ),
-                "highlighted_operations_source": (
-                    "operational_only"
-                ),
-                "historical_highlighted_supported": False,
-                "date_from": (
-                    self.date_from.isoformat()
-                    if self.date_from
-                    else None
-                ),
-                "date_to": (
-                    self.date_to.isoformat()
-                    if self.date_to
-                    else None
-                ),
-                "team": self.team,
-                "region": self.region,
-                "municipality": (
-                    self.municipality
-                ),
-            },
             "summary": {
-                "operations": (
-                    total["operations"]
+                "indicator": (
+                    self.indicator
                 ),
-                "classified_operations": (
-                    classified_operations
-                ),
-                "unclassified_operations": (
-                    unclassified_operations
-                ),
-                "approach": (
-                    total["approach"]
-                ),
-                "reconductor": (
-                    total["reconductor"]
-                ),
-                "refusal": (
-                    total["refusal"]
-                ),
-                "administrative_art_165": (
-                    total["thirtythree_ml"]
-                ),
-                "criminal_art_306": (
-                    total["thirtyfour_ml"]
-                ),
-                "criminal_art_306_other_evidence": (
-                    total[
-                        "arrests_means_evidence"
+                "indicator_label": (
+                    indicator_definition[
+                        "label"
                     ]
                 ),
-                "alcohol_cases": (
-                    total["alcohol_cases"]
-                ),
-                "alcohol_percentage": (
-                    total[
-                        "alcohol_percentage"
-                    ]
-                ),
-                "fined": (
-                    total["fined"]
-                ),
-                "towed": (
-                    total["towed"]
-                ),
-                "cnh_collected": (
-                    total[
-                        "cnh_collected"
-                    ]
-                ),
-                "art307": (
-                    total["art307"]
-                ),
-                "criminal_occurrences": (
-                    total[
-                        "criminal_occurrences"
-                    ]
-                ),
-                "driving_canceled_license": (
-                    total[
-                        "driving_canceled_license"
-                    ]
+                "municipalities_considered": (
+                    total_municipalities
                 ),
             },
-            "metropolitan": (
-                metropolitan_total
-            ),
-            "interior": (
-                interior_total
-            ),
-            "regions": region_rows,
-            "highlighted_operations": (
-                highlighted_operations
-            ),
-            "unclassified": (
-                unclassified_rows
-            ),
+            "ranking": ranking,
+            "meta": {
+                **aggregated["meta"],
+                "indicator": (
+                    self.indicator
+                ),
+                "indicator_label": (
+                    indicator_definition[
+                        "label"
+                    ]
+                ),
+                "limit": self.limit,
+                "available_municipalities": (
+                    self._available_municipalities()
+                ),
+            },
         }
