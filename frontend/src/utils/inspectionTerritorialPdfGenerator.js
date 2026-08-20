@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { buildPdfMunicipalityLabel } from "./inspectionTerritorialViewModel.js";
 
 function loadImageAsBase64(url) {
   return new Promise((resolve, reject) => {
@@ -87,7 +88,7 @@ function buildTerritoryRows(territorial) {
       const isHigh =
         Number(item.metrics?.alcohol_percentage || 0) >= 25;
       const row = [
-        `${item.municipality}`,
+        buildPdfMunicipalityLabel(item),
         integer(item.metrics?.approach),
         integer(item.metrics?.fined),
         integer(item.metrics?.alcohol_cases),
@@ -139,7 +140,7 @@ function buildTerritoryRows(territorial) {
       const isHigh =
         Number(item.metrics?.alcohol_percentage || 0) >= 25;
       const row = [
-        `${item.municipality}`,
+        buildPdfMunicipalityLabel(item),
         integer(item.metrics?.approach),
         integer(item.metrics?.fined),
         integer(item.metrics?.alcohol_cases),

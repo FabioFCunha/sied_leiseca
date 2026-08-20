@@ -32,6 +32,11 @@ class InspectionTerritorialStatisticsService:
     METROPOLITAN_REGION_CODE = "METROPOLITANA"
     HISTORICAL_TERRITORIAL_FROM = date(2022, 10, 3)
     HISTORICAL_TERRITORIAL_TO = HISTORICAL_CUTOFF_DATE
+    RAIN_STRUCTURED_CLASSIFICATION_FROM = date(
+        2026,
+        8,
+        17,
+    )
 
     def __init__(self, filters=None):
         self.filters = filters or {}
@@ -513,6 +518,8 @@ class InspectionTerritorialStatisticsService:
                 "normalized_name": (
                     municipality_key
                 ),
+                "rain": 0,
+                "_rain_report_ids": set(),
                 "dates": set(),
                 "metrics": (
                     self._empty_metrics()
@@ -527,6 +534,8 @@ class InspectionTerritorialStatisticsService:
         territory,
         metrics,
         reference_date,
+        rain_count,
+        rain_report_id,
         regions,
         metropolitan_total,
         interior_total,
@@ -550,6 +559,11 @@ class InspectionTerritorialStatisticsService:
         municipality_item["dates"].add(
             reference_date.isoformat()
         )
+        self._accumulate_municipality_rain(
+            municipality_item,
+            rain_count=rain_count,
+            rain_report_id=rain_report_id,
+        )
 
         self._add_metrics(
             municipality_item["metrics"],
@@ -569,6 +583,56 @@ class InspectionTerritorialStatisticsService:
                 interior_total,
                 metrics,
             )
+
+    @staticmethod
+    def _accumulate_municipality_rain(
+        municipality_item,
+        *,
+        rain_count,
+        rain_report_id,
+    ):
+        if rain_report_id is not None:
+            if (
+                rain_count > 0
+                and rain_report_id
+                not in municipality_item[
+                    "_rain_report_ids"
+                ]
+            ):
+                municipality_item["rain"] += 1
+                municipality_item[
+                    "_rain_report_ids"
+                ].add(rain_report_id)
+            return
+
+        municipality_item["rain"] += (
+            rain_count or 0
+        )
+
+    def _operation_has_rain(self, operation):
+        report = operation.report
+        classification = (
+            report.statistics_classification
+            or {}
+        )
+
+        if (
+            report.operation_date
+            < self
+            .RAIN_STRUCTURED_CLASSIFICATION_FROM
+        ):
+            observation = str(
+                report.changes_general or ""
+            ).lower()
+            return (
+                "chuv" in observation
+                or "chove" in observation
+            )
+
+        return (
+            classification.get("rain")
+            is True
+        )
 
     def _accumulate_unclassified(
         self,
@@ -708,6 +772,10 @@ class InspectionTerritorialStatisticsService:
                 reference_date=(
                     row.reference_date
                 ),
+                rain_count=self._number(
+                    row.rain
+                ),
+                rain_report_id=None,
                 regions=regions,
                 metropolitan_total=(
                     metropolitan_total
@@ -755,6 +823,16 @@ class InspectionTerritorialStatisticsService:
                     operation.report
                     .operation_date
                 ),
+                rain_count=(
+                    1
+                    if self._operation_has_rain(
+                        operation
+                    )
+                    else 0
+                ),
+                rain_report_id=(
+                    operation.report_id
+                ),
                 regions=regions,
                 metropolitan_total=(
                     metropolitan_total
@@ -789,6 +867,10 @@ class InspectionTerritorialStatisticsService:
             )
 
             for municipality_item in municipality_rows:
+                municipality_item.pop(
+                    "_rain_report_ids",
+                    None,
+                )
                 municipality_item["dates"] = sorted(
                     municipality_item["dates"]
                 )

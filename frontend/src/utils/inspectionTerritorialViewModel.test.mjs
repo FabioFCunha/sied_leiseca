@@ -4,8 +4,10 @@ import fs from "node:fs";
 import {
   buildDefaultOfficialFilters,
   buildDefaultTerritorialFilters,
+  buildPdfMunicipalityLabel,
   buildTerritorialCoverageNote,
   clampTerritorialDateFrom,
+  hasMunicipalityRain,
   normalizeTerritorialFilters,
   OFFICIAL_FILTER_START,
   TERRITORIAL_FILTER_START,
@@ -35,6 +37,32 @@ assert.equal(
   "2023-01-15"
 );
 
+assert.equal(
+  clampTerritorialDateFrom(""),
+  "2022-10-03"
+);
+
+assert.equal(
+  clampTerritorialDateFrom(
+    "2022-10-02"
+  ),
+  "2022-10-03"
+);
+
+assert.equal(
+  clampTerritorialDateFrom(
+    "2023-01-01"
+  ),
+  "2023-01-01"
+);
+
+assert.equal(
+  clampTerritorialDateFrom(
+    "2026-08-01"
+  ),
+  "2026-08-01"
+);
+
 assert.deepEqual(
   buildDefaultOfficialFilters(
     "2026-08-20"
@@ -57,6 +85,13 @@ assert.deepEqual(
     team: "",
     region: "",
   }
+);
+
+assert.equal(
+  buildDefaultTerritorialFilters(
+    "2026-08-20"
+  ).date_from,
+  "2022-10-03"
 );
 
 assert.deepEqual(
@@ -89,6 +124,38 @@ assert.match(
 
 assert.match(note, /13,67%/);
 
+assert.equal(
+  hasMunicipalityRain({
+    municipality: "Petrópolis",
+    rain: 1,
+  }),
+  true
+);
+
+assert.equal(
+  hasMunicipalityRain({
+    municipality: "Petrópolis",
+    rain: 0,
+  }),
+  false
+);
+
+assert.equal(
+  buildPdfMunicipalityLabel({
+    municipality: "Petrópolis",
+    rain: 1,
+  }),
+  "Chuva • Petrópolis"
+);
+
+assert.equal(
+  buildPdfMunicipalityLabel({
+    municipality: "Petrópolis",
+    rain: 0,
+  }),
+  "Petrópolis"
+);
+
 const pageSource = fs.readFileSync(
   new URL(
     "../pages/InspectionStatisticsPage.jsx",
@@ -106,9 +173,16 @@ assert.equal(
 
 assert.equal(
   pageSource.includes(
-    'disabled={\n              isTerritorialTab'
+    "setTerritorialDraftFilters("
   ),
   true
+);
+
+assert.equal(
+  pageSource.includes(
+    'disabled={\n              isTerritorialTab'
+  ),
+  false
 );
 
 assert.equal(
@@ -125,6 +199,27 @@ assert.equal(
   false
 );
 
+assert.equal(
+  pageSource.includes(
+    'title="Ocorrência de chuva"'
+  ),
+  true
+);
+
+assert.equal(
+  pageSource.includes(
+    'aria-label="Ocorrência de chuva"'
+  ),
+  true
+);
+
+assert.equal(
+  pageSource.includes(
+    "hasMunicipalityRain(item)"
+  ),
+  true
+);
+
 const pdfSource = fs.readFileSync(
   new URL(
     "./inspectionTerritorialPdfGenerator.js",
@@ -138,4 +233,11 @@ assert.equal(
     "formatMunicipalityDates(item.dates)"
   ),
   false
+);
+
+assert.equal(
+  pdfSource.includes(
+    "buildPdfMunicipalityLabel(item)"
+  ),
+  true
 );

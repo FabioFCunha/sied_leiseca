@@ -90,3 +90,25 @@ export function buildTerritorialCoverageNote(
     }
   )}%).`;
 }
+
+export function hasMunicipalityRain(
+  municipality = {}
+) {
+  return (
+    Number(municipality.rain || 0) > 0
+  );
+}
+
+export function buildPdfMunicipalityLabel(
+  municipality = {}
+) {
+  const name = String(
+    municipality.municipality || ""
+  );
+
+  if (!hasMunicipalityRain(municipality)) {
+    return name;
+  }
+
+  return `Chuva • ${name}`;
+}

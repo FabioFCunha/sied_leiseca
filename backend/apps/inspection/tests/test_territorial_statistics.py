@@ -69,6 +69,8 @@ class InspectionTerritorialStatisticsServiceTestCase(
         team,
         operation_date,
         statistics_status=InspectionReport.StatisticsStatus.INCLUDED,
+        changes_general="",
+        statistics_classification=None,
     ):
         now = datetime.now(timezone.utc)
 
@@ -80,6 +82,11 @@ class InspectionTerritorialStatisticsServiceTestCase(
             operation_date=operation_date,
             team=team,
             statistics_status=statistics_status,
+            changes_general=changes_general,
+            statistics_classification=(
+                statistics_classification
+                or {}
+            ),
         )
 
     def _create_operation(
@@ -127,6 +134,7 @@ class InspectionTerritorialStatisticsServiceTestCase(
         fined=0,
         source_city=None,
         normalized_city=None,
+        rain=0,
     ):
         region = (
             municipality.region
@@ -161,6 +169,7 @@ class InspectionTerritorialStatisticsServiceTestCase(
                 ),
                 reports_count=1,
                 operations_count=operations_count,
+                rain=rain,
                 approach=approach,
                 refusal=refusal,
                 thirtythree_ml=thirtythree_ml,
@@ -837,6 +846,138 @@ class InspectionTerritorialStatisticsServiceTestCase(
                 "Comendador Levy Gasparian"
             ]["metrics"]["approach"],
             110,
+        )
+
+    def test_historical_municipality_with_rain_preserves_indicator(self):
+        self._create_historical_row(
+            reference_date=date(2025, 5, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=2,
+            approach=20,
+            rain=1,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2025-05-01",
+                    "date_to": "2025-05-31",
+                }
+            ).get_data()
+        )
+
+        municipality = data["regions"][0][
+            "municipalities"
+        ][0]
+
+        self.assertEqual(
+            municipality["municipality"],
+            "Niterói",
+        )
+        self.assertEqual(
+            municipality["rain"],
+            1,
+        )
+
+    def test_operational_municipality_with_rain_preserves_indicator(self):
+        rainy_report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+            changes_general="Operação com chuva intensa",
+        )
+        self._create_operation(
+            report=rainy_report,
+            city="Niterói",
+            approach=10,
+        )
+        self._create_operation(
+            report=rainy_report,
+            city="Niterói",
+            approach=15,
+        )
+
+        dry_report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+        )
+        self._create_operation(
+            report=dry_report,
+            city="São Gonçalo",
+            approach=12,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-16",
+                }
+            ).get_data()
+        )
+
+        municipalities = {
+            item["municipality"]: item
+            for item in data["regions"][0][
+                "municipalities"
+            ]
+        }
+
+        self.assertEqual(
+            municipalities["Niterói"]["rain"],
+            1,
+        )
+        self.assertEqual(
+            municipalities["São Gonçalo"]["rain"],
+            0,
+        )
+
+    def test_rain_period_filter_changes_indicator(self):
+        self._create_historical_row(
+            reference_date=date(2025, 5, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=10,
+            rain=1,
+        )
+        self._create_historical_row(
+            reference_date=date(2025, 6, 1),
+            team="A1",
+            municipality=self.niteroi,
+            operations_count=1,
+            approach=10,
+            rain=0,
+        )
+
+        may_data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2025-05-01",
+                    "date_to": "2025-05-31",
+                }
+            ).get_data()
+        )
+        june_data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2025-06-01",
+                    "date_to": "2025-06-30",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            may_data["regions"][0][
+                "municipalities"
+            ][0]["rain"],
+            1,
+        )
+        self.assertEqual(
+            june_data["regions"][0][
+                "municipalities"
+            ][0]["rain"],
+            0,
         )
 
     def test_unknown_alias_remains_unclassified(self):

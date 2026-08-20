@@ -31,6 +31,7 @@ import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js
 import {
   buildDefaultOfficialFilters,
   buildDefaultTerritorialFilters,
+  hasMunicipalityRain,
   buildTerritorialCoverageNote,
   normalizeTerritorialFilters,
   TERRITORIAL_FILTER_START,
@@ -854,10 +855,24 @@ function TerritorialContent({ territorial, loading, error, filters }) {
               <tr className="territorial-main-region-title"><td colSpan={6}>Região Metropolitana</td></tr>
               {metropolitanRegion?.municipalities?.map(item => {
                 const isHigh = Number(item.metrics?.alcohol_percentage || 0) >= 25;
+                const hasRain = hasMunicipalityRain(item);
                 return (
                   <tr key={item.municipality_id} className={isHigh ? "territorial-row-highlight" : ""}>
                     <td className="territorial-muni">
-                      <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}</strong>
+                      <strong>
+                        {hasRain ? (
+                          <span
+                            className="territorial-rain-indicator"
+                            title="Ocorrência de chuva"
+                            aria-label="Ocorrência de chuva"
+                          >
+                            <CloudRain size={14} />
+                          </span>
+                        ) : null}
+                        {item.municipality}
+                        {" "}
+                        {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}
+                      </strong>
                     </td>
                     <td>{integer(item.metrics?.approach)}</td>
                     <td>{integer(item.metrics?.fined)}</td>
@@ -890,10 +905,24 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                 <tr className="territorial-region-header"><td colSpan={6}>{region.region}</td></tr>
                 {region.municipalities?.map(item => {
                   const isHigh = Number(item.metrics?.alcohol_percentage || 0) >= 25;
+                  const hasRain = hasMunicipalityRain(item);
                   return (
                     <tr key={item.municipality_id} className={isHigh ? "territorial-row-highlight" : ""}>
                       <td className="territorial-muni">
-                        <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}</strong>
+                        <strong>
+                          {hasRain ? (
+                            <span
+                              className="territorial-rain-indicator"
+                              title="Ocorrência de chuva"
+                              aria-label="Ocorrência de chuva"
+                            >
+                              <CloudRain size={14} />
+                            </span>
+                          ) : null}
+                          {item.municipality}
+                          {" "}
+                          {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}
+                        </strong>
                       </td>
                       <td>{integer(item.metrics?.approach)}</td>
                       <td>{integer(item.metrics?.fined)}</td>
@@ -1739,25 +1768,27 @@ export default function InspectionStatisticsPage() {
             value={
               draftFilters.date_from
             }
-            disabled={
-              isTerritorialTab
-            }
-            title={
-              isTerritorialTab
-                ? "Data inicial fixa em 03/10/2022."
-                : undefined
-            }
             onChange={(
               event
-            ) =>
-              setOfficialDraftFilters(
-                (current) => ({
-                  ...current,
-                  date_from:
-                    event.target
-                      .value,
-                })
-              )
+            ) => {
+              const update = (
+                current
+              ) => ({
+                ...current,
+                date_from:
+                  event.target.value,
+              });
+
+              if (isTerritorialTab) {
+                setTerritorialDraftFilters(
+                  update
+                );
+              } else {
+                setOfficialDraftFilters(
+                  update
+                );
+              }
+            }
             }
           />
         </label>
