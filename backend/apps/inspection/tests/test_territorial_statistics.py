@@ -47,6 +47,21 @@ class InspectionTerritorialStatisticsServiceTestCase(
                 name="Angra dos Reis"
             )
         )
+        self.rio = (
+            InspectionMunicipality.objects.get(
+                name="Rio de Janeiro"
+            )
+        )
+        self.duque_de_caxias = (
+            InspectionMunicipality.objects.get(
+                name="Duque de Caxias"
+            )
+        )
+        self.comendador_levy = (
+            InspectionMunicipality.objects.get(
+                name="Comendador Levy Gasparian"
+            )
+        )
 
     def _create_report(
         self,
@@ -234,6 +249,185 @@ class InspectionTerritorialStatisticsServiceTestCase(
         self.assertEqual(
             len(data["highlighted_operations"]),
             1,
+        )
+
+    def test_operational_pending_statistics_status_does_not_appear(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+            statistics_status=(
+                InspectionReport
+                .StatisticsStatus
+                .PENDING
+            ),
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=100,
+            refusal=25,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["operations"],
+            0,
+        )
+        self.assertEqual(
+            data["regions"],
+            [],
+        )
+
+    def test_operational_included_statistics_status_appears(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+            statistics_status=(
+                InspectionReport
+                .StatisticsStatus
+                .INCLUDED
+            ),
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=100,
+            refusal=25,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["operations"],
+            1,
+        )
+        self.assertEqual(
+            data["summary"]["classified_operations"],
+            1,
+        )
+        self.assertEqual(
+            data["regions"][0]["municipalities"][0][
+                "municipality"
+            ],
+            "Niterói",
+        )
+
+    def test_operational_excluded_statistics_status_does_not_appear(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+            statistics_status=(
+                InspectionReport
+                .StatisticsStatus
+                .EXCLUDED
+            ),
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=100,
+            refusal=25,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["operations"],
+            0,
+        )
+        self.assertEqual(
+            data["regions"],
+            [],
+        )
+
+    def test_operational_report_enters_only_after_becoming_included(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+            statistics_status=(
+                InspectionReport
+                .StatisticsStatus
+                .PENDING
+            ),
+        )
+        self._create_operation(
+            report=report,
+            city="Niterói",
+            approach=75,
+            refusal=10,
+        )
+
+        pending_data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            pending_data["summary"]["operations"],
+            0,
+        )
+
+        report.statistics_status = (
+            InspectionReport
+            .StatisticsStatus
+            .INCLUDED
+        )
+        report.save(
+            update_fields=["statistics_status"]
+        )
+
+        included_data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            included_data["summary"]["operations"],
+            1,
+        )
+        self.assertEqual(
+            included_data["summary"]["approach"],
+            75,
+        )
+        self.assertEqual(
+            included_data["regions"][0]["region_code"],
+            "METROPOLITANA",
+        )
+        self.assertEqual(
+            included_data["regions"][0][
+                "municipalities"
+            ][0]["municipality"],
+            "Niterói",
         )
 
     def test_period_crossing_cut_sums_without_overlap(self):
@@ -535,6 +729,147 @@ class InspectionTerritorialStatisticsServiceTestCase(
         self.assertEqual(
             len(data["unclassified"]),
             2,
+        )
+
+    def test_operational_aliases_consolidate_with_official_names(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+        )
+        self._create_operation(
+            report=report,
+            city="RJ",
+            approach=10,
+        )
+        self._create_operation(
+            report=report,
+            city="Rio de Janeiro",
+            approach=20,
+        )
+        self._create_operation(
+            report=report,
+            city="Imbariê",
+            approach=30,
+        )
+        self._create_operation(
+            report=report,
+            city="Duque de Caxias",
+            approach=40,
+        )
+        self._create_operation(
+            report=report,
+            city="Com.Levy Gasparian",
+            approach=50,
+        )
+        self._create_operation(
+            report=report,
+            city="Comendador Levy Gasparian",
+            approach=60,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        metro = next(
+            region
+            for region in data["regions"]
+            if region["region_code"]
+            == "METROPOLITANA"
+        )
+
+        municipalities = {
+            item["municipality"]: item
+            for item in metro["municipalities"]
+        }
+
+        self.assertEqual(
+            municipalities["Rio de Janeiro"][
+                "metrics"
+            ]["operations"],
+            2,
+        )
+        self.assertEqual(
+            municipalities["Rio de Janeiro"][
+                "metrics"
+            ]["approach"],
+            30,
+        )
+        self.assertEqual(
+            municipalities["Duque de Caxias"][
+                "metrics"
+            ]["operations"],
+            2,
+        )
+        self.assertEqual(
+            municipalities["Duque de Caxias"][
+                "metrics"
+            ]["approach"],
+            70,
+        )
+
+        centro_sul = next(
+            region
+            for region in data["regions"]
+            if region["region_code"]
+            == "CENTRO_SUL_FLUMINENSE"
+        )
+        centro_sul_municipalities = {
+            item["municipality"]: item
+            for item in centro_sul[
+                "municipalities"
+            ]
+        }
+
+        self.assertEqual(
+            centro_sul_municipalities[
+                "Comendador Levy Gasparian"
+            ]["metrics"]["operations"],
+            2,
+        )
+        self.assertEqual(
+            centro_sul_municipalities[
+                "Comendador Levy Gasparian"
+            ]["metrics"]["approach"],
+            110,
+        )
+
+    def test_unknown_alias_remains_unclassified(self):
+        report = self._create_report(
+            team="A1",
+            operation_date="2026-08-15",
+        )
+        self._create_operation(
+            report=report,
+            city="Municipio sem alias seguro",
+            approach=25,
+        )
+
+        data = (
+            InspectionTerritorialStatisticsService(
+                {
+                    "date_from": "2026-08-10",
+                    "date_to": "2026-08-20",
+                }
+            ).get_data()
+        )
+
+        self.assertEqual(
+            data["summary"]["operations"],
+            1,
+        )
+        self.assertEqual(
+            data["summary"]["classified_operations"],
+            0,
+        )
+        self.assertEqual(
+            data["summary"]["unclassified_operations"],
+            1,
         )
 
     def test_unclassified_are_excluded_when_there_is_territorial_filter(self):

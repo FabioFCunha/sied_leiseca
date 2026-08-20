@@ -61,55 +61,6 @@ const formatDate = (isoStr) => {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 };
 
-function formatMunicipalityDates(dates) {
-  if (!Array.isArray(dates) || dates.length === 0) {
-    return "";
-  }
-
-  const sortedDates = [...dates].sort();
-  const parts = sortedDates.map((value) => {
-    const [year, month, day] = String(value).split("-");
-
-    if (!year || !month || !day) {
-      return null;
-    }
-
-    return {
-      year,
-      month,
-      day,
-      full: `${day}/${month}/${year}`,
-    };
-  });
-
-  if (parts.some((item) => item === null)) {
-    return sortedDates.map(formatDate).join(" · ");
-  }
-
-  if (parts.length === 1) {
-    return parts[0].full;
-  }
-
-  const sameMonth = parts.every(
-    (item) => item.month === parts[0].month
-  );
-  const sameYear = parts.every(
-    (item) => item.year === parts[0].year
-  );
-
-  if (sameMonth && sameYear) {
-    const days = parts.map((item) => item.day);
-
-    if (days.length === 2) {
-      return `${days[0]} e ${days[1]}/${parts[0].month}/${parts[0].year}`;
-    }
-
-    return `${days.slice(0, -1).join(", ")} e ${days.at(-1)}/${parts[0].month}/${parts[0].year}`;
-  }
-
-  return parts.map((item) => item.full).join(" · ");
-}
-
 function buildTerritoryRows(territorial) {
   const rows = [];
   const regions = territorial?.regions || [];
@@ -136,7 +87,7 @@ function buildTerritoryRows(territorial) {
       const isHigh =
         Number(item.metrics?.alcohol_percentage || 0) >= 25;
       const row = [
-        `${item.municipality}${formatMunicipalityDates(item.dates) ? `\n${formatMunicipalityDates(item.dates)}` : ""}`,
+        `${item.municipality}`,
         integer(item.metrics?.approach),
         integer(item.metrics?.fined),
         integer(item.metrics?.alcohol_cases),
@@ -188,7 +139,7 @@ function buildTerritoryRows(territorial) {
       const isHigh =
         Number(item.metrics?.alcohol_percentage || 0) >= 25;
       const row = [
-        `${item.municipality}${formatMunicipalityDates(item.dates) ? `\n${formatMunicipalityDates(item.dates)}` : ""}`,
+        `${item.municipality}`,
         integer(item.metrics?.approach),
         integer(item.metrics?.fined),
         integer(item.metrics?.alcohol_cases),

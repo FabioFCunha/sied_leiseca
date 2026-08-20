@@ -78,6 +78,14 @@ class InspectionTerritorialTestCase(TestCase):
             "RIO DE JANEIRO",
         )
 
+    def test_normalize_municipality_name_removes_punctuation(self):
+        self.assertEqual(
+            normalize_municipality_name(
+                "São-Pedro da aldeia"
+            ),
+            "SAO PEDRO DA ALDEIA",
+        )
+
     def test_normalize_municipality_name_empty_value(self):
         self.assertEqual(
             normalize_municipality_name(""),
@@ -302,6 +310,66 @@ class InspectionTerritorialTestCase(TestCase):
         self.assertEqual(
             result["region_code"],
             "METROPOLITANA",
+        )
+
+    def test_alias_rj_resolves_to_rio_de_janeiro(self):
+        result = resolve_territory("RJ")
+
+        self.assertTrue(result["matched"])
+        self.assertEqual(
+            result["municipality"],
+            "Rio de Janeiro",
+        )
+
+    def test_alias_imbarie_resolves_to_duque_de_caxias(self):
+        result = resolve_territory("Imbariê")
+
+        self.assertTrue(result["matched"])
+        self.assertEqual(
+            result["municipality"],
+            "Duque de Caxias",
+        )
+
+    def test_alias_com_levy_gasparian_resolves_to_official_name(self):
+        result = resolve_territory(
+            "Com.Levy Gasparian"
+        )
+
+        self.assertTrue(result["matched"])
+        self.assertEqual(
+            result["municipality"],
+            "Comendador Levy Gasparian",
+        )
+
+    def test_case_and_accent_variations_resolve_to_official_name(self):
+        result = resolve_territory(
+            "Casimiro de abreu"
+        )
+
+        self.assertTrue(result["matched"])
+        self.assertEqual(
+            result["municipality"],
+            "Casimiro de Abreu",
+        )
+
+        result = resolve_territory(
+            "São Pedro da aldeia"
+        )
+
+        self.assertTrue(result["matched"])
+        self.assertEqual(
+            result["municipality"],
+            "São Pedro da Aldeia",
+        )
+
+        result = resolve_territory(
+            "Três rios"
+        )
+
+        self.assertTrue(result["matched"])
+        self.assertEqual(
+            result["municipality"],
+            "Três Rios",
         )
 
     def test_all_92_registered_municipalities_can_be_resolved(self):

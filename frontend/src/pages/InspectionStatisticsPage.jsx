@@ -28,6 +28,13 @@ import {
 import territorialLogo from "../assets/operacao-lei-seca-logo.png";
 import { getInspectionTerritorialStatistics } from "../api/inspection.js";
 import { getInspectionStatisticsDashboard } from "../api/inspectionStatistics.js";
+import {
+  buildDefaultOfficialFilters,
+  buildDefaultTerritorialFilters,
+  buildTerritorialCoverageNote,
+  normalizeTerritorialFilters,
+  TERRITORIAL_FILTER_START,
+} from "../utils/inspectionTerritorialViewModel.js";
 import { generateInspectionTerritorialPdf } from "../utils/inspectionTerritorialPdfGenerator.js";
 import {
   TAXONOMY_STATUS,
@@ -88,19 +95,6 @@ const categoryIconMap = {
 
 function toIsoDate(value) {
   return value.toISOString().slice(0, 10);
-}
-
-
-function buildDefaultFilters() {
-  const today = new Date();
-  const historicalStart = new Date(2009, 0, 1);
-
-  return {
-    date_from: toIsoDate(historicalStart),
-    date_to: toIsoDate(today),
-    team: "",
-    region: "",
-  };
 }
 
 
@@ -709,57 +703,6 @@ function formatDate(isoStr) {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-function formatMunicipalityDates(dates) {
-  if (!Array.isArray(dates) || dates.length === 0) {
-    return "";
-  }
-
-  const sortedDates = [...dates].sort();
-
-  const parts = sortedDates.map((value) => {
-    const [year, month, day] = String(value).split("-");
-
-    if (!year || !month || !day) {
-      return null;
-    }
-
-    return {
-      year,
-      month,
-      day,
-      full: `${day}/${month}/${year}`,
-    };
-  });
-
-  if (parts.some((item) => item === null)) {
-    return sortedDates.map(formatDate).join(" · ");
-  }
-
-  if (parts.length === 1) {
-    return parts[0].full;
-  }
-
-  const sameMonth = parts.every(
-    (item) => item.month === parts[0].month
-  );
-
-  const sameYear = parts.every(
-    (item) => item.year === parts[0].year
-  );
-
-  if (sameMonth && sameYear) {
-    const days = parts.map((item) => item.day);
-
-    if (days.length === 2) {
-      return `${days[0]} e ${days[1]}/${parts[0].month}/${parts[0].year}`;
-    }
-
-    return `${days.slice(0, -1).join(", ")} e ${days.at(-1)}/${parts[0].month}/${parts[0].year}`;
-  }
-
-  return parts.map((item) => item.full).join(" · ");
-}
-
 function TerritorialContent({ territorial, loading, error, filters }) {
   if (loading) {
     return <div className="stats-panel"><div className="stats-loading">Carregando análise territorial...</div></div>;
@@ -775,9 +718,11 @@ function TerritorialContent({ territorial, loading, error, filters }) {
   const metropolitanRegion = regions.find(r => r.region_code === "METROPOLITANA");
   const interiorRegions = regions.filter(r => r.region_code !== "METROPOLITANA");
   const highlighted = territorial.highlighted_operations || [];
-  const unclassified = territorial.unclassified || [];
-
   const summary = territorial.summary || {};
+  const coverageNote =
+    buildTerritorialCoverageNote(
+      territorial
+    );
 
   const handleExportPdf = async () => {
     try {
@@ -913,9 +858,6 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                   <tr key={item.municipality_id} className={isHigh ? "territorial-row-highlight" : ""}>
                     <td className="territorial-muni">
                       <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}</strong>
-                      {formatMunicipalityDates(item.dates) ? (
-                        <small>{formatMunicipalityDates(item.dates)}</small>
-                      ) : null}
                     </td>
                     <td>{integer(item.metrics?.approach)}</td>
                     <td>{integer(item.metrics?.fined)}</td>
@@ -952,9 +894,6 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                     <tr key={item.municipality_id} className={isHigh ? "territorial-row-highlight" : ""}>
                       <td className="territorial-muni">
                         <strong>{item.municipality} {isHigh && <span className="territorial-badge-highlight">ALCOOLEMIA ≥ 25%</span>}</strong>
-                        {formatMunicipalityDates(item.dates) ? (
-                          <small>{formatMunicipalityDates(item.dates)}</small>
-                        ) : null}
                       </td>
                       <td>{integer(item.metrics?.approach)}</td>
                       <td>{integer(item.metrics?.fined)}</td>
@@ -1008,6 +947,17 @@ function TerritorialContent({ territorial, loading, error, filters }) {
           </table>
         </div>
 
+        {coverageNote ? (
+          <div
+            className="territorial-nota"
+            style={{
+              marginBottom: 24,
+            }}
+          >
+            {coverageNote}
+          </div>
+        ) : null}
+
         <h3 style={{fontSize: 12.5, fontWeight: 800, color: "var(--t-navy)", textTransform: "uppercase", marginBottom: 10, borderBottom: "2px solid var(--t-danger)", display: "inline-block", paddingBottom: 4}}>Fiscalizações com índice de alcoolemia ≥ 25%</h3>
         {highlighted.length === 0 ? (
           <div className="territorial-nota" style={{marginBottom: 24}}>
@@ -1045,37 +995,6 @@ function TerritorialContent({ territorial, loading, error, filters }) {
         )}
       </section>
 
-      {unclassified.length > 0 && (
-        <>
-          <div className="territorial-divider"></div>
-          <section className="territorial-section">
-            <h2 className="territorial-section-title" style={{color: "var(--t-gray-5)"}}>Registros territoriais não classificados</h2>
-            <div className="territorial-tbl-wrap" style={{marginBottom: 0}}>
-              <table>
-                <thead>
-                  <tr style={{background: "var(--t-gray-5)"}}>
-                    <th>Município recebido</th>
-                    <th>Nome normalizado</th>
-                    <th>Fiscalizações</th>
-                    <th>Abordados</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {unclassified.map((item, idx) => (
-                    <tr key={`${item.normalized_city}-${idx}`}>
-                      <td style={{textAlign: "left"}}>{item.source_city || "(vazio)"}</td>
-                      <td style={{textAlign: "left"}}>{item.normalized_city || "-"}</td>
-                      <td>{integer(item.operations)}</td>
-                      <td>{integer(item.approach)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
-      )}
-
       <div className="territorial-divider"></div>
 
       <section className="territorial-section">
@@ -1106,18 +1025,48 @@ function TerritorialContent({ territorial, loading, error, filters }) {
 
 
 export default function InspectionStatisticsPage() {
-  const [
-    filters,
-    setFilters,
-  ] = useState(
-    buildDefaultFilters
+  const todayIso = toIsoDate(
+    new Date()
   );
 
   const [
-    draftFilters,
-    setDraftFilters,
+    officialFilters,
+    setOfficialFilters,
   ] = useState(
-    buildDefaultFilters
+    () =>
+      buildDefaultOfficialFilters(
+        todayIso
+      )
+  );
+
+  const [
+    officialDraftFilters,
+    setOfficialDraftFilters,
+  ] = useState(
+    () =>
+      buildDefaultOfficialFilters(
+        todayIso
+      )
+  );
+
+  const [
+    territorialFilters,
+    setTerritorialFilters,
+  ] = useState(
+    () =>
+      buildDefaultTerritorialFilters(
+        todayIso
+      )
+  );
+
+  const [
+    territorialDraftFilters,
+    setTerritorialDraftFilters,
+  ] = useState(
+    () =>
+      buildDefaultTerritorialFilters(
+        todayIso
+      )
   );
 
   const [
@@ -1155,9 +1104,24 @@ export default function InspectionStatisticsPage() {
     setTerritorialError,
   ] = useState("");
 
+  const isTerritorialTab =
+    activeTab === "territorial";
+
+  const draftFilters =
+    isTerritorialTab
+      ? territorialDraftFilters
+      : officialDraftFilters;
+
+  const buildOfficialFilters = (
+    params = {}
+  ) => ({
+    ...params,
+    region: "",
+  });
+
 
   const loadDashboard = async (
-    params = filters
+    params = officialFilters
   ) => {
     setLoading(true);
     setError("");
@@ -1165,7 +1129,9 @@ export default function InspectionStatisticsPage() {
     try {
       const response =
         await getInspectionStatisticsDashboard(
-          params
+          buildOfficialFilters(
+            params
+          )
         );
 
       setDashboard(response);
@@ -1183,7 +1149,7 @@ export default function InspectionStatisticsPage() {
 
 
   const loadTerritorial = async (
-    params = filters
+    params = territorialFilters
   ) => {
     setTerritorialLoading(true);
     setTerritorialError("");
@@ -1191,7 +1157,9 @@ export default function InspectionStatisticsPage() {
     try {
       const response =
         await getInspectionTerritorialStatistics(
-          params
+          normalizeTerritorialFilters(
+            params
+          )
         );
 
       setTerritorial(response);
@@ -1211,7 +1179,7 @@ export default function InspectionStatisticsPage() {
 
 
   useEffect(() => {
-    loadDashboard(filters);
+    loadDashboard(officialFilters);
   }, []);
 
 
@@ -1438,36 +1406,57 @@ export default function InspectionStatisticsPage() {
 
 
   const handleApplyFilters = () => {
-    setFilters(draftFilters);
+    if (isTerritorialTab) {
+      const nextFilters =
+        normalizeTerritorialFilters(
+          territorialDraftFilters
+        );
 
-    if (
-      activeTab ===
-      "territorial"
-    ) {
+      setTerritorialDraftFilters(
+        nextFilters
+      );
+      setTerritorialFilters(
+        nextFilters
+      );
       loadTerritorial(
-        draftFilters
+        nextFilters
       );
     } else {
+      setOfficialDraftFilters(
+        officialDraftFilters
+      );
+      setOfficialFilters(
+        officialDraftFilters
+      );
       loadDashboard(
-        draftFilters
+        buildOfficialFilters(
+          officialDraftFilters
+        )
       );
     }
   };
 
 
   const handleClearFilters = () => {
-    const next =
-      buildDefaultFilters();
+    if (isTerritorialTab) {
+      const next =
+        buildDefaultTerritorialFilters(
+          todayIso
+        );
 
-    setDraftFilters(next);
-    setFilters(next);
-
-    if (
-      activeTab ===
-      "territorial"
-    ) {
+      setTerritorialDraftFilters(
+        next
+      );
+      setTerritorialFilters(next);
       loadTerritorial(next);
     } else {
+      const next =
+        buildDefaultOfficialFilters(
+          todayIso
+        );
+
+      setOfficialDraftFilters(next);
+      setOfficialFilters(next);
       loadDashboard(next);
     }
   };
@@ -1475,21 +1464,33 @@ export default function InspectionStatisticsPage() {
 
   const openOfficialTab = () => {
     setActiveTab("official");
-
-    if (!dashboard) {
-      loadDashboard(filters);
-    }
+    loadDashboard(officialFilters);
   };
 
 
   const openTerritorialTab = () => {
+    const sourceFilters =
+      activeTab === "territorial"
+        ? territorialFilters
+        : {
+            ...officialFilters,
+            region:
+              territorialFilters.region || "",
+          };
+
+    const nextFilters =
+      normalizeTerritorialFilters(
+        sourceFilters
+      );
+
     setActiveTab(
       "territorial"
     );
-
-    if (!territorial) {
-      loadTerritorial(filters);
-    }
+    setTerritorialDraftFilters(
+      nextFilters
+    );
+    setTerritorialFilters(nextFilters);
+    loadTerritorial(nextFilters);
   };
 
 
@@ -1730,16 +1731,28 @@ export default function InspectionStatisticsPage() {
 
           <input
             type="date"
+            min={
+              isTerritorialTab
+                ? TERRITORIAL_FILTER_START
+                : undefined
+            }
             value={
               draftFilters.date_from
+            }
+            disabled={
+              isTerritorialTab
+            }
+            title={
+              isTerritorialTab
+                ? "Data inicial fixa em 03/10/2022."
+                : undefined
             }
             onChange={(
               event
             ) =>
-              setDraftFilters(
+              setOfficialDraftFilters(
                 (current) => ({
                   ...current,
-
                   date_from:
                     event.target
                       .value,
@@ -1759,16 +1772,25 @@ export default function InspectionStatisticsPage() {
             }
             onChange={(
               event
-            ) =>
-              setDraftFilters(
-                (current) => ({
-                  ...current,
+            ) => {
+              const update = (
+                current
+              ) => ({
+                ...current,
+                date_to:
+                  event.target.value,
+              });
 
-                  date_to:
-                    event.target
-                      .value,
-                })
-              )
+              if (isTerritorialTab) {
+                setTerritorialDraftFilters(
+                  update
+                );
+              } else {
+                setOfficialDraftFilters(
+                  update
+                );
+              }
+            }
             }
           />
         </label>
@@ -1783,33 +1805,44 @@ export default function InspectionStatisticsPage() {
             }
             onChange={(
               event
-            ) =>
-              setDraftFilters(
-                (current) => ({
-                  ...current,
+            ) => {
+              const update = (
+                current
+              ) => ({
+                ...current,
+                team:
+                  event.target.value,
+              });
 
-                  team:
-                    event.target
-                      .value,
-                })
-              )
+              if (isTerritorialTab) {
+                setTerritorialDraftFilters(
+                  update
+                );
+              } else {
+                setOfficialDraftFilters(
+                  update
+                );
+              }
+            }
             }
           />
         </label>
 
-
-        <label>
-          Região
-          <select
-            value={draftFilters.region || ""}
-            onChange={(e) => setDraftFilters(current => ({ ...current, region: e.target.value }))}
-          >
-            <option value="">Todas as regiões</option>
-            {REGIONS.map(r => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </label>
+        {activeTab ===
+        "territorial" ? (
+          <label>
+            Região
+            <select
+              value={draftFilters.region || ""}
+              onChange={(e) => setTerritorialDraftFilters(current => ({ ...current, region: e.target.value }))}
+            >
+              <option value="">Todas as regiões</option>
+              {REGIONS.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <div className="stats-filter-actions">
           <button
@@ -1832,6 +1865,21 @@ export default function InspectionStatisticsPage() {
         </div>
       </div>
 
+      {activeTab ===
+      "official" ? (
+        <div
+          style={{
+            fontSize: "12px",
+            color:
+              "var(--sd-muted)",
+            marginTop: "-4px",
+          }}
+        >
+          O recorte por região está disponível
+          apenas na aba Análise Territorial.
+        </div>
+      ) : null}
+
 
       {activeTab ===
       "territorial" ? (
@@ -1845,7 +1893,7 @@ export default function InspectionStatisticsPage() {
           error={
             territorialError
           }
-          filters={filters}
+          filters={territorialFilters}
         />
       ) : loading ? (
         <div className="stats-panel">

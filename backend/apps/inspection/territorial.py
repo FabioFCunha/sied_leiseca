@@ -9,21 +9,18 @@ from apps.inspection.models import (
 
 MUNICIPALITY_ALIASES = {
     "RUO DE JANEIRO": "RIO DE JANEIRO",
+    "RJ": "RIO DE JANEIRO",
+    "IMBARIE": "DUQUE DE CAXIAS",
+    "COM LEVY GASPARIAN": (
+        "COMENDADOR LEVY GASPARIAN"
+    ),
 }
 
 
-def normalize_municipality_name(value):
-    if value is None:
-        return ""
-
-    text = str(value).strip()
-
-    if not text:
-        return ""
-
+def _canonicalize_text(value):
     text = unicodedata.normalize(
         "NFKD",
-        text,
+        value,
     )
 
     text = "".join(
@@ -37,10 +34,28 @@ def normalize_municipality_name(value):
     text = text.upper()
 
     text = re.sub(
+        r"[^A-Z0-9]+",
+        " ",
+        text,
+    )
+
+    return re.sub(
         r"\s+",
         " ",
         text,
     ).strip()
+
+
+def normalize_municipality_name(value):
+    if value is None:
+        return ""
+
+    text = str(value).strip()
+
+    if not text:
+        return ""
+
+    text = _canonicalize_text(text)
 
     return MUNICIPALITY_ALIASES.get(
         text,
@@ -58,16 +73,35 @@ def resolve_municipality(city):
     if not normalized_city:
         return None
 
-    return (
+    municipalities = list(
         InspectionMunicipality.objects
         .select_related("region")
         .filter(
-            normalized_name=normalized_city,
             is_active=True,
             region__is_active=True,
         )
-        .first()
     )
+
+    for municipality in municipalities:
+        if (
+            municipality.normalized_name
+            == normalized_city
+        ):
+            return municipality
+
+    canonical_matches = [
+        municipality
+        for municipality in municipalities
+        if _canonicalize_text(
+            municipality.normalized_name
+        )
+        == normalized_city
+    ]
+
+    if len(canonical_matches) == 1:
+        return canonical_matches[0]
+
+    return None
 
 
 def resolve_region(city):
