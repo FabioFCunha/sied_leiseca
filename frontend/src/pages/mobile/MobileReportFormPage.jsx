@@ -330,8 +330,12 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
       __userCreated: true,
     };
   }
-  const inheritAgendaFields = isFirstAction && !isStreetActionAgenda(agenda);
-  const inheritedAgreementFields = inheritAgendaFields ? buildAgreementFieldsFromAgenda(agenda) : {};
+  const inheritAgendaFields = isFirstAction;
+  const isStreetAction = isStreetActionAgenda(agenda);
+  const inheritedAgreementFields = !isStreetAction && inheritAgendaFields ? buildAgreementFieldsFromAgenda(agenda) : {};
+  const inheritedStreetActionType = (agenda.street_action_details || [])
+    .map((detail) => detail?.type)
+    .find(Boolean) || agenda.action_type_ref_name || agenda.action_type || "";
   return {
     ...action,
     agenda: resolvedAgendaPk || "",
@@ -345,7 +349,9 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
     type_action:
       normalizeStreetActionType(action.type_action) ||
       (inheritAgendaFields
-        ? (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || "")
+        ? (isStreetAction
+          ? normalizeStreetActionType(inheritedStreetActionType)
+          : (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || ""))
         : ""),
     type_audience: action.type_audience || agenda.audience || "",
     requester_entity_kind: action.requester_entity_kind || inheritedAgreementFields.requester_entity_kind || "",
@@ -354,11 +360,11 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
     agreement_indicator: action.agreement_indicator || "",
     start_time:
       action.start_time ||
-      (inheritAgendaFields ? agenda.start_time?.slice?.(0, 5) : "") ||
+      (isFirstAction ? agenda.start_time?.slice?.(0, 5) : "") ||
       "",
     final_hour:
       action.final_hour ||
-      (inheritAgendaFields ? agenda.end_time?.slice?.(0, 5) : "") ||
+      (isFirstAction ? agenda.end_time?.slice?.(0, 5) : "") ||
       "",
     approach:
       action.approach !== undefined &&
@@ -1094,8 +1100,8 @@ export default function MobileReportFormPage() {
                       <select
                         value={action.type_action || ""}
                         onChange={e => updateAction(index, "type_action", e.target.value)}
-                        disabled={sourceReadOnly && Boolean(action.type_action)}
-                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly && action.type_action ? '#f1f5f9' : '#fff' }}
+                        disabled={sourceReadOnly && Boolean(action.type_action) && index !== 0}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly && action.type_action && index !== 0 ? '#f1f5f9' : '#fff' }}
                       >
                         <option value="">Selecione</option>
                         {streetActionTypeOptions.map((opt) => (

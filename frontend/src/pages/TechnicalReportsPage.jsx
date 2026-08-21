@@ -944,11 +944,17 @@ export default function TechnicalReportsPage() {
     const blankKits = serializeBlankMaterialRows(selectedMaterials.kits);
     const buildAgendaAction = (currentAction = {}, isFirstAction = false) => {
       const isUserCreated = currentAction.__userCreated;
-      const inheritAgendaFields = isFirstAction && !isUserCreated && !isStreetActionAgenda(agenda);
+      const inheritAgendaFields = isFirstAction && !isUserCreated;
+      const isStreetAction = isStreetActionAgenda(agenda);
+      const inheritedStreetActionType = (agenda.street_action_details || [])
+        .map((detail) => detail?.type)
+        .find(Boolean) || agenda.action_type_ref_name || agenda.action_type || "";
       const inheritedTypeAction = inheritAgendaFields
-        ? (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || "")
+        ? (isStreetAction
+          ? inheritedStreetActionType
+          : (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || ""))
         : "";
-      const inheritedAgreementFields = inheritAgendaFields ? buildAgreementFieldsFromAgenda(agenda) : {};
+      const inheritedAgreementFields = inheritAgendaFields && !isStreetAction ? buildAgreementFieldsFromAgenda(agenda) : {};
       if (isUserCreated) {
         return {
           ...emptyAction,
@@ -1901,7 +1907,7 @@ export default function TechnicalReportsPage() {
                               id={`select-type-action-${index}`}
                               value={isMissingLegacyStreetSubtype(action.type_action) ? "" : (action.type_action || "")}
                               onChange={(event) => updateAction(index, "type_action", event.target.value)}
-                              disabled={requestFieldsReadOnly && !action.__userCreated && !shouldRequireLegacyStreetActionType}
+                              disabled={requestFieldsReadOnly && !action.__userCreated && !shouldRequireLegacyStreetActionType && index !== 0}
                               required
                             >
                               <option value="">Selecione</option>
