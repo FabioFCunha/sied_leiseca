@@ -38,7 +38,7 @@ function summarizeDistributedMaterials(value = "") {
     })
     .filter((item) => item.name && Number(item.quantity) > 0)
     .map((item) => `${item.name}: ${item.quantity}`)
-    .join(", ");
+    .join("; ");
 }
 
 const exceptionalOccurrenceTypeLabels = {
@@ -58,7 +58,7 @@ const exceptionalOccurrenceImpactLabels = {
 export function buildReportShareSummary(report = {}, agenda = {}, attendanceStats = {}) {
   const isStreetAction = isStreetActionAgenda(agenda);
   const lines = [
-    "*RELATÓRIO TÉCNICO - OPERAÇÃO LEI SECA*",
+    "RELATÓRIO TÉCNICO - OPERAÇÃO LEI SECA",
     "",
     "Relatório enviado para conferência no SIED.",
     "",
@@ -67,44 +67,44 @@ export function buildReportShareSummary(report = {}, agenda = {}, attendanceStat
   const team = report.team || agenda.team_name || agenda.team_ref_name || agenda.sector_name;
   const location = report.agenda_location || agenda.institution_location || agenda.location || getAgendaActionPlace(agenda);
 
-  if (operationDate) lines.push(`• Data: ${formatShareDate(operationDate)}`);
-  if (team) lines.push(`• Equipe: ${team}`);
-  if (location) lines.push(`• Local: ${location}`);
-  lines.push(`• Modalidade: ${isStreetAction ? "Ação de Rua" : "Palestra"}`);
+  if (operationDate) lines.push(`📅 Data: ${formatShareDate(operationDate)}`);
+  if (team) lines.push(`👥 Equipe: ${team}`);
+  if (location) lines.push(`📍 Local: ${location}`);
+  lines.push(`🎯 Modalidade: ${isStreetAction ? "Ação de Rua" : "Palestra"}`);
   if (attendanceStats?.loaded && attendanceStats.total > 0) {
-    lines.push(`• Frequência: ${attendanceStats.present} presente(s), ${attendanceStats.absent} ausente(s)`);
+    lines.push(`✅ Frequência: ${attendanceStats.present} presente(s), ${attendanceStats.absent} ausente(s)`);
   }
 
   const actions = getValidatableActions(report.actions || []).map(({ action }) => action);
   if (actions.length) {
-    lines.push("", "*AÇÕES REALIZADAS*");
+    lines.push("", "AÇÕES REALIZADAS");
     actions.forEach((action, index) => {
       const actionTitle = isStreetAction
         ? streetActionTypeLabel(action.type_action || "")
         : (action.institution_name || `Ação ${index + 1}`);
-      lines.push("", `*Ação ${String(index + 1).padStart(2, "0")}*${actionTitle ? ` - ${actionTitle}` : ""}`);
-      if (action.place_action) lines.push(`• Endereço: ${action.place_action}`);
+      lines.push("", `Ação ${String(index + 1).padStart(2, "0")} - ${actionTitle}`);
+      if (action.place_action) lines.push(`📍 ${action.place_action}`);
       if (action.start_time || action.final_hour) {
         const start = String(action.start_time || "").slice(0, 5);
         const end = String(action.final_hour || "").slice(0, 5);
-        lines.push(`• Horário: ${start || "-"}${end ? ` às ${end}` : ""}`);
+        lines.push(`🕒 Horário: ${start || "-"}${end ? ` às ${end}` : ""}`);
       }
       const reached = isStreetAction ? Number(action.approached_actions || 0) : Number(action.approached_lectures || 0);
-      lines.push(`• ${isStreetAction ? "Abordagens" : "Abordados em palestras"}: ${reached}`);
+      lines.push(`👥 ${isStreetAction ? "Abordagens" : "Abordados em palestras"}: ${reached}`);
       const distributed = summarizeDistributedMaterials(action.distribution_materials_distributed || "");
-      if (distributed) lines.push(`• Material distribuído: ${distributed}`);
+      if (distributed) lines.push(`📦 Material distribuído: ${distributed}`);
     });
   }
 
   if (report.has_exceptional_occurrence) {
-    lines.push("", "*OCORRÊNCIA EXCEPCIONAL*");
+    lines.push("", "OCORRÊNCIA EXCEPCIONAL");
     const type = exceptionalOccurrenceTypeLabels[report.exceptional_occurrence_type] || report.exceptional_occurrence_type;
-    if (type) lines.push(`• Tipo: ${type}`);
+    if (type) lines.push(`⚠️ Tipo: ${type}`);
     if (report.exceptional_occurrence_description) lines.push(`Descrição: ${report.exceptional_occurrence_description}`);
     if (report.exceptional_occurrence_actions_taken) lines.push(`Providências: ${report.exceptional_occurrence_actions_taken}`);
     const impact = exceptionalOccurrenceImpactLabels[report.exceptional_occurrence_impact] || report.exceptional_occurrence_impact;
     if (impact) lines.push(`Impacto: ${impact}`);
   }
-  if (String(report.general_observations || "").trim()) lines.push("", `• Observações: ${String(report.general_observations).trim()}`);
+  if (String(report.general_observations || "").trim()) lines.push("", `📝 Observações: ${String(report.general_observations).trim()}`);
   return lines.join("\n");
 }

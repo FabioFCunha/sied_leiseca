@@ -8,6 +8,7 @@ import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileAttendanceSummaryCard from "../../components/mobile/MobileAttendanceSummaryCard.jsx";
 import { getValidatableActions } from "../technicalReportsActionHelpers.js";
 import { buildReportShareSummary } from "../../utils/reportShareSummary.js";
+import { executeShare } from "../../utils/handleShareReport.js";
 
 const numberFields = ["approach"];
 
@@ -663,24 +664,48 @@ export default function MobileReportFormPage() {
     }
   };
 
+  const resetSharePrompt = () => {
+    setSharePrompt({ open: false, reportId: null, summary: "" });
+  };
+
   const closeSharePromptAndOpenReport = () => {
     const reportId = sharePrompt.reportId;
-    setSharePrompt({ open: false, reportId: null, summary: "" });
+    resetSharePrompt();
 
     if (reportId) {
       navigate(`/app/relatorios/${reportId}`, { replace: true });
     }
   };
 
-  const handleShareWhatsApp = () => {
-    if (!sharePrompt.summary) {
+  const handleShareReport = async () => {
+    const result = await executeShare(sharePrompt.summary, {
+      navigatorShare:
+        typeof navigator !== "undefined" && typeof navigator.share === "function"
+          ? navigator.share.bind(navigator)
+          : undefined,
+      locationAssign: (url) => window.location.assign(url),
+    });
+
+    if (result.status === "shared") {
       closeSharePromptAndOpenReport();
       return;
     }
 
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(sharePrompt.summary)}`;
-    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-    closeSharePromptAndOpenReport();
+    if (result.status === "empty") {
+      closeSharePromptAndOpenReport();
+      return;
+    }
+
+    if (result.status === "cancelled") {
+      // Usuário cancelou — modal permanece aberto
+      return;
+    }
+
+    if (result.status === "redirected") {
+      // Não executar navigate() depois de location.assign().
+      // O redirecionamento externo já foi iniciado.
+      return;
+    }
   };
 
   const handleSubmitForReview = async (e) => {
@@ -1469,7 +1494,7 @@ export default function MobileReportFormPage() {
               <button
                 type="button"
                 className="mobile-btn mobile-btn-primary"
-                onClick={handleShareWhatsApp}
+                onClick={handleShareReport}
                 style={{
                   width: "100%",
                   display: "flex",
@@ -1481,7 +1506,7 @@ export default function MobileReportFormPage() {
                 }}
               >
                 <MessageCircle size={19} />
-                Compartilhar no WhatsApp
+                Compartilhar relatório
               </button>
 
               <button
