@@ -341,6 +341,7 @@ export default function AgendaPage() {
   const [scheduledShifts, setScheduledShifts] = useState(null);
   const [designatedSearch, setDesignatedSearch] = useState("");
   const { user } = useAuth();
+  const showMaterialQuantityNotice = message.includes("Informe uma quantidade maior que zero");
 
   const hasMaxAccess = user?.role === "ADMIN" || user?.role === "MANAGER";
   const canUseRequestShortcuts = hasMaxAccess || user?.role === "SUPERVISOR";
@@ -1928,6 +1929,33 @@ export default function AgendaPage() {
           <button><Save size={18} /> Salvar</button>
             </form>
             )}
+          </article>
+        </div>
+      )}
+
+      {showMaterialQuantityNotice && (
+        <div className="modal-backdrop" style={{ zIndex: 2000 }} onClick={() => setMessage("")}>
+          <article
+            className="modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="material-quantity-notice-title"
+            onClick={(event) => event.stopPropagation()}
+            style={{ maxWidth: "640px", padding: "28px", textAlign: "center", border: "2px solid #f6bd16", boxShadow: "0 24px 64px rgba(0, 19, 56, .35)" }}
+          >
+            <div style={{ width: "58px", height: "58px", margin: "0 auto 8px", borderRadius: "50%", display: "grid", placeItems: "center", background: "#fff3cd", color: "#9a6700" }}>
+              <ClipboardCheck size={30} />
+            </div>
+            <h2 id="material-quantity-notice-title" style={{ margin: 0, fontSize: "26px", color: "#7a5200" }}>Quantidade obrigatória</h2>
+            <p style={{ margin: "10px 0 6px", fontSize: "18px", lineHeight: 1.5 }}>
+              Há item marcado sem quantidade informada.
+            </p>
+            <p style={{ margin: 0, color: "var(--text-soft)", lineHeight: 1.5 }}>
+              Preencha uma quantidade maior que zero para cada item selecionado em Dinâmica, Material para distribuição ou Material de apoio.
+            </p>
+            <button type="button" onClick={() => setMessage("")} style={{ margin: "20px auto 0", minWidth: "220px" }}>
+              Entendi, vou preencher
+            </button>
           </article>
         </div>
       )}
