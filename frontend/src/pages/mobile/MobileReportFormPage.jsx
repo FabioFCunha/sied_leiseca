@@ -5,15 +5,25 @@ import { api } from "../../api/client.js";
 import { STREET_ACTION_ID } from "../../utils/constants";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../../utils/streetActionTypes.js";
 import { filterOperationalEducationActionTypes, getAgendaOperationalActionTypeName } from "../../utils/actionTypeOptions.js";
+import {
+  EDUCATION_ACTION_AGE_RANGE_OPTIONS,
+  REQUESTER_ENTITY_KIND_OPTIONS,
+  REQUESTER_ENTITY_NATURE_OPTIONS,
+  agreementIndicatorLabel,
+  buildAgreementFieldsFromAgenda,
+  getDisplayedAgreementIndicator,
+} from "../../utils/agreementIndicators.js";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileAttendanceSummaryCard from "../../components/mobile/MobileAttendanceSummaryCard.jsx";
 import { getValidatableActions } from "../technicalReportsActionHelpers.js";
 import { buildReportShareSummary } from "../../utils/reportShareSummary.js";
 import { executeShare } from "../../utils/handleShareReport.js";
+import { agendaPk } from "../../utils/reportPayload.js";
 
 const numberFields = ["approach"];
 const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
+const agreementFieldNames = new Set(["requester_entity_kind", "requester_entity_nature", "age_range"]);
 const legacyStreetActionTypeMap = {
   BAR: "Bares",
   EMPRESA: "Empresas",
@@ -44,7 +54,7 @@ function normalizeStreetActionType(value) {
 function buildActionPayload(action, formAgenda) {
   return {
     ...action,
-    agenda: nullable(action.agenda || formAgenda),
+    agenda: agendaPk(action.agenda, formAgenda),
     type_action: normalizeStreetActionType(action.type_action),
     source_id: nullable(action.source_id),
     ...Object.fromEntries(numberFields.map((field) => [field, Number(action[field] || 0)])),
@@ -60,7 +70,7 @@ function normalizePayload(form, status) {
     status: status,
     source: "LOCAL",
     source_id: nullable(form.source_id),
-    agenda: nullable(form.agenda),
+    agenda: agendaPk(form.agenda),
     management_id: nullable(form.management_id),
     approximate_public: nullable(form.approximate_public),
     lat: nullable(form.lat),
@@ -308,28 +318,22 @@ function MobileMaterialQuantityEditor({ value, onChange }) {
   );
 }
 
-function agreementIndicatorLabel(value) {
-  return value === "ESCOLINHA_NOTA_10"
-    ? "Escolinha Nota 10"
-    : value === "ESCOLA_NOTA_10"
-      ? "Escola Nota 10"
-      : "";
-}
-
 function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = []) {
+  const resolvedAgendaPk = agendaPk(action.agenda, agenda);
+  const sourceAgendaPk = agendaPk(agenda);
   if (action.__userCreated) {
     return {
       ...emptyAction,
       ...action,
-      agenda: action.agenda || agenda.id || "",
+      agenda: resolvedAgendaPk || "",
       source_id: "",
       __userCreated: true,
     };
   }
   return {
     ...action,
-    agenda: action.agenda || agenda.id || "",
-    source_id: action.source_id || (agenda.id ? `agenda_action:${agenda.id}` : ""),
+    agenda: resolvedAgendaPk || "",
+    source_id: action.source_id || (sourceAgendaPk ? `agenda_action:${sourceAgendaPk}` : ""),
     place_action: action.place_action || getAgendaActionPlace(agenda),
     institution_name:
       action.institution_name ||
@@ -340,9 +344,9 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = []) {
       normalizeStreetActionType(action.type_action) ||
       (isStreetActionAgenda(agenda) ? "" : getAgendaOperationalActionTypeName(agenda, actionTypes)),
     type_audience: action.type_audience || agenda.audience || "",
-    requester_entity_kind: action.requester_entity_kind || "",
-    requester_entity_nature: action.requester_entity_nature || "",
-    age_range: action.age_range || "",
+    requester_entity_kind: action.requester_entity_kind || (isStreetActionAgenda(agenda) ? "" : buildAgreementFieldsFromAgenda(agenda).requester_entity_kind),
+    requester_entity_nature: action.requester_entity_nature || (isStreetActionAgenda(agenda) ? "" : buildAgreementFieldsFromAgenda(agenda).requester_entity_nature),
+    age_range: action.age_range || (isStreetActionAgenda(agenda) ? "" : buildAgreementFieldsFromAgenda(agenda).age_range),
     agreement_indicator: action.agreement_indicator || "",
     start_time:
       action.start_time ||
@@ -406,7 +410,8 @@ export default function MobileReportFormPage() {
             return;
           }
 
-          const repAgenda = report.agenda ? await api(`/agendas/${report.agenda}/`, { signal: controller.signal }) : null;
+          const reportAgendaPk = agendaPk(report.agenda);
+          const repAgenda = reportAgendaPk ? await api(`/agendas/${reportAgendaPk}/`, { signal: controller.signal }) : null;
           setAgenda(repAgenda);
 
           const resolvedDetails = report.street_action_details?.length
@@ -415,6 +420,7 @@ export default function MobileReportFormPage() {
 
           setForm({
             ...report,
+            agenda: reportAgendaPk || "",
             agenda_title: report.agenda_title || repAgenda?.title || "",
             agenda_date: report.agenda_date || repAgenda?.date || "",
             agenda_location:
@@ -594,7 +600,11 @@ export default function MobileReportFormPage() {
   const updateAction = (idx, field, value) => {
     setForm((prev) => {
       const nextActions = [...prev.actions];
-      nextActions[idx] = { ...nextActions[idx], [field]: value };
+      nextActions[idx] = {
+        ...nextActions[idx],
+        [field]: value,
+        ...(agreementFieldNames.has(field) ? { agreement_indicator: "" } : {}),
+      };
 
       const nextForm = { ...prev, actions: nextActions };
 
@@ -629,7 +639,7 @@ export default function MobileReportFormPage() {
           ...(current.actions || []),
           {
             ...emptyAction,
-            agenda: current.agenda,
+            agenda: agendaPk(current.agenda) || "",
             source_id: "",
             __userCreated: true,
           },
@@ -998,6 +1008,9 @@ export default function MobileReportFormPage() {
           {(form.actions || []).map((action, index) => {
             const isUserCreated = Boolean(action.__userCreated || index > 0);
             const sourceReadOnly = Boolean(agenda) && !isUserCreated;
+            const displayedAgreementLabel = agreementIndicatorLabel(
+              getDisplayedAgreementIndicator(action, agenda, index)
+            );
 
             return (
               <div key={`${action.id || 'action'}-${index}`} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#f8fafc' }}>
@@ -1106,12 +1119,56 @@ export default function MobileReportFormPage() {
                           <option value={action.type_action}>{action.type_action}</option>
                         )}
                       </select>
-                      {agreementIndicatorLabel(action.agreement_indicator) && (
+                      {displayedAgreementLabel && (
                         <span style={{ color: '#64748b', fontSize: '12px' }}>
-                          Indicador identificado: {agreementIndicatorLabel(action.agreement_indicator)}
+                          Indicador identificado: {displayedAgreementLabel}
                         </span>
                       )}
                     </label>
+                  )}
+
+                  {!isStreetAction && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                        Tipo da entidade
+                        <select
+                          value={action.requester_entity_kind || ""}
+                          onChange={e => updateAction(index, "requester_entity_kind", e.target.value)}
+                          style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
+                        >
+                          <option value="">Selecione</option>
+                          {REQUESTER_ENTITY_KIND_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                        Natureza
+                        <select
+                          value={action.requester_entity_nature || ""}
+                          onChange={e => updateAction(index, "requester_entity_nature", e.target.value)}
+                          style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
+                        >
+                          <option value="">Selecione</option>
+                          {REQUESTER_ENTITY_NATURE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                        Faixa etária
+                        <select
+                          value={action.age_range || ""}
+                          onChange={e => updateAction(index, "age_range", e.target.value)}
+                          style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
+                        >
+                          <option value="">Selecione</option>
+                          {EDUCATION_ACTION_AGE_RANGE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
                   )}
 
                   {showEstimatedPublic && index === 0 && (

@@ -8,11 +8,23 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
 import { filterOperationalEducationActionTypes, getAgendaOperationalActionTypeName } from "../utils/actionTypeOptions.js";
+import {
+  EDUCATION_ACTION_AGE_RANGE_OPTIONS,
+  REQUESTER_ENTITY_KIND_OPTIONS,
+  REQUESTER_ENTITY_NATURE_OPTIONS,
+  agreementIndicatorLabel,
+  ageRangeLabel,
+  buildAgreementFieldsFromAgenda,
+  getDisplayedAgreementIndicator,
+  requesterEntityKindLabel,
+  requesterEntityNatureLabel,
+} from "../utils/agreementIndicators.js";
 
 import { buildEducationAgentsText, buildOperationalResponsibility, buildPreview, chiefFromReport, reportName, getReachedAudienceForAction } from "../utils/reportPreview.js";
 import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
 import { getValidatableActions } from "./technicalReportsActionHelpers.js";
 import { buildStaffChanges } from "../utils/reportStaffChanges.js";
+import { agendaPk } from "../utils/reportPayload.js";
 
 function memberRows(members = {}) {
   return [
@@ -119,6 +131,7 @@ const fieldLabels = {
 };
 
 const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
+const agreementFieldNames = new Set(["requester_entity_kind", "requester_entity_nature", "age_range"]);
 
 const exceptionalOccurrenceTypeOptions = [
   { value: "VEHICLE_BREAKDOWN", label: "Viatura" },
@@ -492,8 +505,10 @@ function getAgendaActionPlace(agenda) {
 
 function hydrateForm(report, agenda) {
   const hasAnySourceId = report.actions?.some((a) => a.source_id) ?? false;
+  const reportAgendaPk = agendaPk(report.agenda, agenda);
   return {
     ...report,
+    agenda: reportAgendaPk || "",
     cars: dedupeVehicleText(report?.cars),
     breathalyzers: removeVehicleLinesFromResources(report?.breathalyzers),
     has_exceptional_occurrence: Boolean(report?.has_exceptional_occurrence),
@@ -506,17 +521,18 @@ function hydrateForm(report, agenda) {
     actions: report.actions?.length
       ? report.actions.map((action, idx) => ({
           ...action,
+          agenda: agendaPk(action.agenda, reportAgendaPk) || "",
           place_action: action.place_action || getAgendaActionPlace(agenda),
           __userCreated: hasAnySourceId ? !action.source_id : idx > 0,
         }))
-      : [{ ...emptyAction, agenda: report.agenda, source_id: agenda ? `agenda_action:${agenda.id}` : "", place_action: getAgendaActionPlace(agenda), __userCreated: false }],
+      : [{ ...emptyAction, agenda: reportAgendaPk || "", source_id: reportAgendaPk ? `agenda_action:${reportAgendaPk}` : "", place_action: getAgendaActionPlace(agenda), __userCreated: false }],
   };
 }
 
 function buildActionPayload(action, formAgenda) {
   return {
     ...action,
-    agenda: nullable(action.agenda || formAgenda),
+    agenda: agendaPk(action.agenda, formAgenda),
     source_id: nullable(action.source_id),
     ...Object.fromEntries(numberFields.map((field) => [field, Number(action[field] || 0)])),
     approached_lectures: Number(action.approached_lectures || 0),
@@ -530,7 +546,7 @@ function normalizePayload(form) {
     ...payloadForm,
     source: "LOCAL",
     source_id: nullable(form.source_id),
-    agenda: nullable(form.agenda),
+    agenda: agendaPk(form.agenda),
     management_id: nullable(form.management_id),
     approximate_public: nullable(form.approximate_public),
     lat: nullable(form.lat),
@@ -543,48 +559,6 @@ function normalizePayload(form) {
     exceptional_occurrence_impact: form.has_exceptional_occurrence ? (form.exceptional_occurrence_impact || "") : "",
     actions: getValidatableActions(form.actions).map(({ action }) => buildActionPayload(action, form.agenda)),
   };
-}
-
-function agreementIndicatorLabel(value) {
-  return value === "ESCOLINHA_NOTA_10"
-    ? "Escolinha Nota 10"
-    : value === "ESCOLA_NOTA_10"
-      ? "Escola Nota 10"
-      : "";
-}
-
-function requesterEntityKindLabel(value) {
-  return value === "SCHOOL"
-    ? "Instituição de Ensino"
-    : value === "BUSINESS"
-      ? "Empresa"
-      : value === "MILITARY"
-        ? "Órgão Militar"
-        : value === "PUBLIC"
-          ? "Órgão Público"
-          : value === "OTHER"
-            ? "Outros"
-            : value || "";
-}
-
-function requesterEntityNatureLabel(value) {
-  return value === "PUBLIC"
-    ? "Pública"
-    : value === "PRIVATE"
-      ? "Privada"
-      : value || "";
-}
-
-function ageRangeLabel(value) {
-  return value === "AGE_05_10"
-    ? "05 - 10 anos (ensino fundamental - anos iniciais)"
-    : value === "AGE_11_14"
-      ? "11 - 14 anos (ensino fundamental - anos finais)"
-      : value === "AGE_15_17"
-        ? "15 - 17 anos (ensino médio)"
-        : value === "AGE_ADULT"
-          ? "acima de 18 anos - Adultos"
-          : value || "";
 }
 
 export default function TechnicalReportsPage() {
@@ -679,7 +653,7 @@ export default function TechnicalReportsPage() {
     [form, selectedAgendaForPreview, showEstimatedPublic, membersForPresentation]
   );
 
-  const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(r.agenda))), [reports]);
+  const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(agendaPk(r.agenda))).filter(Boolean)), [reports]);
   const pendingAgendas = useMemo(() => agendas.filter(a => !completedAgendaIds.has(String(a.id))), [agendas, completedAgendaIds]);
   const pendingReviewReportsCount = pendingReviewCount;
 
@@ -962,6 +936,7 @@ export default function TechnicalReportsPage() {
   };
 
   const applyAgenda = (agenda, { preserveCurrent = true } = {}) => {
+    const selectedAgendaPk = agendaPk(agenda);
     const details = protocolDetails(agenda);
     const selectedMaterials = extractMaterialCategories(agenda);
     const initialEquipment = serializeMaterialRows([...selectedMaterials.dynamics, ...selectedMaterials.supports]);
@@ -972,11 +947,14 @@ export default function TechnicalReportsPage() {
       const inheritedTypeAction = isStreetActionAgenda(agenda)
         ? ""
         : getAgendaOperationalActionTypeName(agenda, actionTypes);
+      const inheritedAgreementFields = isStreetActionAgenda(agenda)
+        ? {}
+        : buildAgreementFieldsFromAgenda(agenda);
       if (isUserCreated) {
         return {
           ...emptyAction,
           ...currentAction,
-          agenda: agenda.id,
+          agenda: selectedAgendaPk || "",
           source_id: "",
           __userCreated: true,
         };
@@ -984,15 +962,15 @@ export default function TechnicalReportsPage() {
       return {
         ...emptyAction,
         ...currentAction,
-        agenda: agenda.id,
-        source_id: isUserCreated ? "" : (currentAction.source_id || `agenda_action:${agenda.id}`),
+        agenda: selectedAgendaPk || "",
+        source_id: isUserCreated ? "" : (currentAction.source_id || (selectedAgendaPk ? `agenda_action:${selectedAgendaPk}` : "")),
         place_action: currentAction.place_action || getAgendaActionPlace(agenda),
         institution_name: currentAction.institution_name || agenda.institution_location || "",
         type_action: currentAction.type_action || inheritedTypeAction,
         type_audience: currentAction.type_audience || agenda.audience || "",
-        requester_entity_kind: currentAction.requester_entity_kind || "",
-        requester_entity_nature: currentAction.requester_entity_nature || "",
-        age_range: currentAction.age_range || "",
+        requester_entity_kind: currentAction.requester_entity_kind || inheritedAgreementFields.requester_entity_kind || "",
+        requester_entity_nature: currentAction.requester_entity_nature || inheritedAgreementFields.requester_entity_nature || "",
+        age_range: currentAction.age_range || inheritedAgreementFields.age_range || "",
         agreement_indicator: currentAction.agreement_indicator || "",
         start_time: currentAction.start_time || agenda.start_time?.slice(0, 5) || "",
         final_hour: currentAction.final_hour || agenda.end_time?.slice(0, 5) || "",
@@ -1009,7 +987,7 @@ export default function TechnicalReportsPage() {
       const source = preserveCurrent ? current : { ...empty, actions: [{ ...emptyAction }] };
       return {
         ...source,
-        agenda: agenda.id,
+        agenda: selectedAgendaPk || "",
         agenda_title: agenda.title,
         agenda_date: agenda.date,
         agenda_location: agenda.institution_location || agenda.location,
@@ -1110,7 +1088,9 @@ export default function TechnicalReportsPage() {
   const updateAction = (index, field, value) => {
     setForm((current) => {
       const nextActions = current.actions.map((action, actionIndex) => (
-        actionIndex === index ? { ...action, [field]: value } : action
+        actionIndex === index
+          ? { ...action, [field]: value, ...(agreementFieldNames.has(field) ? { agreement_indicator: "" } : {}) }
+          : action
       ));
       const nextForm = {
         ...current,
@@ -1138,7 +1118,7 @@ export default function TechnicalReportsPage() {
         ...current,
         actions: [...current.actions, {
           ...emptyAction,
-          agenda: current.agenda,
+          agenda: agendaPk(current.agenda) || "",
           __userCreated: true,
         }],
       };
@@ -1148,7 +1128,7 @@ export default function TechnicalReportsPage() {
   const removeAction = (index) => {
     setForm((current) => {
       const nextActions = current.actions.length === 1
-        ? [{ ...emptyAction, agenda: current.agenda }]
+        ? [{ ...emptyAction, agenda: agendaPk(current.agenda) || "" }]
         : current.actions.filter((_, actionIndex) => actionIndex !== index);
       const safeAgenda = selectedAgenda || {};
       const cats = extractMaterialCategories(safeAgenda);
@@ -1272,9 +1252,10 @@ export default function TechnicalReportsPage() {
         }
       }
       setEditing(saved.id);
-      const savedAgenda = agendas.find((agenda) => String(agenda.id) === String(saved.agenda));
+      const savedAgendaPk = agendaPk(saved.agenda);
+      const savedAgenda = agendas.find((agenda) => String(agenda.id) === String(savedAgendaPk));
       setForm(hydrateForm(saved, savedAgenda));
-      setProtocolSearch(savedAgenda?.service_order_number ? serviceOrderLabel(savedAgenda) : saved.agenda ? String(saved.agenda) : "");
+      setProtocolSearch(savedAgenda?.service_order_number ? serviceOrderLabel(savedAgenda) : savedAgendaPk ? String(savedAgendaPk) : "");
       load();
       return saved.id;
     } catch (err) {
@@ -1446,11 +1427,12 @@ export default function TechnicalReportsPage() {
     if (isEditingLoading) return;
     setIsEditingLoading(true);
     try {
-      const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(report.agenda));
+      const reportAgendaPk = agendaPk(report.agenda);
+      const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(reportAgendaPk));
       let reportAgenda = reportAgendaLocal;
 
-      if (report.agenda && !reportAgendaLocal) {
-        reportAgenda = await api(`/agendas/${report.agenda}/`);
+      if (reportAgendaPk && !reportAgendaLocal) {
+        reportAgenda = await api(`/agendas/${reportAgendaPk}/`);
         setAgendas((current) => {
           if (!current.some((agenda) => String(agenda.id) === String(reportAgenda.id))) {
             return [...current, reportAgenda];
@@ -1465,7 +1447,7 @@ export default function TechnicalReportsPage() {
       const hydrated = hydrateForm({ ...report, street_action_details: resolvedDetails }, reportAgenda);
 
       setEditing(null);
-      setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : report.agenda ? String(report.agenda) : "");
+      setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : reportAgendaPk ? String(reportAgendaPk) : "");
       setForm(hydrated);
       setMessage("");
       await loadAttendanceForReportContext(reportAgenda, hydrated);
@@ -1480,14 +1462,15 @@ export default function TechnicalReportsPage() {
     if (isEditingLoading) return;
     setIsEditingLoading(true);
     try {
-      const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(report.agenda));
+      const reportAgendaPk = agendaPk(report.agenda);
+      const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(reportAgendaPk));
       let reportAgenda = reportAgendaLocal;
 
-      const needsFetch = report.agenda && !reportAgendaLocal;
+      const needsFetch = reportAgendaPk && !reportAgendaLocal;
 
       if (needsFetch) {
         try {
-          reportAgenda = await api(`/agendas/${report.agenda}/`);
+          reportAgenda = await api(`/agendas/${reportAgendaPk}/`);
           setAgendas((current) => {
             if (!current.some((a) => String(a.id) === String(reportAgenda.id))) {
               return [...current, reportAgenda];
@@ -1495,14 +1478,14 @@ export default function TechnicalReportsPage() {
             return current;
           });
         } catch (err) {
-          setMessage(`⚠ Não foi possível carregar os dados da agenda vinculada (Protocolo #${report.agenda}). O formulário não pôde ser aberto.`);
+          setMessage(`⚠ Não foi possível carregar os dados da agenda vinculada (Protocolo #${reportAgendaPk}). O formulário não pôde ser aberto.`);
           setIsEditingLoading(false);
           return;
         }
       }
 
       setEditing(report.id);
-      setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : report.agenda ? String(report.agenda) : "");
+      setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : reportAgendaPk ? String(reportAgendaPk) : "");
 
       const resolvedDetails = report.street_action_details?.length
         ? report.street_action_details
@@ -1578,16 +1561,21 @@ export default function TechnicalReportsPage() {
     setHistoricalAgendaError("");
     setIsLoadingHistoricalAgenda(false);
 
-    const localAgenda = agendas.find((a) => String(a.id) === String(r.agenda));
+    const reportAgendaPk = agendaPk(r.agenda);
+    const localAgenda = agendas.find((a) => String(a.id) === String(reportAgendaPk));
     const resolveHistoricalAgenda = async () => {
       if (localAgenda) {
         setResolvedHistoricalAgenda(localAgenda);
         return localAgenda;
       }
+      if (!reportAgendaPk) {
+        setHistoricalAgendaError("Relatório sem Agenda vinculada.");
+        return null;
+      }
 
       setIsLoadingHistoricalAgenda(true);
       try {
-        const data = await api(`/agendas/${r.agenda}/`);
+        const data = await api(`/agendas/${reportAgendaPk}/`);
         setResolvedHistoricalAgenda(data);
         return data;
       } catch (err) {
@@ -1807,6 +1795,11 @@ export default function TechnicalReportsPage() {
                 <div className="chief-actions-stack">
                   {form.actions.map((action, index) => (
                     <div className="horus-action-card chief-flow-action-card" key={index}>
+                      {(() => {
+                        const displayedAgreementIndicator = getDisplayedAgreementIndicator(action, selectedAgenda, index);
+                        const displayedAgreementLabel = agreementIndicatorLabel(displayedAgreementIndicator);
+                        return (
+                          <>
                       <div className="action-card-header">
                         <strong>{`Ação ${index + 1}`}</strong>
                         <button type="button" className="secondary icon-button" onClick={() => removeAction(index)} aria-label="Remover ação">
@@ -1846,11 +1839,51 @@ export default function TechnicalReportsPage() {
                               {action.type_action && !operationalActionTypeOptions.some((option) => option.name === action.type_action) && (
                                 <option value={action.type_action}>{action.type_action}</option>
                               )}
-                            </select>
-                            {agreementIndicatorLabel(action.agreement_indicator) && (
-                              <small>Indicador identificado: {agreementIndicatorLabel(action.agreement_indicator)}</small>
+                          </select>
+                            {displayedAgreementLabel && (
+                              <small>Indicador identificado: {displayedAgreementLabel}</small>
                             )}
                           </label>
+                        ) : null}
+                        {!isStreetAction ? (
+                          <>
+                            <label className="field-label chief-highlight-field">
+                              <span>Tipo da entidade</span>
+                              <select
+                                value={action.requester_entity_kind || ""}
+                                onChange={(event) => updateAction(index, "requester_entity_kind", event.target.value)}
+                              >
+                                <option value="">Selecione</option>
+                                {REQUESTER_ENTITY_KIND_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="field-label chief-highlight-field">
+                              <span>Natureza</span>
+                              <select
+                                value={action.requester_entity_nature || ""}
+                                onChange={(event) => updateAction(index, "requester_entity_nature", event.target.value)}
+                              >
+                                <option value="">Selecione</option>
+                                {REQUESTER_ENTITY_NATURE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="field-label chief-highlight-field">
+                              <span>Faixa etária</span>
+                              <select
+                                value={action.age_range || ""}
+                                onChange={(event) => updateAction(index, "age_range", event.target.value)}
+                              >
+                                <option value="">Selecione</option>
+                                {EDUCATION_ACTION_AGE_RANGE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                              </select>
+                            </label>
+                          </>
                         ) : null}
                         <label className="field-label chief-highlight-field">
                           <span>Número de abordagens</span>
@@ -1886,6 +1919,9 @@ export default function TechnicalReportsPage() {
                           </label>
                         ) : null}
                       </div>
+                          </>
+                        );
+                      })()}
                       {(() => {
                         const safeAgenda = selectedAgenda || {};
                         const cats = extractMaterialCategories(safeAgenda);
