@@ -680,7 +680,7 @@ class AgendaSerializer(serializers.ModelSerializer):
             and instance.status != Agenda.Status.APPROVED
             and status_field == Agenda.Status.APPROVED
         )
-        if is_approval_transition:
+        if is_approval_transition or "materials" in attrs:
             materials_data = attrs.get("materials")
             if materials_data is None:
                 materials_data = list(instance.materials.select_related("kit", "dynamic", "material"))

@@ -184,6 +184,21 @@ class InternalResponsibleLockApiTests(APITestCase):
         agenda.refresh_from_db()
         self.assertEqual(agenda.status, Agenda.Status.PENDING)
 
+    def test_saving_materials_requires_quantity_for_selected_material(self):
+        agenda = self.create_public_agenda()
+        material = Material.objects.create(name="Totem Lei Seca")
+        self.client.force_authenticate(self.editor)
+
+        response = self.client.patch(
+            reverse("agendas-detail", args=[agenda.id]),
+            {"materials": [{"material": material.id, "quantity": None}]},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("materials", response.data)
+        self.assertFalse(agenda.materials.exists())
+
     def test_manager_without_sector_approval_persists_authenticated_user_as_responsible(self):
         agenda = self.create_public_agenda()
         self.client.force_authenticate(self.manager_without_sector)

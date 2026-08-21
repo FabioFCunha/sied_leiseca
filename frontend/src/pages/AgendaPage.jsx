@@ -283,6 +283,8 @@ function selectedMaterialsMissingQuantity(rows = []) {
   return normalizeMaterialRows(rows).filter((item) => Number(item.quantity) <= 0);
 }
 
+const materialQuantityRequiredMessage = "Informe uma quantidade maior que zero para todos os itens marcados em Dinâmica, Material para distribuição e Material de apoio.";
+
 function mergeSelectedMaterialOptions(options = [], rows = [], type) {
   const map = new Map((options || []).map((item) => [String(item.id), item]));
   (rows || []).forEach((row) => {
@@ -801,6 +803,11 @@ export default function AgendaPage() {
     event.preventDefault();
     setMessage("");
 
+    if (selectedMaterialsMissingQuantity(form.materials).length) {
+      setMessage(materialQuantityRequiredMessage);
+      return;
+    }
+
     const isStreetAction = isStreetActionForm(form);
 
     const normalizedStartTime = normalizeTime(form.start_time);
@@ -1011,7 +1018,7 @@ export default function AgendaPage() {
     if (status === "APPROVED") {
       const materialsWithoutQuantity = selectedMaterialsMissingQuantity(nextForm.materials);
       if (materialsWithoutQuantity.length) {
-        setMessage("Informe uma quantidade maior que zero para todos os itens marcados em Dinâmica, Material para distribuição e Material de apoio.");
+        setMessage(materialQuantityRequiredMessage);
         return;
       }
       const isDesignatedMode = (nextForm.service_order_mode || "TEAM") === "DESIGNATED";
@@ -1069,6 +1076,10 @@ export default function AgendaPage() {
       return;
     }
     setMessage("");
+    if (selectedMaterialsMissingQuantity(form.materials).length) {
+      setMessage(materialQuantityRequiredMessage);
+      return;
+    }
     try {
       const payload = normalizePayload({ ...form, lookupVehicles: lookups.vehicles });
       const original = agendas.find((a) => String(a.id) === String(editing));
