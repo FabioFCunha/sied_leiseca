@@ -52,8 +52,9 @@ function normalizeStreetActionType(value) {
 }
 
 function buildActionPayload(action, formAgenda) {
+  const { action_mode, ...actionPayload } = action;
   return {
-    ...action,
+    ...actionPayload,
     agenda: agendaPk(action.agenda, formAgenda),
     type_action: normalizeStreetActionType(action.type_action),
     source_id: nullable(action.source_id),
@@ -122,6 +123,12 @@ function isStreetActionAgenda(agenda) {
     isStreetActionValue(agenda?.requester_entity_type) ||
     isStreetActionValue(agenda?.action_type_ref_name)
   );
+}
+
+function actionMode(action, agenda, index) {
+  if (index === 0) return isStreetActionAgenda(agenda) ? "STREET" : "LECTURE";
+  if (action?.action_mode === "STREET" || action?.action_mode === "LECTURE") return action.action_mode;
+  return streetActionTypeOptions.includes(normalizeStreetActionType(action?.type_action)) ? "STREET" : "LECTURE";
 }
 
 
@@ -338,6 +345,7 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
     .find(Boolean) || agenda.action_type_ref_name || agenda.action_type || "";
   return {
     ...action,
+    action_mode: isFirstAction ? (isStreetAction ? "STREET" : "LECTURE") : action.action_mode,
     agenda: resolvedAgendaPk || "",
     source_id: action.source_id || (sourceAgendaPk ? `agenda_action:${sourceAgendaPk}` : ""),
     place_action: action.place_action || getAgendaActionPlace(agenda),
@@ -613,6 +621,7 @@ export default function MobileReportFormPage() {
       nextActions[idx] = {
         ...nextActions[idx],
         [field]: value,
+        ...(field === "action_mode" ? { type_action: "" } : {}),
         ...(agreementFieldNames.has(field) ? { agreement_indicator: "" } : {}),
       };
 
@@ -652,6 +661,7 @@ export default function MobileReportFormPage() {
             agenda: agendaPk(current.agenda) || "",
             source_id: "",
             __userCreated: true,
+            action_mode: "STREET",
           },
         ],
       };
@@ -785,10 +795,11 @@ export default function MobileReportFormPage() {
       if (!form.accessibility_conditions_met) missingFields.push("Condições de Acessibilidade");
 
       getValidatableActions(form.actions).forEach(({ action, index }) => {
-        if (isStreetActionAgenda(agenda) && (!action.type_action || action.type_action === "Selecione a ação")) {
+        const isStreetAction = actionMode(action, agenda, index) === "STREET";
+        if (isStreetAction && (!action.type_action || action.type_action === "Selecione a ação")) {
           missingFields.push(`Ação ${index + 1}: Tipo da ação realizada *`);
         }
-        if (!isStreetActionAgenda(agenda) && !action.type_action) {
+        if (!isStreetAction && !action.type_action) {
           missingFields.push(`Ação ${index + 1}: Tipo da palestra/ação realizada *`);
         }
       });
@@ -1019,6 +1030,7 @@ export default function MobileReportFormPage() {
             const isUserCreated = Boolean(action.__userCreated || index > 0);
             const sourceReadOnly = Boolean(agenda) && !isUserCreated;
             const scheduleReadOnly = sourceReadOnly && index !== 0;
+            const actionIsStreet = actionMode(action, agenda, index) === "STREET";
             const displayedAgreementLabel = agreementIndicatorLabel(
               getDisplayedAgreementIndicator(action, agenda, index)
             );
@@ -1045,7 +1057,16 @@ export default function MobileReportFormPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {!isStreetAction && (
+                  {index > 0 && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                      Modalidade desta ação
+                      <select value={actionIsStreet ? "STREET" : "LECTURE"} onChange={e => updateAction(index, "action_mode", e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}>
+                        <option value="STREET">Ação de Rua</option>
+                        <option value="LECTURE">Palestra/Ação Educativa</option>
+                      </select>
+                    </label>
+                  )}
+                  {!actionIsStreet && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
                       Instituição / Local
                       <input
@@ -1094,7 +1115,7 @@ export default function MobileReportFormPage() {
                     </label>
                   </div>
 
-                  {isStreetAction && (
+                  {actionIsStreet && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
                       Tipo da ação realizada *
                       <select
@@ -1114,7 +1135,7 @@ export default function MobileReportFormPage() {
                     </label>
                   )}
 
-                  {!isStreetAction && (
+                  {!actionIsStreet && (
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
                       Tipo da palestra/ação realizada *
                       <select
@@ -1138,7 +1159,7 @@ export default function MobileReportFormPage() {
                     </label>
                   )}
 
-                  {!isStreetAction && (
+                  {!actionIsStreet && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
                       <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
                         Tipo da entidade
@@ -1196,12 +1217,12 @@ export default function MobileReportFormPage() {
                   )}
 
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                    {!isStreetAction ? "Abordados em Palestras" : "Número de Abordagens"}
+                    {!actionIsStreet ? "Abordados em Palestras" : "Número de Abordagens"}
                     <input
                       type="number"
                       min="0"
-                      value={!isStreetAction ? (action.approached_lectures ?? "") : (action.approached_actions ?? "")}
-                      onChange={e => updateAction(index, !isStreetAction ? "approached_lectures" : "approached_actions", e.target.value)}
+                      value={!actionIsStreet ? (action.approached_lectures ?? "") : (action.approached_actions ?? "")}
+                      onChange={e => updateAction(index, !actionIsStreet ? "approached_lectures" : "approached_actions", e.target.value)}
                       style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff' }}
                     />
                   </label>

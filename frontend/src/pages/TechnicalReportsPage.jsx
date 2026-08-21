@@ -161,6 +161,12 @@ function isStreetActionAgenda(agenda) {
   );
 }
 
+function actionMode(action, agenda, index) {
+  if (index === 0) return isStreetActionAgenda(agenda) ? "STREET" : "LECTURE";
+  if (action?.action_mode === "STREET" || action?.action_mode === "LECTURE") return action.action_mode;
+  return streetActionTypeOptions.includes(String(action?.type_action || "").trim()) ? "STREET" : "LECTURE";
+}
+
 function nullable(value) {
   return value === "" ? null : value;
 }
@@ -530,8 +536,9 @@ function hydrateForm(report, agenda) {
 }
 
 function buildActionPayload(action, formAgenda) {
+  const { action_mode, ...actionPayload } = action;
   return {
-    ...action,
+    ...actionPayload,
     agenda: agendaPk(action.agenda, formAgenda),
     source_id: nullable(action.source_id),
     ...Object.fromEntries(numberFields.map((field) => [field, Number(action[field] || 0)])),
@@ -1094,7 +1101,7 @@ export default function TechnicalReportsPage() {
     setForm((current) => {
       const nextActions = current.actions.map((action, actionIndex) => (
         actionIndex === index
-          ? { ...action, [field]: value, ...(agreementFieldNames.has(field) ? { agreement_indicator: "" } : {}) }
+          ? { ...action, [field]: value, ...(field === "action_mode" ? { type_action: "" } : {}), ...(agreementFieldNames.has(field) ? { agreement_indicator: "" } : {}) }
           : action
       ));
       const nextForm = {
@@ -1125,6 +1132,7 @@ export default function TechnicalReportsPage() {
           ...emptyAction,
           agenda: agendaPk(current.agenda) || "",
           __userCreated: true,
+          action_mode: "STREET",
         }],
       };
     });
@@ -1293,8 +1301,9 @@ export default function TechnicalReportsPage() {
     if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
-      if (isStreetAction && (!action.type_action || isMissingLegacyStreetSubtype(action.type_action))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
-      if (!isStreetAction && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Tipo da palestra/ação realizada`, id: `select-type-action-${index}` });
+      const actionIsStreet = actionMode(action, selectedAgenda, index) === "STREET";
+      if (actionIsStreet && (!action.type_action || isMissingLegacyStreetSubtype(action.type_action))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (!actionIsStreet && !action.type_action) missingFields.push({ name: `Ação ${index +1}: Tipo da palestra/ação realizada`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -1338,8 +1347,9 @@ export default function TechnicalReportsPage() {
     if (!form.team) missingFields.push({ name: "Equipe Executora", id: "input-team" });
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
-      if (isStreetAction && (!action.type_action || isMissingLegacyStreetSubtype(action.type_action))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
-      if (!isStreetAction && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Tipo da palestra/ação realizada`, id: `select-type-action-${index}` });
+      const actionIsStreet = actionMode(action, selectedAgenda, index) === "STREET";
+      if (actionIsStreet && (!action.type_action || isMissingLegacyStreetSubtype(action.type_action))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (!actionIsStreet && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Tipo da palestra/ação realizada`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -1803,6 +1813,7 @@ export default function TechnicalReportsPage() {
                       {(() => {
                         const displayedAgreementIndicator = getDisplayedAgreementIndicator(action, selectedAgenda, index);
                         const displayedAgreementLabel = agreementIndicatorLabel(displayedAgreementIndicator);
+                        const actionIsStreet = actionMode(action, selectedAgenda, index) === "STREET";
                         return (
                           <>
                       <div className="action-card-header">
@@ -1812,6 +1823,15 @@ export default function TechnicalReportsPage() {
                         </button>
                       </div>
                       <div className="compact-grid chief-action-grid">
+                        {index > 0 && (
+                          <label className="field-label chief-highlight-field chief-action-select">
+                            <span>Modalidade desta ação</span>
+                            <select value={actionIsStreet ? "STREET" : "LECTURE"} onChange={(event) => updateAction(index, "action_mode", event.target.value)}>
+                              <option value="STREET">Ação de Rua</option>
+                              <option value="LECTURE">Palestra/Ação Educativa</option>
+                            </select>
+                          </label>
+                        )}
                         <label className={`field-label ${requestFieldsReadOnly && !action.__userCreated ? "" : "chief-highlight-field"}`.trim()}>
                           <span>Instituição/Local</span>
                           <input value={action.institution_name || ""} onChange={(event) => updateAction(index, "institution_name", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated} />
@@ -1828,7 +1848,7 @@ export default function TechnicalReportsPage() {
                           <span>Horário final</span>
                           <input value={action.final_hour || ""} onChange={(event) => updateAction(index, "final_hour", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated && index !== 0} />
                         </label>
-                        {!isStreetAction ? (
+                        {!actionIsStreet ? (
                           <label className="field-label chief-highlight-field chief-action-select">
                             <span>Tipo da palestra/ação realizada *</span>
                             <select
@@ -1850,7 +1870,7 @@ export default function TechnicalReportsPage() {
                             )}
                           </label>
                         ) : null}
-                        {!isStreetAction ? (
+                        {!actionIsStreet ? (
                           <>
                             <label className="field-label chief-highlight-field">
                               <span>Tipo da entidade</span>
@@ -1900,7 +1920,7 @@ export default function TechnicalReportsPage() {
                             onChange={(e) => updateAction(index, "approached_actions", e.target.value)}
                           />
                         </label>
-                        {isStreetAction ? (
+                        {actionIsStreet ? (
                           <label className={`field-label chief-action-select ${shouldHighlightChiefTypeAction(action, index) ? "chief-highlight-field" : ""}`.trim()}>
                             <span>Ação Definida pelo Chefe</span>
                             <select
