@@ -987,7 +987,7 @@ ACTION_COUNTER_FIELDS = {
 
 
 class EducationActionListSerializer(serializers.ListSerializer):
-    """Keeps the legacy-action exception scoped to its original report row."""
+    """Keeps historical action-type exceptions scoped to their original row."""
 
     def to_internal_value(self, data):
         if not isinstance(data, list):
@@ -999,9 +999,11 @@ class EducationActionListSerializer(serializers.ListSerializer):
         for item in data:
             action_id = item.get("id") if isinstance(item, dict) else None
             submitted_type = str(item.get("type_action") or "").strip() if isinstance(item, dict) else ""
-            self.child._allow_legacy_palestra_escola = (
-                legacy_action_types_by_id.get(str(action_id), "").strip().lower() == "palestra escola"
-                and submitted_type.lower() == "palestra escola"
+            previous_type = legacy_action_types_by_id.get(str(action_id), "").strip()
+            self.child._allow_historical_action_type = (
+                bool(previous_type)
+                and bool(submitted_type)
+                and previous_type.lower() == submitted_type.lower()
             )
             try:
                 validated_data.append(self.child.run_validation(item))
@@ -1010,7 +1012,7 @@ class EducationActionListSerializer(serializers.ListSerializer):
                 validated_data.append({})
                 errors.append(exc.detail)
             finally:
-                self.child._allow_legacy_palestra_escola = False
+                self.child._allow_historical_action_type = False
 
         if any(errors):
             raise serializers.ValidationError(errors)
@@ -1147,11 +1149,8 @@ class EducationActionSerializer(serializers.ModelSerializer):
             matched_action = ActionType.objects.filter(name__iexact=action_type).order_by("id").first()
             if not matched_action:
                 raise serializers.ValidationError({"type_action": "Selecione um tipo operacional válido cadastrado no catálogo."})
-            allows_legacy_palestra_escola = (
-                matched_action.name.lower() == "palestra escola"
-                and getattr(self, "_allow_legacy_palestra_escola", False)
-            )
-            if not self._is_selectable_action_type(matched_action) and not allows_legacy_palestra_escola:
+            allows_historical_action_type = bool(getattr(self, "_allow_historical_action_type", False))
+            if not self._is_selectable_action_type(matched_action) and not allows_historical_action_type:
                 if not self.instance or action_type_changed:
                     if matched_action.name.lower() == "palestra escola":
                         raise serializers.ValidationError({"type_action": "O tipo de ação 'Palestra Escola' foi desativado e não pode ser selecionado."})
@@ -1430,6 +1429,8 @@ class EducationReportSerializer(serializers.ModelSerializer):
             source_action_id = action_data.pop("id", None)
             action_data.pop("source_id", None)
             action_data.setdefault("agenda", getattr(agenda, "pk", agenda))
+            submitted_action_type = str(action_data.get("type_action") or "").strip()
+            historical_agenda_action_name = ""
 
             if first_saved_action and agenda:
                 if not action_data.get("requester_entity_kind") and not action_data.get("requester_entity_nature"):
@@ -1442,27 +1443,26 @@ class EducationReportSerializer(serializers.ModelSerializer):
                     inherited_age = normalize_age_range(agenda.age_ranges)
                     if inherited_age:
                         action_data["age_range"] = inherited_age
-                if not str(action_data.get("type_action") or "").strip():
-                    agenda_action_type = getattr(agenda, "action_type_ref", None)
-                    if (
-                        agenda_action_type
-                        and EducationActionSerializer._is_selectable_action_type(agenda_action_type)
-                    ):
-                        action_data["type_action"] = agenda_action_type.name
-                    else:
-                        agenda_action_name = str(getattr(agenda, "action_type", "") or "").strip()
-                        if agenda_action_name:
-                            matched_action = ActionType.objects.filter(name__iexact=agenda_action_name).order_by("id").first()
-                            if matched_action and EducationActionSerializer._is_selectable_action_type(matched_action):
-                                action_data["type_action"] = matched_action.name
+                agenda_action_type = getattr(agenda, "action_type_ref", None)
+                if agenda_action_type and str(agenda_action_type.name or "").strip():
+                    historical_agenda_action_name = str(agenda_action_type.name).strip()
+                else:
+                    agenda_action_name = str(getattr(agenda, "action_type", "") or "").strip()
+                    if agenda_action_name:
+                        matched_action = ActionType.objects.filter(name__iexact=agenda_action_name).order_by("id").first()
+                        historical_agenda_action_name = matched_action.name if matched_action else agenda_action_name
+                if not submitted_action_type and historical_agenda_action_name:
+                    action_data["type_action"] = historical_agenda_action_name
 
-            allows_legacy_palestra_escola = (
+            current_action_type = str(action_data.get("type_action") or "").strip()
+            allows_historical_action_type = (
                 (legacy_action_types_by_id or {}).get(str(source_action_id), "").strip().lower()
-                == "palestra escola"
-                and str(action_data.get("type_action") or "").strip().lower() == "palestra escola"
+                == current_action_type.lower()
             )
+            if not allows_historical_action_type and first_saved_action and historical_agenda_action_name and current_action_type:
+                allows_historical_action_type = historical_agenda_action_name.lower() == current_action_type.lower()
             serializer = EducationActionSerializer(data=action_data, context=self.context)
-            serializer._allow_legacy_palestra_escola = allows_legacy_palestra_escola
+            serializer._allow_historical_action_type = allows_historical_action_type
             serializer.is_valid(raise_exception=True)
             serializer.save(report=report)
             first_saved_action = False

@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.models import User
 from apps.schedules.emails import approval_message, available_dates_message, message_for_status, rejection_message
-from apps.schedules.models import Agenda, Agent, Dynamic, EducationAction, EducationReport, SatisfactionSurvey, Sector, ShiftSchedule, Team
+from apps.schedules.models import ActionType, Agenda, Agent, Dynamic, EducationAction, EducationReport, SatisfactionSurvey, Sector, ShiftSchedule, Team
 from apps.schedules.serializers import AgendaSerializer, EducationReportSerializer, PublicAgendaRequestSerializer, PublicAgendaRequestRescheduleSerializer, SatisfactionSurveySerializer
 
 
@@ -262,6 +262,31 @@ class PublicCepLookupTests(APITestCase):
 
 
 class EducationActionSerializerTests(TestCase):
+    def setUp(self):
+        self.sector = Sector.objects.create(name="SETOR TESTE RELATORIO")
+        self.owner = User.objects.create_user(
+            email="owner@example.com",
+            password="password123",
+            full_name="Owner",
+            role=User.Role.MANAGER,
+            sector=self.sector,
+        )
+        self.owner2 = User.objects.create_user(
+            email="owner2@example.com",
+            password="password123",
+            full_name="Owner 2",
+            role=User.Role.MANAGER,
+            sector=self.sector,
+        )
+        ActionType.objects.update_or_create(
+            name="Praia",
+            defaults={"is_active": True, "category": ActionType.Category.EDUCATIONAL_ACTION},
+        )
+        ActionType.objects.update_or_create(
+            name="Acao conjunta com a fiscalizacao",
+            defaults={"is_active": True, "category": ActionType.Category.EDUCATIONAL_ACTION},
+        )
+
     def test_action_serializer_maps_street_action_counter(self):
         serializer = EducationReportSerializer(data={
             "agenda": Agenda.objects.create(
@@ -271,9 +296,9 @@ class EducationActionSerializerTests(TestCase):
                 start_time="09:00",
                 end_time="10:00",
                 location="Escola",
-                responsible=User.objects.create_user(email="owner@example.com", password="password123", full_name="Owner", role=User.Role.MANAGER, sector=Sector.objects.create(name="SETOR")),
-                sector=Sector.objects.get(name="SETOR"),
-                created_by=User.objects.get(email="owner@example.com"),
+                responsible=self.owner,
+                sector=self.sector,
+                created_by=self.owner,
             ).id,
             "operation_date": "2026-07-22",
             "team": "Equipe",
@@ -285,7 +310,7 @@ class EducationActionSerializerTests(TestCase):
         })
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
-        report = serializer.save(created_by=User.objects.get(email="owner@example.com"))
+        report = serializer.save(created_by=self.owner)
         action = report.actions.get()
         self.assertEqual(action.educational_actions, 1)
         self.assertEqual(action.beach, 1)
@@ -300,9 +325,9 @@ class EducationActionSerializerTests(TestCase):
                 start_time="09:00",
                 end_time="10:00",
                 location="Escola",
-                responsible=User.objects.create_user(email="owner2@example.com", password="password123", full_name="Owner 2", role=User.Role.MANAGER, sector=Sector.objects.create(name="SETOR 2")),
-                sector=Sector.objects.get(name="SETOR 2"),
-                created_by=User.objects.get(email="owner2@example.com"),
+                responsible=self.owner2,
+                sector=self.sector,
+                created_by=self.owner2,
             ).id,
             "operation_date": "2026-07-22",
             "team": "Equipe",
@@ -314,7 +339,7 @@ class EducationActionSerializerTests(TestCase):
         })
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
-        report = serializer.save(created_by=User.objects.get(email="owner2@example.com"))
+        report = serializer.save(created_by=self.owner2)
         action = report.actions.get()
         self.assertEqual(action.educational_actions, 1)
         self.assertEqual(action.joint_inspections, 1)
@@ -322,15 +347,25 @@ class EducationActionSerializerTests(TestCase):
 
 
 class EducationReportSerializerTests(APITestCase):
-    def test_ignores_empty_actions_when_saving_report(self):
-        sector = Sector.objects.create(name="EDUCACAO RELATORIO")
-        manager = User.objects.create_user(
+    def setUp(self):
+        self.report_sector = Sector.objects.create(name="EDUCACAO RELATORIO BASE")
+        self.report_manager = User.objects.create_user(
             email="report-actions@example.com",
             password="password123",
-            full_name="Gestor Relatorio Acoes",
+            full_name="Gestor Relatorio Base",
             role=User.Role.MANAGER,
-            sector=sector,
+            sector=self.report_sector,
         )
+        ActionType.objects.update_or_create(
+            name="Praia",
+            defaults={"is_active": True, "category": ActionType.Category.EDUCATIONAL_ACTION},
+        )
+        ActionType.objects.update_or_create(
+            name="Palestra Escola",
+            defaults={"is_active": False, "category": ActionType.Category.LECTURE},
+        )
+
+    def test_ignores_empty_actions_when_saving_report(self):
         agenda = Agenda.objects.create(
             title="Acao educativa",
             description="Atividade educativa",
@@ -338,9 +373,9 @@ class EducationReportSerializerTests(APITestCase):
             start_time=time(9, 0),
             end_time=time(10, 0),
             location="Escola Municipal",
-            responsible=manager,
-            sector=sector,
-            created_by=manager,
+            responsible=self.report_manager,
+            sector=self.report_sector,
+            created_by=self.report_manager,
         )
         serializer = EducationReportSerializer(data={
             "agenda": agenda.id,
@@ -354,10 +389,41 @@ class EducationReportSerializerTests(APITestCase):
         })
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
-        report = serializer.save(created_by=manager)
+        report = serializer.save(created_by=self.report_manager)
 
         self.assertEqual(report.actions.count(), 1)
         self.assertEqual(report.actions.get().type_action, "Praia")
+
+    def test_preserves_historical_inactive_first_action_from_agenda(self):
+        agenda = Agenda.objects.create(
+            title="Palestra histórica",
+            description="Atividade educativa",
+            date=date(2026, 8, 20),
+            start_time=time(9, 0),
+            end_time=time(10, 0),
+            location="Escola Municipal",
+            action_type="Palestra Escola",
+            action_type_ref=ActionType.objects.get(name="Palestra Escola"),
+            responsible=self.report_manager,
+            sector=self.report_sector,
+            created_by=self.report_manager,
+        )
+        serializer = EducationReportSerializer(data={
+            "agenda": agenda.id,
+            "operation_date": "2026-08-20",
+            "team": "Equipe Educacao",
+            "status": EducationReport.ReportStatus.DRAFT,
+            "actions": [
+                {
+                    "institution_name": "Escola histórica",
+                    "place_action": "Rua Exemplo, 10",
+                }
+            ],
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        report = serializer.save(created_by=self.report_manager)
+        self.assertEqual(report.actions.get().type_action, "Palestra Escola")
 
     def test_accepts_long_resources_summary(self):
         sector = Sector.objects.create(name="EDUCACAO")
@@ -978,3 +1044,37 @@ class EducationReportSubmitForReviewTests(APITestCase):
         response = self.client.post(url)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data["detail"], "N\u00e3o foi poss\u00edvel localizar a escala vinculada a este relat\u00f3rio. Verifique a agenda e tente novamente.")
+
+    def test_submit_report_without_type_action_returns_structured_error(self):
+        schedule = ShiftSchedule.objects.create(date=self.date, team=self.team, created_by=self.user)
+        self._populate_checked_members(schedule)
+        report = EducationReport.objects.create(
+            operation_date=self.date,
+            team="CHARLIE",
+            agenda=self.agenda1,
+            status=EducationReport.ReportStatus.DRAFT,
+            created_by=self.user,
+        )
+        EducationAction.objects.create(
+            report=report,
+            agenda=self.agenda1,
+            institution_name="Escola sem tipo",
+            place_action="Rua sem tipo",
+        )
+
+        url = reverse("education-reports-submit-for-review", args=[report.pk])
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data,
+            {
+                "actions": {
+                    "0": {
+                        "type_action": [
+                            "Selecione o tipo de palestra ou ação educativa realizada."
+                        ]
+                    }
+                }
+            },
+        )

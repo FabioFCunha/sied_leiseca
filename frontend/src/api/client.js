@@ -1,5 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || "/api";
-const DEFAULT_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 12000);
+const API_URL = import.meta.env?.VITE_API_URL || "/api";
+const DEFAULT_TIMEOUT_MS = Number(import.meta.env?.VITE_API_TIMEOUT_MS || 12000);
 
 let isRefreshing = false;
 let refreshQueue = [];
@@ -41,24 +41,61 @@ function formatApiError(data) {
   if (Array.isArray(data.non_field_errors) && data.non_field_errors.length) {
     return data.non_field_errors[0];
   }
+  const fieldLabels = {
+    type_action: "Tipo da ação",
+    requester_entity_kind: "Tipo da entidade",
+    requester_entity_nature: "Natureza da entidade",
+    age_range: "Faixa etária",
+    agreement_indicator: "Indicador do convênio",
+    approach: "Público estimado",
+    approached_actions: "Número de abordagens",
+    approached_lectures: "Abordados em palestras",
+  };
+  const prettifyField = (field) => fieldLabels[field] || String(field || "").replaceAll("_", " ");
+  const isNumericKey = (value) => /^\d+$/.test(String(value || ""));
+  const collectMessages = (value, path = []) => {
+    if (value === null || value === undefined || value === "") return [];
+    if (typeof value === "string" || typeof value === "number") {
+      const actionPathIndex = path.findIndex((segment) => segment === "actions");
+      if (actionPathIndex >= 0) {
+        const rawIndex = path[actionPathIndex + 1];
+        const actionNumber = isNumericKey(rawIndex) ? Number(rawIndex) + 1 : null;
+        if (actionNumber !== null) {
+          return [`Ação ${String(actionNumber).padStart(2, "0")}: ${value}`];
+        }
+      }
+      const lastPath = path[path.length - 1];
+      if (!lastPath || lastPath === "non_field_errors") {
+        return [String(value)];
+      }
+      return [`${prettifyField(lastPath)}: ${value}`];
+    }
+    if (Array.isArray(value)) {
+      if (value.every((item) => typeof item === "string" || typeof item === "number")) {
+        return value.flatMap((item) => collectMessages(item, path));
+      }
+      return value.flatMap((item, index) => {
+        const nextPath = path[path.length - 1] === "actions" ? [...path, String(index)] : path;
+        return collectMessages(item, nextPath);
+      });
+    }
+    if (typeof value === "object") {
+      return Object.entries(value).flatMap(([field, nestedValue]) =>
+        collectMessages(nestedValue, [...path, field])
+      );
+    }
+    return [];
+  };
   if (typeof data === "object") {
-    const fieldMessages = Object.entries(data)
-      .map(([field, value]) => {
-        if (Array.isArray(value)) {
-          return `${field}: ${value.join(" ")}`;
-        }
-        if (typeof value === "string") {
-          return `${field}: ${value}`;
-        }
-        return null;
-      })
-      .filter(Boolean);
+    const fieldMessages = collectMessages(data);
     if (fieldMessages.length) {
-      return fieldMessages.join(" ");
+      return [...new Set(fieldMessages)].join("\n");
     }
   }
   return "Nao foi possivel concluir a operacao.";
 }
+
+export { formatApiError };
 
 async function formatResponseError(data, status) {
   if (data instanceof Blob) {

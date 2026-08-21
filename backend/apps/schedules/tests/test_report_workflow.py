@@ -25,6 +25,15 @@ class EducationReportWorkflowTests(APITestCase):
 
         from apps.schedules.models import Team, ShiftSchedule
         self.team = Team.objects.create(name="Team A")
+        from apps.schedules.models import ActionType
+        ActionType.objects.update_or_create(
+            name="Palestra",
+            defaults={"is_active": True, "category": ActionType.Category.LECTURE},
+        )
+        ActionType.objects.update_or_create(
+            name="Praia",
+            defaults={"is_active": True, "category": ActionType.Category.EDUCATIONAL_ACTION},
+        )
 
         self.agenda = Agenda.objects.create(
             title="Acao Teste",
@@ -157,6 +166,7 @@ class EducationReportWorkflowTests(APITestCase):
         EducationAction.objects.create(
             report=self.report,
             agenda=self.agenda,
+            type_action="Praia",
             place_action="Local original",
             start_time="09:00",
             final_hour="10:00",
@@ -172,7 +182,7 @@ class EducationReportWorkflowTests(APITestCase):
             "approximate_public": 1,
             "accessibility_conditions_met": "YES",
             "actions": [{
-                "agenda": self.agenda.id,
+                "type_action": "Praia",
                 "place_action": "Local corrigido",
                 "start_time": "09:00",
                 "final_hour": "10:00",

@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, FileText, MessageCircle, Plus, Save, Trash2 } from "lucide-react";
 import { api } from "../../api/client.js";
 import { STREET_ACTION_ID } from "../../utils/constants";
+import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../../utils/streetActionTypes.js";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileAttendanceSummaryCard from "../../components/mobile/MobileAttendanceSummaryCard.jsx";
@@ -11,16 +12,39 @@ import { buildReportShareSummary } from "../../utils/reportShareSummary.js";
 import { executeShare } from "../../utils/handleShareReport.js";
 
 const numberFields = ["approach"];
+const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
+const legacyStreetActionTypeMap = {
+  BAR: "Bares",
+  EMPRESA: "Empresas",
+  ESCOLA: "Escolas",
+  ESPORTES: "Praças Esportivas",
+  EVENTO: "Eventos",
+  FESTA_BAIRRO: "Eventos",
+  PARQUE: "Praças/Parques Públicos",
+  PEDAGIO: "Pedágio",
+  PRAIA: "Praia",
+  SHOPPING: "Shopping/Centro Comerciais",
+  UNIVERSIDADE: "Universidades",
+  PONTO_TURISTICO: "Pontos turísticos",
+  SINDICATO: "Outros",
+};
 
 function nullable(value) {
   if (value === "" || value === undefined) return null;
   return value;
 }
 
+function normalizeStreetActionType(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  return legacyStreetActionTypeMap[normalized] || normalized;
+}
+
 function buildActionPayload(action, formAgenda) {
   return {
     ...action,
     agenda: nullable(action.agenda || formAgenda),
+    type_action: normalizeStreetActionType(action.type_action),
     source_id: nullable(action.source_id),
     ...Object.fromEntries(numberFields.map((field) => [field, Number(action[field] || 0)])),
     approached_lectures: Number(action.approached_lectures || 0),
@@ -71,21 +95,6 @@ const emptyAction = {
   distribution_materials_removed: "",
   distribution_materials_distributed: ""
 };
-
-const streetActionTypeOptions = [
-  "BAR", "EMPRESA", "ESCOLA", "ESPORTES", "EVENTO", "FESTA_BAIRRO",
-  "PARQUE", "PEDAGIO", "PRAIA", "SHOPPING", "UNIVERSIDADE", "PONTO_TURISTICO", "SINDICATO"
-];
-
-function streetActionTypeLabel(type) {
-  const map = {
-    BAR: "Bares", EMPRESA: "Empresas", ESCOLA: "Escolas", ESPORTES: "Esportes",
-    EVENTO: "Eventos", FESTA_BAIRRO: "Festa de Bairro", PARQUE: "Praças / Parques Púb.",
-    PEDAGIO: "Pedágio", PRAIA: "Praia", SHOPPING: "Shopping / Centro Comercial",
-    UNIVERSIDADE: "Universidades", PONTO_TURISTICO: "Pontos Turísticos", SINDICATO: "Sindicato"
-  };
-  return map[type] || type;
-}
 
 function normalizeTypeLabel(value) {
   return String(value || "").trim().toLocaleLowerCase("pt-BR");
@@ -319,7 +328,7 @@ function hydrateActionFromAgenda(action = {}, agenda = {}) {
       agenda.location ||
       "",
     type_action:
-      action.type_action ||
+      normalizeStreetActionType(action.type_action) ||
       agenda.action_type ||
       agenda.action_type_ref_name ||
       "",
@@ -775,14 +784,14 @@ export default function MobileReportFormPage() {
       try {
         savedId = await handleSaveDraft(null, true); // silent save
       } catch (err) {
-        throw new Error("Não foi possível salvar o relatório.");
+        throw err;
       }
 
       // 5. Submit for review
       try {
         await api(`/education-reports/${savedId}/submit-for-review/`, { method: "POST" });
       } catch (err) {
-        throw new Error("Relatório salvo, mas não foi possível enviá-lo para validação.");
+        throw err;
       }
 
       // 6. Confirmar envio e oferecer compartilhamento do resumo

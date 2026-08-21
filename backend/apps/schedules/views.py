@@ -2512,6 +2512,19 @@ class EducationReportViewSet(viewsets.ModelViewSet):
         "Execute `python manage.py migrate` no backend da VPS e tente novamente."
     )
 
+    @staticmethod
+    def _build_submit_action_errors(report):
+        errors = {}
+        for index, action in enumerate(report.actions.all().order_by("id")):
+            action_errors = {}
+            if not str(action.type_action or "").strip():
+                action_errors["type_action"] = [
+                    "Selecione o tipo de palestra ou ação educativa realizada."
+                ]
+            if action_errors:
+                errors[str(index)] = action_errors
+        return errors
+
     def _schema_error_response(self, exc):
         message = str(exc).lower()
         if "educationreport" in message or "schedules_educationreport" in message:
@@ -2771,6 +2784,13 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 self._log_permission_denied("REPORT_ALREADY_APPROVED", "Este relatório jÃ¡ foi aprovado e nÃ£o pode mais ser alterado.", report.agenda_id, report.id)
             else:
                 self._log_permission_denied("AGENDA_STATUS_INVALID", "Esta agenda nÃ£o permite mais alteraÃ§Ãµes.", report.agenda_id, report.id)
+
+        submit_action_errors = self._build_submit_action_errors(report)
+        if submit_action_errors:
+            return response.Response(
+                {"actions": submit_action_errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # ValidaÃ§Ã£o obrigatÃ³ria da conferência de frequência
         from apps.schedules.models import ShiftSchedule, Team
