@@ -942,14 +942,13 @@ export default function TechnicalReportsPage() {
     const initialEquipment = serializeMaterialRows([...selectedMaterials.dynamics, ...selectedMaterials.supports]);
     const initialKits = serializeMaterialRows(selectedMaterials.kits);
     const blankKits = serializeBlankMaterialRows(selectedMaterials.kits);
-    const buildAgendaAction = (currentAction = {}) => {
+    const buildAgendaAction = (currentAction = {}, isFirstAction = false) => {
       const isUserCreated = currentAction.__userCreated;
-      const inheritedTypeAction = isStreetActionAgenda(agenda)
-        ? ""
-        : getAgendaOperationalActionTypeName(agenda, actionTypes);
-      const inheritedAgreementFields = isStreetActionAgenda(agenda)
-        ? {}
-        : buildAgreementFieldsFromAgenda(agenda);
+      const inheritAgendaFields = isFirstAction && !isUserCreated && !isStreetActionAgenda(agenda);
+      const inheritedTypeAction = inheritAgendaFields
+        ? (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || "")
+        : "";
+      const inheritedAgreementFields = inheritAgendaFields ? buildAgreementFieldsFromAgenda(agenda) : {};
       if (isUserCreated) {
         return {
           ...emptyAction,
@@ -1014,7 +1013,7 @@ export default function TechnicalReportsPage() {
               ? meaningfulCurrentActions.map((action) => buildAgendaAction(action))
               : [buildAgendaAction({ place_action: "" })];
           }
-          return source.actions.map((action) => buildAgendaAction(action));
+          return source.actions.map((action, index) => buildAgendaAction(action, index === 0));
         })(),
       };
     });
@@ -1817,11 +1816,11 @@ export default function TechnicalReportsPage() {
                         </label>
                         <label className={`field-label ${requestFieldsReadOnly && !action.__userCreated ? "" : "chief-highlight-field"}`.trim()}>
                           <span>Horário inicial</span>
-                          <input value={action.start_time || ""} onChange={(event) => updateAction(index, "start_time", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated} />
+                          <input value={action.start_time || ""} onChange={(event) => updateAction(index, "start_time", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated && index !== 0} />
                         </label>
                         <label className={`field-label ${requestFieldsReadOnly && !action.__userCreated ? "" : "chief-highlight-field"}`.trim()}>
                           <span>Horário final</span>
-                          <input value={action.final_hour || ""} onChange={(event) => updateAction(index, "final_hour", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated} />
+                          <input value={action.final_hour || ""} onChange={(event) => updateAction(index, "final_hour", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated && index !== 0} />
                         </label>
                         {!isStreetAction ? (
                           <label className="field-label chief-highlight-field chief-action-select">

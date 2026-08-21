@@ -318,7 +318,7 @@ function MobileMaterialQuantityEditor({ value, onChange }) {
   );
 }
 
-function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = []) {
+function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isFirstAction = false) {
   const resolvedAgendaPk = agendaPk(action.agenda, agenda);
   const sourceAgendaPk = agendaPk(agenda);
   if (action.__userCreated) {
@@ -330,6 +330,8 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = []) {
       __userCreated: true,
     };
   }
+  const inheritAgendaFields = isFirstAction && !isStreetActionAgenda(agenda);
+  const inheritedAgreementFields = inheritAgendaFields ? buildAgreementFieldsFromAgenda(agenda) : {};
   return {
     ...action,
     agenda: resolvedAgendaPk || "",
@@ -342,19 +344,21 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = []) {
       "",
     type_action:
       normalizeStreetActionType(action.type_action) ||
-      (isStreetActionAgenda(agenda) ? "" : getAgendaOperationalActionTypeName(agenda, actionTypes)),
+      (inheritAgendaFields
+        ? (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || "")
+        : ""),
     type_audience: action.type_audience || agenda.audience || "",
-    requester_entity_kind: action.requester_entity_kind || (isStreetActionAgenda(agenda) ? "" : buildAgreementFieldsFromAgenda(agenda).requester_entity_kind),
-    requester_entity_nature: action.requester_entity_nature || (isStreetActionAgenda(agenda) ? "" : buildAgreementFieldsFromAgenda(agenda).requester_entity_nature),
-    age_range: action.age_range || (isStreetActionAgenda(agenda) ? "" : buildAgreementFieldsFromAgenda(agenda).age_range),
+    requester_entity_kind: action.requester_entity_kind || inheritedAgreementFields.requester_entity_kind || "",
+    requester_entity_nature: action.requester_entity_nature || inheritedAgreementFields.requester_entity_nature || "",
+    age_range: action.age_range || inheritedAgreementFields.age_range || "",
     agreement_indicator: action.agreement_indicator || "",
     start_time:
       action.start_time ||
-      agenda.start_time?.slice?.(0, 5) ||
+      (inheritAgendaFields ? agenda.start_time?.slice?.(0, 5) : "") ||
       "",
     final_hour:
       action.final_hour ||
-      agenda.end_time?.slice?.(0, 5) ||
+      (inheritAgendaFields ? agenda.end_time?.slice?.(0, 5) : "") ||
       "",
     approach:
       action.approach !== undefined &&
@@ -442,7 +446,7 @@ export default function MobileReportFormPage() {
                 hydrateActionFromAgenda({
                   ...action,
                   __userCreated: action.__userCreated ?? (hasAnySourceId ? !action.source_id : index > 0),
-                }, repAgenda || {}, loadedActionTypes)
+                }, repAgenda || {}, loadedActionTypes, index === 0)
               );
             })()
           });
@@ -504,7 +508,7 @@ export default function MobileReportFormPage() {
               __userCreated: false,
               approach: fetchedAgenda.quantity || 0,
               type_audience: fetchedAgenda.audience || ""
-            }, fetchedAgenda, loadedActionTypes)],
+            }, fetchedAgenda, loadedActionTypes, true)],
             accessibility_conditions_met: "",
             has_exceptional_occurrence: false,
             exceptional_occurrence_type: "",
@@ -1008,6 +1012,7 @@ export default function MobileReportFormPage() {
           {(form.actions || []).map((action, index) => {
             const isUserCreated = Boolean(action.__userCreated || index > 0);
             const sourceReadOnly = Boolean(agenda) && !isUserCreated;
+            const scheduleReadOnly = sourceReadOnly && index !== 0;
             const displayedAgreementLabel = agreementIndicatorLabel(
               getDisplayedAgreementIndicator(action, agenda, index)
             );
@@ -1067,8 +1072,8 @@ export default function MobileReportFormPage() {
                         type="time"
                         value={action.start_time || ""}
                         onChange={e => updateAction(index, "start_time", e.target.value)}
-                        readOnly={sourceReadOnly}
-                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly ? '#f1f5f9' : '#fff' }}
+                        readOnly={scheduleReadOnly}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: scheduleReadOnly ? '#f1f5f9' : '#fff' }}
                       />
                     </label>
                     <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
@@ -1077,8 +1082,8 @@ export default function MobileReportFormPage() {
                         type="time"
                         value={action.final_hour || ""}
                         onChange={e => updateAction(index, "final_hour", e.target.value)}
-                        readOnly={sourceReadOnly}
-                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: sourceReadOnly ? '#f1f5f9' : '#fff' }}
+                        readOnly={scheduleReadOnly}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: scheduleReadOnly ? '#f1f5f9' : '#fff' }}
                       />
                     </label>
                   </div>
