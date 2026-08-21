@@ -11,6 +11,42 @@ export function formatLocalISODate(date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+function coerceDate(value) {
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+  if (typeof value === "string") {
+    const parsed = new Date(`${value}T12:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    }
+  }
+  return null;
+}
+
+export function buildDateRangeDays(startValue, endValue) {
+  const start = coerceDate(startValue);
+  const end = coerceDate(endValue);
+  if (!start || !end || start > end) return [];
+
+  const result = [];
+  const current = new Date(start);
+  while (current <= end) {
+    result.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return result;
+}
+
+export function buildWeekGridCells(startValue, endValue) {
+  const days = buildDateRangeDays(startValue, endValue);
+  if (!days.length) return [];
+
+  const leadingCells = Array.from({ length: days[0].getDay() }, () => null);
+  const trailingCells = Array.from({ length: 6 - days.at(-1).getDay() }, () => null);
+  return [...leadingCells, ...days, ...trailingCells];
+}
+
 export function normalizeTime(value) {
   if (typeof value !== "string") return "";
 

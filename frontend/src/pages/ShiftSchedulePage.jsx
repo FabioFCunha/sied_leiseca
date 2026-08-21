@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { formatDateBR, formatLocalISODate } from "../utils/date.js";
+import { buildWeekGridCells, formatDateBR, formatLocalISODate } from "../utils/date.js";
 
 const WEEKDAY_LABELS = [
   "Dom",
@@ -163,17 +163,7 @@ export default function ShiftSchedulePage() {
 
   const days = useMemo(() => {
     if (!periodFilter.dateFrom || !periodFilter.dateTo) return [];
-    const start = new Date(`${periodFilter.dateFrom}T12:00:00`);
-    const end = new Date(`${periodFilter.dateTo}T12:00:00`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
-
-    const result = [];
-    const current = new Date(start);
-    while (current <= end) {
-      result.push(new Date(current));
-      current.setDate(current.getDate() + 1);
-    }
-    return result;
+    return buildWeekGridCells(periodFilter.dateFrom, periodFilter.dateTo);
   }, [periodFilter]);
 
   const rostersByTeam = useMemo(() => {
@@ -892,7 +882,10 @@ export default function ShiftSchedulePage() {
       )}
 
       <div className="calendar-grid shift-calendar-grid">
-        {days.map((day) => {
+        {days.map((day, index) => {
+          if (!day) {
+            return <div key={`empty-${index}`} className="day-cell shift-day-cell shift-day-cell-empty" aria-hidden="true" />;
+          }
           const iso = formatLocalISODate(day);
           const selectedMemberName = normalizeText(memberFilter);
           const daySchedules = schedules.filter((item) => {

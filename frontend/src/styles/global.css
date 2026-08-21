@@ -3488,6 +3488,11 @@ button.stat-card.active {
   cursor: pointer;
 }
 
+.shift-day-cell-empty {
+  cursor: default;
+  pointer-events: none;
+}
+
 .shift-day-cell:hover {
   background: #f8fbff;
 }
