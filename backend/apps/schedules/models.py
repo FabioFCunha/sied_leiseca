@@ -792,6 +792,24 @@ class AccessibilityBlocklist(models.Model):
         return self.institution_location or self.external_responsible or self.external_email or "Restrição de acessibilidade"
 
 
+class ExternalRequestDateBlock(models.Model):
+    start_date = models.DateField()
+    end_date = models.DateField()
+    reason = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="created_external_request_date_blocks")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="updated_external_request_date_blocks")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["start_date", "end_date", "id"]
+        indexes = [models.Index(fields=["is_active", "start_date", "end_date"], name="sched_ext_block_range_idx")]
+
+    def __str__(self):
+        return f"Indisponibilidade externa: {self.start_date} a {self.end_date}"
+
+
 class EducationAction(models.Model):
     report = models.ForeignKey(EducationReport, on_delete=models.CASCADE, related_name="actions")
     agenda = models.ForeignKey(Agenda, on_delete=models.SET_NULL, null=True, blank=True, related_name="education_actions")

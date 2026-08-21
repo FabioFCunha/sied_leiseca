@@ -12,6 +12,7 @@ from .models import (
     AgendaHistory,
     AgendaMaterial,
     AccessibilityBlocklist,
+    ExternalRequestDateBlock,
     EducationAction,
     EducationGoal,
     EducationReport,
@@ -65,6 +66,36 @@ class AccessibilityBlocklistSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at", "source_agenda_protocol", "source_report_id"]
+
+
+class ExternalRequestDateBlockSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
+    updated_by_name = serializers.CharField(source="updated_by.full_name", read_only=True)
+
+    class Meta:
+        model = ExternalRequestDateBlock
+        fields = ["id", "start_date", "end_date", "reason", "is_active", "created_by", "created_by_name", "updated_by", "updated_by_name", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_by", "created_by_name", "updated_by", "updated_by_name", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        start_date = attrs.get("start_date", getattr(self.instance, "start_date", None))
+        end_date = attrs.get("end_date", getattr(self.instance, "end_date", None))
+        is_active = attrs.get("is_active", getattr(self.instance, "is_active", True))
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError({"end_date": "A data final não pode ser anterior à data inicial."})
+        if is_active and start_date and end_date:
+            conflicts = ExternalRequestDateBlock.objects.filter(is_active=True, start_date__lte=end_date, end_date__gte=start_date)
+            if self.instance:
+                conflicts = conflicts.exclude(pk=self.instance.pk)
+            if conflicts.exists():
+                raise serializers.ValidationError({"start_date": "O período informado se sobrepõe a uma indisponibilidade ativa."})
+        return attrs
+
+
+class PublicExternalRequestDateBlockSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExternalRequestDateBlock
+        fields = ["start_date", "end_date"]
 
 
 class LookupSerializer(serializers.ModelSerializer):
@@ -1482,6 +1513,10 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
             attrs["administrative_demand_type"] = ""
 
         date = attrs.get("date")
+        if not is_internal_request and date and ExternalRequestDateBlock.objects.filter(
+            is_active=True, start_date__lte=date, end_date__gte=date
+        ).exists():
+            raise serializers.ValidationError({"date": "A data selecionada não está disponível para solicitações externas. Por favor, escolha outra data para realizar sua solicitação."})
         if date:
             agenda_id = self.context.get("agenda_id")
             qs = Agenda.objects.filter(
@@ -1507,6 +1542,11 @@ class PublicAgendaRequestRescheduleSerializer(serializers.Serializer):
             raise serializers.ValidationError("A hora final não pode ser igual à hora inicial.")
             
         date = attrs.get("date")
+        original_date = self.context.get("original_date")
+        if date and date != original_date and ExternalRequestDateBlock.objects.filter(
+            is_active=True, start_date__lte=date, end_date__gte=date
+        ).exists():
+            raise serializers.ValidationError({"date": "A data selecionada não está disponível para solicitações externas. Por favor, escolha outra data para realizar sua solicitação."})
         if date:
             agenda_id = self.context.get("agenda_id")
             qs = Agenda.objects.filter(

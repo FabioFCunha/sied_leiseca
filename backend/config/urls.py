@@ -17,6 +17,7 @@ from apps.schedules.views import (
     EducationGoalViewSet,
     EducationReportViewSet,
     EventReportViewSet,
+    ExternalRequestDateBlockViewSet,
     InternalAgendaRequestView,
     KitViewSet,
     DynamicViewSet,
@@ -24,6 +25,7 @@ from apps.schedules.views import (
     MunicipalityViewSet,
     NeighborhoodViewSet,
     PublicAgendaRequestView,
+    PublicExternalRequestDateBlockView,
     PublicCepLookupView,
     PublicAgendaRequestUpdateView,
     SatisfactionSurveyPublicView,
@@ -64,6 +66,7 @@ router.register("reports", ReportViewSet, basename="reports")
 router.register("surveys", SatisfactionSurveyViewSet, basename="surveys")
 router.register("shift-schedules", ShiftScheduleViewSet, basename="shift-schedules")
 router.register("shift-swaps", ShiftSwapRequestViewSet, basename="shift-swaps")
+router.register("external-request-date-blocks", ExternalRequestDateBlockViewSet, basename="external-request-date-blocks")
 
 
 urlpatterns = [
@@ -77,6 +80,7 @@ urlpatterns = [
     path("api/auth/set-password/", SetPasswordView.as_view(), name="set_password"),
     path("api/public/cep/", PublicCepLookupView.as_view(), name="public_cep_lookup"),
     path("api/public/agenda-request/", PublicAgendaRequestView.as_view(), name="public_agenda_request"),
+    path("api/public/external-request-date-blocks/", PublicExternalRequestDateBlockView.as_view(), name="public_external_request_date_blocks"),
     path("api/public/agenda-request/<str:token>/", PublicAgendaRequestUpdateView.as_view(), name="public_agenda_request_update"),
     path("api/public/satisfaction-survey/<str:token>/", SatisfactionSurveyPublicView.as_view(), name="satisfaction_survey_public"),
     path("api/internal/agenda-request/", InternalAgendaRequestView.as_view(), name="internal_agenda_request"),

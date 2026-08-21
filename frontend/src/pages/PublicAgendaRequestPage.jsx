@@ -1,5 +1,5 @@
 import { CalendarPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { api } from "../api/client.js";
@@ -139,10 +139,13 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
   const [message, setMessage] = useState("");
   const [successData, setSuccessData] = useState(null);
   const [cepMessage, setCepMessage] = useState("");
-  const [dateMessage, setDateMessage] = useState("");
+  const [existingAvailabilityMessage, setExistingAvailabilityMessage] = useState("");
+  const [externalBlockMessage, setExternalBlockMessage] = useState("");
   const [cepLoading, setCepLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [protocol, setProtocol] = useState("");
+  const dateInputRef = useRef(null);
+  const dateMessage = externalBlockMessage || existingAvailabilityMessage;
 
   useEffect(() => {
     if (!token) return;
@@ -167,7 +170,8 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
 
   useEffect(() => {
     if (!form.date) {
-      setDateMessage("");
+      setExistingAvailabilityMessage("");
+      setExternalBlockMessage("");
       return;
     }
     const controller = new AbortController();
@@ -175,21 +179,31 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
     if (editMode && protocol) {
       url += `&agenda_id=${protocol}`;
     }
-    api(url, { signal: controller.signal })
-      .then((res) => {
-        if (res.available === false && res.message) {
-          setDateMessage(res.message);
-        } else {
-          setDateMessage("");
-        }
-      })
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          setDateMessage("");
-        }
+    const availabilityRequest = api(url, { signal: controller.signal });
+    const applyExistingAvailability = (result) => {
+      setExistingAvailabilityMessage(result.available === false && result.message ? result.message : "");
+    };
+
+    if (internalRequest) {
+      availabilityRequest.then(applyExistingAvailability).catch((error) => {
+        if (error.name !== "AbortError") setExistingAvailabilityMessage("");
       });
+    } else {
+      setExternalBlockMessage("");
+      Promise.all([
+        availabilityRequest,
+        api(`/public/external-request-date-blocks/?date_from=${form.date}&date_to=${form.date}`, { signal: controller.signal }).catch(() => null),
+      ]).then(([availability, blocks]) => {
+        applyExistingAvailability(availability);
+        if (blocks) {
+          setExternalBlockMessage(blocks.length ? "A data selecionada não está disponível para solicitações externas. Por favor, escolha outra data para realizar sua solicitação." : "");
+        }
+      }).catch((error) => {
+        if (error.name !== "AbortError") setExistingAvailabilityMessage("");
+      });
+    }
     return () => controller.abort();
-  }, [form.date, editMode, protocol]);
+  }, [form.date, editMode, protocol, internalRequest]);
 
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
   const updateActionsCount = (value) => {
@@ -238,6 +252,11 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
 
   const submit = async (event) => {
     event.preventDefault();
+    if (!internalRequest && dateMessage) {
+      setMessage(dateMessage);
+      dateInputRef.current?.focus();
+      return;
+    }
     const isAcaoRua = isStreetRequesterType(form.requester_entity_kind);
     
     const normalizedStartTime = normalizeTime(form.start_time);
@@ -294,7 +313,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
         });
         setSuccessData({ detail: response.detail, protocol: response.protocol });
       } catch (err) {
-        setMessage(err.message);
+        setMessage(String(err?.message || "Não foi possível enviar a solicitação."));
       } finally {
         setLoading(false);
       }
@@ -367,7 +386,8 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
       setForm(empty);
       setSuccessData({ detail: response.detail, protocol: response.protocol });
     } catch (err) {
-      setMessage(err.message);
+      const errorMessage = String(err?.message || "Não foi possível enviar a solicitação.");
+      setMessage(!internalRequest && errorMessage.startsWith("date: ") ? errorMessage.slice(6) : errorMessage);
     } finally {
       setLoading(false);
     }
@@ -502,7 +522,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
               <div className="split">
                 <label className="field-label" style={{ flex: 1 }}>
                   <span>Data pretendida <b>*</b></span>
-                  <input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} required style={{ borderColor: dateMessage ? "var(--red)" : "" }} />
+                  <input ref={dateInputRef} type="date" value={form.date} onChange={(event) => update("date", event.target.value)} required aria-invalid={Boolean(dateMessage)} style={{ borderColor: dateMessage ? "var(--red)" : "" }} />
                   {dateMessage && <small style={{ color: "var(--red)", marginTop: "4px", display: "block", fontSize: "11px", fontWeight: "600" }}>{dateMessage}</small>}
                 </label>
                 <label className="field-label" style={{ flex: 1 }}>
@@ -723,7 +743,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
             <div className="split">
               <label className="field-label" style={{ flex: 1 }}>
                 <span>{form.requester_entity_kind === STREET_ACTION_ID ? "DATA" : "DATA PRETENDIDA"} <b>*</b></span>
-                <input type="date" value={form.date} onChange={(event) => update("date", event.target.value)} required style={{ borderColor: dateMessage ? "var(--red)" : "" }} />
+                <input ref={dateInputRef} type="date" value={form.date} onChange={(event) => update("date", event.target.value)} required aria-invalid={Boolean(dateMessage)} style={{ borderColor: dateMessage ? "var(--red)" : "" }} />
                 {dateMessage && <small style={{ color: "var(--red)", marginTop: "4px", display: "block", fontSize: "11px", fontWeight: "600" }}>{dateMessage}</small>}
               </label>
               <label className="field-label" style={{ flex: 1 }}>

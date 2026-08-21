@@ -104,6 +104,7 @@ from .models import (
     EducationReport,
     EventReport,
     AccessibilityBlocklist,
+    ExternalRequestDateBlock,
     Chief,
     Kit,
     Dynamic,
@@ -135,6 +136,8 @@ from .emails import (
 )
 from .serializers import (
     AccessibilityBlocklistSerializer,
+    ExternalRequestDateBlockSerializer,
+    PublicExternalRequestDateBlockSerializer,
     ActionTypeSerializer,
     AgentSerializer,
     AgendaSerializer,
@@ -3894,6 +3897,54 @@ class PublicAgendaRequestView(APIView):
         )
 
 
+class PublicExternalRequestDateBlockView(APIView):
+    """Expose only active date ranges needed by the public form."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        date_from = request.query_params.get("date_from")
+        date_to = request.query_params.get("date_to")
+        if not date_from or not date_to:
+            return response.Response({"detail": "Informe date_from e date_to."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            date_from_value = datetime.strptime(date_from, "%Y-%m-%d").date()
+            date_to_value = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except ValueError:
+            return response.Response({"detail": "Informe datas no formato YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+        if date_to_value < date_from_value:
+            return response.Response({"detail": "date_to não pode ser anterior a date_from."}, status=status.HTTP_400_BAD_REQUEST)
+        queryset = ExternalRequestDateBlock.objects.filter(
+            is_active=True,
+            end_date__gte=date_from_value,
+            start_date__lte=date_to_value,
+        )
+        return response.Response(PublicExternalRequestDateBlockSerializer(queryset, many=True).data)
+
+
+class ExternalRequestDateBlockViewSet(viewsets.ModelViewSet):
+    serializer_class = ExternalRequestDateBlockSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = ExternalRequestDateBlock.objects.select_related("created_by", "updated_by")
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if not request.user.is_admin_role:
+            raise PermissionDenied("Apenas Gestores e Administração podem gerenciar datas indisponíveis.")
+
+    def perform_create(self, serializer):
+        block = serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        log_audit(self.request, AuditLog.Action.CREATE, "Calendário", "Data indisponível para solicitação externa criada.", {"block_id": block.id})
+
+    def perform_update(self, serializer):
+        block = serializer.save(updated_by=self.request.user)
+        log_audit(self.request, AuditLog.Action.UPDATE, "Calendário", "Data indisponível para solicitação externa alterada.", {"block_id": block.id})
+
+    def perform_destroy(self, instance):
+        block_id = instance.id
+        super().perform_destroy(instance)
+        log_audit(self.request, AuditLog.Action.DELETE, "Calendário", "Data indisponível para solicitação externa excluída.", {"block_id": block_id})
+
+
 class PublicAgendaRequestUpdateView(APIView):
     permission_classes = [AllowAny]
 
@@ -3925,7 +3976,10 @@ class PublicAgendaRequestUpdateView(APIView):
 
     def patch(self, request, token):
         agenda = self.get_agenda(token)
-        serializer = PublicAgendaRequestRescheduleSerializer(data=request.data, context={"agenda_id": agenda.id})
+        serializer = PublicAgendaRequestRescheduleSerializer(
+            data=request.data,
+            context={"agenda_id": agenda.id, "original_date": agenda.date},
+        )
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         agenda.date = data["date"]

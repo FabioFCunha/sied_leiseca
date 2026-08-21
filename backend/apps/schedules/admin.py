@@ -9,6 +9,7 @@ from .models import (
     EducationAction,
     EducationGoal,
     EducationReport,
+    ExternalRequestDateBlock,
     EventReport,
     Chief,
     Kit,
@@ -34,6 +35,13 @@ class AgendaAdmin(admin.ModelAdmin):
     list_display = ("title", "date", "start_time", "status", "sector", "responsible")
     list_filter = ("status", "sector", "date")
     search_fields = ("title", "location", "responsible__full_name")
+
+
+@admin.register(ExternalRequestDateBlock)
+class ExternalRequestDateBlockAdmin(admin.ModelAdmin):
+    list_display = ("start_date", "end_date", "is_active", "created_by", "updated_by", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("reason",)
 
 
 @admin.register(AgendaHistory)

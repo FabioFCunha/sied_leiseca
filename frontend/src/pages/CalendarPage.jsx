@@ -1,7 +1,6 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin, Navigation, Users, Package } from "lucide-react";
+import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, Clock, MapPin, Navigation, Users, Package } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client.js";
-import Filters from "../components/Filters.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR, formatLocalISODate } from "../utils/date.js";
 import { statusClass, statusLabel } from "../utils/status.js";
@@ -88,14 +87,16 @@ export default function CalendarPage() {
   const { user } = useAuth();
   const [cursor, setCursor] = useState(new Date());
   const [view, setView] = useState("month");
-  const [filters, setFilters] = useState({});
   const [agendas, setAgendas] = useState([]);
-  const [sectors, setSectors] = useState([]);
-  const [municipalities, setMunicipalities] = useState([]);
-  const [regions, setRegions] = useState([]);
+  const [dateBlocks, setDateBlocks] = useState([]);
+  const [showDateBlocks, setShowDateBlocks] = useState(false);
+  const [blockForm, setBlockForm] = useState({ start_date: "", end_date: "", reason: "", is_active: true });
+  const [editingBlockId, setEditingBlockId] = useState(null);
+  const [blockMessage, setBlockMessage] = useState("");
   const [selected, setSelected] = useState(null);
   const requestSeq = useRef(0);
   const isVisitor = user?.role === "VISITOR";
+  const canManageDateBlocks = user?.role === "ADMIN" || user?.role === "MANAGER";
 
   const days = useMemo(() => {
     if (view === "day") return [new Date(cursor)];
@@ -111,51 +112,7 @@ export default function CalendarPage() {
   }, [cursor, view]);
 
   useEffect(() => {
-    if (!isVisitor) {
-      api("/teams/?page_size=200").then((data) => {
-        const uniqueTeams = Array.from(
-          new Map(
-            (data.results || data)
-              .filter((item) => item.is_active !== false)
-              .map((item) => {
-                const normalizedName = String(item.name || "").trim().toUpperCase();
-                return [
-                  normalizedName,
-                  {
-                    ...item,
-                    name: normalizedName,
-                  },
-                ];
-              })
-              .filter(([name]) => name)
-          ).values()
-        ).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-
-        setSectors(uniqueTeams);
-      });
-      Promise.all([
-        api("/municipalities/?page_size=500"),
-        api("/regions/?page_size=200")
-      ]).then(([munData, regData]) => {
-        setMunicipalities(munData.results || munData);
-        setRegions(regData.results || regData);
-      });
-    }
-  }, [isVisitor]);
-
-  useEffect(() => {
-    const scopedFilters = Object.fromEntries(
-      Object.entries(filters).filter(([, value]) => value !== undefined && value !== "")
-    );
-    delete scopedFilters.date;
-
-    if (scopedFilters.sector) {
-      scopedFilters.team = scopedFilters.sector;
-      delete scopedFilters.sector;
-    }
-
     const params = new URLSearchParams({
-      ...scopedFilters,
       date_from: formatLocalISODate(days[0]),
       date_to: formatLocalISODate(days[days.length - 1]),
       calendar_view: "1",
@@ -167,7 +124,28 @@ export default function CalendarPage() {
         setAgendas(rows);
       }
     });
-  }, [days, filters]);
+  }, [days]);
+
+  useEffect(() => {
+    const params = new URLSearchParams({ date_from: formatLocalISODate(days[0]), date_to: formatLocalISODate(days[days.length - 1]) });
+    api(`/public/external-request-date-blocks/?${params}`).then((data) => setDateBlocks(data.results || data)).catch(() => setDateBlocks([]));
+  }, [days]);
+
+  const loadDateBlocks = async () => {
+    const data = await api("/external-request-date-blocks/?page_size=200");
+    setDateBlocks(data.results || data);
+  };
+  const saveDateBlock = async (event) => {
+    event.preventDefault();
+    setBlockMessage("");
+    try {
+      const path = editingBlockId ? `/external-request-date-blocks/${editingBlockId}/` : "/external-request-date-blocks/";
+      await api(path, { method: editingBlockId ? "PATCH" : "POST", body: JSON.stringify(blockForm) });
+      setBlockForm({ start_date: "", end_date: "", reason: "", is_active: true });
+      setEditingBlockId(null);
+      await loadDateBlocks();
+    } catch (error) { setBlockMessage(error.message); }
+  };
 
   const move = (direction) => {
     const next = new Date(cursor);
@@ -190,7 +168,7 @@ export default function CalendarPage() {
           ))}
         </div>
       </div>
-      {!isVisitor && <Filters filters={filters} setFilters={setFilters} sectors={sectors} municipalities={municipalities} regions={regions} showUser={false} />}
+      {canManageDateBlocks && <button className="secondary" onClick={() => { setShowDateBlocks(true); loadDateBlocks().catch((error) => setBlockMessage(error.message)); }}><CalendarOff size={16} /> Gerenciar datas indisponíveis</button>}
       <div className="calendar-toolbar">
         <button className="icon-button" onClick={() => move(-1)} aria-label="Anterior"><ChevronLeft size={18} /></button>
         <strong>{cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</strong>
@@ -211,6 +189,7 @@ export default function CalendarPage() {
       <div className={`calendar-grid ${view}`}>
         {days.map((day) => {
           const dayAgendas = agendas.filter((agenda) => agenda.date === formatLocalISODate(day));
+          const isBlockedForExternalRequests = dateBlocks.some((block) => block.is_active !== false && block.start_date <= formatLocalISODate(day) && block.end_date >= formatLocalISODate(day));
           const weekdayLabel = WEEKDAY_LABELS[day.getDay()];
           return (
             <article key={formatLocalISODate(day)} className="day-cell">
@@ -218,6 +197,7 @@ export default function CalendarPage() {
                 <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-soft)" }}>{weekdayLabel}</span>
                 <span>{day.getDate()}</span>
               </div>
+              {isBlockedForExternalRequests && <small className="external-date-block-label">Indisponível para solicitação externa</small>}
               {dayAgendas.map((agenda) => {
                 const eventClass = agenda.status === "CANCELLED"
                   ? statusClass[agenda.status]
@@ -235,6 +215,22 @@ export default function CalendarPage() {
           );
         })}
       </div>
+      {showDateBlocks && (
+        <div className="modal-backdrop" onClick={() => setShowDateBlocks(false)}>
+          <article className="modal" onClick={(event) => event.stopPropagation()}>
+            <h2>Gerenciar datas indisponíveis</h2>
+            <form className="stack-form" onSubmit={saveDateBlock}>
+              <div className="split"><label>Data inicial<input type="date" value={blockForm.start_date} onChange={(event) => setBlockForm({ ...blockForm, start_date: event.target.value })} required /></label><label>Data final<input type="date" value={blockForm.end_date} onChange={(event) => setBlockForm({ ...blockForm, end_date: event.target.value })} required /></label></div>
+              <label>Motivo interno (opcional)<textarea value={blockForm.reason} onChange={(event) => setBlockForm({ ...blockForm, reason: event.target.value })} /></label>
+              <label className="checkbox"><input type="checkbox" checked={blockForm.is_active} onChange={(event) => setBlockForm({ ...blockForm, is_active: event.target.checked })} /> <span>Período ativo</span></label>
+              {blockMessage && <div className="alert">{blockMessage}</div>}
+              <button>{editingBlockId ? "Salvar alterações" : "Cadastrar período"}</button>
+            </form>
+            <div className="stack-list">{dateBlocks.map((block) => <div key={block.id} className="list-row"><span>{formatDateBR(block.start_date)} até {formatDateBR(block.end_date)} {block.is_active ? "" : "(inativo)"}</span><button className="secondary" onClick={() => { setEditingBlockId(block.id); setBlockForm({ start_date: block.start_date, end_date: block.end_date, reason: block.reason || "", is_active: block.is_active }); }}>Editar</button><button className="danger" onClick={async () => { await api(`/external-request-date-blocks/${block.id}/`, { method: "DELETE" }); await loadDateBlocks(); }}>Excluir</button></div>)}</div>
+            <button className="secondary" onClick={() => setShowDateBlocks(false)}>Fechar</button>
+          </article>
+        </div>
+      )}
       {selected && (
         <div className="modal-backdrop" onClick={() => setSelected(null)}>
           <article className={`modal ${isVisitor ? "visitor-event-modal" : ""}`} onClick={(event) => event.stopPropagation()}>
