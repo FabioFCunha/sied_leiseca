@@ -1428,7 +1428,10 @@ class EducationReportSerializer(serializers.ModelSerializer):
             action_data = action_data.copy()
             source_action_id = action_data.pop("id", None)
             action_data.pop("source_id", None)
-            action_data.setdefault("agenda", getattr(agenda, "pk", agenda))
+            action_data["agenda"] = (
+                getattr(action_data.get("agenda"), "pk", action_data.get("agenda"))
+                or getattr(agenda, "pk", agenda)
+            )
             submitted_action_type = str(action_data.get("type_action") or "").strip()
             historical_agenda_action_name = ""
 
