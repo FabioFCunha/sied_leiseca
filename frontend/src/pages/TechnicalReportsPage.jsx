@@ -53,6 +53,10 @@ const emptyAction = {
   place_action: "",
   type_action: "",
   type_audience: "",
+  requester_entity_kind: "",
+  requester_entity_nature: "",
+  age_range: "",
+  agreement_indicator: "",
   institution_name: "",
   start_time: "",
   final_hour: "",
@@ -540,6 +544,48 @@ function normalizePayload(form) {
   };
 }
 
+function agreementIndicatorLabel(value) {
+  return value === "ESCOLINHA_NOTA_10"
+    ? "Escolinha Nota 10"
+    : value === "ESCOLA_NOTA_10"
+      ? "Escola Nota 10"
+      : "";
+}
+
+function requesterEntityKindLabel(value) {
+  return value === "SCHOOL"
+    ? "Instituição de Ensino"
+    : value === "BUSINESS"
+      ? "Empresa"
+      : value === "MILITARY"
+        ? "Órgão Militar"
+        : value === "PUBLIC"
+          ? "Órgão Público"
+          : value === "OTHER"
+            ? "Outros"
+            : value || "";
+}
+
+function requesterEntityNatureLabel(value) {
+  return value === "PUBLIC"
+    ? "Pública"
+    : value === "PRIVATE"
+      ? "Privada"
+      : value || "";
+}
+
+function ageRangeLabel(value) {
+  return value === "AGE_05_10"
+    ? "05 - 10 anos (ensino fundamental - anos iniciais)"
+    : value === "AGE_11_14"
+      ? "11 - 14 anos (ensino fundamental - anos finais)"
+      : value === "AGE_15_17"
+        ? "15 - 17 anos (ensino médio)"
+        : value === "AGE_ADULT"
+          ? "acima de 18 anos - Adultos"
+          : value || "";
+}
+
 export default function TechnicalReportsPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -911,6 +957,15 @@ export default function TechnicalReportsPage() {
     const blankKits = serializeBlankMaterialRows(selectedMaterials.kits);
     const buildAgendaAction = (currentAction = {}) => {
       const isUserCreated = currentAction.__userCreated;
+      if (isUserCreated) {
+        return {
+          ...emptyAction,
+          ...currentAction,
+          agenda: agenda.id,
+          source_id: "",
+          __userCreated: true,
+        };
+      }
       return {
         ...emptyAction,
         ...currentAction,
@@ -920,6 +975,10 @@ export default function TechnicalReportsPage() {
         institution_name: currentAction.institution_name || agenda.institution_location || "",
         type_action: currentAction.type_action || agenda.action_type || agenda.action_type_ref_name || "",
         type_audience: currentAction.type_audience || agenda.audience || "",
+        requester_entity_kind: currentAction.requester_entity_kind || "",
+        requester_entity_nature: currentAction.requester_entity_nature || "",
+        age_range: currentAction.age_range || "",
+        agreement_indicator: currentAction.agreement_indicator || "",
         start_time: currentAction.start_time || agenda.start_time?.slice(0, 5) || "",
         final_hour: currentAction.final_hour || agenda.end_time?.slice(0, 5) || "",
         approach: currentAction.approach || agenda.quantity || 0,
@@ -1060,22 +1119,12 @@ export default function TechnicalReportsPage() {
 
   const addAction = () => {
     setForm((current) => {
-      const baseAction = current.actions[0] || emptyAction;
       return {
         ...current,
         actions: [...current.actions, {
           ...emptyAction,
           agenda: current.agenda,
           __userCreated: true,
-          place_action: baseAction.place_action || "",
-          institution_name: baseAction.institution_name || "",
-          approach: "",
-          approached_lectures: "",
-          approached_actions: "",
-          equipment_materials_removed: baseAction.equipment_materials_removed || "",
-          equipment_materials_distributed: "",
-          distribution_materials_removed: baseAction.distribution_materials_removed || "",
-          distribution_materials_distributed: "",
         }],
       };
     });
@@ -2579,6 +2628,14 @@ export default function TechnicalReportsPage() {
                     ["Endereço", action.place_action],
                     ["Horário", `${action.start_time || "--"} às ${action.final_hour || "--"}`],
                   ].filter(r => r[1] && r[1] !== "—" && r[1] !== "-- às --" && r[1] !== "0" && r[1] !== "-");
+                  const kindLabel = requesterEntityKindLabel(action.requester_entity_kind);
+                  const natureLabel = requesterEntityNatureLabel(action.requester_entity_nature);
+                  const ageLabel = ageRangeLabel(action.age_range);
+                  const agreementLabel = agreementIndicatorLabel(action.agreement_indicator);
+                  if (kindLabel) actionData.push(["Tipo da entidade", kindLabel]);
+                  if (natureLabel) actionData.push(["Natureza", natureLabel]);
+                  if (ageLabel) actionData.push(["Faixa etária", ageLabel]);
+                  if (agreementLabel) actionData.push(["Indicador", agreementLabel]);
 
                   if (isFirstAction && showEstimatedPublic) {
                     if (action.approach !== undefined && action.approach !== null && action.approach !== "" && action.approach !== "0" && action.approach !== 0 && action.approach !== "-") {
@@ -2607,7 +2664,7 @@ export default function TechnicalReportsPage() {
                   return (
                     <div key={index} style={{ marginBottom: "10px" }}>
                       <div style={{ background: NAVY_LIGHT, color: "#fff", fontWeight: 700, fontSize: "10px", padding: "5px 10px", borderRadius: "5px", letterSpacing: "0.5px" }}>
-                        AÇÃO {String(index + 1).padStart(2, "0")} — {(action.type_action || "NÃO ESPECIFICADA").toUpperCase()}
+                        AÇÃO {String(index + 1).padStart(2, "0")} — {(action.type_action || "AÇÃO").toUpperCase()}
                       </div>
                       <div style={{ borderRadius: "0 0 6px 6px", overflow: "hidden", border: "1px solid #e5e5e5", borderTop: "none" }}>
                         {actionData.map((r, i) => tableRow(r[0], r[1], i))}

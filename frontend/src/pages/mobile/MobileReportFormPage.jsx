@@ -56,6 +56,10 @@ const emptyAction = {
   place_action: "",
   type_action: "",
   type_audience: "",
+  requester_entity_kind: "",
+  requester_entity_nature: "",
+  age_range: "",
+  agreement_indicator: "",
   institution_name: "",
   start_time: "",
   final_hour: "",
@@ -295,6 +299,15 @@ function MobileMaterialQuantityEditor({ value, onChange }) {
 }
 
 function hydrateActionFromAgenda(action = {}, agenda = {}) {
+  if (action.__userCreated) {
+    return {
+      ...emptyAction,
+      ...action,
+      agenda: action.agenda || agenda.id || "",
+      source_id: "",
+      __userCreated: true,
+    };
+  }
   return {
     ...action,
     agenda: action.agenda || agenda.id || "",
@@ -311,6 +324,10 @@ function hydrateActionFromAgenda(action = {}, agenda = {}) {
       agenda.action_type_ref_name ||
       "",
     type_audience: action.type_audience || agenda.audience || "",
+    requester_entity_kind: action.requester_entity_kind || "",
+    requester_entity_nature: action.requester_entity_nature || "",
+    age_range: action.age_range || "",
+    agreement_indicator: action.agreement_indicator || "",
     start_time:
       action.start_time ||
       agenda.start_time?.slice?.(0, 5) ||
@@ -588,8 +605,6 @@ export default function MobileReportFormPage() {
             agenda: current.agenda,
             source_id: "",
             __userCreated: true,
-            distribution_materials_removed: serializeMaterialRows(availableMaterials),
-            distribution_materials_distributed: serializeBlankMaterialRows(availableMaterials),
           },
         ],
       };

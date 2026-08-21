@@ -1,5 +1,43 @@
 import { formatDateBR } from "./date.js";
 
+function agreementIndicatorLabel(value) {
+  return value === "ESCOLINHA_NOTA_10"
+    ? "Escolinha Nota 10"
+    : value === "ESCOLA_NOTA_10"
+      ? "Escola Nota 10"
+      : "";
+}
+
+function requesterEntityKindLabel(value) {
+  return value === "SCHOOL"
+    ? "Instituição de Ensino"
+    : value === "BUSINESS"
+      ? "Empresa"
+      : value === "MILITARY"
+        ? "Órgão Militar"
+        : value === "PUBLIC"
+          ? "Órgão Público"
+          : value === "OTHER"
+            ? "Outros"
+            : value || "";
+}
+
+function requesterEntityNatureLabel(value) {
+  return value === "PUBLIC" ? "Pública" : value === "PRIVATE" ? "Privada" : value || "";
+}
+
+function ageRangeLabel(value) {
+  return value === "AGE_05_10"
+    ? "05 - 10 anos (ensino fundamental - anos iniciais)"
+    : value === "AGE_11_14"
+      ? "11 - 14 anos (ensino fundamental - anos finais)"
+      : value === "AGE_15_17"
+        ? "15 - 17 anos (ensino médio)"
+        : value === "AGE_ADULT"
+          ? "acima de 18 anos - Adultos"
+          : value || "";
+}
+
 
 export function reportName(report) {
   return `Relat\u00F3rio - ${report.team || "Equipe"}`;
@@ -207,11 +245,20 @@ export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true,
         const estimadoLine = (isFirstAction && showEstimatedPublic)
           ? `   P\u00FAblico estimado: ${action.approach || 0}\n`
           : "";
+        const kindLabel = requesterEntityKindLabel(action.requester_entity_kind);
+        const natureLabel = requesterEntityNatureLabel(action.requester_entity_nature);
+        const ageLabel = ageRangeLabel(action.age_range);
+        const indicatorLabel = agreementIndicatorLabel(action.agreement_indicator);
 
         return (
           `${index + 1}. ${action.type_action || "A\u00E7\u00E3o"} - ${action.institution_name || action.place_action || "local n\u00E3o informado"}\n` +
+          `   Tipo da a\u00E7\u00E3o: ${action.type_action || "n\u00E3o informado"}\n` +
           `   Institui\u00E7\u00E3o/Local: ${action.institution_name || "n\u00E3o informado"}\n` +
           `   Endere\u00E7o do Local: ${action.place_action || "n\u00E3o informado"}\n` +
+          (kindLabel ? `   Tipo da entidade: ${kindLabel}\n` : "") +
+          (natureLabel ? `   Natureza: ${natureLabel}\n` : "") +
+          (ageLabel ? `   Faixa et\u00E1ria: ${ageLabel}\n` : "") +
+          (indicatorLabel ? `   Indicador: ${indicatorLabel}\n` : "") +
           `   P\u00FAblico: ${action.type_audience || "n\u00E3o informado"}\n` +
           `   Hor\u00E1rio: ${action.start_time || "--"} \u00E0s ${action.final_hour || "--"}\n` +
           estimadoLine +

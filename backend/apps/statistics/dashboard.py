@@ -447,6 +447,53 @@ def _rankings(date_from, date_to, filters, daily=None):
     return {'municipalities': municipalities, 'teams': teams, 'heatmap': heatmap}
 
 
+
+def _educational_agreements_payload(date_from, date_to, filters):
+    qs = filtered_statistics(date_from, date_to, filters).filter(
+        methodology='SIED_OPERATIONAL',
+        category_entity_type='EDUCATIONAL_AGREEMENT',
+        status='ACTIVE'
+    )
+
+    code_by_name = {
+        'Escolinha Nota 10': 'ESCOLINHA_NOTA_10',
+        'Escola Nota 10': 'ESCOLA_NOTA_10',
+    }
+    agreements = {}
+    rows = qs.values('category_action_type__name', 'indicator_type').annotate(value=Sum('value'))
+    for row in rows:
+        action_type_name = row['category_action_type__name'] or ''
+        code = code_by_name.get(action_type_name)
+        if not code:
+            continue
+        if code not in agreements:
+            agreements[code] = {'label': action_type_name, 'actions': 0, 'audience': 0}
+
+        if row['indicator_type'] == 'ACTION':
+            agreements[code]['actions'] += float(row['value'])
+        elif row['indicator_type'] == 'AUDIENCE':
+            agreements[code]['audience'] += float(row['value'])
+
+    items = []
+    total_actions = 0
+    total_audience = 0
+    for code, data in agreements.items():
+        total_actions += data['actions']
+        total_audience += data['audience']
+        items.append({
+            'code': code,
+            'label': data['label'],
+            'actions': int(data['actions']),
+            'audience': int(data['audience'])
+        })
+
+    return {
+        'total_actions': int(total_actions),
+        'total_audience': int(total_audience),
+        'items': sorted(items, key=lambda x: x['label'])
+    }
+
+
 def dashboard_payload(date_from, date_to, filters):
     date_from = max(date_from, DASHBOARD_OPERATIONAL_START)
     signature = f"{date_from}:{date_to}:{sorted(filters.items())}"
@@ -487,6 +534,7 @@ def dashboard_payload(date_from, date_to, filters):
         'summary': current, 'previous': previous, 'comparisons': comparisons,
         'annual': annual, 'monthly': monthly, 'visual_monthly': visual_monthly, 'daily': daily, 'categories': categories,
         'administrative_demands': administrative_demands,
+        'educational_agreements': _educational_agreements_payload(date_from, date_to, filters),
         **rankings,
         'metadata': {'historical_dimensions': False, 'operational_dimensions_from': '2026-07-09', 'comparison_label': comparison['label'], 'comparison_type': comparison['type']},
     }

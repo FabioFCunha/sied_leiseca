@@ -157,6 +157,7 @@ class AgentSerializer(LookupSerializer):
 class ActionTypeSerializer(LookupSerializer):
     class Meta(LookupSerializer.Meta):
         model = ActionType
+        fields = ["id", "source_id", "name", "category", "is_active"]
 
 
 class RegionSerializer(LookupSerializer):
@@ -498,6 +499,8 @@ class AgendaSerializer(serializers.ModelSerializer):
     designated_users = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), many=True, required=False)
     absent_designated_users = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(is_active=True), many=True, required=False)
     designated_users_details = serializers.SerializerMethodField()
+    predicted_agreement_indicator = serializers.SerializerMethodField()
+    predicted_agreement_indicator_label = serializers.SerializerMethodField()
 
     class Meta:
         model = Agenda
@@ -568,6 +571,8 @@ class AgendaSerializer(serializers.ModelSerializer):
             "requester_role",
             "audience",
             "requester_entity_type",
+            "predicted_agreement_indicator",
+            "predicted_agreement_indicator_label",
             "administrative_demand_type",
             "travel_displacement",
             "age_ranges",
@@ -613,7 +618,15 @@ class AgendaSerializer(serializers.ModelSerializer):
             "history",
             "materials",
         ]
-        read_only_fields = ["created_by", "service_order_number", "created_at", "updated_at", "history"]
+        read_only_fields = [
+            "created_by",
+            "service_order_number",
+            "created_at",
+            "updated_at",
+            "history",
+            "predicted_agreement_indicator",
+            "predicted_agreement_indicator_label",
+        ]
 
     def validate(self, attrs):
         instance = self.instance
@@ -623,6 +636,10 @@ class AgendaSerializer(serializers.ModelSerializer):
         STREET_ACTION_ID = "6"
         action_type_ref = getattr(instance, "action_type_ref_id", None)
         if "action_type_ref" in attrs:
+            action_ref = attrs["action_type_ref"]
+            if action_ref:
+                if not action_ref.is_active or action_ref.category == ActionType.Category.PROGRAM_INDICATOR or action_ref.name.lower() == "palestra escola":
+                    raise serializers.ValidationError({"action_type_ref": f"O tipo de ação '{action_ref.name}' não está ativo para novas seleções."})
             action_type_ref = getattr(attrs["action_type_ref"], "id", None) if attrs["action_type_ref"] else None
         requester_entity_type = str(attrs.get("requester_entity_type", getattr(instance, "requester_entity_type", "")))
         administrative_demand_type = str(attrs.get("administrative_demand_type", getattr(instance, "administrative_demand_type", "")) or "")
@@ -710,8 +727,20 @@ class AgendaSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "designated_users": "Limpe os participantes selecionados para voltar ao modo de equipe operacional.",
                 })
-
         return attrs
+
+    def get_predicted_agreement_indicator(self, obj):
+        from .agreement_indicators import derive_from_agenda
+        return derive_from_agenda(obj)
+
+    def get_predicted_agreement_indicator_label(self, obj):
+        from .agreement_indicators import derive_from_agenda, EducationAgreementIndicator
+        val = derive_from_agenda(obj)
+        if val == EducationAgreementIndicator.ESCOLINHA_NOTA_10:
+            return "Escolinha Nota 10"
+        elif val == EducationAgreementIndicator.ESCOLA_NOTA_10:
+            return "Escola Nota 10"
+        return None
 
     def get_linked_requests_count(self, obj):
         if hasattr(obj, 'linked_requests_count_annotated'):
@@ -957,11 +986,61 @@ ACTION_COUNTER_FIELDS = {
 }
 
 
+class EducationActionListSerializer(serializers.ListSerializer):
+    """Keeps the legacy-action exception scoped to its original report row."""
+
+    def to_internal_value(self, data):
+        if not isinstance(data, list):
+            self.fail("not_a_list", input_type=type(data).__name__)
+
+        validated_data = []
+        errors = []
+        legacy_action_types_by_id = getattr(self, "legacy_action_types_by_id", {})
+        for item in data:
+            action_id = item.get("id") if isinstance(item, dict) else None
+            submitted_type = str(item.get("type_action") or "").strip() if isinstance(item, dict) else ""
+            self.child._allow_legacy_palestra_escola = (
+                legacy_action_types_by_id.get(str(action_id), "").strip().lower() == "palestra escola"
+                and submitted_type.lower() == "palestra escola"
+            )
+            try:
+                validated_data.append(self.child.run_validation(item))
+                errors.append({})
+            except serializers.ValidationError as exc:
+                validated_data.append({})
+                errors.append(exc.detail)
+            finally:
+                self.child._allow_legacy_palestra_escola = False
+
+        if any(errors):
+            raise serializers.ValidationError(errors)
+        return validated_data
+
+
 class EducationActionSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
     agenda_title = serializers.CharField(source="agenda.title", read_only=True)
+
+    @staticmethod
+    def _is_selectable_action_type(action_type):
+        if not action_type:
+            return False
+        if not action_type.is_active:
+            return False
+        if not action_type.category:
+            return False
+        if action_type.category == ActionType.Category.PROGRAM_INDICATOR:
+            return False
+        if str(action_type.name or "").strip().lower() == "palestra escola":
+            return False
+        return action_type.category in {
+            ActionType.Category.LECTURE,
+            ActionType.Category.EDUCATIONAL_ACTION,
+        }
 
     class Meta:
         model = EducationAction
+        list_serializer_class = EducationActionListSerializer
         fields = [
             "id",
             "agenda",
@@ -970,6 +1049,10 @@ class EducationActionSerializer(serializers.ModelSerializer):
             "place_action",
             "type_action",
             "type_audience",
+            "requester_entity_kind",
+            "requester_entity_nature",
+            "age_range",
+            "agreement_indicator",
             "institution_name",
             "start_time",
             "final_hour",
@@ -1012,7 +1095,7 @@ class EducationActionSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at", "agenda_title"]
+        read_only_fields = ["created_at", "updated_at", "agenda_title", "agreement_indicator"]
         extra_kwargs = {"source_id": {"validators": []}}
 
     def validate_source_id(self, value):
@@ -1055,7 +1138,26 @@ class EducationActionSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        action_type = str(attrs.get("type_action") or "").strip()
+        action_type = str(attrs.get("type_action", getattr(self.instance, "type_action", "")) or "").strip()
+        incoming_action_type = attrs.get("type_action", serializers.empty)
+        current_action_type = str(getattr(self.instance, "type_action", "") or "").strip()
+        action_type_changed = incoming_action_type is not serializers.empty and action_type != current_action_type
+
+        if action_type:
+            matched_action = ActionType.objects.filter(name__iexact=action_type).order_by("id").first()
+            if not matched_action:
+                raise serializers.ValidationError({"type_action": "Selecione um tipo operacional válido cadastrado no catálogo."})
+            allows_legacy_palestra_escola = (
+                matched_action.name.lower() == "palestra escola"
+                and getattr(self, "_allow_legacy_palestra_escola", False)
+            )
+            if not self._is_selectable_action_type(matched_action) and not allows_legacy_palestra_escola:
+                if not self.instance or action_type_changed:
+                    if matched_action.name.lower() == "palestra escola":
+                        raise serializers.ValidationError({"type_action": "O tipo de ação 'Palestra Escola' foi desativado e não pode ser selecionado."})
+                    raise serializers.ValidationError({"type_action": f"O tipo de ação '{matched_action.name}' não está disponível para novas seleções."})
+            attrs["type_action"] = matched_action.name
+
         counter_fields = [
             "educational_actions",
             "bars",
@@ -1076,6 +1178,13 @@ class EducationActionSerializer(serializers.ModelSerializer):
         if mapped_field:
             attrs["educational_actions"] = 1
             attrs[mapped_field] = 1
+
+        from .agreement_indicators import derive_education_agreement_indicator
+        kind = attrs.get("requester_entity_kind", getattr(self.instance, "requester_entity_kind", None))
+        nature = attrs.get("requester_entity_nature", getattr(self.instance, "requester_entity_nature", None))
+        age = attrs.get("age_range", getattr(self.instance, "age_range", None))
+        attrs["agreement_indicator"] = derive_education_agreement_indicator(kind, nature, age)
+
         return attrs
 
 
@@ -1161,6 +1270,14 @@ class EducationReportSerializer(serializers.ModelSerializer):
 
     def validate_source_id(self, value):
         return value or None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and getattr(self.instance, "pk", None):
+            self.fields["actions"].legacy_action_types_by_id = {
+                str(action.pk): action.type_action or ""
+                for action in self.instance.actions.all().only("id", "type_action")
+            }
 
     def get_actions_count(self, obj):
         if hasattr(obj, 'actions_count_annotated'):
@@ -1268,8 +1385,12 @@ class EducationReportSerializer(serializers.ModelSerializer):
             setattr(instance, field, value)
         instance.save()
         if actions_data is not None:
+            legacy_action_types_by_id = {
+                str(action.pk): action.type_action or ""
+                for action in instance.actions.all().only("id", "type_action")
+            }
             instance.actions.all().delete()
-            self._save_actions(instance, actions_data)
+            self._save_actions(instance, actions_data, legacy_action_types_by_id)
         return instance
 
     @staticmethod
@@ -1297,14 +1418,54 @@ class EducationReportSerializer(serializers.ModelSerializer):
                 return True
         return False
 
-    def _save_actions(self, report, actions_data):
+    def _save_actions(self, report, actions_data, legacy_action_types_by_id=None):
+        from .agreement_indicators import normalize_age_range, normalize_entity_type
+
+        agenda = report.agenda
+        first_saved_action = True
         for action_data in actions_data:
             if not self._is_meaningful_action_data(action_data):
                 continue
             action_data = action_data.copy()
-            action_data.pop("id", None)
+            source_action_id = action_data.pop("id", None)
             action_data.pop("source_id", None)
-            EducationAction.objects.create(report=report, **action_data)
+            action_data.setdefault("agenda", getattr(agenda, "pk", agenda))
+
+            if first_saved_action and agenda:
+                if not action_data.get("requester_entity_kind") and not action_data.get("requester_entity_nature"):
+                    inherited_kind, inherited_nature = normalize_entity_type(agenda.requester_entity_type)
+                    if not action_data.get("requester_entity_kind") and inherited_kind:
+                        action_data["requester_entity_kind"] = inherited_kind
+                    if not action_data.get("requester_entity_nature") and inherited_nature:
+                        action_data["requester_entity_nature"] = inherited_nature
+                if not action_data.get("age_range"):
+                    inherited_age = normalize_age_range(agenda.age_ranges)
+                    if inherited_age:
+                        action_data["age_range"] = inherited_age
+                if not str(action_data.get("type_action") or "").strip():
+                    agenda_action_type = getattr(agenda, "action_type_ref", None)
+                    if (
+                        agenda_action_type
+                        and EducationActionSerializer._is_selectable_action_type(agenda_action_type)
+                    ):
+                        action_data["type_action"] = agenda_action_type.name
+                    else:
+                        agenda_action_name = str(getattr(agenda, "action_type", "") or "").strip()
+                        if agenda_action_name:
+                            matched_action = ActionType.objects.filter(name__iexact=agenda_action_name).order_by("id").first()
+                            if matched_action and EducationActionSerializer._is_selectable_action_type(matched_action):
+                                action_data["type_action"] = matched_action.name
+
+            allows_legacy_palestra_escola = (
+                (legacy_action_types_by_id or {}).get(str(source_action_id), "").strip().lower()
+                == "palestra escola"
+                and str(action_data.get("type_action") or "").strip().lower() == "palestra escola"
+            )
+            serializer = EducationActionSerializer(data=action_data, context=self.context)
+            serializer._allow_legacy_palestra_escola = allows_legacy_palestra_escola
+            serializer.is_valid(raise_exception=True)
+            serializer.save(report=report)
+            first_saved_action = False
 
 
 class EducationGoalSerializer(serializers.ModelSerializer):

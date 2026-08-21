@@ -241,6 +241,16 @@ export function buildStatisticsViewModel({
       }
   });
 
+  const educationalAgreementRows = (data.educational_agreements?.items || []).map((item, index) => ({
+    code: item.code,
+    label: item.label,
+    actions: Number(item.actions || 0),
+    audience: Number(item.audience || 0),
+    color: COLORS[(index + 3) % COLORS.length],
+    actionsLabel: integer(item.actions || 0),
+    audienceLabel: integer(item.audience || 0),
+  }));
+
   // 9. Heatmap
   const heatmapRows = data.heatmap || [];
   const heatmapTotals = heatmapRows.reduce((acc, item) => {
@@ -318,6 +328,7 @@ export function buildStatisticsViewModel({
     ageRows,
     requesterRows,
     administrativeDemandRows,
+    educationalAgreementRows,
     heatmapRows,
     heatmapValues,
     municipalities,

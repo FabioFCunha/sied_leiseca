@@ -4,6 +4,44 @@ import { formatDateBR } from "./date.js";
 import logoUrl from "../assets/operacao-lei-seca-logo.png";
 import { buildSupportsSummary, getReachedAudienceForAction } from "./reportPreview.js";
 
+function agreementIndicatorLabel(value) {
+  return value === "ESCOLINHA_NOTA_10"
+    ? "Escolinha Nota 10"
+    : value === "ESCOLA_NOTA_10"
+      ? "Escola Nota 10"
+      : "";
+}
+
+function requesterEntityKindLabel(value) {
+  return value === "SCHOOL"
+    ? "Instituição de Ensino"
+    : value === "BUSINESS"
+      ? "Empresa"
+      : value === "MILITARY"
+        ? "Órgão Militar"
+        : value === "PUBLIC"
+          ? "Órgão Público"
+          : value === "OTHER"
+            ? "Outros"
+            : value || "";
+}
+
+function requesterEntityNatureLabel(value) {
+  return value === "PUBLIC" ? "Pública" : value === "PRIVATE" ? "Privada" : value || "";
+}
+
+function ageRangeLabel(value) {
+  return value === "AGE_05_10"
+    ? "05 - 10 anos (ensino fundamental - anos iniciais)"
+    : value === "AGE_11_14"
+      ? "11 - 14 anos (ensino fundamental - anos finais)"
+      : value === "AGE_15_17"
+        ? "15 - 17 anos (ensino médio)"
+        : value === "AGE_ADULT"
+          ? "acima de 18 anos - Adultos"
+          : value || "";
+}
+
 // ── Helper: Load image as base64 for jsPDF ───────────────────────────────
 function loadImageAsBase64(url) {
   return new Promise((resolve, reject) => {
@@ -366,7 +404,7 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
     }
 
     const actionNum = String(index + 1).padStart(2, "0");
-    const actionLabel = (action.type_action || "NÃO ESPECIFICADA").toUpperCase();
+    const actionLabel = (action.type_action || "AÇÃO").toUpperCase();
 
     // Action badge
     doc.setFillColor(...NAVY_LIGHT);
@@ -380,11 +418,15 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
     const alcDisplay = (alcVal !== "" && alcVal !== null && alcVal !== undefined) ? String(alcVal) : "Não informado";
 
     const actionData = [
-      ["Tipo da Ação", action.type_action || "NÃO ESPECIFICADA"],
+      ["Tipo da Ação", action.type_action || "Não informado"],
       ["Instituição / Local", action.institution_name || "Não informado"],
       ["Endereço", action.place_action || "Não informado"],
       ["Horário", `${action.start_time || "--"} às ${action.final_hour || "--"}`],
     ];
+    if (requesterEntityKindLabel(action.requester_entity_kind)) actionData.push(["Tipo da entidade", requesterEntityKindLabel(action.requester_entity_kind)]);
+    if (requesterEntityNatureLabel(action.requester_entity_nature)) actionData.push(["Natureza", requesterEntityNatureLabel(action.requester_entity_nature)]);
+    if (ageRangeLabel(action.age_range)) actionData.push(["Faixa etária", ageRangeLabel(action.age_range)]);
+    if (agreementIndicatorLabel(action.agreement_indicator)) actionData.push(["Indicador", agreementIndicatorLabel(action.agreement_indicator)]);
 
     // Público Estimado: somente Ação 1
     if (isFirstAction && showEstimatedPublic) {

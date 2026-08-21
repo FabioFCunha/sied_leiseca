@@ -3,6 +3,12 @@ from django.db import models
 from django.db import transaction
 from django.db.models import Max, Q
 from django.contrib.postgres.indexes import GinIndex
+from .agreement_indicators import (
+    EducationAgreementIndicator,
+    EducationActionAgeRange,
+    RequesterEntityKind,
+    RequesterEntityNature,
+)
 
 
 class Sector(models.Model):
@@ -70,7 +76,14 @@ class Agent(NamedLookup):
 
 
 class ActionType(NamedLookup):
-    pass
+    class Category(models.TextChoices):
+        STREET_ACTION = "STREET_ACTION", "Ação de Rua"
+        LECTURE = "LECTURE", "Palestra"
+        EDUCATIONAL_ACTION = "EDUCATIONAL_ACTION", "Ação Educativa"
+        PROGRAM_INDICATOR = "PROGRAM_INDICATOR", "Indicador de Programa"
+        OTHER = "OTHER", "Outros"
+
+    category = models.CharField(max_length=50, choices=Category.choices, null=True, blank=True)
 
 
 class Region(NamedLookup):
@@ -303,6 +316,7 @@ class ShiftSwapRequest(models.Model):
 
 
 class Agenda(models.Model):
+
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pendente"
         APPROVED = "APPROVED", "Aprovada"
@@ -817,6 +831,10 @@ class EducationAction(models.Model):
     place_action = models.CharField(max_length=260, blank=True)
     type_action = models.CharField(max_length=160, blank=True)
     type_audience = models.CharField(max_length=160, blank=True)
+    requester_entity_kind = models.CharField(max_length=50, choices=RequesterEntityKind.choices, null=True, blank=True)
+    requester_entity_nature = models.CharField(max_length=50, choices=RequesterEntityNature.choices, null=True, blank=True)
+    age_range = models.CharField(max_length=50, choices=EducationActionAgeRange.choices, null=True, blank=True)
+    agreement_indicator = models.CharField(max_length=50, choices=EducationAgreementIndicator.choices, null=True, blank=True)
     institution_name = models.CharField(max_length=220, blank=True)
     start_time = models.CharField(max_length=30, blank=True)
     final_hour = models.CharField(max_length=30, blank=True)

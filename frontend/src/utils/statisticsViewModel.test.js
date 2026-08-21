@@ -109,6 +109,30 @@ describe("buildStatisticsViewModel", () => {
       const interview = vm.administrativeDemandRows.find(r => r.label === "Entrevista");
       expect(interview.actions).toBe(0);
   });
+
+  it("should expose educational agreements without breaking older payloads", () => {
+      const withAgreements = buildStatisticsViewModel({
+          dashboardData: {
+              educational_agreements: {
+                  items: [
+                      { code: "ESCOLINHA_NOTA_10", label: "Escolinha Nota 10", actions: 2, audience: 70 },
+                      { code: "ESCOLA_NOTA_10", label: "Escola Nota 10", actions: 1, audience: 50 },
+                  ]
+              }
+          },
+          filteredAgendas: [],
+          futureAgendas: [],
+      });
+      expect(withAgreements.educationalAgreementRows).toHaveLength(2);
+      expect(withAgreements.educationalAgreementRows[0].actionsLabel).toBeDefined();
+
+      const withoutAgreements = buildStatisticsViewModel({
+          dashboardData: {},
+          filteredAgendas: [],
+          futureAgendas: [],
+      });
+      expect(withoutAgreements.educationalAgreementRows).toEqual([]);
+  });
   
   it("should format teams correctly", () => {
       const vm = buildStatisticsViewModel({

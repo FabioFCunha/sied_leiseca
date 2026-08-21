@@ -129,6 +129,10 @@ def _action_audience_value(action, is_palestra=False):
         primary = _positive_counter(getattr(action, 'approached_actions', 0))
     return primary or _positive_counter(getattr(action, 'approach', 0))
 
+
+def _agreement_audience_value(action):
+    return _positive_counter(getattr(action, 'approached_lectures', 0))
+
 def aggregate_official_rows(rows):
     totals = defaultdict(float)
     for row in rows:
@@ -391,7 +395,37 @@ def generate_statistics_for_report(report, processed_by=None):
         add_metric('ACTION', acoes_total, action_type='ACAO', entity_type='TOTAL')
         add_metric('AUDIENCE', acoes_audience or total_audience, action_type='ACAO', entity_type='TOTAL')
 
-    action_type_names = {'ACAO': 'A\u00e7\u00e3o', 'PALESTRA': 'Palestra'}
+    # ====================================================
+    # INDICADORES DE CONVÊNIOS EDUCACIONAIS (ESCOLA / ESCOLINHA NOTA 10)
+    # ====================================================
+    agreement_actions = {}
+    for action in actions:
+        agenda = action.agenda
+        ind = getattr(action, 'agreement_indicator', None)
+        if not ind:
+            from apps.schedules.agreement_indicators import derive_education_agreement_indicator
+            kind = getattr(action, 'requester_entity_kind', None) or (getattr(agenda, 'requester_entity_kind', None) if agenda else None)
+            nature = getattr(action, 'requester_entity_nature', None) or (getattr(agenda, 'requester_entity_nature', None) if agenda else None)
+            age = getattr(action, 'age_range', None) or (getattr(agenda, 'age_range', None) if agenda else None)
+            ind = derive_education_agreement_indicator(kind, nature, age)
+        
+        if ind in ['ESCOLA_NOTA_10', 'ESCOLINHA_NOTA_10']:
+            if ind not in agreement_actions:
+                agreement_actions[ind] = {'actions': 0, 'audience': 0}
+            agreement_actions[ind]['actions'] += 1
+            agreement_actions[ind]['audience'] += _agreement_audience_value(action)
+
+    for agreement_name, data in agreement_actions.items():
+        if data['actions'] > 0:
+            add_metric('ACTION', data['actions'], action_type=agreement_name, entity_type='EDUCATIONAL_AGREEMENT')
+        add_metric('AUDIENCE', data['audience'], action_type=agreement_name, entity_type='EDUCATIONAL_AGREEMENT')
+
+    action_type_names = {
+        'ACAO': 'Ação',
+        'PALESTRA': 'Palestra',
+        'ESCOLA_NOTA_10': 'Escola Nota 10',
+        'ESCOLINHA_NOTA_10': 'Escolinha Nota 10',
+    }
     resolved_action_types = {}
     for action_type_code in {
         metric['category_action_type'] for metric in metrics_to_sync

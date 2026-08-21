@@ -820,7 +820,17 @@ class ShiftSwapRequestViewSet(viewsets.ModelViewSet):
 
 class ActionTypeViewSet(LookupViewSet):
     serializer_class = ActionTypeSerializer
-    queryset = ActionType.objects.all()
+
+    def get_queryset(self):
+        queryset = ActionType.objects.exclude(category__isnull=True).exclude(category=ActionType.Category.PROGRAM_INDICATOR)
+        if self.action == "list":
+            queryset = queryset.filter(is_active=True).exclude(name__iexact="Palestra Escola")
+        if self.request.query_params.get("include_inactive") == "true" and getattr(self.request.user, "is_admin_role", False):
+            queryset = ActionType.objects.all()
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(category=category)
+        return queryset.order_by("name")
 
 class RegionViewSet(LookupViewSet):
     serializer_class = RegionSerializer

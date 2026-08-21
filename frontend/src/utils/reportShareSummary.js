@@ -41,6 +41,14 @@ function summarizeDistributedMaterials(value = "") {
     .join("; ");
 }
 
+function agreementIndicatorLabel(value) {
+  return value === "ESCOLINHA_NOTA_10"
+    ? "Escolinha Nota 10"
+    : value === "ESCOLA_NOTA_10"
+      ? "Escola Nota 10"
+      : "";
+}
+
 const exceptionalOccurrenceTypeLabels = {
   VEHICLE_BREAKDOWN: "Quebra de Viatura",
   WORK_ACCIDENT: "Acidente de Trabalho (Efetivo)",
@@ -81,8 +89,10 @@ export function buildReportShareSummary(report = {}, agenda = {}, attendanceStat
     actions.forEach((action, index) => {
       const actionTitle = isStreetAction
         ? streetActionTypeLabel(action.type_action || "")
-        : (action.institution_name || `Ação ${index + 1}`);
+        : (action.type_action || action.institution_name || `Ação ${index + 1}`);
       lines.push("", `Ação ${String(index + 1).padStart(2, "0")} - ${actionTitle}`);
+      if (action.type_action) lines.push(`🎯 Tipo da ação: ${action.type_action}`);
+      if (agreementIndicatorLabel(action.agreement_indicator)) lines.push(`🏷️ Indicador: ${agreementIndicatorLabel(action.agreement_indicator)}`);
       if (action.place_action) lines.push(`📍 ${action.place_action}`);
       if (action.start_time || action.final_hour) {
         const start = String(action.start_time || "").slice(0, 5);
