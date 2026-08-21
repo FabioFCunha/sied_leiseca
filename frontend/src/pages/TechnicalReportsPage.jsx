@@ -7,6 +7,7 @@ import { STREET_ACTION_ID } from "../utils/constants.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
+import { filterOperationalEducationActionTypes, getAgendaOperationalActionTypeName } from "../utils/actionTypeOptions.js";
 
 import { buildEducationAgentsText, buildOperationalResponsibility, buildPreview, chiefFromReport, reportName, getReachedAudienceForAction } from "../utils/reportPreview.js";
 import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
@@ -593,6 +594,7 @@ export default function TechnicalReportsPage() {
   const processedOpenReport = useRef(false);
   const isVisitor = user?.role === "VISITOR";
   const [agendas, setAgendas] = useState([]);
+  const [actionTypes, setActionTypes] = useState([]);
   const [reports, setReports] = useState([]);
   const [techFilters, setTechFilters] = useState({ q: "", team: "", date: "", status: isVisitor ? "APPROVED" : "" });
   const [pendingTechFilters, setPendingTechFilters] = useState({ q: "", team: "", date: "", status: isVisitor ? "APPROVED" : "" });
@@ -630,6 +632,10 @@ export default function TechnicalReportsPage() {
   const selectedAgenda = useMemo(
     () => agendas.find((agenda) => String(agenda.id) === String(form.agenda)),
     [agendas, form.agenda]
+  );
+  const operationalActionTypeOptions = useMemo(
+    () => filterOperationalEducationActionTypes(actionTypes),
+    [actionTypes]
   );
   const isStreetActionSelectedAgenda = Boolean(selectedAgenda && isStreetActionAgenda(selectedAgenda));
   const predefinedStreetActionTypes = useMemo(
@@ -694,10 +700,11 @@ export default function TechnicalReportsPage() {
     });
     if (isVisitor) params.set("status", "APPROVED");
 
-    const [agendasResult, reportsResult, pendingCountResult] = await Promise.allSettled([
+    const [agendasResult, reportsResult, pendingCountResult, actionTypesResult] = await Promise.allSettled([
       api(`/agendas/?page_size=50&reportable=true&pending_report=true${pendingChiefQuery ? `&chief=${encodeURIComponent(pendingChiefQuery)}` : ''}`),
       api(`/education-reports/?${params.toString()}`),
       isVisitor ? Promise.resolve({ count: 0 }) : api("/education-reports/?status=PENDING_REVIEW&page_size=1"),
+      api("/action-types/?page_size=500"),
     ]);
 
     if (agendasResult.status === "fulfilled") {
@@ -712,8 +719,13 @@ export default function TechnicalReportsPage() {
     if (pendingCountResult.status === "fulfilled") {
       setPendingReviewCount(pendingCountResult.value?.count || 0);
     }
+    if (actionTypesResult.status === "fulfilled") {
+      const data = actionTypesResult.value;
+      const results = data?.results || data;
+      setActionTypes(Array.isArray(results) ? results : []);
+    }
 
-    const failures = [agendasResult, reportsResult]
+    const failures = [agendasResult, reportsResult, actionTypesResult]
       .filter((result) => result.status === "rejected")
       .map((result) => result.reason?.message)
       .filter(Boolean);
@@ -957,6 +969,9 @@ export default function TechnicalReportsPage() {
     const blankKits = serializeBlankMaterialRows(selectedMaterials.kits);
     const buildAgendaAction = (currentAction = {}) => {
       const isUserCreated = currentAction.__userCreated;
+      const inheritedTypeAction = isStreetActionAgenda(agenda)
+        ? ""
+        : getAgendaOperationalActionTypeName(agenda, actionTypes);
       if (isUserCreated) {
         return {
           ...emptyAction,
@@ -973,7 +988,7 @@ export default function TechnicalReportsPage() {
         source_id: isUserCreated ? "" : (currentAction.source_id || `agenda_action:${agenda.id}`),
         place_action: currentAction.place_action || getAgendaActionPlace(agenda),
         institution_name: currentAction.institution_name || agenda.institution_location || "",
-        type_action: currentAction.type_action || agenda.action_type || agenda.action_type_ref_name || "",
+        type_action: currentAction.type_action || inheritedTypeAction,
         type_audience: currentAction.type_audience || agenda.audience || "",
         requester_entity_kind: currentAction.requester_entity_kind || "",
         requester_entity_nature: currentAction.requester_entity_nature || "",
@@ -1293,6 +1308,7 @@ export default function TechnicalReportsPage() {
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
       if (isStreetAction && (!action.type_action || isMissingLegacyStreetSubtype(action.type_action))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (!isStreetAction && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Tipo da palestra/ação realizada`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -1337,6 +1353,7 @@ export default function TechnicalReportsPage() {
 
     getValidatableActions(form.actions).forEach(({ action, index }) => {
       if (isStreetAction && (!action.type_action || isMissingLegacyStreetSubtype(action.type_action))) missingFields.push({ name: `Ação ${index + 1}: Ação Definida pelo Chefe`, id: `select-type-action-${index}` });
+      if (!isStreetAction && !action.type_action) missingFields.push({ name: `Ação ${index + 1}: Tipo da palestra/ação realizada`, id: `select-type-action-${index}` });
     });
 
     if (!form.accessibility_conditions_met) missingFields.push({ name: "Condições de Acessibilidade", id: "select-accessibility" });
@@ -1813,6 +1830,28 @@ export default function TechnicalReportsPage() {
                           <span>Horário final</span>
                           <input value={action.final_hour || ""} onChange={(event) => updateAction(index, "final_hour", event.target.value)} readOnly={requestFieldsReadOnly && !action.__userCreated} />
                         </label>
+                        {!isStreetAction ? (
+                          <label className="field-label chief-highlight-field chief-action-select">
+                            <span>Tipo da palestra/ação realizada *</span>
+                            <select
+                              id={`select-type-action-${index}`}
+                              value={action.type_action || ""}
+                              onChange={(event) => updateAction(index, "type_action", event.target.value)}
+                              required
+                            >
+                              <option value="">Selecione</option>
+                              {operationalActionTypeOptions.map((option) => (
+                                <option key={option.id || option.name} value={option.name}>{option.name}</option>
+                              ))}
+                              {action.type_action && !operationalActionTypeOptions.some((option) => option.name === action.type_action) && (
+                                <option value={action.type_action}>{action.type_action}</option>
+                              )}
+                            </select>
+                            {agreementIndicatorLabel(action.agreement_indicator) && (
+                              <small>Indicador identificado: {agreementIndicatorLabel(action.agreement_indicator)}</small>
+                            )}
+                          </label>
+                        ) : null}
                         <label className="field-label chief-highlight-field">
                           <span>Número de abordagens</span>
                           <input

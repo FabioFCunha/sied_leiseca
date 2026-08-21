@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, FileText, MessageCircle, Plus, Save, Trash2 } 
 import { api } from "../../api/client.js";
 import { STREET_ACTION_ID } from "../../utils/constants";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../../utils/streetActionTypes.js";
+import { filterOperationalEducationActionTypes, getAgendaOperationalActionTypeName } from "../../utils/actionTypeOptions.js";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileAttendanceSummaryCard from "../../components/mobile/MobileAttendanceSummaryCard.jsx";
@@ -307,7 +308,15 @@ function MobileMaterialQuantityEditor({ value, onChange }) {
   );
 }
 
-function hydrateActionFromAgenda(action = {}, agenda = {}) {
+function agreementIndicatorLabel(value) {
+  return value === "ESCOLINHA_NOTA_10"
+    ? "Escolinha Nota 10"
+    : value === "ESCOLA_NOTA_10"
+      ? "Escola Nota 10"
+      : "";
+}
+
+function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = []) {
   if (action.__userCreated) {
     return {
       ...emptyAction,
@@ -329,9 +338,7 @@ function hydrateActionFromAgenda(action = {}, agenda = {}) {
       "",
     type_action:
       normalizeStreetActionType(action.type_action) ||
-      agenda.action_type ||
-      agenda.action_type_ref_name ||
-      "",
+      (isStreetActionAgenda(agenda) ? "" : getAgendaOperationalActionTypeName(agenda, actionTypes)),
     type_audience: action.type_audience || agenda.audience || "",
     requester_entity_kind: action.requester_entity_kind || "",
     requester_entity_nature: action.requester_entity_nature || "",
@@ -364,6 +371,7 @@ export default function MobileReportFormPage() {
   const [error, setError] = useState("");
   const [form, setForm] = useState(null);
   const [agenda, setAgenda] = useState(null);
+  const [actionTypes, setActionTypes] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -386,7 +394,12 @@ export default function MobileReportFormPage() {
       setError("");
       try {
         if (isEdit) {
-          const report = await api(`/education-reports/${id}/`, { signal: controller.signal });
+          const [report, actionTypesResult] = await Promise.all([
+            api(`/education-reports/${id}/`, { signal: controller.signal }),
+            api("/action-types/?page_size=500", { signal: controller.signal }),
+          ]);
+          const loadedActionTypes = actionTypesResult.results || actionTypesResult || [];
+          setActionTypes(loadedActionTypes);
 
           if (report.status !== "DRAFT" && report.status !== "RETURNED") {
             navigate(`/app/relatorios/${id}`, { replace: true });
@@ -423,12 +436,17 @@ export default function MobileReportFormPage() {
                 hydrateActionFromAgenda({
                   ...action,
                   __userCreated: action.__userCreated ?? (hasAnySourceId ? !action.source_id : index > 0),
-                }, repAgenda || {})
+                }, repAgenda || {}, loadedActionTypes)
               );
             })()
           });
         } else {
-          const fetchedAgenda = await api(`/agendas/${agendaId}/`, { signal: controller.signal });
+          const [fetchedAgenda, actionTypesResult] = await Promise.all([
+            api(`/agendas/${agendaId}/`, { signal: controller.signal }),
+            api("/action-types/?page_size=500", { signal: controller.signal }),
+          ]);
+          const loadedActionTypes = actionTypesResult.results || actionTypesResult || [];
+          setActionTypes(loadedActionTypes);
 
           const res = await api(`/education-reports/?protocol=${agendaId}`, { signal: controller.signal });
           const results = res.results || res;
@@ -480,7 +498,7 @@ export default function MobileReportFormPage() {
               __userCreated: false,
               approach: fetchedAgenda.quantity || 0,
               type_audience: fetchedAgenda.audience || ""
-            }, fetchedAgenda)],
+            }, fetchedAgenda, loadedActionTypes)],
             accessibility_conditions_met: "",
             has_exceptional_occurrence: false,
             exceptional_occurrence_type: "",
@@ -750,6 +768,9 @@ export default function MobileReportFormPage() {
         if (isStreetActionAgenda(agenda) && (!action.type_action || action.type_action === "Selecione a ação")) {
           missingFields.push(`Ação ${index + 1}: Tipo da ação realizada *`);
         }
+        if (!isStreetActionAgenda(agenda) && !action.type_action) {
+          missingFields.push(`Ação ${index + 1}: Tipo da palestra/ação realizada *`);
+        }
       });
 
       if (form.has_exceptional_occurrence) {
@@ -834,6 +855,7 @@ export default function MobileReportFormPage() {
   const isStreetAction = isStreetActionAgenda(agenda);
   const isPublicRequest = agenda?.origin === "PUBLIC_FORM";
   const showEstimatedPublic = !isStreetAction || isPublicRequest;
+  const operationalActionTypeOptions = filterOperationalEducationActionTypes(actionTypes);
 
   const readOnlyIdentity = Boolean(agenda);
 
@@ -1065,6 +1087,30 @@ export default function MobileReportFormPage() {
                           <option value={action.type_action}>{streetActionTypeLabel(action.type_action)}</option>
                         )}
                       </select>
+                    </label>
+                  )}
+
+                  {!isStreetAction && (
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
+                      Tipo da palestra/ação realizada *
+                      <select
+                        value={action.type_action || ""}
+                        onChange={e => updateAction(index, "type_action", e.target.value)}
+                        style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
+                      >
+                        <option value="">Selecione</option>
+                        {operationalActionTypeOptions.map((opt) => (
+                          <option key={opt.id || opt.name} value={opt.name}>{opt.name}</option>
+                        ))}
+                        {action.type_action && !operationalActionTypeOptions.some((opt) => opt.name === action.type_action) && (
+                          <option value={action.type_action}>{action.type_action}</option>
+                        )}
+                      </select>
+                      {agreementIndicatorLabel(action.agreement_indicator) && (
+                        <span style={{ color: '#64748b', fontSize: '12px' }}>
+                          Indicador identificado: {agreementIndicatorLabel(action.agreement_indicator)}
+                        </span>
+                      )}
                     </label>
                   )}
 
