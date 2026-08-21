@@ -890,6 +890,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 agenda.absent_designated_users.remove(user)
             else:
                 agenda.absent_designated_users.add(user)
+            agenda.last_edited_by = request.user
+            agenda.save(update_fields=["last_edited_by", "updated_at"])
 
         serializer = self.get_serializer(agenda)
         return response.Response(serializer.data)
@@ -1057,7 +1059,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         previous_status = serializer.instance.status
-        agenda = serializer.save()
+        agenda = serializer.save(last_edited_by=self.request.user)
         if previous_status != agenda.status:
             action = f"STATUS_{agenda.status}"
             audit_action = AuditLog.Action.STATUS_CHANGE
@@ -1142,7 +1144,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
                 break
 
         agenda.status = previous_valid_status
-        agenda.save(update_fields=["status"])
+        agenda.last_edited_by = request.user
+        agenda.save(update_fields=["status", "last_edited_by", "updated_at"])
 
         snapshot = snapshot_for(agenda)
         snapshot["previous_status"] = Agenda.Status.CANCELLED

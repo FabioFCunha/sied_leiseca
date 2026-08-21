@@ -423,6 +423,7 @@ export default function AgendaPage() {
   const responsibleOptions = useMemo(() => (users.length ? users : [user]).filter(Boolean), [users, user]);
   const editingAgenda = useMemo(() => agendas.find((agenda) => String(agenda.id) === String(editing)), [agendas, editing]);
   const internalResponsibleName = editingAgenda?.created_by_name || "";
+  const lastEditedByName = editingAgenda?.last_edited_by_name || "";
   const isDecisionFlow = Boolean(editingAgenda && editingAgenda.status === "PENDING" && canManageRequests);
   const authenticatedResponsibleId = user?.id || "";
   const authenticatedResponsibleName = user?.full_name || "";
@@ -1487,6 +1488,12 @@ export default function AgendaPage() {
                         </select>
                       )}
                     </label>
+                    {editing && (
+                      <label className="field-label">
+                        <span>Última edição por</span>
+                        <input value={lastEditedByName || "Ainda não editada"} readOnly />
+                      </label>
+                    )}
                   </div>
                   <div className="compact-grid">
                     <label className="field-label">

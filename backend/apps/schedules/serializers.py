@@ -479,6 +479,7 @@ class AgendaSerializer(serializers.ModelSerializer):
     responsible_name = serializers.CharField(source="responsible.full_name", read_only=True)
     sector_name = serializers.CharField(source="sector.name", read_only=True)
     created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
+    last_edited_by_name = serializers.CharField(source="last_edited_by.full_name", read_only=True)
     history = AgendaHistorySerializer(many=True, read_only=True)
     materials = AgendaMaterialSerializer(many=True, required=False)
     vehicle_name = serializers.CharField(source="vehicle_ref.name", read_only=True)
@@ -613,6 +614,8 @@ class AgendaSerializer(serializers.ModelSerializer):
             "kit_7_quantity",
             "created_by",
             "created_by_name",
+            "last_edited_by",
+            "last_edited_by_name",
             "created_at",
             "updated_at",
             "history",
@@ -620,6 +623,8 @@ class AgendaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "created_by",
+            "last_edited_by",
+            "last_edited_by_name",
             "service_order_number",
             "created_at",
             "updated_at",
