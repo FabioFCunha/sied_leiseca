@@ -304,3 +304,9 @@
     margin: 8mm 10mm;
   }
 }
+/* O resumo executivo tem oito indicadores: quatro cards por linha em telas largas. */
+@media (min-width: 1101px) {
+  .stats-kpi-grid.stats-kpi-grid-compact {
+    grid-template-columns: repeat(4, minmax(170px, 1fr));
+  }
+}
