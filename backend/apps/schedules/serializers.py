@@ -860,7 +860,7 @@ class AgendaSerializer(serializers.ModelSerializer):
         )
         if is_decision_transition:
             validated_data["responsible"] = request.user
-        elif instance.origin == Agenda.Origin.INTERNAL:
+        else:
             validated_data.pop("responsible", None)
         agenda = super().update(instance, validated_data)
         if designated_users is not None:

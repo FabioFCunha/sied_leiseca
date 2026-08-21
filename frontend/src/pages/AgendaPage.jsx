@@ -427,6 +427,7 @@ export default function AgendaPage() {
   const responsibleOptions = useMemo(() => (users.length ? users : [user]).filter(Boolean), [users, user]);
   const editingAgenda = useMemo(() => agendas.find((agenda) => String(agenda.id) === String(editing)), [agendas, editing]);
   const internalResponsibleName = editingAgenda?.created_by_name || "";
+  const recordedResponsibleName = editingAgenda?.responsible_name || internalResponsibleName;
   const lastEditedByName = editingAgenda?.last_edited_by_name || "";
   const isDecisionFlow = Boolean(editingAgenda && editingAgenda.status === "PENDING" && canManageRequests);
   const authenticatedResponsibleId = user?.id || "";
@@ -1489,13 +1490,8 @@ export default function AgendaPage() {
                       <span>Responsável interno</span>
                       {isDecisionFlow ? (
                         <input value={authenticatedResponsibleName || ""} readOnly />
-                      ) : form.origin === "INTERNAL" ? (
-                        <input value={internalResponsibleName || ""} readOnly />
                       ) : (
-                        <select value={form.responsible || ""} onChange={(e) => update("responsible", e.target.value)} required>
-                          <option value="">Selecione o responsável</option>
-                          {responsibleOptions.map((option) => <option key={option.id} value={option.id}>{option.full_name}</option>)}
-                        </select>
+                        <input value={recordedResponsibleName || "Não informado"} readOnly />
                       )}
                     </label>
                     {editing && (

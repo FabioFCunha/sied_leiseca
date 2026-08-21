@@ -137,7 +137,7 @@ class InternalResponsibleLockApiTests(APITestCase):
         self.assertEqual(agenda.last_edited_by_id, self.editor.id)
         self.assertEqual(response.data["last_edited_by_name"], self.editor.full_name)
 
-    def test_non_internal_agenda_still_allows_responsible_change(self):
+    def test_non_internal_agenda_keeps_approved_responsible_on_edit(self):
         agenda = self.create_public_agenda()
         self.client.force_authenticate(self.editor)
 
@@ -149,7 +149,7 @@ class InternalResponsibleLockApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
         agenda.refresh_from_db()
-        self.assertEqual(agenda.responsible_id, self.other_responsible.id)
+        self.assertEqual(agenda.responsible_id, self.creator.id)
         self.assertEqual(agenda.created_by_id, self.creator.id)
 
     def test_manager_with_sector_approval_persists_authenticated_user_as_responsible(self):
