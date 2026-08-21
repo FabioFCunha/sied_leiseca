@@ -1,17 +1,33 @@
 {
-    "version": "2.7.0",
-    "releaseDate": "10/08/2026",
+    "version": "2.8.0",
+    "releaseDate": "21/08/2026",
     "notes": [
-        "O SIED agora pode ser utilizado como aplicativo no celular, com navegação adaptada e suporte para instalação.",
-        "O Dashboard e a consulta de Ordens de Serviço, Agendas e Escalas foram otimizados para uso em dispositivos móveis.",
-        "Relatórios Técnicos agora podem ser preenchidos, salvos como rascunho e enviados para validação diretamente pelo celular.",
-        "O registro e a conferência de Frequência das equipes foram integrados de forma nativa ao fluxo do aplicativo móvel.",
-        "O modo aplicativo recebeu melhorias no processo de atualização, garantindo que novas versões e elementos visuais sejam carregados corretamente.",
-        "Os campos de público estimado e alcançado foram ajustados para maior precisão nos Relatórios Técnicos e Ações de Rua.",
-        "A Série Histórica de Estatísticas de 2026 recebeu correções nos filtros de período para melhor visualização dos dados institucionais.",
-        "Foram implementadas correções na classificação de apoios, integrantes removidos na escala e caracteres da solicitação pública."
+        "Foi criado o módulo de Estatística da Fiscalização, com integração de dados do Horus, série histórica, indicadores oficiais, filtros por período e análise territorial.",
+        "A análise territorial passou a reunir dados históricos e operacionais, com indicadores de chuva, rankings, gráficos anuais e exportação em PDF.",
+        "O aplicativo móvel recebeu login próprio, detalhes ampliados das agendas, compartilhamento de resumo e melhorias no preenchimento de relatórios, ações e materiais.",
+        "Os Relatórios Técnicos agora preenchem a primeira ação com os dados da solicitação ou OS, permitem ajustes de horário e modalidade por ação e aceitam combinações de ação de rua e palestra.",
+        "Foram incluídos indicadores de Convênios Educacionais, para acompanhar ações e público de Escola Nota 10 e Escolinha Nota 10.",
+        "As Ordens de Serviço ganharam mais rastreabilidade: responsável interno protegido após o registro, identificação do último editor, data/hora da edição e acesso ao histórico.",
+        "Materiais, dinâmicas e itens de apoio marcados na OS passaram a exigir quantidade informada antes de salvar ou aprovar.",
+        "Solicitações externas passaram a respeitar períodos indisponíveis, e as escalas receberam ajustes de visualização e composição de integrantes.",
+        "O Dashboard Executivo foi aprimorado com melhor organização dos indicadores e correções de cálculos, públicos, filtros e visualizações estatísticas."
     ],
     "history": [
+        {
+            "version": "2.8.0",
+            "releaseDate": "21/08/2026",
+            "notes": [
+                "Foi criado o módulo de Estatística da Fiscalização, com integração de dados do Horus, série histórica, indicadores oficiais, filtros por período e análise territorial.",
+                "A análise territorial passou a reunir dados históricos e operacionais, com indicadores de chuva, rankings, gráficos anuais e exportação em PDF.",
+                "O aplicativo móvel recebeu login próprio, detalhes ampliados das agendas, compartilhamento de resumo e melhorias no preenchimento de relatórios, ações e materiais.",
+                "Os Relatórios Técnicos agora preenchem a primeira ação com os dados da solicitação ou OS, permitem ajustes de horário e modalidade por ação e aceitam combinações de ação de rua e palestra.",
+                "Foram incluídos indicadores de Convênios Educacionais, para acompanhar ações e público de Escola Nota 10 e Escolinha Nota 10.",
+                "As Ordens de Serviço ganharam mais rastreabilidade: responsável interno protegido após o registro, identificação do último editor, data/hora da edição e acesso ao histórico.",
+                "Materiais, dinâmicas e itens de apoio marcados na OS passaram a exigir quantidade informada antes de salvar ou aprovar.",
+                "Solicitações externas passaram a respeitar períodos indisponíveis, e as escalas receberam ajustes de visualização e composição de integrantes.",
+                "O Dashboard Executivo foi aprimorado com melhor organização dos indicadores e correções de cálculos, públicos, filtros e visualizações estatísticas."
+            ]
+        },
         {
             "version": "2.7.0",
             "releaseDate": "10/08/2026",
