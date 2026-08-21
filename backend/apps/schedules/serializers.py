@@ -675,6 +675,38 @@ class AgendaSerializer(serializers.ModelSerializer):
         if status_field == Agenda.Status.CANCELLED and not str(cancel_reason or "").strip():
             raise serializers.ValidationError({"cancel_reason": "Informe o motivo do cancelamento."})
 
+        is_approval_transition = (
+            instance
+            and instance.status != Agenda.Status.APPROVED
+            and status_field == Agenda.Status.APPROVED
+        )
+        if is_approval_transition:
+            materials_data = attrs.get("materials")
+            if materials_data is None:
+                materials_data = list(instance.materials.select_related("kit", "dynamic", "material"))
+
+            missing_quantity = []
+            for item in materials_data:
+                if isinstance(item, dict):
+                    selected_item = item.get("dynamic") or item.get("kit") or item.get("material")
+                    quantity = item.get("quantity")
+                    label = getattr(selected_item, "name", "Item selecionado")
+                else:
+                    selected_item = item.dynamic or item.kit or item.material
+                    quantity = item.quantity
+                    label = getattr(selected_item, "name", "Item selecionado")
+
+                if selected_item and (quantity is None or quantity <= 0):
+                    missing_quantity.append(label)
+
+            if missing_quantity:
+                raise serializers.ValidationError({
+                    "materials": (
+                        "Informe uma quantidade maior que zero para todos os itens marcados "
+                        f"em Dinâmica, Material para distribuição e Material de apoio: {', '.join(missing_quantity)}."
+                    ),
+                })
+
         service_order_mode = attrs.get(
             "service_order_mode",
             getattr(instance, "service_order_mode", Agenda.ServiceOrderMode.TEAM),

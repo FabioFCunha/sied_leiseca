@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 
 from apps.accounts.models import User
-from apps.schedules.models import Agenda, Sector
+from apps.schedules.models import Agenda, AgendaMaterial, Material, Sector
 from apps.schedules.serializers import AgendaSerializer
 
 
@@ -166,6 +166,23 @@ class InternalResponsibleLockApiTests(APITestCase):
         agenda.refresh_from_db()
         self.assertEqual(agenda.status, Agenda.Status.APPROVED)
         self.assertEqual(agenda.responsible_id, self.manager_with_sector.id)
+
+    def test_approval_requires_quantity_for_selected_material(self):
+        agenda = self.create_public_agenda()
+        material = Material.objects.create(name="Barraca")
+        AgendaMaterial.objects.create(agenda=agenda, material=material, quantity=None)
+        self.client.force_authenticate(self.manager_with_sector)
+
+        response = self.client.patch(
+            reverse("agendas-detail", args=[agenda.id]),
+            {"status": Agenda.Status.APPROVED},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("materials", response.data)
+        agenda.refresh_from_db()
+        self.assertEqual(agenda.status, Agenda.Status.PENDING)
 
     def test_manager_without_sector_approval_persists_authenticated_user_as_responsible(self):
         agenda = self.create_public_agenda()

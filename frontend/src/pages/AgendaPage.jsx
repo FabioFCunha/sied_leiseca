@@ -273,6 +273,10 @@ function selectedMaterialQuantity(form, type, id) {
   return selectedMaterialRow(form, type, id)?.quantity ?? "";
 }
 
+function selectedMaterialsMissingQuantity(rows = []) {
+  return normalizeMaterialRows(rows).filter((item) => Number(item.quantity) <= 0);
+}
+
 function mergeSelectedMaterialOptions(options = [], rows = [], type) {
   const map = new Map((options || []).map((item) => [String(item.id), item]));
   (rows || []).forEach((row) => {
@@ -642,11 +646,12 @@ export default function AgendaPage() {
               </label>
               <input
                 type="number"
-                min="0"
+                min="1"
                 placeholder="Qtd"
                 value={selectedMaterialQuantity(form, type, item.id)}
                 onChange={(event) => updateAgendaMaterialQuantity(type, item.id, event.target.value)}
                 disabled={!checked}
+                required={checked}
                 style={{ width: "60px", padding: "4px 8px" }}
               />
             </div>
@@ -997,6 +1002,11 @@ export default function AgendaPage() {
     setMessage("");
     const nextForm = { ...form, status, responsible: authenticatedResponsibleId };
     if (status === "APPROVED") {
+      const materialsWithoutQuantity = selectedMaterialsMissingQuantity(nextForm.materials);
+      if (materialsWithoutQuantity.length) {
+        setMessage("Informe uma quantidade maior que zero para todos os itens marcados em Dinâmica, Material para distribuição e Material de apoio.");
+        return;
+      }
       const isDesignatedMode = (nextForm.service_order_mode || "TEAM") === "DESIGNATED";
       const hasSchedule = nextForm.date && nextForm.start_time && nextForm.end_time;
       const hasResponsible = nextForm.responsible;
