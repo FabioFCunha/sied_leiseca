@@ -64,13 +64,28 @@ class ExternalRequestDateBlockTests(APITestCase):
             self.assertEqual(self.client.get(self.url).status_code, 403, role)
 
     def test_public_request_boundaries_are_inclusive_and_neighbors_are_allowed(self):
-        self.create_block()
+        self.create_block(reason="Motivo interno")
         self.assertEqual(self.client.post(self.public_request_url, self.payload("2026-08-21"), format="json").status_code, 201)
         for blocked_date in ["2026-08-22", "2026-08-24", "2026-08-26"]:
             response = self.client.post(self.public_request_url, self.payload(blocked_date), format="json")
             self.assertEqual(response.status_code, 400, blocked_date)
             self.assertIn("date", response.data)
+            self.assertEqual(
+                response.data["date"][0],
+                "O período de 22/08/2026 a 26/08/2026 está indisponível para solicitações externas. Por favor, escolha uma data fora desse período.",
+            )
+            self.assertNotIn("Motivo interno", response.data["date"][0])
         self.assertEqual(self.client.post(self.public_request_url, self.payload("2026-08-27"), format="json").status_code, 201)
+
+    def test_single_day_block_uses_single_date_message(self):
+        self.create_block("2026-08-22", "2026-08-22", reason="Não expor")
+        response = self.client.post(self.public_request_url, self.payload("2026-08-22"), format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["date"][0],
+            "A data 22/08/2026 está indisponível para solicitações externas. Por favor, escolha outra data.",
+        )
+        self.assertNotIn("Não expor", response.data["date"][0])
 
     def test_internal_post_and_internal_agenda_update_are_not_blocked(self):
         self.create_block()

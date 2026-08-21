@@ -3917,7 +3917,7 @@ class PublicExternalRequestDateBlockView(APIView):
             is_active=True,
             end_date__gte=date_from_value,
             start_date__lte=date_to_value,
-        )
+        ).order_by("start_date", "end_date", "id")
         return response.Response(PublicExternalRequestDateBlockSerializer(queryset, many=True).data)
 
 

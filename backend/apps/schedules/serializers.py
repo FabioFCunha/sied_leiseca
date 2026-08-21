@@ -98,6 +98,14 @@ class PublicExternalRequestDateBlockSerializer(serializers.ModelSerializer):
         fields = ["start_date", "end_date"]
 
 
+def external_request_date_block_message(block):
+    start_date = block.start_date.strftime("%d/%m/%Y")
+    end_date = block.end_date.strftime("%d/%m/%Y")
+    if block.start_date == block.end_date:
+        return f"A data {start_date} está indisponível para solicitações externas. Por favor, escolha outra data."
+    return f"O período de {start_date} a {end_date} está indisponível para solicitações externas. Por favor, escolha uma data fora desse período."
+
+
 class LookupSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ["id", "source_id", "name", "is_active"]
@@ -1513,10 +1521,12 @@ class PublicAgendaRequestSerializer(serializers.Serializer):
             attrs["administrative_demand_type"] = ""
 
         date = attrs.get("date")
-        if not is_internal_request and date and ExternalRequestDateBlock.objects.filter(
-            is_active=True, start_date__lte=date, end_date__gte=date
-        ).exists():
-            raise serializers.ValidationError({"date": "A data selecionada não está disponível para solicitações externas. Por favor, escolha outra data para realizar sua solicitação."})
+        if not is_internal_request and date:
+            block = ExternalRequestDateBlock.objects.filter(
+                is_active=True, start_date__lte=date, end_date__gte=date
+            ).order_by("start_date", "end_date", "id").first()
+            if block:
+                raise serializers.ValidationError({"date": external_request_date_block_message(block)})
         if date:
             agenda_id = self.context.get("agenda_id")
             qs = Agenda.objects.filter(
@@ -1543,10 +1553,12 @@ class PublicAgendaRequestRescheduleSerializer(serializers.Serializer):
             
         date = attrs.get("date")
         original_date = self.context.get("original_date")
-        if date and date != original_date and ExternalRequestDateBlock.objects.filter(
-            is_active=True, start_date__lte=date, end_date__gte=date
-        ).exists():
-            raise serializers.ValidationError({"date": "A data selecionada não está disponível para solicitações externas. Por favor, escolha outra data para realizar sua solicitação."})
+        if date and date != original_date:
+            block = ExternalRequestDateBlock.objects.filter(
+                is_active=True, start_date__lte=date, end_date__gte=date
+            ).order_by("start_date", "end_date", "id").first()
+            if block:
+                raise serializers.ValidationError({"date": external_request_date_block_message(block)})
         if date:
             agenda_id = self.context.get("agenda_id")
             qs = Agenda.objects.filter(

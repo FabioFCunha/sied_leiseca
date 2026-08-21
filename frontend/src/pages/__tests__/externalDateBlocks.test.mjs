@@ -36,7 +36,10 @@ test("formulário público consulta disponibilidade, bloqueia envio e preserva c
   assert.match(publicForm, /externalBlockMessage/);
   assert.match(publicForm, /dateInputRef\.current\?\.focus/);
   assert.match(publicForm, /setMessage\(dateMessage\)/);
-  assert.match(publicForm, /A data selecionada não está disponível para solicitações externas\. Por favor, escolha outra data para realizar sua solicitação\./);
+  assert.match(publicForm, /function externalBlockMessageFor/);
+  assert.match(publicForm, /O período de \$\{startDate\} a \$\{endDate\} está indisponível para solicitações externas/);
+  assert.match(publicForm, /A data \$\{startDate\} está indisponível para solicitações externas/);
+  assert.match(publicForm, /formatDateBR\(block\.start_date\)/);
   assert.match(publicForm, /aria-invalid=\{Boolean\(dateMessage\)\}/);
   assert.match(publicForm, /String\(err\?\.message \|\| "Não foi possível enviar a solicitação\."\)/);
   assert.doesNotMatch(publicForm, /setForm\(empty\);\s*dateInputRef/);

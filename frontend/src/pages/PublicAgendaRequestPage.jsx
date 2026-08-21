@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { api } from "../api/client.js";
-import { normalizeTime, addHoursToTime } from "../utils/date.js";
+import { formatDateBR, normalizeTime, addHoursToTime } from "../utils/date.js";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import soprinhoMascot from "../assets/soprinho-transparent.png";
 import leiSecaLogo from "../assets/logo lei seca preto.jpg.jpeg";
@@ -51,6 +51,15 @@ const imageAuthorizationOptions = [
   "O requisitante da palestra acima identificado(a), com fundamento no art. 5º, X e XXVIII da Constituição Federal/1988, e no art. 18, da Lei 10.406, de 10/01/2002, AUTORIZA a Operação Lei Seca do Estado do Rio de Janeiro a utilizar as imagens, vídeos e/ou voz captadas durante a palestra promovida pela Operação Lei Seca, realizada na data solicitada neste formulário, ou em data posteriormente acordada, para fins de divulgação das atividades e propaganda, podendo, para tanto, reproduzi-la e/ou divulgá-la pela internet, mídia eletrônica, por jornais, revistas, folders; bem como por todo e qualquer material e veículo de comunicação, público e/ou privado, e por parceiros, com finalidade informativa e de utilidade pública, por tempo indeterminado. Declara ainda que não há nada a ser reclamado, a título de direitos conexos; referentes ao uso da imagem e/ou nome. A presente autorização é concedida a título gratuito.",
   "Outro",
 ];
+
+function externalBlockMessageFor(block) {
+  const startDate = formatDateBR(block.start_date);
+  const endDate = formatDateBR(block.end_date);
+  if (block.start_date === block.end_date) {
+    return `A data ${startDate} está indisponível para solicitações externas. Por favor, escolha outra data.`;
+  }
+  return `O período de ${startDate} a ${endDate} está indisponível para solicitações externas. Por favor, escolha uma data fora desse período.`;
+}
 
 const empty = {
   date: "",
@@ -196,7 +205,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
       ]).then(([availability, blocks]) => {
         applyExistingAvailability(availability);
         if (blocks) {
-          setExternalBlockMessage(blocks.length ? "A data selecionada não está disponível para solicitações externas. Por favor, escolha outra data para realizar sua solicitação." : "");
+          setExternalBlockMessage(blocks.length ? externalBlockMessageFor(blocks[0]) : "");
         }
       }).catch((error) => {
         if (error.name !== "AbortError") setExistingAvailabilityMessage("");
