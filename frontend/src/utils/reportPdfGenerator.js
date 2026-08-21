@@ -506,12 +506,10 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
 
   startY = drawSectionHeader("PÚBLICO E RESULTADOS CONSOLIDADOS", startY);
 
-  const taxaText = totalsEstimado > 0 ? `${((totalsAlcancado / totalsEstimado) * 100).toFixed(1)}%` : "N/A";
   const consolidadoData = [
     ...(showEstimatedPublic ? [["Público Estimado (total)", totalsEstimado.toLocaleString("pt-BR")]] : []),
     ["Público Alcançado (total)", totalsAlcancado.toLocaleString("pt-BR")],
     ["Ações Realizadas", String(actions.length)],
-    ["Taxa de Alcance", taxaText],
   ];
 
   autoTable(doc, {

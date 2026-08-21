@@ -5300,3 +5300,71 @@ button.stat-card.active {
   }
 }
 
+.travel-displacement-card {
+  align-items: center;
+  background: #fff7df;
+  border: 2px solid #e9ad28;
+  border-radius: 10px;
+  color: #603d00;
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  margin: 12px 0;
+  padding: 14px 16px;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.travel-displacement-card:hover {
+  border-color: #b97800;
+  box-shadow: 0 4px 14px rgba(185, 120, 0, .16);
+}
+
+.travel-displacement-card.is-selected {
+  background: #fff0bd;
+  border-color: #a86900;
+  box-shadow: 0 5px 16px rgba(168, 105, 0, .2);
+}
+
+.travel-displacement-card input {
+  accent-color: #a86900;
+  height: 22px;
+  margin: 0;
+  width: 22px;
+}
+
+.travel-displacement-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.travel-displacement-copy strong {
+  font-size: 15px;
+}
+
+.travel-displacement-copy small {
+  color: #76530f;
+  font-size: 12px;
+}
+
+.travel-displacement-status {
+  background: #fff;
+  border: 1px solid #d59b20;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .travel-displacement-card {
+    align-items: start;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .travel-displacement-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

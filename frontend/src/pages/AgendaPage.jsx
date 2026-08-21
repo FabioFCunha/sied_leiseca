@@ -1558,16 +1558,6 @@ export default function AgendaPage() {
                         <option value="DESIGNATED">Participantes selecionados</option>
                       </select>
                     </label>
-                    <label className="checkbox-option">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(form.travel_displacement)}
-                        onChange={(event) =>
-                          update("travel_displacement", event.target.checked)
-                        }
-                      />
-                      <span>Deslocamento de viagem</span>
-                    </label>
                     <label className="field-label">
                       <span>Viatura</span>
                       <select value={form.vehicle_ref || ""} onChange={(e) => selectLookup("vehicle_ref", "vehicle", lookups.vehicles, e.target.value)}>
@@ -1576,6 +1566,20 @@ export default function AgendaPage() {
                       </select>
                     </label>
                   </div>
+                  <label className={`travel-displacement-card ${form.travel_displacement ? "is-selected" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form.travel_displacement)}
+                      onChange={(event) => update("travel_displacement", event.target.checked)}
+                    />
+                    <span className="travel-displacement-copy">
+                      <strong>Deslocamento de viagem</strong>
+                      <small>Marque quando esta Ordem de Serviço envolver deslocamento de viagem.</small>
+                    </span>
+                    <span className="travel-displacement-status">
+                      {form.travel_displacement ? "Selecionado" : "Não selecionado"}
+                    </span>
+                  </label>
                   <div className="compact-grid">
                     <label className="field-label">
                       <span>Viatura 2</span>

@@ -230,10 +230,6 @@ export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true,
     totalsAlcancado += (alcVal !== "" && alcVal !== null && alcVal !== undefined && Number.isFinite(alcNum)) ? alcNum : 0;
   });
 
-  const taxaText = totalsEstimado > 0
-    ? `${((totalsAlcancado / totalsEstimado) * 100).toFixed(1)}%`
-    : "N/A";
-
   const actionLines = actions.length
     ? actions.map((action, index) => {
         const isFirstAction = index === 0;
@@ -293,7 +289,6 @@ export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true,
     `TOTAIS\n` +
     (showEstimatedPublic ? `P\u00FAblico estimado (total): ${totalsEstimado}\n` : "") +
     `P\u00FAblico alcan\u00E7ado (total): ${totalsAlcancado}\n` +
-    `Taxa de Alcance: ${taxaText}\n` +
     `A\u00E7\u00F5es Realizadas: ${actions.length}\n\n` +
     `RELATO OPERACIONAL DO CHEFE\n` +
     `${report.general_observations || "N\u00E3o informado"}\n\n` +

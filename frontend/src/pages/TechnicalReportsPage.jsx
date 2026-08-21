@@ -2587,8 +2587,6 @@ export default function TechnicalReportsPage() {
         const alcNum = Number(alcVal);
         totalsAlcancado += (alcVal !== "" && alcVal !== null && alcVal !== undefined && Number.isFinite(alcNum)) ? alcNum : 0;
       });
-      const taxa = totalsEstimado > 0 ? ((totalsAlcancado / totalsEstimado) * 100).toFixed(1) + "%" : "N/A";
-
       // Style tokens
       const NAVY = "#0a1e44";
       const NAVY_LIGHT = "#143770";
@@ -2800,7 +2798,6 @@ export default function TechnicalReportsPage() {
                   ...(showEstimatedPublic ? [["Público Estimado (total)", totalsEstimado]] : []),
                   ["Público Alcançado (total)", totalsAlcancado],
                   ["Ações Realizadas", actions.length],
-                  ["Taxa de Alcance", taxa],
                 ].map((r, i) => (
                   <div key={i} style={{ display: "flex", fontSize: "11px", padding: "5px 8px", background: i % 2 === 0 ? GRAY_100 : "#fff" }}>
                     <span style={{ flex: 3, color: "#1e1e1e" }}>{r[0]}</span>
