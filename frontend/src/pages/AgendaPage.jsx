@@ -146,6 +146,12 @@ const administrativeDemandTypeOptions = [
 
 const isAdministrativeDemandValue = (value) => String(value || "").trim() === "Demanda Administrativa";
 
+const formatDateTimeBR = (value) => {
+  if (!value) return "Ainda não editada";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Não informado" : date.toLocaleString("pt-BR");
+};
+
 const lowerAgeRangeOptions = new Set([
   "04 até 8 anos",
   "09 até 13 anos",
@@ -1498,6 +1504,19 @@ export default function AgendaPage() {
                       <label className="field-label">
                         <span>Última edição por</span>
                         <input value={lastEditedByName || "Ainda não editada"} readOnly />
+                      </label>
+                    )}
+                    {editing && (
+                      <label className="field-label">
+                        <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                          Última edição em
+                          {(editingAgenda?.history || []).length > 0 && (
+                            <button type="button" className="link-button" onClick={() => setHistoryAgenda(editingAgenda)}>
+                              <History size={14} /> Ver histórico
+                            </button>
+                          )}
+                        </span>
+                        <input value={lastEditedByName ? formatDateTimeBR(editingAgenda?.updated_at) : "Ainda não editada"} readOnly />
                       </label>
                     )}
                   </div>
