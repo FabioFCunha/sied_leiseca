@@ -248,9 +248,10 @@
     position: absolute !important;
     top: 0 !important;
     left: 50% !important;
-    width: 180mm !important;
-    max-width: 180mm !important;
-    transform: translateX(-50%) !important;
+    width: 196mm !important;
+    max-width: 196mm !important;
+    transform: translateX(-50%) scale(.91) !important;
+    transform-origin: top center !important;
   }
 
   body.territorial-printing .no-print,
@@ -259,8 +260,8 @@
   }
 
   body.territorial-printing .territorial-report-area {
-    width: 180mm !important;
-    max-width: 180mm !important;
+    width: 196mm !important;
+    max-width: 196mm !important;
     margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;
@@ -293,6 +294,8 @@
 
   body.territorial-printing .territorial-section {
     padding: 18px 28px !important;
+    width: 100% !important;
+    min-width: 0 !important;
     break-inside: auto;
     page-break-inside: auto;
   }
@@ -322,12 +325,17 @@
   }
 
   body.territorial-printing .territorial-tbl-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     overflow: visible !important;
     box-shadow: none !important;
   }
 
   body.territorial-printing .territorial-tbl-wrap table {
     width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     table-layout: fixed !important;
     white-space: normal !important;
     font-size: 9.5px !important;
