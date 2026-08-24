@@ -222,6 +222,11 @@
 .territorial-footer-stamp { flex-shrink:0; text-align:right; }
 .territorial-footer-stamp small { font-size:10px; color:var(--t-gray-5); display:block; margin:0;}
 .territorial-footer-stamp strong { font-size:11px; color:var(--t-navy); font-weight:700; margin:0;}
+@page {
+  size: A4 portrait;
+  margin: 7mm;
+}
+
 @media print {
   html,
   body {
@@ -230,31 +235,29 @@
     background: #fff !important;
   }
 
-  .sidebar,
-  .app-sidebar,
-  .topbar,
-  .stats-hero,
-  .stats-filters,
-  .stats-tabs,
-  .btn-print,
-  .stats-export,
-  nav,
-  header:not(.territorial-header) {
+  body.territorial-printing * {
+    visibility: hidden !important;
+  }
+
+  body.territorial-printing .territorial-print-root,
+  body.territorial-printing .territorial-print-root * {
+    visibility: visible !important;
+  }
+
+  body.territorial-printing .territorial-print-root {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 196mm !important;
+    max-width: 196mm !important;
+  }
+
+  body.territorial-printing .no-print,
+  body.territorial-printing .btn-print {
     display: none !important;
   }
 
-  .app-shell,
-  .content,
-  .main-content,
-  .stats-dashboard {
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  .territorial-report-area {
+  body.territorial-printing .territorial-report-area {
     width: 100% !important;
     max-width: none !important;
     margin: 0 !important;
@@ -265,43 +268,92 @@
     overflow: visible !important;
   }
 
-  .territorial-header,
-  .territorial-kpi,
-  .territorial-tbl-wrap thead tr,
-  .territorial-tbl-wrap tfoot tr,
-  .territorial-region-header,
-  .territorial-main-region-title,
-  .territorial-region-subtotal,
-  .territorial-row-highlight td,
-  .territorial-badge-highlight,
-  .territorial-sub-tbl thead th {
+  body.territorial-printing .territorial-header,
+  body.territorial-printing .territorial-kpi,
+  body.territorial-printing .territorial-tbl-wrap thead tr,
+  body.territorial-printing .territorial-tbl-wrap tfoot tr,
+  body.territorial-printing .territorial-region-header,
+  body.territorial-printing .territorial-main-region-title,
+  body.territorial-printing .territorial-region-subtotal,
+  body.territorial-printing .territorial-row-highlight td,
+  body.territorial-printing .territorial-badge-highlight,
+  body.territorial-printing .territorial-sub-tbl thead th {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  .territorial-tbl-wrap {
+  body.territorial-printing .territorial-header {
+    padding: 22px 28px 18px !important;
+  }
+
+  body.territorial-printing .territorial-header-title {
+    font-size: 25px !important;
+  }
+
+  body.territorial-printing .territorial-section {
+    padding: 18px 28px !important;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  body.territorial-printing .territorial-divider {
+    margin: 0 28px !important;
+  }
+
+  body.territorial-printing .territorial-kpi-grid {
+    gap: 7px !important;
+  }
+
+  body.territorial-printing .territorial-kpi {
+    padding: 11px 7px 9px !important;
+  }
+
+  body.territorial-printing .territorial-kpi-val {
+    font-size: 22px !important;
+  }
+
+  body.territorial-printing .territorial-kpi-grid,
+  body.territorial-printing .territorial-alc-breakdown,
+  body.territorial-printing .territorial-nota,
+  body.territorial-printing .territorial-footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap {
     overflow: visible !important;
     box-shadow: none !important;
   }
 
-  .territorial-tbl-wrap table {
+  body.territorial-printing .territorial-tbl-wrap table {
     width: 100% !important;
-    table-layout: auto !important;
+    table-layout: fixed !important;
+    white-space: normal !important;
+    font-size: 9.5px !important;
   }
 
-  .territorial-section {
+  body.territorial-printing .territorial-tbl-wrap th,
+  body.territorial-printing .territorial-tbl-wrap td {
+    padding: 6px 5px !important;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap th:first-child,
+  body.territorial-printing .territorial-tbl-wrap td:first-child {
+    width: 40%;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap thead {
+    display: table-header-group;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap tfoot {
+    display: table-footer-group;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap tr,
+  body.territorial-printing .territorial-section-title {
     break-inside: avoid;
     page-break-inside: avoid;
-  }
-
-  .territorial-tbl-wrap tr {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  @page {
-    size: A4 portrait;
-    margin: 8mm 10mm;
   }
 }
 /* O resumo executivo tem oito indicadores: quatro cards por linha em telas largas. */
