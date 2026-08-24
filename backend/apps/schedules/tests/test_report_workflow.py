@@ -2,7 +2,8 @@ from datetime import date
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.contrib.auth import get_user_model
-from apps.schedules.models import EducationAction, EducationReport, Agenda, Kit
+from apps.schedules.models import ActionType, EducationAction, EducationReport, Agenda, Kit
+from apps.schedules.serializers import EducationActionSerializer
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import generate_statistics_for_report
 
@@ -25,13 +26,16 @@ class EducationReportWorkflowTests(APITestCase):
 
         from apps.schedules.models import Team, ShiftSchedule
         self.team = Team.objects.create(name="Team A")
-        from apps.schedules.models import ActionType
         ActionType.objects.update_or_create(
             name="Palestra",
             defaults={"is_active": True, "category": ActionType.Category.LECTURE},
         )
         ActionType.objects.update_or_create(
             name="Praia",
+            defaults={"is_active": True, "category": ActionType.Category.EDUCATIONAL_ACTION},
+        )
+        ActionType.objects.update_or_create(
+            name="Ação Educativa",
             defaults={"is_active": True, "category": ActionType.Category.EDUCATIONAL_ACTION},
         )
 
@@ -62,6 +66,10 @@ class EducationReportWorkflowTests(APITestCase):
             team="Team A",
             operation_date="2026-07-01",
         )
+
+    def test_educational_action_catalog_type_is_accepted(self):
+        serializer = EducationActionSerializer(data={"type_action": "Ação Educativa"})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
 
     def test_chief_cannot_approve_or_return(self):
         self.client.force_authenticate(user=self.chief)

@@ -1,4 +1,8 @@
 const VALID_OPERATIONAL_CATEGORIES = new Set(["LECTURE", "EDUCATIONAL_ACTION"]);
+const AGENDA_ACTION_TYPE_ALIASES = new Map([
+  ["ação de educação/conscientização", "ação educativa"],
+  ["acao de educacao/conscientizacao", "ação educativa"],
+]);
 
 export function isOperationalEducationActionType(actionType) {
   if (!actionType || typeof actionType !== "object") return false;
@@ -16,8 +20,9 @@ export function filterOperationalEducationActionTypes(actionTypes = []) {
 export function findOperationalEducationActionTypeName(value, actionTypes = []) {
   const normalized = String(value || "").trim().toLocaleLowerCase("pt-BR");
   if (!normalized) return "";
+  const canonical = AGENDA_ACTION_TYPE_ALIASES.get(normalized) || normalized;
   const match = filterOperationalEducationActionTypes(actionTypes).find(
-    (actionType) => String(actionType.name || "").trim().toLocaleLowerCase("pt-BR") === normalized
+    (actionType) => String(actionType.name || "").trim().toLocaleLowerCase("pt-BR") === canonical
   );
   return match?.name || "";
 }

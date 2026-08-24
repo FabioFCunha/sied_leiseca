@@ -974,7 +974,7 @@ export default function TechnicalReportsPage() {
       const inheritedTypeAction = inheritAgendaFields
         ? (isStreetAction
           ? inheritedStreetActionType
-          : (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || ""))
+          : getAgendaOperationalActionTypeName(agenda, actionTypes))
         : "";
       const inheritedAgreementFields = inheritAgendaFields && !isStreetAction ? buildAgreementFieldsFromAgenda(agenda) : {};
       if (isUserCreated) {
@@ -1876,9 +1876,6 @@ export default function TechnicalReportsPage() {
                               {operationalActionTypeOptions.map((option) => (
                                 <option key={option.id || option.name} value={option.name}>{option.name}</option>
                               ))}
-                              {action.type_action && !operationalActionTypeOptions.some((option) => option.name === action.type_action) && (
-                                <option value={action.type_action}>{action.type_action}</option>
-                              )}
                           </select>
                             {displayedAgreementLabel && (
                               <small>Indicador identificado: {displayedAgreementLabel}</small>

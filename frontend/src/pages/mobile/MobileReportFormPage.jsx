@@ -357,7 +357,7 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
       (inheritAgendaFields
         ? (isStreetAction
           ? normalizeStreetActionType(inheritedStreetActionType)
-          : (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || ""))
+          : getAgendaOperationalActionTypeName(agenda, actionTypes))
         : ""),
     type_audience: action.type_audience || (inheritAgendaFields ? agenda.audience || "" : ""),
     requester_entity_kind: action.requester_entity_kind || inheritedAgreementFields.requester_entity_kind || "",
@@ -1145,9 +1145,6 @@ export default function MobileReportFormPage() {
                         {operationalActionTypeOptions.map((opt) => (
                           <option key={opt.id || opt.name} value={opt.name}>{opt.name}</option>
                         ))}
-                        {action.type_action && !operationalActionTypeOptions.some((opt) => opt.name === action.type_action) && (
-                          <option value={action.type_action}>{action.type_action}</option>
-                        )}
                       </select>
                       {displayedAgreementLabel && (
                         <span style={{ color: '#64748b', fontSize: '12px' }}>

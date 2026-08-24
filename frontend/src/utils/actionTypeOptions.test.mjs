@@ -10,6 +10,7 @@ const actionTypes = [
   { name: "Palestra Escola Pública", is_active: true, category: "LECTURE" },
   { name: "Palestra Escola Privada", is_active: true, category: "LECTURE" },
   { name: "Palestra Empresa", is_active: true, category: "LECTURE" },
+  { name: "Ação Educativa", is_active: true, category: "EDUCATIONAL_ACTION" },
   { name: "Escola Nota 10", is_active: true, category: "PROGRAM_INDICATOR" },
   { name: "Escolinha Nota 10", is_active: true, category: "PROGRAM_INDICATOR" },
   { name: "Praia", is_active: true, category: "STREET_ACTION" },
@@ -23,8 +24,11 @@ assert.deepEqual(options, [
   "Palestra Escola Pública",
   "Palestra Escola Privada",
   "Palestra Empresa",
+  "Ação Educativa",
 ]);
 assert.equal(getAgendaOperationalActionTypeName({ action_type: "Palestra Escola Pública" }, actionTypes), "Palestra Escola Pública");
 assert.equal(getAgendaOperationalActionTypeName({ action_type: "Palestra Escola" }, actionTypes), "");
+assert.equal(getAgendaOperationalActionTypeName({ action_type: "Ação de educação/conscientização" }, actionTypes), "Ação Educativa");
+assert.equal(getAgendaOperationalActionTypeName({ action_type: "Ação de educação/conscientização" }, actionTypes.filter((item) => item.name !== "Ação Educativa")), "");
 
 console.log("actionTypeOptions.test.mjs: OK");
