@@ -15,6 +15,7 @@ import {
   agreementIndicatorLabel,
   ageRangeLabel,
   buildAgreementFieldsFromAgenda,
+  deriveAgreementIndicatorFromAgenda,
   getDisplayedAgreementIndicator,
   requesterEntityKindLabel,
   requesterEntityNatureLabel,
@@ -512,6 +513,8 @@ function getAgendaActionPlace(agenda) {
 function hydrateForm(report, agenda) {
   const hasAnySourceId = report.actions?.some((a) => a.source_id) ?? false;
   const reportAgendaPk = agendaPk(report.agenda, agenda);
+  const inheritedAgreementFields = buildAgreementFieldsFromAgenda(agenda);
+  const inheritedAgreementIndicator = deriveAgreementIndicatorFromAgenda(agenda);
   return {
     ...report,
     agenda: reportAgendaPk || "",
@@ -529,9 +532,21 @@ function hydrateForm(report, agenda) {
           ...action,
           agenda: agendaPk(action.agenda, reportAgendaPk) || "",
           place_action: action.place_action || (idx === 0 ? getAgendaActionPlace(agenda) : ""),
+          requester_entity_kind: action.requester_entity_kind || (idx === 0 ? inheritedAgreementFields.requester_entity_kind : ""),
+          requester_entity_nature: action.requester_entity_nature || (idx === 0 ? inheritedAgreementFields.requester_entity_nature : ""),
+          age_range: action.age_range || (idx === 0 ? inheritedAgreementFields.age_range : ""),
+          agreement_indicator: action.agreement_indicator || (idx === 0 ? inheritedAgreementIndicator : ""),
           __userCreated: hasAnySourceId ? !action.source_id : idx > 0,
         }))
-      : [{ ...emptyAction, agenda: reportAgendaPk || "", source_id: reportAgendaPk ? `agenda_action:${reportAgendaPk}` : "", place_action: getAgendaActionPlace(agenda), __userCreated: false }],
+      : [{
+          ...emptyAction,
+          agenda: reportAgendaPk || "",
+          source_id: reportAgendaPk ? `agenda_action:${reportAgendaPk}` : "",
+          place_action: getAgendaActionPlace(agenda),
+          ...inheritedAgreementFields,
+          agreement_indicator: inheritedAgreementIndicator,
+          __userCreated: false,
+        }],
   };
 }
 
@@ -983,7 +998,7 @@ export default function TechnicalReportsPage() {
         requester_entity_kind: currentAction.requester_entity_kind || inheritedAgreementFields.requester_entity_kind || "",
         requester_entity_nature: currentAction.requester_entity_nature || inheritedAgreementFields.requester_entity_nature || "",
         age_range: currentAction.age_range || inheritedAgreementFields.age_range || "",
-        agreement_indicator: currentAction.agreement_indicator || "",
+        agreement_indicator: currentAction.agreement_indicator || (inheritAgendaFields ? deriveAgreementIndicatorFromAgenda(agenda) : ""),
         start_time: currentAction.start_time || (inheritAgendaFields ? agenda.start_time?.slice(0, 5) || "" : ""),
         final_hour: currentAction.final_hour || (inheritAgendaFields ? agenda.end_time?.slice(0, 5) || "" : ""),
         approach: currentAction.approach || (inheritAgendaFields ? agenda.quantity || 0 : ""),
