@@ -71,6 +71,35 @@ class EducationReportWorkflowTests(APITestCase):
         serializer = EducationActionSerializer(data={"type_action": "Ação Educativa"})
         self.assertTrue(serializer.is_valid(), serializer.errors)
 
+    def test_active_operational_duplicate_is_preferred_over_inactive_legacy(self):
+        ActionType.objects.update_or_create(
+            name="AÇÃO EDUCATIVA",
+            defaults={"is_active": False, "category": ActionType.Category.EDUCATIONAL_ACTION},
+        )
+        serializer = EducationActionSerializer(data={"type_action": "Ação Educativa"})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        action = serializer.save(report=self.report, agenda=self.agenda)
+        self.assertEqual(action.type_action, "Ação Educativa")
+
+    def test_only_inactive_legacy_action_type_is_rejected(self):
+        ActionType.objects.filter(name__iexact="Ação Educativa").update(
+            is_active=False,
+            category=ActionType.Category.EDUCATIONAL_ACTION,
+        )
+        serializer = EducationActionSerializer(data={"type_action": "Ação Educativa"})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("type_action", serializer.errors)
+        self.assertIn("não está disponível", str(serializer.errors["type_action"][0]))
+
+    def test_program_indicator_remains_rejected_as_action_type(self):
+        ActionType.objects.update_or_create(
+            name="Escola Nota 10",
+            defaults={"is_active": True, "category": ActionType.Category.PROGRAM_INDICATOR},
+        )
+        serializer = EducationActionSerializer(data={"type_action": "Escola Nota 10"})
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("type_action", serializer.errors)
+
     def test_chief_cannot_approve_or_return(self):
         self.client.force_authenticate(user=self.chief)
         self.report.status = EducationReport.ReportStatus.PENDING_REVIEW

@@ -1077,6 +1077,12 @@ class EducationActionSerializer(serializers.ModelSerializer):
             ActionType.Category.EDUCATIONAL_ACTION,
         }
 
+    @classmethod
+    def _resolve_action_type(cls, value):
+        candidates = list(ActionType.objects.filter(name__iexact=value).order_by("id"))
+        selectable = next((item for item in candidates if cls._is_selectable_action_type(item)), None)
+        return selectable or (candidates[0] if candidates else None)
+
     class Meta:
         model = EducationAction
         list_serializer_class = EducationActionListSerializer
@@ -1183,7 +1189,7 @@ class EducationActionSerializer(serializers.ModelSerializer):
         action_type_changed = incoming_action_type is not serializers.empty and action_type != current_action_type
 
         if action_type:
-            matched_action = ActionType.objects.filter(name__iexact=action_type).order_by("id").first()
+            matched_action = self._resolve_action_type(action_type)
             if not matched_action:
                 raise serializers.ValidationError({"type_action": "Selecione um tipo operacional válido cadastrado no catálogo."})
             allows_historical_action_type = bool(getattr(self, "_allow_historical_action_type", False))

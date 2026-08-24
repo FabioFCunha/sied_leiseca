@@ -6,6 +6,7 @@ import {
 } from "./actionTypeOptions.js";
 
 const actionTypes = [
+  { name: "AÇÃO EDUCATIVA", is_active: false, category: "EDUCATIONAL_ACTION" },
   { name: "Palestra Escola", is_active: false, category: "LECTURE" },
   { name: "Palestra Escola Pública", is_active: true, category: "LECTURE" },
   { name: "Palestra Escola Privada", is_active: true, category: "LECTURE" },
@@ -30,5 +31,6 @@ assert.equal(getAgendaOperationalActionTypeName({ action_type: "Palestra Escola 
 assert.equal(getAgendaOperationalActionTypeName({ action_type: "Palestra Escola" }, actionTypes), "");
 assert.equal(getAgendaOperationalActionTypeName({ action_type: "Ação de educação/conscientização" }, actionTypes), "Ação Educativa");
 assert.equal(getAgendaOperationalActionTypeName({ action_type: "Ação de educação/conscientização" }, actionTypes.filter((item) => item.name !== "Ação Educativa")), "");
+assert.equal(options.includes("AÇÃO EDUCATIVA"), false);
 
 console.log("actionTypeOptions.test.mjs: OK");
