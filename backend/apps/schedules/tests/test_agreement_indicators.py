@@ -559,3 +559,56 @@ class AgreementIndicatorTests(TestCase):
         agenda = self._make_agenda(requester_entity_type="", age_ranges="")
         result = derive_from_agenda(agenda)
         self.assertIsNone(result)
+
+    def test_administrative_demand_normalizes_without_agreement_indicator(self):
+        kind, nature = normalize_entity_type("Demanda Administrativa")
+        self.assertEqual(kind, RequesterEntityKind.ADMINISTRATIVE)
+        self.assertEqual(nature, RequesterEntityNature.NOT_APPLICABLE)
+        self.assertIsNone(
+            derive_education_agreement_indicator(
+                kind,
+                nature,
+                EducationActionAgeRange.AGE_15_17,
+            )
+        )
+
+    def test_administrative_demand_action_is_accepted_and_persisted(self):
+        agenda = self._make_agenda(
+            requester_entity_type="Demanda Administrativa",
+            age_ranges="15 - 17 anos (ensino médio)",
+        )
+        serializer = EducationReportSerializer(data={
+            "agenda": agenda.id,
+            "operation_date": "2026-08-20",
+            "team": "ALFA",
+            "actions": [{
+                "type_action": "Palestra",
+                "requester_entity_kind": RequesterEntityKind.ADMINISTRATIVE,
+                "requester_entity_nature": RequesterEntityNature.NOT_APPLICABLE,
+                "age_range": EducationActionAgeRange.AGE_15_17,
+            }],
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        report = serializer.save(created_by=self.user)
+        action = report.actions.get()
+        self.assertEqual(action.requester_entity_kind, RequesterEntityKind.ADMINISTRATIVE)
+        self.assertEqual(action.requester_entity_nature, RequesterEntityNature.NOT_APPLICABLE)
+        self.assertIsNone(action.agreement_indicator)
+
+    def test_administrative_demand_first_action_inherits_persisted_values(self):
+        agenda = self._make_agenda(
+            requester_entity_type="Demanda Administrativa",
+            age_ranges="15 - 17 anos (ensino médio)",
+        )
+        serializer = EducationReportSerializer(data={
+            "agenda": agenda.id,
+            "operation_date": "2026-08-20",
+            "team": "ALFA",
+            "actions": [{"type_action": "Palestra"}],
+        })
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        report = serializer.save(created_by=self.user)
+        action = report.actions.get()
+        self.assertEqual(action.requester_entity_kind, RequesterEntityKind.ADMINISTRATIVE)
+        self.assertEqual(action.requester_entity_nature, RequesterEntityNature.NOT_APPLICABLE)
+        self.assertIsNone(action.agreement_indicator)

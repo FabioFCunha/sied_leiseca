@@ -4,11 +4,13 @@ export const REQUESTER_ENTITY_KIND_OPTIONS = [
   { value: "MILITARY", label: "Órgão Militar" },
   { value: "PUBLIC", label: "Órgão Público" },
   { value: "OTHER", label: "Outros" },
+  { value: "ADMINISTRATIVE", label: "Demanda Administrativa" },
 ];
 
 export const REQUESTER_ENTITY_NATURE_OPTIONS = [
   { value: "PUBLIC", label: "Público" },
   { value: "PRIVATE", label: "Privado" },
+  { value: "NOT_APPLICABLE", label: "Não se aplica" },
 ];
 
 export const EDUCATION_ACTION_AGE_RANGE_OPTIONS = [
@@ -56,6 +58,7 @@ export function normalizeAgeRange(value) {
 export function normalizeRequesterEntityNature(value) {
   const text = normalizedText(value);
   if (!text) return "";
+  if (text === "not_applicable" || text === "não se aplica" || text === "nao se aplica") return "NOT_APPLICABLE";
   if (text === "public" || text.includes("públic") || text.includes("public")) return "PUBLIC";
   if (text === "private" || text.includes("privad") || text.includes("private")) return "PRIVATE";
   return "";
@@ -64,6 +67,9 @@ export function normalizeRequesterEntityNature(value) {
 export function normalizeRequesterEntityType(value) {
   const text = String(value || "").trim();
   if (!text) return { kind: "", nature: "" };
+  if (normalizedText(text) === "demanda administrativa" || text === "ADMINISTRATIVE") {
+    return { kind: "ADMINISTRATIVE", nature: "NOT_APPLICABLE" };
+  }
   const [kindCode, ...natureParts] = text.split(/\s+/);
   const nature = normalizeRequesterEntityNature(natureParts.join(" "));
   if (

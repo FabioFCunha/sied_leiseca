@@ -19,11 +19,13 @@ class RequesterEntityKind(models.TextChoices):
     MILITARY = "MILITARY", "Órgão Militar"
     PUBLIC = "PUBLIC", "Órgão Público"
     OTHER = "OTHER", "Outros"
+    ADMINISTRATIVE = "ADMINISTRATIVE", "Demanda Administrativa"
 
 
 class RequesterEntityNature(models.TextChoices):
     PUBLIC = "PUBLIC", "Pública"
     PRIVATE = "PRIVATE", "Privada"
+    NOT_APPLICABLE = "NOT_APPLICABLE", "Não se aplica"
 
 
 _SCHOOL_MARKERS = ("instituição de ensino", "instituicao de ensino", "escola", "colégio", "colegio")
@@ -42,6 +44,9 @@ def normalize_entity_type(requester_entity_type_str):
     text = str(requester_entity_type_str or "").strip()
     if not text:
         return None, None
+
+    if text == "Demanda Administrativa" or text == RequesterEntityKind.ADMINISTRATIVE:
+        return RequesterEntityKind.ADMINISTRATIVE, RequesterEntityNature.NOT_APPLICABLE
 
     if text == RequesterEntityKind.SCHOOL:
         return RequesterEntityKind.SCHOOL, None

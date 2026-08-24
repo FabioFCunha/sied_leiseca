@@ -24,8 +24,10 @@ assert.equal(normalizeRequesterEntityNature("Publico"), "PUBLIC");
 assert.equal(normalizeRequesterEntityNature("PRIVATE"), "PRIVATE");
 assert.equal(normalizeRequesterEntityNature("Privado"), "PRIVATE");
 assert.equal(normalizeRequesterEntityNature("Privada"), "PRIVATE");
+assert.equal(normalizeRequesterEntityNature("Não se aplica"), "NOT_APPLICABLE");
 assert.deepEqual(normalizeRequesterEntityType("SCHOOL PUBLIC"), { kind: "SCHOOL", nature: "PUBLIC" });
 assert.deepEqual(normalizeRequesterEntityType("SCHOOL PRIVATE"), { kind: "SCHOOL", nature: "PRIVATE" });
+assert.deepEqual(normalizeRequesterEntityType("Demanda Administrativa"), { kind: "ADMINISTRATIVE", nature: "NOT_APPLICABLE" });
 
 assert.deepEqual(
   buildAgreementFieldsFromAgenda({
@@ -64,6 +66,23 @@ assert.equal(
     requester_entity_type: "SCHOOL PRIVATE",
     age_ranges: "acima de 18 anos - Adultos",
   }),
+  ""
+);
+
+assert.deepEqual(
+  buildAgreementFieldsFromAgenda({
+    requester_entity_type: "Demanda Administrativa",
+    age_ranges: "15 - 17 anos (ensino médio)",
+  }),
+  {
+    requester_entity_kind: "ADMINISTRATIVE",
+    requester_entity_nature: "NOT_APPLICABLE",
+    age_range: "AGE_15_17",
+  }
+);
+
+assert.equal(
+  deriveEducationAgreementIndicator("ADMINISTRATIVE", "NOT_APPLICABLE", "AGE_15_17"),
   ""
 );
 
