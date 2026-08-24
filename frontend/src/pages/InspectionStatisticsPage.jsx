@@ -791,6 +791,44 @@ function formatDate(isoStr) {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
+function buildTerritorialPdfTitle(filters) {
+  const months = [
+    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+  ];
+  const parseIsoDate = (value) => {
+    const [year, month, day] = String(value || "").split("-");
+    const monthIndex = Number(month) - 1;
+
+    if (!year || !day || monthIndex < 0 || monthIndex > 11) {
+      return null;
+    }
+
+    return {
+      day: Number(day),
+      month: months[monthIndex],
+      monthIndex,
+      year: Number(year),
+    };
+  };
+  const from = parseIsoDate(filters?.date_from);
+  const to = parseIsoDate(filters?.date_to);
+
+  if (!from || !to) {
+    return "Acumulado Final de Semana";
+  }
+
+  if (from.year === to.year && from.monthIndex === to.monthIndex) {
+    const period = from.day === to.day
+      ? `${from.day} de ${from.month}`
+      : `${from.day} a ${to.day} de ${from.month}`;
+
+    return `Acumulado Final de Semana - ${period}`;
+  }
+
+  return `Acumulado Final de Semana - ${from.day} de ${from.month} a ${to.day} de ${to.month}`;
+}
+
 function TerritorialContent({ territorial, loading, error, filters }) {
   if (loading) {
     return <div className="stats-panel"><div className="stats-loading">Carregando análise territorial...</div></div>;
@@ -826,10 +864,13 @@ function TerritorialContent({ territorial, loading, error, filters }) {
     printHost.className = "territorial-print-host";
     printHost.append(source.cloneNode(true));
     document.body.append(printHost);
+    const previousTitle = document.title;
+    document.title = buildTerritorialPdfTitle(filters);
 
     const restoreScreenLayout = () => {
       document.body.classList.remove("territorial-printing");
       printHost.remove();
+      document.title = previousTitle;
     };
 
     document.body.classList.add("territorial-printing");
