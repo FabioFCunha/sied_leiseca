@@ -251,8 +251,8 @@ export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true,
           `   Tipo da a\u00E7\u00E3o: ${action.type_action || "n\u00E3o informado"}\n` +
           `   Institui\u00E7\u00E3o/Local: ${action.institution_name || "n\u00E3o informado"}\n` +
           `   Endere\u00E7o do Local: ${action.place_action || "n\u00E3o informado"}\n` +
-          (kindLabel ? `   Tipo da entidade: ${kindLabel}\n` : "") +
-          (natureLabel ? `   Natureza: ${natureLabel}\n` : "") +
+          (kindLabel ? `   Tipo de solicitante: ${kindLabel}\n` : "") +
+          (natureLabel ? `   Público ou Privado?: ${natureLabel}\n` : "") +
           (ageLabel ? `   Faixa et\u00E1ria: ${ageLabel}\n` : "") +
           (indicatorLabel ? `   Indicador: ${indicatorLabel}\n` : "") +
           `   P\u00FAblico: ${action.type_audience || "n\u00E3o informado"}\n` +

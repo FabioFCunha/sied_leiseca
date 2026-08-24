@@ -1873,7 +1873,7 @@ export default function TechnicalReportsPage() {
                         {!actionIsStreet ? (
                           <>
                             <label className="field-label chief-highlight-field">
-                              <span>Tipo da entidade</span>
+                              <span>Tipo de solicitante</span>
                               <select
                                 value={action.requester_entity_kind || ""}
                                 onChange={(event) => updateAction(index, "requester_entity_kind", event.target.value)}
@@ -1885,7 +1885,7 @@ export default function TechnicalReportsPage() {
                               </select>
                             </label>
                             <label className="field-label chief-highlight-field">
-                              <span>Natureza</span>
+                              <span>Público ou Privado?</span>
                               <select
                                 value={action.requester_entity_nature || ""}
                                 onChange={(event) => updateAction(index, "requester_entity_nature", event.target.value)}
@@ -2730,8 +2730,8 @@ export default function TechnicalReportsPage() {
                   const natureLabel = requesterEntityNatureLabel(action.requester_entity_nature);
                   const ageLabel = ageRangeLabel(action.age_range);
                   const agreementLabel = agreementIndicatorLabel(action.agreement_indicator);
-                  if (kindLabel) actionData.push(["Tipo da entidade", kindLabel]);
-                  if (natureLabel) actionData.push(["Natureza", natureLabel]);
+                  if (kindLabel) actionData.push(["Tipo de solicitante", kindLabel]);
+                  if (natureLabel) actionData.push(["Público ou Privado?", natureLabel]);
                   if (ageLabel) actionData.push(["Faixa etária", ageLabel]);
                   if (agreementLabel) actionData.push(["Indicador", agreementLabel]);
 

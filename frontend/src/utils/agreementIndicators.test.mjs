@@ -5,6 +5,7 @@ import {
   buildAgreementFieldsFromAgenda,
   deriveEducationAgreementIndicator,
   getDisplayedAgreementIndicator,
+  normalizeRequesterEntityNature,
 } from "./agreementIndicators.js";
 
 assert.equal(deriveEducationAgreementIndicator("SCHOOL", "PUBLIC", "AGE_05_10"), "ESCOLINHA_NOTA_10");
@@ -14,6 +15,13 @@ assert.equal(deriveEducationAgreementIndicator("SCHOOL", "PUBLIC", "AGE_ADULT"),
 assert.equal(deriveEducationAgreementIndicator("SCHOOL", "PRIVATE", "AGE_05_10"), "");
 assert.equal(agreementIndicatorLabel("ESCOLA_NOTA_10"), "Escola Nota 10");
 assert.equal(agreementIndicatorLabel("ESCOLINHA_NOTA_10"), "Escolinha Nota 10");
+assert.equal(normalizeRequesterEntityNature("PUBLIC"), "PUBLIC");
+assert.equal(normalizeRequesterEntityNature("Público"), "PUBLIC");
+assert.equal(normalizeRequesterEntityNature("Pública"), "PUBLIC");
+assert.equal(normalizeRequesterEntityNature("Publico"), "PUBLIC");
+assert.equal(normalizeRequesterEntityNature("PRIVATE"), "PRIVATE");
+assert.equal(normalizeRequesterEntityNature("Privado"), "PRIVATE");
+assert.equal(normalizeRequesterEntityNature("Privada"), "PRIVATE");
 
 assert.deepEqual(
   buildAgreementFieldsFromAgenda({

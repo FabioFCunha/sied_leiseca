@@ -1160,7 +1160,7 @@ export default function MobileReportFormPage() {
                   {!actionIsStreet && (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
                       <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                        Tipo da entidade
+                        Tipo de solicitante
                         <select
                           value={action.requester_entity_kind || ""}
                           onChange={e => updateAction(index, "requester_entity_kind", e.target.value)}
@@ -1173,7 +1173,7 @@ export default function MobileReportFormPage() {
                         </select>
                       </label>
                       <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                        Natureza
+                        Público ou Privado?
                         <select
                           value={action.requester_entity_nature || ""}
                           onChange={e => updateAction(index, "requester_entity_nature", e.target.value)}

@@ -7,8 +7,8 @@ export const REQUESTER_ENTITY_KIND_OPTIONS = [
 ];
 
 export const REQUESTER_ENTITY_NATURE_OPTIONS = [
-  { value: "PUBLIC", label: "Pública" },
-  { value: "PRIVATE", label: "Privada" },
+  { value: "PUBLIC", label: "Público" },
+  { value: "PRIVATE", label: "Privado" },
 ];
 
 export const EDUCATION_ACTION_AGE_RANGE_OPTIONS = [
@@ -53,6 +53,14 @@ export function normalizeAgeRange(value) {
   return AGE_LABEL_TO_VALUE.get(normalizedText(text)) || "";
 }
 
+export function normalizeRequesterEntityNature(value) {
+  const text = normalizedText(value);
+  if (!text) return "";
+  if (text === "public" || text.includes("públic") || text.includes("public")) return "PUBLIC";
+  if (text === "private" || text.includes("privad") || text.includes("private")) return "PRIVATE";
+  return "";
+}
+
 export function normalizeRequesterEntityType(value) {
   const text = String(value || "").trim();
   if (!text) return { kind: "", nature: "" };
@@ -60,7 +68,7 @@ export function normalizeRequesterEntityType(value) {
 
   const lower = normalizedText(text);
   if (text === "2" || lower.includes("instituição de ensino") || lower.includes("instituicao de ensino") || lower.includes("escola") || lower.includes("colégio") || lower.includes("colegio")) {
-    const nature = lower.includes("públic") || lower.includes("public") ? "PUBLIC" : lower.includes("privad") || lower.includes("particular") ? "PRIVATE" : "";
+    const nature = normalizeRequesterEntityNature(text) || (lower.includes("particular") ? "PRIVATE" : "");
     return { kind: "SCHOOL", nature };
   }
   if (text === "4" || lower.includes("empresa")) return { kind: "BUSINESS", nature: "" };
@@ -89,14 +97,12 @@ export function deriveAgreementIndicatorFromAgenda(agenda) {
 export function buildAgreementFieldsFromAgenda(agenda) {
   const mappedType = normalizeRequesterEntityType(agenda?.requester_entity_type);
   const directKind = normalizeRequesterEntityType(agenda?.requester_entity_kind).kind;
-  const directNature = String(agenda?.requester_entity_nature || "").trim();
+  const directNature = normalizeRequesterEntityNature(agenda?.requester_entity_nature);
   return {
     // External requests keep their description in requester_entity_type, while
     // internal requests may retain the select values in separate fields.
     requester_entity_kind: directKind || mappedType.kind,
-    requester_entity_nature: REQUESTER_ENTITY_NATURE_OPTIONS.some((option) => option.value === directNature)
-      ? directNature
-      : mappedType.nature,
+    requester_entity_nature: directNature || normalizeRequesterEntityNature(agenda?.requester_entity_type) || mappedType.nature,
     age_range: normalizeAgeRange(agenda?.age_range || agenda?.age_ranges),
   };
 }

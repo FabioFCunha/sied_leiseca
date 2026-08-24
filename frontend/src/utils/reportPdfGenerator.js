@@ -423,8 +423,8 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
       ["Endereço", action.place_action || "Não informado"],
       ["Horário", `${action.start_time || "--"} às ${action.final_hour || "--"}`],
     ];
-    if (requesterEntityKindLabel(action.requester_entity_kind)) actionData.push(["Tipo da entidade", requesterEntityKindLabel(action.requester_entity_kind)]);
-    if (requesterEntityNatureLabel(action.requester_entity_nature)) actionData.push(["Natureza", requesterEntityNatureLabel(action.requester_entity_nature)]);
+    if (requesterEntityKindLabel(action.requester_entity_kind)) actionData.push(["Tipo de solicitante", requesterEntityKindLabel(action.requester_entity_kind)]);
+    if (requesterEntityNatureLabel(action.requester_entity_nature)) actionData.push(["Público ou Privado?", requesterEntityNatureLabel(action.requester_entity_nature)]);
     if (ageRangeLabel(action.age_range)) actionData.push(["Faixa etária", ageRangeLabel(action.age_range)]);
     if (agreementIndicatorLabel(action.agreement_indicator)) actionData.push(["Indicador", agreementIndicatorLabel(action.agreement_indicator)]);
 
