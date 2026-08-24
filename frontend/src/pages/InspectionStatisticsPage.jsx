@@ -1007,7 +1007,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                             aria-label="Ocorrência de chuva"
                           >
                             <CloudRain size={14} />
-                            <span>(Teve chuva)</span>
+                            <span>Chuva</span>
                           </span>
                         ) : null}
                         {item.municipality}
@@ -1061,7 +1061,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
                               aria-label="Ocorrência de chuva"
                             >
                               <CloudRain size={14} />
-                              <span>(Teve chuva)</span>
+                              <span>Chuva</span>
                             </span>
                           ) : null}
                           {item.municipality}

@@ -301,7 +301,7 @@ export function buildPdfMunicipalityLabel(
     municipality.municipality || ""
   );
   const prefix = hasMunicipalityRain(municipality)
-    ? "Chuva (Teve chuva) "
+    ? "Chuva "
     : "";
   const dateSummary =
     isShortTerritorialPeriod(filters)

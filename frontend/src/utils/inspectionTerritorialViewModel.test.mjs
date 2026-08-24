@@ -288,7 +288,7 @@ assert.equal(
     date_from: "2026-08-14",
     date_to: "2026-08-18",
   }),
-  "Chuva (Teve chuva) Petrópolis\n14/08/2026"
+  "Chuva Petrópolis\n14/08/2026"
 );
 
 assert.equal(
@@ -383,7 +383,7 @@ assert.equal(
 
 assert.equal(
   pageSource.includes(
-    "(Teve chuva)"
+    ">Chuva<"
   ),
   true
 );
