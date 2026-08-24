@@ -1000,7 +1000,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
             {/* INTERIOR */}
             {interiorRegions.length > 0 && (
               <tbody>
-                <tr className="territorial-main-region-title"><td colSpan={6}>Interior</td></tr>
+                <tr className="territorial-main-region-title territorial-interior-start"><td colSpan={6}>Interior</td></tr>
               </tbody>
             )}
             {interiorRegions.map(region => (
