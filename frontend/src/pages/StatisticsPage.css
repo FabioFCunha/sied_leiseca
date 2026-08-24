@@ -247,9 +247,10 @@
   body.territorial-printing .territorial-print-root {
     position: absolute !important;
     top: 0 !important;
-    left: 0 !important;
-    width: 190mm !important;
-    max-width: 190mm !important;
+    left: 50% !important;
+    width: 180mm !important;
+    max-width: 180mm !important;
+    transform: translateX(-50%) !important;
   }
 
   body.territorial-printing .no-print,
@@ -258,8 +259,8 @@
   }
 
   body.territorial-printing .territorial-report-area {
-    width: 100% !important;
-    max-width: none !important;
+    width: 180mm !important;
+    max-width: 180mm !important;
     margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;

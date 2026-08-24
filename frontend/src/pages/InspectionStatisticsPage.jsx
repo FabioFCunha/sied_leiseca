@@ -46,7 +46,6 @@ import {
   formatMunicipalityDates,
   hasMunicipalityRain,
   isShortTerritorialPeriod,
-  buildTerritorialCoverageNote,
   normalizeTerritorialRankingFilters,
   normalizeTerritorialFilters,
   TERRITORIAL_FILTER_START,
@@ -808,10 +807,6 @@ function TerritorialContent({ territorial, loading, error, filters }) {
   const interiorRegions = regions.filter(r => r.region_code !== "METROPOLITANA");
   const highlighted = territorial.highlighted_operations || [];
   const summary = territorial.summary || {};
-  const coverageNote =
-    buildTerritorialCoverageNote(
-      territorial
-    );
   const showMunicipalityPeriodSummary =
     isShortTerritorialPeriod(filters);
 
@@ -1070,17 +1065,6 @@ function TerritorialContent({ territorial, loading, error, filters }) {
             </tfoot>
           </table>
         </div>
-
-        {coverageNote ? (
-          <div
-            className="territorial-nota"
-            style={{
-              marginBottom: 24,
-            }}
-          >
-            {coverageNote}
-          </div>
-        ) : null}
 
         <h3 style={{fontSize: 12.5, fontWeight: 800, color: "var(--t-navy)", textTransform: "uppercase", marginBottom: 10, borderBottom: "2px solid var(--t-danger)", display: "inline-block", paddingBottom: 4}}>Fiscalizações com índice de alcoolemia ≥ 25%</h3>
         {highlighted.length === 0 ? (
