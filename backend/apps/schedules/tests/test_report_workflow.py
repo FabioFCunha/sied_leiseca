@@ -3,7 +3,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from apps.schedules.models import ActionType, EducationAction, EducationReport, Agenda, Kit
-from apps.schedules.serializers import EducationActionSerializer
+from apps.schedules.serializers import EducationActionSerializer, EducationReportSerializer
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import generate_statistics_for_report
 
@@ -99,6 +99,57 @@ class EducationReportWorkflowTests(APITestCase):
         serializer = EducationActionSerializer(data={"type_action": "Escola Nota 10"})
         self.assertFalse(serializer.is_valid())
         self.assertIn("type_action", serializer.errors)
+
+    def test_street_action_events_is_accepted_and_updates_its_counter(self):
+        serializer = EducationActionSerializer(data={
+            "type_action": "Eventos",
+            "action_mode": "STREET",
+            "approached_actions": 50,
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        action = serializer.save(report=self.report, agenda=self.agenda)
+        self.assertEqual(action.type_action, "Eventos")
+        self.assertEqual(action.educational_actions, 1)
+        self.assertEqual(action.events, 1)
+
+    def test_street_action_rejects_unknown_subtype(self):
+        serializer = EducationActionSerializer(data={
+            "type_action": "Tipo livre",
+            "action_mode": "STREET",
+        })
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("type_action", serializer.errors)
+        self.assertIn("subtipo válido", str(serializer.errors["type_action"][0]))
+
+    def test_report_can_be_rectified_with_second_street_action(self):
+        serializer = EducationReportSerializer(
+            instance=self.report,
+            data={
+                "agenda": self.agenda.id,
+                "operation_date": "2026-07-01",
+                "team": "Team A",
+                "status": EducationReport.ReportStatus.RETURNED,
+                "actions": [
+                    {
+                        "type_action": "Palestra",
+                        "action_mode": "LECTURE",
+                    },
+                    {
+                        "type_action": "Eventos",
+                        "action_mode": "STREET",
+                        "approached_actions": 50,
+                    },
+                ],
+            },
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        report = serializer.save()
+        self.assertEqual(report.actions.count(), 2)
+        street_action = report.actions.get(type_action="Eventos")
+        self.assertEqual(street_action.events, 1)
 
     def test_chief_cannot_approve_or_return(self):
         self.client.force_authenticate(user=self.chief)

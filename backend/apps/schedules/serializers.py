@@ -1009,10 +1009,12 @@ ACTION_COUNTER_FIELDS = {
     "bares": "bars",
     "pedagio": "tolls",
     "esportes": "sports",
+    "pracas esportivas": "sports",
     "praia": "beach",
     "eventos": "events",
     "shopping": "shopping",
     "shopping/centro comercial": "shopping",
+    "shopping/centro comerciais": "shopping",
     "pracas/parques publicos": "parks",
     "pontos turisticos": "tourist_spots",
     "acao social": "social_actions",
@@ -1059,6 +1061,11 @@ class EducationActionListSerializer(serializers.ListSerializer):
 class EducationActionSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     agenda_title = serializers.CharField(source="agenda.title", read_only=True)
+    action_mode = serializers.ChoiceField(
+        choices=("STREET", "LECTURE"),
+        write_only=True,
+        required=False,
+    )
 
     @staticmethod
     def _is_selectable_action_type(action_type):
@@ -1088,6 +1095,7 @@ class EducationActionSerializer(serializers.ModelSerializer):
         list_serializer_class = EducationActionListSerializer
         fields = [
             "id",
+            "action_mode",
             "agenda",
             "agenda_title",
             "source_id",
@@ -1146,6 +1154,14 @@ class EducationActionSerializer(serializers.ModelSerializer):
     def validate_source_id(self, value):
         return value or None
 
+    def create(self, validated_data):
+        validated_data.pop("action_mode", None)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data.pop("action_mode", None)
+        return super().update(instance, validated_data)
+
     def validate_distribution_materials_distributed(self, value):
         if not value:
             return value
@@ -1183,12 +1199,19 @@ class EducationActionSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        action_mode = attrs.get("action_mode")
         action_type = str(attrs.get("type_action", getattr(self.instance, "type_action", "")) or "").strip()
         incoming_action_type = attrs.get("type_action", serializers.empty)
         current_action_type = str(getattr(self.instance, "type_action", "") or "").strip()
         action_type_changed = incoming_action_type is not serializers.empty and action_type != current_action_type
+        normalized_action_type = normalize_action_choice(action_type)
+        is_street_action = action_mode == "STREET"
 
-        if action_type:
+        if is_street_action:
+            mapped_field = ACTION_COUNTER_FIELDS.get(normalized_action_type)
+            if not mapped_field:
+                raise serializers.ValidationError({"type_action": "Selecione um subtipo válido de ação de rua."})
+        elif action_type:
             matched_action = self._resolve_action_type(action_type)
             if not matched_action:
                 raise serializers.ValidationError({"type_action": "Selecione um tipo operacional válido cadastrado no catálogo."})
@@ -1216,7 +1239,7 @@ class EducationActionSerializer(serializers.ModelSerializer):
         ]
         for field in counter_fields:
             attrs[field] = 0
-        mapped_field = ACTION_COUNTER_FIELDS.get(normalize_action_choice(action_type))
+        mapped_field = ACTION_COUNTER_FIELDS.get(normalized_action_type)
         if mapped_field:
             attrs["educational_actions"] = 1
             attrs[mapped_field] = 1

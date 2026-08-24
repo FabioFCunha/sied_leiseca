@@ -551,9 +551,13 @@ function hydrateForm(report, agenda) {
 }
 
 function buildActionPayload(action, formAgenda) {
-  const { action_mode, ...actionPayload } = action;
   return {
-    ...actionPayload,
+    ...action,
+    action_mode: action.action_mode || (
+      streetActionTypeOptions.includes(String(action.type_action || "").trim())
+        ? "STREET"
+        : "LECTURE"
+    ),
     agenda: agendaPk(action.agenda, formAgenda),
     source_id: nullable(action.source_id),
     ...Object.fromEntries(numberFields.map((field) => [field, Number(action[field] || 0)])),
@@ -989,6 +993,7 @@ export default function TechnicalReportsPage() {
       return {
         ...emptyAction,
         ...currentAction,
+        action_mode: isFirstAction ? (isStreetAction ? "STREET" : "LECTURE") : currentAction.action_mode,
         agenda: selectedAgendaPk || "",
         source_id: isUserCreated ? "" : (currentAction.source_id || (selectedAgendaPk ? `agenda_action:${selectedAgendaPk}` : "")),
         place_action: currentAction.place_action || (inheritAgendaFields ? getAgendaActionPlace(agenda) : ""),

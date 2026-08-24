@@ -52,9 +52,13 @@ function normalizeStreetActionType(value) {
 }
 
 function buildActionPayload(action, formAgenda) {
-  const { action_mode, ...actionPayload } = action;
   return {
-    ...actionPayload,
+    ...action,
+    action_mode: action.action_mode || (
+      streetActionTypeOptions.includes(normalizeStreetActionType(action.type_action))
+        ? "STREET"
+        : "LECTURE"
+    ),
     agenda: agendaPk(action.agenda, formAgenda),
     type_action: normalizeStreetActionType(action.type_action),
     source_id: nullable(action.source_id),
