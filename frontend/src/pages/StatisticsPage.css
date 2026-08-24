@@ -224,7 +224,7 @@
 .territorial-footer-stamp strong { font-size:11px; color:var(--t-navy); font-weight:700; margin:0;}
 @page {
   size: A4 portrait;
-  margin: 10mm;
+  margin: 14mm 10mm 10mm;
 }
 
 @media print {
@@ -235,22 +235,22 @@
     background: #fff !important;
   }
 
-  body.territorial-printing * {
-    visibility: hidden !important;
+  body.territorial-printing > :not(.territorial-print-host) {
+    display: none !important;
   }
 
-  body.territorial-printing .territorial-print-root,
-  body.territorial-printing .territorial-print-root * {
-    visibility: visible !important;
-  }
-
-  body.territorial-printing .territorial-print-root {
-    position: absolute !important;
-    top: 0 !important;
-    left: 50% !important;
+  body.territorial-printing .territorial-print-host {
+    display: block !important;
     width: 196mm !important;
     max-width: 196mm !important;
-    transform: translateX(-50%) scale(.91) !important;
+    margin: 0 auto !important;
+  }
+
+  body.territorial-printing .territorial-print-host .territorial-print-root {
+    position: static !important;
+    width: 196mm !important;
+    max-width: 196mm !important;
+    transform: scale(.91) !important;
     transform-origin: top center !important;
   }
 

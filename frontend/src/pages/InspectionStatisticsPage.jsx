@@ -811,8 +811,25 @@ function TerritorialContent({ territorial, loading, error, filters }) {
     isShortTerritorialPeriod(filters);
 
   const handleExportPdf = () => {
+    const source = document.querySelector(
+      ".territorial-print-root"
+    );
+
+    if (!source) {
+      window.alert("Não foi possível preparar o relatório para impressão.");
+      return;
+    }
+
+    document.querySelector(".territorial-print-host")?.remove();
+
+    const printHost = document.createElement("div");
+    printHost.className = "territorial-print-host";
+    printHost.append(source.cloneNode(true));
+    document.body.append(printHost);
+
     const restoreScreenLayout = () => {
       document.body.classList.remove("territorial-printing");
+      printHost.remove();
     };
 
     document.body.classList.add("territorial-printing");
@@ -820,8 +837,8 @@ function TerritorialContent({ territorial, loading, error, filters }) {
       once: true,
     });
 
-    // Espera a classe de impressão ser aplicada antes de abrir a caixa nativa
-    // de impressão. Assim o PDF é composto pelo DOM real da análise territorial.
+    // O clone mantém o DOM visual, mas entra no fluxo de impressão para que as
+    // margens A4 também sejam respeitadas nas páginas seguintes.
     window.requestAnimationFrame(() => {
       window.print();
     });
