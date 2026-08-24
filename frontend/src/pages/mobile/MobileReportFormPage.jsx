@@ -348,12 +348,10 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
     action_mode: isFirstAction ? (isStreetAction ? "STREET" : "LECTURE") : action.action_mode,
     agenda: resolvedAgendaPk || "",
     source_id: action.source_id || (sourceAgendaPk ? `agenda_action:${sourceAgendaPk}` : ""),
-    place_action: action.place_action || getAgendaActionPlace(agenda),
+    place_action: action.place_action || (inheritAgendaFields ? getAgendaActionPlace(agenda) : ""),
     institution_name:
       action.institution_name ||
-      agenda.institution_location ||
-      agenda.location ||
-      "",
+      (inheritAgendaFields ? (agenda.institution_location || agenda.location || "") : ""),
     type_action:
       normalizeStreetActionType(action.type_action) ||
       (inheritAgendaFields
@@ -361,25 +359,25 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
           ? normalizeStreetActionType(inheritedStreetActionType)
           : (getAgendaOperationalActionTypeName(agenda, actionTypes) || agenda.action_type_ref_name || agenda.action_type || ""))
         : ""),
-    type_audience: action.type_audience || agenda.audience || "",
+    type_audience: action.type_audience || (inheritAgendaFields ? agenda.audience || "" : ""),
     requester_entity_kind: action.requester_entity_kind || inheritedAgreementFields.requester_entity_kind || "",
     requester_entity_nature: action.requester_entity_nature || inheritedAgreementFields.requester_entity_nature || "",
     age_range: action.age_range || inheritedAgreementFields.age_range || "",
     agreement_indicator: action.agreement_indicator || "",
     start_time:
       action.start_time ||
-      (isFirstAction ? agenda.start_time?.slice?.(0, 5) : "") ||
+      (inheritAgendaFields ? agenda.start_time?.slice?.(0, 5) : "") ||
       "",
     final_hour:
       action.final_hour ||
-      (isFirstAction ? agenda.end_time?.slice?.(0, 5) : "") ||
+      (inheritAgendaFields ? agenda.end_time?.slice?.(0, 5) : "") ||
       "",
     approach:
       action.approach !== undefined &&
       action.approach !== null &&
       action.approach !== ""
         ? action.approach
-        : (agenda.quantity || 0),
+        : (inheritAgendaFields ? (agenda.quantity || 0) : ""),
   };
 }
 
