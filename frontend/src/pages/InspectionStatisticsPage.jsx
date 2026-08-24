@@ -1140,7 +1140,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
         <div className="territorial-footer-stamp">
           <small>Gerado em</small>
           <strong>{new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</strong>
-          <small style={{display: 'block', marginTop: 4}}>SIED · DETRAN-RJ · Operação Lei Seca</small>
+          <small style={{display: 'block', marginTop: 4}}>SIED · Operação Lei Seca</small>
         </div>
       </footer>
     </div>

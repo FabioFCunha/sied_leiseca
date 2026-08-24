@@ -224,7 +224,7 @@
 .territorial-footer-stamp strong { font-size:11px; color:var(--t-navy); font-weight:700; margin:0;}
 @page {
   size: A4 portrait;
-  margin: 7mm;
+  margin: 10mm;
 }
 
 @media print {
@@ -248,8 +248,8 @@
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
-    width: 196mm !important;
-    max-width: 196mm !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
   }
 
   body.territorial-printing .no-print,
@@ -339,7 +339,32 @@
 
   body.territorial-printing .territorial-tbl-wrap th:first-child,
   body.territorial-printing .territorial-tbl-wrap td:first-child {
-    width: 40%;
+    width: 38%;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) th:nth-child(2),
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) td:nth-child(2) {
+    width: 12%;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) th:nth-child(3),
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) td:nth-child(3) {
+    width: 11.5%;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) th:nth-child(4),
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) td:nth-child(4) {
+    width: 12.5%;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) th:nth-child(5),
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) td:nth-child(5) {
+    width: 11.5%;
+  }
+
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) th:nth-child(6),
+  body.territorial-printing .territorial-tbl-wrap > table:not(.territorial-sub-tbl) td:nth-child(6) {
+    width: 14.5%;
   }
 
   body.territorial-printing .territorial-tbl-wrap thead {
