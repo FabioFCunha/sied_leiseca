@@ -27,6 +27,32 @@ assert.deepEqual(
   }
 );
 
+assert.deepEqual(
+  buildAgreementFieldsFromAgenda({
+    requester_entity_type: "SCHOOL",
+    requester_entity_kind: "SCHOOL",
+    requester_entity_nature: "PUBLIC",
+    age_range: "AGE_15_17",
+  }),
+  {
+    requester_entity_kind: "SCHOOL",
+    requester_entity_nature: "PUBLIC",
+    age_range: "AGE_15_17",
+  }
+);
+
+assert.deepEqual(
+  buildAgreementFieldsFromAgenda({
+    requester_entity_type: "Instituição de Ensino Público",
+    age_ranges: "05 - 10 anos (ensino fundamental - anos iniciais)",
+  }),
+  {
+    requester_entity_kind: "SCHOOL",
+    requester_entity_nature: "PUBLIC",
+    age_range: "AGE_05_10",
+  }
+);
+
 assert.equal(
   getDisplayedAgreementIndicator(
     {
@@ -50,6 +76,19 @@ assert.equal(
     0
   ),
   "ESCOLA_NOTA_10"
+);
+
+assert.equal(
+  getDisplayedAgreementIndicator(
+    {},
+    {
+      requester_entity_kind: "SCHOOL",
+      requester_entity_nature: "PUBLIC",
+      age_range: "AGE_05_10",
+    },
+    0
+  ),
+  "ESCOLINHA_NOTA_10"
 );
 
 console.log("agreementIndicators.test.mjs: OK");

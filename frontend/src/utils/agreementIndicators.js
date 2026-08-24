@@ -78,16 +78,26 @@ export function deriveEducationAgreementIndicator(kind, nature, ageRange) {
 }
 
 export function deriveAgreementIndicatorFromAgenda(agenda) {
-  const { kind, nature } = normalizeRequesterEntityType(agenda?.requester_entity_type);
-  return deriveEducationAgreementIndicator(kind, nature, normalizeAgeRange(agenda?.age_ranges));
+  const fields = buildAgreementFieldsFromAgenda(agenda);
+  return deriveEducationAgreementIndicator(
+    fields.requester_entity_kind,
+    fields.requester_entity_nature,
+    fields.age_range
+  );
 }
 
 export function buildAgreementFieldsFromAgenda(agenda) {
-  const { kind, nature } = normalizeRequesterEntityType(agenda?.requester_entity_type);
+  const mappedType = normalizeRequesterEntityType(agenda?.requester_entity_type);
+  const directKind = normalizeRequesterEntityType(agenda?.requester_entity_kind).kind;
+  const directNature = String(agenda?.requester_entity_nature || "").trim();
   return {
-    requester_entity_kind: kind,
-    requester_entity_nature: nature,
-    age_range: normalizeAgeRange(agenda?.age_ranges),
+    // External requests keep their description in requester_entity_type, while
+    // internal requests may retain the select values in separate fields.
+    requester_entity_kind: directKind || mappedType.kind,
+    requester_entity_nature: REQUESTER_ENTITY_NATURE_OPTIONS.some((option) => option.value === directNature)
+      ? directNature
+      : mappedType.nature,
+    age_range: normalizeAgeRange(agenda?.age_range || agenda?.age_ranges),
   };
 }
 
