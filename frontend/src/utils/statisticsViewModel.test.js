@@ -59,29 +59,40 @@ describe("buildStatisticsViewModel", () => {
     expect(vm.categoryData[0].percentageLabel).toBe("50,0%");
   });
 
-  it("should calculate percentage properly for age rows", () => {
+  it("should consolidate official and legacy age ranges in pedagogical order", () => {
       const vm = buildStatisticsViewModel({
           dashboardData: {},
           filteredAgendas: [
-              { age_ranges: "Criança", audience: "10" },
-              { age_ranges: "Criança", audience: "20" },
-              { age_ranges: "Idoso", audience: "30" },
+              { age_ranges: "05 - 10 anos (ensino fundamental - anos iniciais)", audience: "10" },
+              { age_ranges: "5 - 10 anos", audience: "20" },
+              // Historic 4–13 records are consolidated as the initial-years group.
+              { age_ranges: "4 a 13", audience: "30" },
+              { age_ranges: "4 até 13", audience: "40" },
+              { age_ranges: "11 - 14 anos", audience: "50" },
+              { age_ranges: "09 até 13 anos", audience: "60" },
+              { age_ranges: "15 - 17 anos (ensino médio)", audience: "70" },
+              { age_ranges: "14 até 17 anos", audience: "80" },
+              { age_ranges: "acima de 18 anos - Adultos", audience: "90" },
+              { age_ranges: "acima de 18 anos", audience: "100" },
+              { age_ranges: "Adultos", audience: "110" },
           ],
           futureAgendas: [],
       });
-      
-      expect(vm.ageRows.length).toBe(2);
-      
-      const criancaRow = vm.ageRows.find(r => r.label === "Criança");
-      expect(criancaRow.actions).toBe(2);
-      expect(criancaRow.audience).toBe(30);
-      
-      const idosoRow = vm.ageRows.find(r => r.label === "Idoso");
-      expect(idosoRow.actions).toBe(1);
-      expect(idosoRow.audience).toBe(30);
-      
-      expect(criancaRow.percentageValue).toBeCloseTo(66.66, 1);
-      expect(idosoRow.percentageValue).toBeCloseTo(33.33, 1);
+
+      expect(vm.ageRows.map(row => row.label)).toEqual([
+          "05 - 10 anos (ensino fundamental - anos iniciais)",
+          "11 - 14 anos (ensino fundamental - anos finais)",
+          "15 - 17 anos (ensino médio)",
+          "acima de 18 anos - Adultos",
+      ]);
+      expect(vm.ageRows.map(row => row.actions)).toEqual([4, 2, 2, 3]);
+      expect(vm.ageRows.map(row => row.audience)).toEqual([100, 110, 150, 300]);
+      expect(vm.ageRows.map(row => row.percentageValue)).toEqual([
+          (4 / 11) * 100,
+          (2 / 11) * 100,
+          (2 / 11) * 100,
+          (3 / 11) * 100,
+      ]);
   });
   
   it("should process administrative demands from dashboardData correctly", () => {

@@ -34,11 +34,50 @@ const groupBy = (items, getLabel) =>
     }, {})
   ).sort((a, b) => b.actions - a.actions);
 
+const AGE_GROUPS = [
+  "05 - 10 anos (ensino fundamental - anos iniciais)",
+  "11 - 14 anos (ensino fundamental - anos finais)",
+  "15 - 17 anos (ensino médio)",
+  "acima de 18 anos - Adultos",
+];
+
+const AGE_GROUP_ORDER = new Map(AGE_GROUPS.map((label, index) => [label, index]));
+
 const ageGroupLabel = (value) => {
-  const label = String(value || "").trim();
-  const normalized = label.toLowerCase();
-  if (!label || normalized === "adulto" || normalized === "não informado" || normalized === "nao informado") return "";
-  return label;
+  const normalized = String(value || "")
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .replace(/\s+/g, " ");
+  if (!normalized || normalized === "adulto" || normalized === "não informado" || normalized === "nao informado") return "";
+
+  if ([
+    "05 - 10 anos (ensino fundamental - anos iniciais)",
+    "05 - 10 anos",
+    "5 - 10 anos",
+    "04 até 8 anos",
+    "4 a 13",
+    "4 até 13",
+  ].includes(normalized)) return AGE_GROUPS[0];
+
+  if ([
+    "11 - 14 anos (ensino fundamental - anos finais)",
+    "11 - 14 anos",
+    "09 até 13 anos",
+  ].includes(normalized)) return AGE_GROUPS[1];
+
+  if ([
+    "15 - 17 anos (ensino médio)",
+    "15 - 17 anos",
+    "14 até 17 anos",
+  ].includes(normalized)) return AGE_GROUPS[2];
+
+  if ([
+    "acima de 18 anos - adultos",
+    "acima de 18 anos",
+    "adultos",
+  ].includes(normalized)) return AGE_GROUPS[3];
+
+  return "";
 };
 
 const ADMINISTRATIVE_DEMAND_LABELS = {
@@ -188,7 +227,9 @@ export function buildStatisticsViewModel({
     (a) => ageGroupLabel(a.age_ranges)
   );
   const totalAgeActions = ageRowsRaw.reduce((sum, row) => sum + row.actions, 0) || 1;
-  const ageRows = ageRowsRaw.map((row, index) => {
+  const ageRows = ageRowsRaw
+    .sort((a, b) => AGE_GROUP_ORDER.get(a.label) - AGE_GROUP_ORDER.get(b.label))
+    .map((row, index) => {
     const pct = (row.actions / totalAgeActions) * 100;
     return {
       ...row,
@@ -198,7 +239,7 @@ export function buildStatisticsViewModel({
       actionsLabel: integer(row.actions),
       audienceLabel: integer(row.audience),
     };
-  });
+    });
 
   // 7. Institutional Profile
   const requesterRowsRaw = groupBy(
