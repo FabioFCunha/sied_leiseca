@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   agreementIndicatorLabel,
   buildAgreementFieldsFromAgenda,
+  deriveAgreementIndicatorFromAgenda,
   deriveEducationAgreementIndicator,
   getDisplayedAgreementIndicator,
   normalizeRequesterEntityNature,
+  normalizeRequesterEntityType,
 } from "./agreementIndicators.js";
 
 assert.equal(deriveEducationAgreementIndicator("SCHOOL", "PUBLIC", "AGE_05_10"), "ESCOLINHA_NOTA_10");
@@ -22,6 +24,8 @@ assert.equal(normalizeRequesterEntityNature("Publico"), "PUBLIC");
 assert.equal(normalizeRequesterEntityNature("PRIVATE"), "PRIVATE");
 assert.equal(normalizeRequesterEntityNature("Privado"), "PRIVATE");
 assert.equal(normalizeRequesterEntityNature("Privada"), "PRIVATE");
+assert.deepEqual(normalizeRequesterEntityType("SCHOOL PUBLIC"), { kind: "SCHOOL", nature: "PUBLIC" });
+assert.deepEqual(normalizeRequesterEntityType("SCHOOL PRIVATE"), { kind: "SCHOOL", nature: "PRIVATE" });
 
 assert.deepEqual(
   buildAgreementFieldsFromAgenda({
@@ -33,6 +37,34 @@ assert.deepEqual(
     requester_entity_nature: "PUBLIC",
     age_range: "AGE_ADULT",
   }
+);
+
+assert.deepEqual(
+  buildAgreementFieldsFromAgenda({
+    requester_entity_type: "SCHOOL PUBLIC",
+    age_ranges: "acima de 18 anos - Adultos",
+  }),
+  {
+    requester_entity_kind: "SCHOOL",
+    requester_entity_nature: "PUBLIC",
+    age_range: "AGE_ADULT",
+  }
+);
+
+assert.equal(
+  deriveAgreementIndicatorFromAgenda({
+    requester_entity_type: "SCHOOL PUBLIC",
+    age_ranges: "acima de 18 anos - Adultos",
+  }),
+  "ESCOLA_NOTA_10"
+);
+
+assert.equal(
+  deriveAgreementIndicatorFromAgenda({
+    requester_entity_type: "SCHOOL PRIVATE",
+    age_ranges: "acima de 18 anos - Adultos",
+  }),
+  ""
 );
 
 assert.deepEqual(

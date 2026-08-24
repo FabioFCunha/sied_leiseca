@@ -64,6 +64,14 @@ export function normalizeRequesterEntityNature(value) {
 export function normalizeRequesterEntityType(value) {
   const text = String(value || "").trim();
   if (!text) return { kind: "", nature: "" };
+  const [kindCode, ...natureParts] = text.split(/\s+/);
+  const nature = normalizeRequesterEntityNature(natureParts.join(" "));
+  if (
+    REQUESTER_ENTITY_KIND_OPTIONS.some((option) => option.value === kindCode) &&
+    nature
+  ) {
+    return { kind: kindCode, nature };
+  }
   if (REQUESTER_ENTITY_KIND_OPTIONS.some((option) => option.value === text)) return { kind: text, nature: "" };
 
   const lower = normalizedText(text);
