@@ -5,11 +5,19 @@ import { buildReportShareSummary } from "../utils/reportShareSummary.js";
 
 const pageSource = fs.readFileSync(new URL("./TechnicalReportsPage.jsx", import.meta.url), "utf8");
 
-test("relatório técnico desktop compartilha o resumo estruturado", () => {
+test("relatório técnico desktop compartilha o resumo estruturado no preview e após o envio", () => {
   assert.match(pageSource, /import \{ buildReportShareSummary \} from "\.\.\/utils\/reportShareSummary\.js"/);
   assert.match(pageSource, /buildReportShareSummary\(form, selectedAgendaForPreview \|\| \{\}, attendanceStats\)/);
+  assert.match(pageSource, /await api\(`\/education-reports\/\$\{savedId\}\/submit-for-review\/`, \{ method: "POST" \}\);\s*setSubmittedShareSummary\(buildReportShareSummary\(form, selectedAgenda \|\| \{\}, attendanceStats\)\);/);
   assert.match(pageSource, /executeShare\(reportShareSummary,/);
+  assert.match(pageSource, /executeShare\(submittedShareSummary,/);
   assert.match(pageSource, /Compartilhar relatório/);
+});
+
+test("falha no envio não mantém a ação de compartilhamento visível", () => {
+  assert.match(pageSource, /const submitFinal = async \(\) => \{[\s\S]*?setSubmittedShareSummary\(""\);/);
+  assert.match(pageSource, /catch \(err\) \{\s*setSubmittedShareSummary\(""\);\s*setMessage\(`⚠ Não foi possível enviar o relatório/);
+  assert.match(pageSource, /\{submittedShareSummary && \(/);
 });
 
 test("resumo do desktop é estruturado e não inclui elementos da interface", () => {

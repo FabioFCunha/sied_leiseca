@@ -616,6 +616,7 @@ export default function TechnicalReportsPage() {
   const [editing, setEditing] = useState(null);
   const [isEditingLoading, setIsEditingLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [submittedShareSummary, setSubmittedShareSummary] = useState("");
   const [loadError, setLoadError] = useState("");
   const [locationMessage, setLocationMessage] = useState("");
   const [isGeocoding, setIsGeocoding] = useState(false);
@@ -680,17 +681,19 @@ export default function TechnicalReportsPage() {
     () => buildPreview(form, selectedAgendaForPreview, showEstimatedPublic, membersForPresentation),
     [form, selectedAgendaForPreview, showEstimatedPublic, membersForPresentation]
   );
-  const reportShareSummary = useMemo(() => {
+  const attendanceStats = useMemo(() => {
     const attendance = Object.values(attendanceForm || {});
-    const attendanceStats = {
+    return {
       loaded: attendance.length > 0,
       total: attendance.length,
       present: attendance.filter((member) => member.is_absent === false).length,
       absent: attendance.filter((member) => member.is_absent === true).length,
     };
+  }, [attendanceForm]);
 
+  const reportShareSummary = useMemo(() => {
     return buildReportShareSummary(form, selectedAgendaForPreview || {}, attendanceStats);
-  }, [form, selectedAgendaForPreview, attendanceForm]);
+  }, [form, selectedAgendaForPreview, attendanceStats]);
   const hasShareableReport = Boolean(
     form.operation_date && getValidatableActions(form.actions).length > 0 && reportShareSummary
   );
@@ -1331,6 +1334,7 @@ export default function TechnicalReportsPage() {
   const submitFinal = async () => {
     if (isSaving) return;
     setMessage("");
+    setSubmittedShareSummary("");
     const missingFields = [];
 
     if (!form.operation_date) missingFields.push({ name: "Data da Operação", id: "input-operation-date" });
@@ -1366,9 +1370,11 @@ export default function TechnicalReportsPage() {
     try {
       const savedId = await saveReport("DRAFT");
       await api(`/education-reports/${savedId}/submit-for-review/`, { method: "POST" });
+      setSubmittedShareSummary(buildReportShareSummary(form, selectedAgenda || {}, attendanceStats));
       setMessage("Relatório enviado para conferência com sucesso.");
       load();
     } catch (err) {
+      setSubmittedShareSummary("");
       setMessage(`⚠ Não foi possível enviar o relatório\n\nMotivo:\n${err.message}`);
     } finally {
       setIsSaving(false);
@@ -1615,6 +1621,18 @@ export default function TechnicalReportsPage() {
           : undefined,
       locationAssign: (url) => window.location.assign(url),
     });
+  };
+
+  const handleSubmittedReportShare = async () => {
+    const result = await executeShare(submittedShareSummary, {
+      navigatorShare:
+        typeof navigator !== "undefined" && typeof navigator.share === "function"
+          ? navigator.share.bind(navigator)
+          : undefined,
+      locationAssign: (url) => window.location.assign(url),
+    });
+
+    if (result.status === "shared") setSubmittedShareSummary("");
   };
 
   const openHistoricalReportPreview = async (r) => {
@@ -2222,6 +2240,15 @@ export default function TechnicalReportsPage() {
           </div>
 
           {message && <div className="alert" style={{ whiteSpace: "pre-wrap" }}>{message}</div>}
+          {submittedShareSummary && (
+            <div className="alert" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+              <span><strong>Relatório enviado.</strong> Compartilhe o resumo estruturado pelo WhatsApp.</span>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <button type="button" className="secondary" onClick={() => setSubmittedShareSummary("")}>Agora não</button>
+                <button type="button" onClick={handleSubmittedReportShare}><Share2 size={16} /> Compartilhar relatório</button>
+              </div>
+            </div>
+          )}
           <div className="report-submit-actions">
             {!["PENDING_REVIEW", "APPROVED"].includes(form.status) ? (
               <>
