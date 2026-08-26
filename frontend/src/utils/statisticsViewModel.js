@@ -88,16 +88,21 @@ const ADMINISTRATIVE_DEMAND_LABELS = {
 
 const requesterTypeLabel = (value) => {
   const label = String(value || "").trim();
-  const normalized = label.toLowerCase();
+  const normalized = label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ");
   if (!label) return "";
   let base = "";
-  if (normalized.includes("institui")) base = "Instituição de Ensino";
-  else if (normalized.includes("empresa") || normalized.includes("órgão") || normalized.includes("orgao")) base = "Empresa/Órgão";
+  if (normalized.includes("institui") || normalized.includes("school")) base = "Instituição de Ensino";
+  else if (normalized.includes("empresa") || normalized.includes("orgao") || normalized.includes("business")) base = "Empresa/Órgão";
   else if (normalized.includes("organiza") && normalized.includes("evento")) base = "Organização de evento";
   else if (normalized.includes("ação de rua") || normalized.includes("acao de rua")) base = "Ação de Rua";
+  else if (normalized.includes("demanda administrativa") || normalized.includes("administrative demand")) return "Demanda Administrativa";
   if (!base) return "";
-  if (normalized.includes("privado")) return `${base} Privado`;
-  if (normalized.includes("público") || normalized.includes("publico")) return `${base} Público`;
+  if (normalized.includes("privado") || normalized.includes("privada") || normalized.includes("private")) return `${base} Privado`;
+  if (normalized.includes("publico") || normalized.includes("publica") || normalized.includes("public")) return `${base} Público`;
   return base;
 };
 

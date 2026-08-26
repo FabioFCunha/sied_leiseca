@@ -94,6 +94,46 @@ describe("buildStatisticsViewModel", () => {
           (3 / 11) * 100,
       ]);
   });
+
+  it("should consolidate equivalent institutional profiles before calculating totals and percentages", () => {
+    const vm = buildStatisticsViewModel({
+      dashboardData: {},
+      filteredAgendas: [
+        { requester_entity_type: "Instituição de Ensino Público", audience: 10 },
+        { requester_entity_type: "Instituição de Ensino Pública", audience: 20 },
+        { requester_entity_type: "SCHOOL PUBLIC", audience: 30 },
+        { requester_entity_type: "Instituição de Ensino Privado", audience: 40 },
+        { requester_entity_type: "Instituição de Ensino Privada", audience: 50 },
+        { requester_entity_type: "SCHOOL PRIVATE", audience: 60 },
+        { requester_entity_type: "Instituição de Ensino", audience: 70 },
+        { requester_entity_type: "Empresa/Órgão Público", audience: 80 },
+        { requester_entity_type: "BUSINESS PUBLIC", audience: 81 },
+        { requester_entity_type: "Empresa/Órgão Privada", audience: 90 },
+        { requester_entity_type: "BUSINESS PRIVATE", audience: 90 },
+        { requester_entity_type: "Organização de evento Pública", audience: 100 },
+        { requester_entity_type: "Organização de evento Público", audience: 101 },
+        { requester_entity_type: "Organização de evento Privado", audience: 110 },
+        { requester_entity_type: "Organização de evento Privada", audience: 111 },
+        { requester_entity_type: "Ação de Rua", audience: 120 },
+      ],
+      futureAgendas: [],
+    });
+
+    expect(vm.requesterRows.map((row) => row.label)).toEqual([
+      "Instituição de Ensino Público",
+      "Instituição de Ensino Privado",
+      "Empresa/Órgão Público",
+      "Empresa/Órgão Privado",
+      "Organização de evento Público",
+      "Organização de evento Privado",
+      "Instituição de Ensino",
+      "Ação de Rua",
+    ]);
+    expect(vm.requesterRows.map((row) => row.actions)).toEqual([3, 3, 2, 2, 2, 2, 1, 1]);
+    expect(vm.requesterRows.map((row) => row.audience)).toEqual([60, 150, 161, 180, 201, 221, 70, 120]);
+    expect(vm.requesterRows[0].percentageValue).toBe((3 / 16) * 100);
+    expect(vm.requesterRows.at(-1).percentageValue).toBe((1 / 16) * 100);
+  });
   
   it("should process administrative demands from dashboardData correctly", () => {
       const vm = buildStatisticsViewModel({
