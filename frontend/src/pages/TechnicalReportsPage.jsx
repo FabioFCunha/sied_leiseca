@@ -1,4 +1,4 @@
-import { Clipboard, MapPin, Plus, Save, Search, Trash2, Eye, X, Check, Edit3 } from "lucide-react";
+import { Clipboard, MapPin, Plus, Save, Search, Trash2, Eye, X, Check, Edit3, Share2 } from "lucide-react";
 import logoUrl from "../assets/operacao-lei-seca-logo.png";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -26,6 +26,8 @@ import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
 import { getValidatableActions } from "./technicalReportsActionHelpers.js";
 import { buildStaffChanges } from "../utils/reportStaffChanges.js";
 import { agendaPk } from "../utils/reportPayload.js";
+import { buildReportShareSummary } from "../utils/reportShareSummary.js";
+import { executeShare } from "../utils/handleShareReport.js";
 
 function memberRows(members = {}) {
   return [
@@ -677,6 +679,20 @@ export default function TechnicalReportsPage() {
   const preview = useMemo(
     () => buildPreview(form, selectedAgendaForPreview, showEstimatedPublic, membersForPresentation),
     [form, selectedAgendaForPreview, showEstimatedPublic, membersForPresentation]
+  );
+  const reportShareSummary = useMemo(() => {
+    const attendance = Object.values(attendanceForm || {});
+    const attendanceStats = {
+      loaded: attendance.length > 0,
+      total: attendance.length,
+      present: attendance.filter((member) => member.is_absent === false).length,
+      absent: attendance.filter((member) => member.is_absent === true).length,
+    };
+
+    return buildReportShareSummary(form, selectedAgendaForPreview || {}, attendanceStats);
+  }, [form, selectedAgendaForPreview, attendanceForm]);
+  const hasShareableReport = Boolean(
+    form.operation_date && getValidatableActions(form.actions).length > 0 && reportShareSummary
   );
 
   const completedAgendaIds = useMemo(() => new Set(reports.map(r => String(agendaPk(r.agenda))).filter(Boolean)), [reports]);
@@ -1587,6 +1603,18 @@ export default function TechnicalReportsPage() {
   const copyPreview = () => {
     navigator.clipboard?.writeText(preview);
     setMessage("Relatório copiado para a área de transferência.");
+  };
+
+  const handleShareReport = async () => {
+    if (!hasShareableReport) return;
+
+    await executeShare(reportShareSummary, {
+      navigatorShare:
+        typeof navigator !== "undefined" && typeof navigator.share === "function"
+          ? navigator.share.bind(navigator)
+          : undefined,
+      locationAssign: (url) => window.location.assign(url),
+    });
   };
 
   const openHistoricalReportPreview = async (r) => {
@@ -2890,6 +2918,15 @@ export default function TechnicalReportsPage() {
 
           {/* Modal actions */}
           <div className="modal-actions" style={{ borderTop: "1px solid #e5e5e5", padding: "12px 16px" }}>
+            <button
+              className="secondary"
+              type="button"
+              onClick={handleShareReport}
+              disabled={!hasShareableReport}
+              title="Compartilhar resumo do relatório"
+            >
+              <Share2 size={14} /> Compartilhar relatório
+            </button>
             {isVisitor ? (
               <>
                 <button type="button" onClick={() => setShowPreviewModal(false)}>Fechar</button>
