@@ -2158,14 +2158,18 @@ class InspectionStatisticsUnifiedService:
             covered_years = []
         covered_years = locals().get("covered_years", [])
 
-        partial_daily_qs = daily_qs.exclude(reference_date__year__in=covered_years)
+        # DAILY/ERA_C has date-level granularity and is the authoritative
+        # source for mapped indicators.  Do not remove full years merely
+        # because an ACCUMULATED/ERA_B annual row also exists.
+        partial_daily_qs = daily_qs
         partial_aggregate = partial_daily_qs.aggregate(
             approach=Sum("historical_approached"),
             refusal=Sum("refusal"),
             fined=Sum("fined"),
             towed=Sum("towed"),
-            cnh_collected=Sum("historical_cnh_retained"),
-            passive_tests_performed=Sum("historical_passive_tests"),
+            cnh_collected=Sum("cnh_collected"),
+            passive_tests_performed=Sum("passive_tests_performed"),
+            reconductor=Sum("reconductor"),
             removal_resolutions=Sum("removal_resolutions"),
             arrests_means_evidence=Sum("arrests_means_evidence"),
             four_ml=Sum("four_ml"),
@@ -2182,19 +2186,31 @@ class InspectionStatisticsUnifiedService:
             historical_passive_tests=Sum("historical_passive_tests"),
             historical_event_trailers=Sum("historical_event_trailers"),
             negative_tests=Sum("negative_tests"),
-            historical_alcohol_cases=Sum("historical_alcohol_cases"),
             criminal_art_306=Sum("criminal_art_306"),
             criminal_art_306_other_evidence=Sum("criminal_art_306_other_evidence"),
-            operations=Sum("historical_operations"),
+            operations=Sum("operations_count"),
             driving_canceled_license=Sum("driving_canceled_license"),
             art307=Sum("historical_art_307"),
         )
 
-        has_partial_data = False
-        for k, v in partial_aggregate.items():
-            if v is not None:
-                has_partial_data = True
-                agg[k] = (agg.get(k) or 0) + v
+        daily_mapped_indicators = {
+            "approach", "refusal", "fined", "towed", "cnh_collected",
+            "passive_tests_performed", "reconductor", "removal_resolutions",
+            "arrests_means_evidence", "four_ml", "thirtythree_ml",
+            "thirtyfour_ml", "operations", "driving_canceled_license", "art307",
+        }
+        for key, value in partial_aggregate.items():
+            if key in daily_mapped_indicators and value is not None:
+                agg[key] = value
+
+        alcohol_components = [
+            partial_aggregate.get("refusal"),
+            partial_aggregate.get("thirtythree_ml"),
+            partial_aggregate.get("thirtyfour_ml"),
+            partial_aggregate.get("arrests_means_evidence"),
+        ]
+        if any(value is not None for value in alcohol_components):
+            agg["historical_alcohol_cases"] = sum(value or 0 for value in alcohol_components)
 
 
         #
@@ -2258,9 +2274,6 @@ class InspectionStatisticsUnifiedService:
             )
         )
 
-        # A série oficial consolidada não possui recondutor equivalente
-        # nem permite construir "Abordados + Recondutor" de forma segura.
-        agg["reconductor"] = None
         agg["approach_plus_reconductor"] = None
 
         #
