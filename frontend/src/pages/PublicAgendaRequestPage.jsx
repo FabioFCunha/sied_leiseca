@@ -15,6 +15,7 @@ const actionTypes = [
 ];
 
 const streetActionTypes = STREET_ACTION_TYPE_OPTIONS;
+const publicRequestSuccessMessage = "Solicitação enviada com sucesso. Acompanhe o retorno pelo contato informado.";
 
 const ageRangeOptions = [
   "05 - 10 anos (ensino fundamental - anos iniciais)",
@@ -393,7 +394,10 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
         body: JSON.stringify(payload),
       });
       setForm(empty);
-      setSuccessData({ detail: response.detail, protocol: response.protocol });
+      setSuccessData({
+        detail: internalRequest ? response.detail : publicRequestSuccessMessage,
+        protocol: response.protocol,
+      });
     } catch (err) {
       const errorMessage = String(err?.message || "Não foi possível enviar a solicitação.");
       setMessage(!internalRequest && errorMessage.startsWith("date: ") ? errorMessage.slice(6) : errorMessage);
