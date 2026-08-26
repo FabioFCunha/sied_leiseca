@@ -86,7 +86,7 @@ function normalizePayload(form, status) {
     exceptional_occurrence_description: form.has_exceptional_occurrence ? (form.exceptional_occurrence_description || "") : "",
     exceptional_occurrence_actions_taken: form.has_exceptional_occurrence ? (form.exceptional_occurrence_actions_taken || "") : "",
     exceptional_occurrence_impact: form.has_exceptional_occurrence
-      ? (form.exceptional_occurrence_impact === "NONE" ? "NO_IMPACT" : (form.exceptional_occurrence_impact || ""))
+      ? ({ NONE: "NO_IMPACT", TOTAL: "INTERRUPTED" }[form.exceptional_occurrence_impact] || form.exceptional_occurrence_impact || "")
       : "",
     actions: getValidatableActions(form.actions).map(({ action }) => buildActionPayload(action, form.agenda)),
   };

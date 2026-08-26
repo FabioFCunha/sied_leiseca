@@ -140,6 +140,28 @@ class EducationReportExceptionalOccurrenceTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("exceptional_occurrence_impact", response.data)
 
+    def test_all_official_impacts_are_accepted(self):
+        for impact in (
+            EducationReport.ExceptionalOccurrenceImpact.NO_IMPACT,
+            EducationReport.ExceptionalOccurrenceImpact.PARTIAL,
+            EducationReport.ExceptionalOccurrenceImpact.INTERRUPTED,
+        ):
+            with self.subTest(impact=impact):
+                payload = self.occurrence_payload()
+                payload["exceptional_occurrence_impact"] = impact
+                payload["team"] = f"Equipe {impact}"
+                response = self.create_report(payload)
+                self.assertEqual(response.data["exceptional_occurrence_impact"], impact)
+
+    def test_legacy_impacts_are_rejected(self):
+        for impact in ("NONE", "TOTAL"):
+            with self.subTest(impact=impact):
+                payload = self.occurrence_payload()
+                payload["exceptional_occurrence_impact"] = impact
+                response = self.client.post("/api/education-reports/", payload, format="json")
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn("exceptional_occurrence_impact", response.data)
+
     def test_marking_false_clears_detailed_fields_and_preserves_legacy_observations(self):
         response = self.create_report(self.occurrence_payload())
         report_id = response.data["id"]
