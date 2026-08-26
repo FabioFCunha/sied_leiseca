@@ -1363,6 +1363,20 @@ class InspectionStatisticsUnifiedService:
 
         result = {}
 
+        daily_reconductor = None
+        daily_reconductor_start = date(2023, 1, 1)
+        if self.date_from and self.date_from >= daily_reconductor_start:
+            daily_qs = InspectionHistoricalStatistic.objects.filter(
+                source_type=HistoricalSourceType.DAILY,
+                taxonomy_era=HistoricalTaxonomyEra.ERA_C,
+                is_validation_only=False,
+                reference_date__gte=self.date_from,
+                reference_date__lte=min(self.date_to or HISTORICAL_CUTOFF_DATE, HISTORICAL_CUTOFF_DATE),
+            )
+            if self.team:
+                daily_qs = daily_qs.filter(team__iexact=self.team)
+            daily_reconductor = daily_qs.aggregate(value=Sum("reconductor"))["value"]
+
         for field_name in (
             "reconductor",
             "four_ml",
@@ -1377,10 +1391,12 @@ class InspectionStatisticsUnifiedService:
         ):
             baseline = HORUS_CARD_BASELINES[field_name]
 
+            value = baseline["value"] + (operational.get(field_name) or 0)
+            if field_name == "reconductor" and daily_reconductor is not None:
+                value = daily_reconductor
             result[field_name] = {
                 "value": (
-                    baseline["value"]
-                    + (operational.get(field_name) or 0)
+                    value
                 ),
                 "available_from": baseline["available_from"],
                 "source": "HORUS",
