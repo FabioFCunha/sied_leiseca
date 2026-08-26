@@ -58,9 +58,11 @@ const exceptionalOccurrenceTypeLabels = {
 };
 
 const exceptionalOccurrenceImpactLabels = {
-  NONE: "Nenhum",
+  NO_IMPACT: "Sem prejuízo",
+  NONE: "Sem prejuízo",
   PARTIAL: "Parcial",
-  TOTAL: "Total",
+  INTERRUPTED: "Interrompida",
+  TOTAL: "Interrompida",
 };
 
 export function buildReportShareSummary(report = {}, agenda = {}, attendanceStats = {}) {

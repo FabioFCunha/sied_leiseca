@@ -85,7 +85,9 @@ function normalizePayload(form, status) {
     exceptional_occurrence_type: form.has_exceptional_occurrence ? (form.exceptional_occurrence_type || "") : "",
     exceptional_occurrence_description: form.has_exceptional_occurrence ? (form.exceptional_occurrence_description || "") : "",
     exceptional_occurrence_actions_taken: form.has_exceptional_occurrence ? (form.exceptional_occurrence_actions_taken || "") : "",
-    exceptional_occurrence_impact: form.has_exceptional_occurrence ? (form.exceptional_occurrence_impact || "") : "",
+    exceptional_occurrence_impact: form.has_exceptional_occurrence
+      ? (form.exceptional_occurrence_impact === "NONE" ? "NO_IMPACT" : (form.exceptional_occurrence_impact || ""))
+      : "",
     actions: getValidatableActions(form.actions).map(({ action }) => buildActionPayload(action, form.agenda)),
   };
 }
@@ -1372,9 +1374,9 @@ export default function MobileReportFormPage() {
                   style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff' }}
                 >
                   <option value="">Selecione</option>
-                  <option value="NONE">Nenhum</option>
+                  <option value="NO_IMPACT">Sem prejuízo</option>
                   <option value="PARTIAL">Parcial (atividade continuou com restrições)</option>
-                  <option value="TOTAL">Total (atividade suspensa ou cancelada)</option>
+                  <option value="INTERRUPTED">Total (atividade suspensa ou cancelada)</option>
                 </select>
               </label>
             </div>

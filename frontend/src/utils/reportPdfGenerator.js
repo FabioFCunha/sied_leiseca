@@ -578,7 +578,7 @@ export async function generateTechnicalReportPdf(form, selectedAgenda, attendanc
         ["Tipo da Ocorrência", ocType || "—"],
         ["Descrição", form.exceptional_occurrence_description || "—"],
         ["Providências Adotadas", form.exceptional_occurrence_actions_taken || "—"],
-        ["Impacto na Atividade", form.exceptional_occurrence_impact || "—"],
+        ["Impacto na Atividade", ({ NO_IMPACT: "Sem prejuízo", NONE: "Sem prejuízo", PARTIAL: "Parcial", INTERRUPTED: "Interrompida", TOTAL: "Interrompida" }[form.exceptional_occurrence_impact] || form.exceptional_occurrence_impact || "—")],
       ],
       theme: "plain",
       margin: { left: MARGIN_L, right: MARGIN_R },

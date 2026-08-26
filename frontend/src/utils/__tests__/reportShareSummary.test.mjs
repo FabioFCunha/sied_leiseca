@@ -75,3 +75,13 @@ test("buildReportShareSummary - formato completo com emojis", () => {
   // Confirma ausência de interface
   assert.doesNotMatch(summary, /div|span|button|html/);
 });
+
+test("buildReportShareSummary - impacto sem prejuízo não expõe código", () => {
+  const summary = buildReportShareSummary({
+    has_exceptional_occurrence: true,
+    exceptional_occurrence_impact: "NO_IMPACT",
+  });
+
+  assert.match(summary, /Impacto: Sem prejuízo/);
+  assert.doesNotMatch(summary, /NO_IMPACT/);
+});
