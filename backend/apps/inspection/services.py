@@ -1696,6 +1696,7 @@ class InspectionStatisticsUnifiedService:
                     taxonomy_era=HistoricalTaxonomyEra.ERA_B,
                 )
             )
+            .filter(reference_year__lte=2022)
         )
 
         historical_rows = list(
@@ -1720,6 +1721,56 @@ class InspectionStatisticsUnifiedService:
             .order_by("reference_year")
         )
 
+        daily_rows = list(
+            InspectionHistoricalStatistic.objects
+            .filter(
+                source_type=HistoricalSourceType.DAILY,
+                taxonomy_era=HistoricalTaxonomyEra.ERA_C,
+                is_validation_only=False,
+                reference_date__isnull=False,
+                reference_date__gte=date(2023, 1, 1),
+                reference_date__lte=HISTORICAL_CUTOFF_DATE,
+            )
+            .values("reference_year")
+            .annotate(
+                operations=Sum("historical_operations"),
+                approached=Sum("historical_approached"),
+                fined=Sum("fined"),
+                towed=Sum("towed"),
+                cnh_collected=Sum("cnh_collected"),
+                refusal=Sum("refusal"),
+                administrative_art_165=Sum("thirtythree_ml"),
+                criminal_art_306=Sum("thirtyfour_ml"),
+                criminal_art_306_other_evidence=Sum(
+                    "arrests_means_evidence"
+                ),
+                alcohol_cases=Sum("historical_alcohol_cases"),
+                alcohol_percentage=Sum("historical_alcohol_percentage"),
+                art307=Sum("historical_art_307"),
+            )
+            .order_by("reference_year")
+        )
+
+        accumulated_art307_by_year = {
+            row["reference_year"]: row["value"]
+            for row in (
+                InspectionHistoricalStatistic.objects
+                .filter(
+                    source_type=HistoricalSourceType.ACCUMULATED,
+                    taxonomy_era=HistoricalTaxonomyEra.ERA_B,
+                    reference_year__gte=2023,
+                )
+                .values("reference_year")
+                .annotate(value=Sum("historical_art_307"))
+            )
+        }
+
+        # A base diária tratada é autoritativa a partir de 2023.
+        # Ela substitui, sem somar, os acumulados anuais ERA_B no
+        # mesmo período. De 2009 a 2022 permanece o consolidado
+        # institucional LEGACY/ERA_A.
+        historical_rows.extend(daily_rows)
+
         by_year = {}
 
         for row in historical_rows:
@@ -1729,6 +1780,19 @@ class InspectionStatisticsUnifiedService:
                 continue
 
             row["year"] = year
+
+            if year >= 2023:
+                row["alcohol_cases"] = sum(
+                    row.get(field) or 0
+                    for field in (
+                        "refusal",
+                        "administrative_art_165",
+                        "criminal_art_306",
+                        "criminal_art_306_other_evidence",
+                    )
+                )
+
+                row["art307"] = accumulated_art307_by_year.get(year)
 
             approached = row.get("approached") or 0
             alcohol_cases = row.get("alcohol_cases") or 0
@@ -1987,6 +2051,12 @@ class InspectionStatisticsUnifiedService:
                 reference_year__in=covered_years
             )
 
+        # A base tratada DAILY/ERA_C é autoritativa de 2023 até o
+        # corte histórico. Os acumulados ERA_B desse mesmo período
+        # permanecem no banco como referência, mas não podem ser
+        # somados nem escolhidos pelos cards oficiais.
+        official_qs = official_qs.filter(reference_year__lte=2022)
+
         #
         # CONSOLIDADO OFICIAL
         # ==========================================================
@@ -2178,6 +2248,14 @@ class InspectionStatisticsUnifiedService:
         # source for mapped indicators.  Do not remove full years merely
         # because an ACCUMULATED/ERA_B annual row also exists.
         partial_daily_qs = daily_qs
+        if 2022 in covered_years:
+            # Quando 2022 está integralmente coberto, o consolidado
+            # anual é a fonte oficial. A granularidade DAILY de 2022
+            # só é usada em filtros parciais dentro de sua cobertura.
+            partial_daily_qs = partial_daily_qs.filter(
+                reference_date__gte=date(2023, 1, 1)
+            )
+
         partial_aggregate = partial_daily_qs.aggregate(
             approach=Sum("historical_approached"),
             refusal=Sum("refusal"),
@@ -2204,7 +2282,7 @@ class InspectionStatisticsUnifiedService:
             negative_tests=Sum("negative_tests"),
             criminal_art_306=Sum("criminal_art_306"),
             criminal_art_306_other_evidence=Sum("criminal_art_306_other_evidence"),
-            operations=Sum("operations_count"),
+            operations=Sum("historical_operations"),
             driving_canceled_license=Sum("driving_canceled_license"),
             art307=Sum("historical_art_307"),
         )
@@ -2213,11 +2291,11 @@ class InspectionStatisticsUnifiedService:
             "approach", "refusal", "fined", "towed", "cnh_collected",
             "passive_tests_performed", "reconductor", "removal_resolutions",
             "arrests_means_evidence", "four_ml", "thirtythree_ml",
-            "thirtyfour_ml", "operations", "driving_canceled_license", "art307",
+            "thirtyfour_ml", "operations", "driving_canceled_license",
         }
         for key, value in partial_aggregate.items():
             if key in daily_mapped_indicators and value is not None:
-                agg[key] = value
+                agg[key] = self._sum_nullable(agg.get(key), value)
 
         alcohol_components = [
             partial_aggregate.get("refusal"),
@@ -2226,7 +2304,28 @@ class InspectionStatisticsUnifiedService:
             partial_aggregate.get("arrests_means_evidence"),
         ]
         if any(value is not None for value in alcohol_components):
-            agg["historical_alcohol_cases"] = sum(value or 0 for value in alcohol_components)
+            daily_alcohol_cases = sum(value or 0 for value in alcohol_components)
+            agg["historical_alcohol_cases"] = self._sum_nullable(
+                agg.get("historical_alcohol_cases"),
+                daily_alcohol_cases,
+            )
+
+        if not self.team:
+            accumulated_art307 = (
+                InspectionHistoricalStatistic.objects
+                .filter(
+                    source_type=HistoricalSourceType.ACCUMULATED,
+                    taxonomy_era=HistoricalTaxonomyEra.ERA_B,
+                    reference_year__in=[
+                        year for year in covered_years if year >= 2023
+                    ],
+                )
+                .aggregate(value=Sum("historical_art_307"))["value"]
+            )
+            agg["art307"] = self._sum_nullable(
+                agg.get("art307"),
+                accumulated_art307,
+            )
 
 
         #
