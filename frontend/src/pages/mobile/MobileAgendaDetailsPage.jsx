@@ -16,6 +16,7 @@ import {
   Car,
   Building2,
   ClipboardList,
+  Info,
 } from "lucide-react";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
@@ -443,6 +444,27 @@ export default function MobileAgendaDetailsPage() {
           )}
         </div>
       </div>
+
+      {agenda.internal_observation?.trim() && (
+        <div
+          className="mobile-card"
+          style={{
+            background: "#e7f1ff",
+            border: "1px solid #b6d4fe",
+            overflowWrap: "anywhere",
+          }}
+        >
+          <h3
+            className="mobile-card-header"
+            style={{ display: "flex", alignItems: "center", gap: "6px", color: "#084298" }}
+          >
+            <Info size={18} /> OBSERVAÇÃO DA OS
+          </h3>
+          <p style={{ margin: 0, color: "#084298", whiteSpace: "pre-wrap", lineHeight: "1.5" }}>
+            {agenda.internal_observation}
+          </p>
+        </div>
+      )}
 
       {agenda.service_order_mode === "DESIGNATED" &&
         designatedUsers.length > 0 && (

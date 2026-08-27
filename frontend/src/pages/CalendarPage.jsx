@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, Clock, MapPin, Navigation, Users, Package } from "lucide-react";
+import { CalendarDays, CalendarOff, ChevronLeft, ChevronRight, Clock, MapPin, Navigation, Users, Package, Info } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -268,6 +268,12 @@ export default function CalendarPage() {
                       return name ? <li key={i} style={{ marginBottom: '4px' }}>{name} {m.quantity ? `(${m.quantity})` : ""}</li> : null;
                     })}
                   </ul>
+                </div>
+              )}
+              {!isVisitor && selected.internal_observation?.trim() && (
+                <div style={{ background: '#e7f1ff', border: '1px solid #b6d4fe', borderRadius: '8px', padding: '12px 16px', flex: '1 1 100%', minWidth: '220px' }}>
+                  <strong style={{ color: '#084298', fontSize: '13px', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}><Info size={16} /> OBSERVAÇÃO DA OS</strong>
+                  <div style={{ color: '#084298', fontSize: '14px', lineHeight: '1.5', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{selected.internal_observation}</div>
                 </div>
               )}
             </div>

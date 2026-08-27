@@ -592,6 +592,7 @@ class AgendaSerializer(serializers.ModelSerializer):
             "origin",
             "cancel_reason",
             "notes",
+            "internal_observation",
             "kit_1",
             "kit_1_quantity",
             "material_1",

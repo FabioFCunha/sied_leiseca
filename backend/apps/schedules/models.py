@@ -481,6 +481,7 @@ class Agenda(models.Model):
     origin = models.CharField(max_length=20, choices=Origin.choices, default=Origin.INTERNAL, db_index=True)
     cancel_reason = models.TextField(blank=True)
     notes = models.TextField(blank=True)
+    internal_observation = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
