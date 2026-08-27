@@ -1489,6 +1489,16 @@ export default function AgendaPage() {
                       <strong>Telefone do solicitante:</strong> {form.external_responsible_phone}
                     </div>
                   )}
+                  <label className="field-label" style={{ display: "block", marginBottom: "16px", padding: "12px", background: "#f1f6ff", border: "1px solid #c9d9ee", borderRadius: "8px" }}>
+                    <span>Observação interna da OS <small>(opcional)</small></span>
+                    <textarea
+                      rows={4}
+                      value={form.internal_observation}
+                      onChange={(e) => update("internal_observation", e.target.value)}
+                      style={{ width: "100%", boxSizing: "border-box", whiteSpace: "pre-wrap", marginTop: "6px" }}
+                    />
+                    <small>Informação interna destacada no Calendário para orientação das equipes.</small>
+                  </label>
                   {(!agendas.find((a) => String(a.id) === String(editing))?.description) && (
                     <label className="field-label" style={{ marginBottom: "16px" }}>
                       <span style={{ color: "var(--color-danger)", fontWeight: "bold" }}>Descrição ausente (Preenchimento obrigatório)</span>
@@ -1906,11 +1916,6 @@ export default function AgendaPage() {
             <input placeholder="Equipamentos disponíveis" value={form.media_equipment} onChange={(e) => update("media_equipment", e.target.value)} />
             <textarea placeholder="Autorização de imagem" value={form.image_authorization} onChange={(e) => update("image_authorization", e.target.value)} />
             <textarea placeholder="Observação" value={form.notes} onChange={(e) => update("notes", e.target.value)} />
-            <label>
-              Observação da OS <small>(opcional)</small>
-              <textarea value={form.internal_observation} onChange={(e) => update("internal_observation", e.target.value)} rows={4} />
-              <small>Informação interna destacada no Calendário para orientação das equipes.</small>
-            </label>
           </div>
 
           {!editing && (
