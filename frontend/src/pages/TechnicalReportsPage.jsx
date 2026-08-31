@@ -1043,8 +1043,8 @@ export default function TechnicalReportsPage() {
           const meaningfulCurrentActions = getValidatableActions(source.actions).map(({ action }) => action);
           if (isStreetActionAgenda(agenda)) {
             return meaningfulCurrentActions.length
-              ? meaningfulCurrentActions.map((action) => buildAgendaAction(action))
-              : [buildAgendaAction({ place_action: "" })];
+              ? meaningfulCurrentActions.map((action, index) => buildAgendaAction(action, index === 0))
+              : [buildAgendaAction({}, true)];
           }
           return source.actions.map((action, index) => buildAgendaAction(action, index === 0));
         })(),
@@ -1052,6 +1052,25 @@ export default function TechnicalReportsPage() {
     });
 
     // O carregamento da escala agora e feito pelo useEffect monitorando operation_date e team
+  };
+
+  const loadAgendaDetails = async (agenda) => {
+    const agendaId = agendaPk(agenda);
+    if (!agendaId) return agenda;
+    const detailedAgenda = await api(`/agendas/${agendaId}/`);
+    setAgendas((current) => {
+      const exists = current.some((item) => String(item.id) === String(detailedAgenda.id));
+      return exists
+        ? current.map((item) => String(item.id) === String(detailedAgenda.id) ? { ...item, ...detailedAgenda } : item)
+        : [...current, detailedAgenda];
+    });
+    return detailedAgenda;
+  };
+
+  const selectAgendaForReport = async (agenda, options) => {
+    const detailedAgenda = await loadAgendaDetails(agenda);
+    applyAgenda(detailedAgenda, options);
+    return detailedAgenda;
   };
 
   const fillCoordinatesFromAgenda = async (agenda = selectedAgenda) => {
@@ -1109,9 +1128,9 @@ export default function TechnicalReportsPage() {
         return;
       }
       setEditing(null);
-      applyAgenda(agenda, { preserveCurrent: false });
-      const foundLocation = await fillCoordinatesFromAgenda(agenda);
-      setMessage(foundLocation ? `${agendaReferenceLabel(agenda)} vinculada ao relatorio com localizacao preenchida.` : `${agendaReferenceLabel(agenda)} vinculada ao relatorio.`);
+      const detailedAgenda = await selectAgendaForReport(agenda, { preserveCurrent: false });
+      const foundLocation = await fillCoordinatesFromAgenda(detailedAgenda);
+      setMessage(foundLocation ? `${agendaReferenceLabel(detailedAgenda)} vinculada ao relatorio com localizacao preenchida.` : `${agendaReferenceLabel(detailedAgenda)} vinculada ao relatorio.`);
     } catch (err) {
       setMessage(err.message);
     }
@@ -1237,7 +1256,8 @@ export default function TechnicalReportsPage() {
         await loadScheduleAttendance(reportSchedule.id);
       } else {
         const updatedAgenda = await api(`/agendas/${selectedAgenda.id}/`);
-        applyAgenda(updatedAgenda);
+        const detailedAgenda = await loadAgendaDetails(updatedAgenda);
+        applyAgenda(detailedAgenda);
       }
 
       if (closeModal) setIsAttendanceModalOpen(false);
@@ -1467,17 +1487,7 @@ export default function TechnicalReportsPage() {
     try {
       const reportAgendaPk = agendaPk(report.agenda);
       const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(reportAgendaPk));
-      let reportAgenda = reportAgendaLocal;
-
-      if (reportAgendaPk && !reportAgendaLocal) {
-        reportAgenda = await api(`/agendas/${reportAgendaPk}/`);
-        setAgendas((current) => {
-          if (!current.some((agenda) => String(agenda.id) === String(reportAgenda.id))) {
-            return [...current, reportAgenda];
-          }
-          return current;
-        });
-      }
+      const reportAgenda = reportAgendaPk ? await loadAgendaDetails(reportAgendaLocal || reportAgendaPk) : reportAgendaLocal;
 
       const resolvedDetails = report.street_action_details?.length
         ? report.street_action_details
@@ -1504,17 +1514,9 @@ export default function TechnicalReportsPage() {
       const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(reportAgendaPk));
       let reportAgenda = reportAgendaLocal;
 
-      const needsFetch = reportAgendaPk && !reportAgendaLocal;
-
-      if (needsFetch) {
+      if (reportAgendaPk) {
         try {
-          reportAgenda = await api(`/agendas/${reportAgendaPk}/`);
-          setAgendas((current) => {
-            if (!current.some((a) => String(a.id) === String(reportAgenda.id))) {
-              return [...current, reportAgenda];
-            }
-            return current;
-          });
+          reportAgenda = await loadAgendaDetails(reportAgendaLocal || reportAgendaPk);
         } catch (err) {
           setMessage(`⚠ Não foi possível carregar os dados da agenda vinculada (Protocolo #${reportAgendaPk}). O formulário não pôde ser aberto.`);
           setIsEditingLoading(false);
@@ -2596,12 +2598,16 @@ export default function TechnicalReportsPage() {
               <button
                 key={agenda.id}
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setEditing(null);
                   setMessage("");
                   setProtocolSearch(serviceOrderLabel(agenda));
-                  applyAgenda(agenda, { preserveCurrent: false });
-                  fillCoordinatesFromAgenda(agenda);
+                  try {
+                    const detailedAgenda = await selectAgendaForReport(agenda, { preserveCurrent: false });
+                    await fillCoordinatesFromAgenda(detailedAgenda);
+                  } catch (err) {
+                    setMessage(err.message || "Não foi possível carregar os dados completos da OS.");
+                  }
                 }}
                 style={{ textAlign: "left", padding: "12px", borderRadius: "8px", border: "1px solid var(--line)", background: "var(--surface-2)", cursor: "pointer", transition: "all 0.2s", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "4px", width: "100%", wordBreak: "break-word", flexShrink: 0 }}
               >
