@@ -9,6 +9,7 @@ import "./StatisticsPage.css";
 import { streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { buildStatisticsViewModel } from "../utils/statisticsViewModel.js";
 import { generateStatisticsPdf } from "../utils/statisticsPdfGenerator.js";
+import { ANNUAL_TABLE_GROUPS } from "../utils/statisticsAnnualTable.js";
 
 
 const MIN_DATE = "2026-07-01";
@@ -509,7 +510,10 @@ export default function StatisticsPage() {
   const apply = () => setFilters(current => ({ ...current, ...pending, date_from: clampStart(pending.date_from) }));
   const exportExcel = () => {
     const years = annual.map(row => row.year);
-    const lines = [["Indicador", ...years], ...HISTORICAL_ROWS.map(([key, label]) => [label, ...annual.map(row => row[key] || 0)])];
+    const lines = [["Indicador", ...years], ...ANNUAL_TABLE_GROUPS.flatMap((group) => [
+      [group.title, ...years.map(() => "")],
+      ...group.rows.map(([key, label]) => [label, ...annual.map(row => row[key] || 0)]),
+    ])];
     const blob = new Blob(["\ufeff" + lines.map(line => line.join("\t")).join("\n")], { type: "application/vnd.ms-excel;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -556,7 +560,7 @@ export default function StatisticsPage() {
     <div className="stats-two-columns"><Section icon={Users} title="Perfil institucional" subtitle="Tipo de solicitante."><ExecutiveBar rows={requesterRows}/></Section><Section icon={CalendarDays} title={"Horários das ações registradas"} subtitle={"Ações dos relatórios aprovados por dia e horário inicial da agenda."}><UsageHeatmap data={heatmapRows}/></Section></div>
     <div className="stats-two-columns"><Section icon={MapPin} title={"Indicadores geográficos"} subtitle={"Municípios com produção no período."}><Ranking rows={municipalities} nameKey="agenda__city"/></Section><Section icon={BarChart3} title="Ranking operacional" subtitle={"Equipes com produção no período."}><Ranking rows={teams} nameKey="team"/></Section></div>
     <Section icon={Lightbulb} title={"Insights automáticos"} subtitle={"Leitura rápida para gestão."}><div className="stats-insights">{insights.map((insight, index) => <p key={index}>{insight}</p>)}</div></Section>
-    <Section icon={BarChart3} title={"Série histórica completa"} subtitle={"Tabela institucional preservada para auditoria e exportação."}><div className="stats-table-wrap"><table className="stats-table stats-history-table"><thead><tr><th>Indicador</th>{annual.map(row => <th key={row.year}>{row.year}</th>)}</tr></thead><tbody>{HISTORICAL_ROWS.map(([key, label]) => <tr key={key}><td>{label}</td>{annual.map(row => <td key={row.year}>{number(row[key])}</td>)}</tr>)}</tbody></table></div></Section>
+    <Section icon={BarChart3} title={"Série histórica completa"} subtitle={"Tabela institucional preservada para auditoria e exportação."}><div className="stats-table-wrap"><table className="stats-table stats-history-table"><thead><tr><th>Indicador</th>{annual.map(row => <th key={row.year}>{row.year}</th>)}</tr></thead><tbody>{ANNUAL_TABLE_GROUPS.flatMap((group) => [<tr className="stats-history-group" key={group.title}><th colSpan={annual.length + 1}>{group.title}</th></tr>, ...group.rows.map(([key, label]) => <tr key={key}><td>{label}</td>{annual.map(row => <td key={row.year}>{number(row[key])}</td>)}</tr>)])}</tbody></table></div></Section>
     {drilldown && <div className="stats-drilldown"><div><button onClick={() => setDrilldown(null)}><X size={18}/></button><span>Detalhamento</span><h3>{drilldown.label}</h3><p>Total no período: <strong>{number(drilldown.value)}</strong></p><p>Público: <strong>{number(drilldown.audience)}</strong></p></div></div>}
     <footer className="stats-methodology">Fonte: banco de dados SIED • demanda das agendas + produção dos relatórios aprovados.</footer></section>;
 }

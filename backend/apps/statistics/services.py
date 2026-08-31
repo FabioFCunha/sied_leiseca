@@ -16,6 +16,7 @@ OFFICIAL_KEYS = (
     'ACTION - Pra\u00e7as/Parques P\u00fablicos',
     'ACTION - Pontos tur\u00edsticos', 'ACTION - A\u00e7\u00e3o conjunta com a fiscaliza\u00e7\u00e3o',
     'MATERIAL - Geral', 'MATERIAL - Certificados', 'MATERIAL - Soprinho',
+    'MATERIAL - Kit com 7 Revistinhas', 'MATERIAL - Ventarola Futebol',
 )
 
 ENTITY_KEYS = {
@@ -34,6 +35,13 @@ ENTITY_KEYS = {
     'CERTIFICADOS': 'Certificados',
     'CERTIFICADOS ENTREGUES': 'Certificados',
     'SOPRINHO': 'Soprinho', 'REVISTINHA SOPRINHO': 'Soprinho',
+}
+
+MATERIAL_ENTITY_KEYS = {
+    'REVISTINHA SOPRINHO': 'Soprinho',
+    'SOPRINHO': 'Soprinho',
+    'KIT COM 7 REVISTINHAS': 'Kit com 7 Revistinhas',
+    'VENTAROLA FUTEBOL': 'Ventarola Futebol',
 }
 
 def _normalized_statistic_name(value):
@@ -157,6 +165,8 @@ def aggregate_official_rows(rows):
         elif indicator == 'MATERIAL':
             if not action and not entity:
                 totals['MATERIAL - Geral'] += value
+            elif entity in MATERIAL_ENTITY_KEYS:
+                totals[f"MATERIAL - {MATERIAL_ENTITY_KEYS[entity]}"] += value
             elif entity in ENTITY_KEYS:
                 totals[f"MATERIAL - {ENTITY_KEYS[entity]}"] += value
     return {key: totals[key] for key in OFFICIAL_KEYS}
@@ -233,12 +243,52 @@ def _parse_materials(materials_text):
             
         total += q_val
         name_lower = name.lower()
+        normalized_name = _normalized_statistic_name(name)
         if "certificado" in name_lower:
             certificados += q_val
-        if "revistinha" in name_lower or "gibi" in name_lower:
+        if ("revistinha" in name_lower or "gibi" in name_lower) and normalized_name != 'KIT COM 7 REVISTINHAS':
             revistinhas += q_val
             
     return total, certificados, revistinhas
+
+
+def _distribution_material_breakdown(materials_text):
+    """Return only the named distribution materials required by the annual table."""
+    totals = defaultdict(int)
+    if not materials_text:
+        return totals
+
+    parsed_rows = []
+    if isinstance(materials_text, (dict, list)):
+        parsed_rows = list(_material_rows(materials_text))
+    elif isinstance(materials_text, str) and materials_text.lstrip().startswith(('[', '{')):
+        try:
+            parsed_rows = list(_material_rows(json.loads(materials_text)))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            parsed_rows = []
+    if parsed_rows:
+        materials_text = '\n'.join(f'{name} | {quantity}' for name, quantity in parsed_rows)
+
+    for line in str(materials_text).splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        text = re.sub(r"\[\s*\]", "| 0", text)
+        if "|" in text:
+            name, quantity = (part.strip() for part in text.rsplit("|", 1))
+        else:
+            match = re.match(r"^(?P<name>.+?)\s+-\s*(?P<quantity>\d+)\s*$", text)
+            if not match:
+                continue
+            name, quantity = match.group("name"), match.group("quantity")
+        quantity_match = re.search(r"\d+", str(quantity))
+        if not quantity_match:
+            continue
+        normalized_name = _normalized_statistic_name(name)
+        if normalized_name not in MATERIAL_ENTITY_KEYS:
+            continue
+        totals[normalized_name] += int(quantity_match.group(0))
+    return totals
 
 @transaction.atomic
 def generate_statistics_for_report(report, processed_by=None):
@@ -289,6 +339,14 @@ def generate_statistics_for_report(report, processed_by=None):
     add_metric('MATERIAL', tot_mat)
     add_metric('MATERIAL', tot_cert, entity_type='CERTIFICADOS ENTREGUES')
     add_metric('MATERIAL', tot_rev, entity_type='REVISTINHA SOPRINHO')
+    distribution_breakdown = defaultdict(int)
+    for payload in material_payloads:
+        for material_name, quantity in _distribution_material_breakdown(payload).items():
+            distribution_breakdown[material_name] += quantity
+    # Keep the existing generic material indicator intact and add only the
+    # named distribution lines required by the annual statistics table.
+    add_metric('MATERIAL', distribution_breakdown['KIT COM 7 REVISTINHAS'], entity_type='KIT COM 7 REVISTINHAS')
+    add_metric('MATERIAL', distribution_breakdown['VENTAROLA FUTEBOL'], entity_type='VENTAROLA FUTEBOL')
 
     # ====================================================
     # INDICADORES POR AÇÃO (PALESTRAS / AÇÕES)

@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { ANNUAL_TABLE_GROUPS } from "./statisticsAnnualTable.js";
 
 // ── Helper: Load image as base64 for jsPDF ───────────────────────────────
 function loadImageAsBase64(url) {
@@ -648,9 +649,9 @@ export async function generateStatisticsPdf({
       autoTable(doc, {
         startY,
         head: [["Indicador", ...blockYears.map(String)]],
-        body: HISTORICAL_ROWS.map(([key, label]) => [
-          label,
-          ...blockAnnual.map((row) => integer(row[key])),
+        body: ANNUAL_TABLE_GROUPS.flatMap((group) => [
+          [{ content: group.title, colSpan: blockYears.length + 1, styles: { fontStyle: "bold", fillColor: [229, 231, 235] } }],
+          ...group.rows.map(([key, label]) => [label, ...blockAnnual.map((row) => integer(row[key]))]),
         ]),
         ...gridTableDefaults,
         styles: {

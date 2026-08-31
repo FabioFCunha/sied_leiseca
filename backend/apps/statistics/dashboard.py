@@ -9,7 +9,7 @@ from django.db.models.functions import Coalesce
 from apps.schedules.models import Agenda, EducationAction, EducationReport
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
-from apps.statistics.services import _street_entity_from_action_counters, _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
+from apps.statistics.services import _distribution_material_breakdown, _street_entity_from_action_counters, _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
 from apps.statistics.views import get_hybrid_queryset
 
 
@@ -259,6 +259,31 @@ def _add_totals(base, addition):
     return values
 
 
+def _annual_distribution_materials(date_from, date_to, filters):
+    """Read named distribution materials from approved reports, including reports
+    created before their individual statistic rows existed."""
+    totals_by_year = {}
+    reports = _operational_reports(date_from, date_to, filters).prefetch_related('actions')
+    for report in reports:
+        payloads = [report.distribution_materials_distributed] if str(report.distribution_materials_distributed or '').strip() else []
+        if not payloads:
+            payloads = list(dict.fromkeys(
+                action.distribution_materials_distributed
+                for action in report.actions.all()
+                if str(action.distribution_materials_distributed or '').strip()
+            ))
+        year_totals = totals_by_year.setdefault(report.operation_date.year, {})
+        for payload in payloads:
+            for material, quantity in _distribution_material_breakdown(payload).items():
+                key = {
+                    'REVISTINHA SOPRINHO': 'MATERIAL - Soprinho',
+                    'KIT COM 7 REVISTINHAS': 'MATERIAL - Kit com 7 Revistinhas',
+                    'VENTAROLA FUTEBOL': 'MATERIAL - Ventarola Futebol',
+                }[material]
+                year_totals[key] = year_totals.get(key, 0) + quantity
+    return totals_by_year
+
+
 def _annual_series(date_from, date_to, filters):
     grouped = _grouped_statistics(
         filtered_statistics(date_from, date_to, filters).filter(methodology='SIED_OPERATIONAL'),
@@ -266,6 +291,7 @@ def _annual_series(date_from, date_to, filters):
     )
     years = set(grouped)
     years.update(HISTORICAL_BASELINE.keys())
+    distribution_by_year = _annual_distribution_materials(date_from, date_to, filters)
     
     has_dim_filters = _has_dimension_filters(filters)
     # Consideramos "sem filtro de período" quando as datas abrangem todo o histórico/hoje
@@ -279,12 +305,16 @@ def _annual_series(date_from, date_to, filters):
         else:
             baseline = {} if (has_dim_filters or has_period_filter) else HISTORICAL_BASELINE.get(year, {})
             
+        values = derived_totals(_add_totals(
+            baseline,
+            aggregate_official_rows(grouped.get(year, [])),
+        ))
+        # Override the new named lines with source-of-truth report material data
+        # to cover historical approved reports without a regeneration/migration.
+        values.update(distribution_by_year.get(year, {}))
         result.append({
             'year': year,
-            'values': derived_totals(_add_totals(
-                baseline,
-                aggregate_official_rows(grouped.get(year, [])),
-            )),
+            'values': values,
         })
     return result
 

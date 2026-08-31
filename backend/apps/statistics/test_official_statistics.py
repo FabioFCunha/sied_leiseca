@@ -6,7 +6,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.schedules.models import ActionType, Agenda, EducationAction, EducationReport, Sector
 from apps.statistics.models import ConsolidatedStatistic
-from apps.statistics.services import _parse_materials, aggregate_official_statistics, generate_statistics_for_report
+from apps.statistics.services import _distribution_material_breakdown, _parse_materials, aggregate_official_rows, aggregate_official_statistics, generate_statistics_for_report
 from apps.statistics.dashboard import _category_audience, comparison_period, variation
 from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardFiltersView, StatisticsDashboardView, get_hybrid_queryset
 
@@ -63,6 +63,22 @@ class OfficialStatisticsTests(TestCase):
     def test_material_parser_supports_text_and_json(self):
         self.assertEqual(_parse_materials('Certificado | 3\nRevistinha - 2\nFolder | 4'), (9, 3, 2))
         self.assertEqual(_parse_materials('[{"name":"Certificados","quantity":2},{"material":"Gibi Soprinho","count":5}]'), (7, 2, 5))
+
+    def test_annual_distribution_materials_keep_named_totals(self):
+        breakdown = _distribution_material_breakdown(
+            'Revistinha Soprinho | 5\nKIT COM 7 REVISTINHAS | 2\nVENTAROLA FUTEBOL | 3'
+        )
+        self.assertEqual(breakdown['REVISTINHA SOPRINHO'], 5)
+        self.assertEqual(breakdown['KIT COM 7 REVISTINHAS'], 2)
+        self.assertEqual(breakdown['VENTAROLA FUTEBOL'], 3)
+        totals = aggregate_official_rows([
+            {'indicator_type': 'MATERIAL', 'category_action_type__name': None, 'category_entity_type': 'REVISTINHA SOPRINHO', 'total': 5},
+            {'indicator_type': 'MATERIAL', 'category_action_type__name': None, 'category_entity_type': 'KIT COM 7 REVISTINHAS', 'total': 2},
+            {'indicator_type': 'MATERIAL', 'category_action_type__name': None, 'category_entity_type': 'VENTAROLA FUTEBOL', 'total': 3},
+        ])
+        self.assertEqual(totals['MATERIAL - Soprinho'], 5)
+        self.assertEqual(totals['MATERIAL - Kit com 7 Revistinhas'], 2)
+        self.assertEqual(totals['MATERIAL - Ventarola Futebol'], 3)
 
     @override_settings(STATISTICS_CUTOFF_DATE='2026-07-09')
     def test_hybrid_queryset_respects_period_methodology_and_status(self):

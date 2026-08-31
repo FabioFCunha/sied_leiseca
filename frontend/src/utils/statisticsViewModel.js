@@ -1,4 +1,5 @@
 import { streetActionTypeLabel } from "./streetActionTypes.js";
+import { withAnnualDistributionTotal } from "./statisticsAnnualTable.js";
 
 const text = {
   notInformed: "Não informado",
@@ -140,7 +141,7 @@ export function buildStatisticsViewModel({
   // 1. Annual / Historical Series
   const annual = (data.annual || []).map((row) => ({
     year: row.year,
-    ...row.values,
+    ...withAnnualDistributionTotal(row.values),
   }));
 
   // 2. Daily Evolution
