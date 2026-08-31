@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { ArrowLeft, Save } from "lucide-react";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
@@ -7,11 +7,17 @@ import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileAttendanceEditorCard from "../../components/mobile/MobileAttendanceEditorCard.jsx";
 import MobileAttendanceSummaryCard from "../../components/mobile/MobileAttendanceSummaryCard.jsx";
 import { formatDateBR } from "../../utils/date.js";
+import {
+  buildShiftScheduleDetailUrl,
+  buildTeamAttendanceForm,
+} from "../../utils/shiftScheduleAttendance.js";
 
 export default function MobileShiftAttendanceEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const agendaId = searchParams.get("agenda");
   const returnTo = location.state?.returnTo;
 
   const [schedule, setSchedule] = useState(null);
@@ -31,7 +37,7 @@ export default function MobileShiftAttendanceEditPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api(`/shift-schedules/${id}/`, { signal: abortControllerRef.current.signal });
+      const data = await api(buildShiftScheduleDetailUrl(id, agendaId), { signal: abortControllerRef.current.signal });
       
       if (!data || !data.members || typeof data.members !== 'object') {
         throw new Error("Os dados desta frequência não estão disponíveis no formato esperado.");
@@ -39,30 +45,7 @@ export default function MobileShiftAttendanceEditPage() {
       
       setSchedule(data);
 
-      const initialForm = {};
-      const processGroup = (group, member_type, roleLabel) => {
-        if (!group || !Array.isArray(group)) return;
-        group.forEach(member => {
-          const key = `${member_type}_${member.id}`;
-          if (!initialForm[key]) {
-            initialForm[key] = {
-              member_type,
-              member_id: member.id,
-              name: member.full_name || member.name,
-              roleLabel,
-              is_absent: member.is_absent, // can be true, false, or null
-              reason: member.absence_reason || "",
-              attachment: null
-            };
-          }
-        });
-      };
-
-      processGroup(data.members.chiefs, "CHIEF", "Chefe");
-      processGroup(data.members.agents, "AGENT", "Agente");
-      processGroup(data.members.supports, "SUPPORT", "Apoio");
-      
-      setAttendanceForm(initialForm);
+      setAttendanceForm(buildTeamAttendanceForm(data.members));
     } catch (err) {
       if (err.name !== "AbortError") {
         setError(err.message || "Não foi possível carregar a frequência.");
@@ -77,7 +60,7 @@ export default function MobileShiftAttendanceEditPage() {
     return () => {
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [id]);
+  }, [id, agendaId]);
 
   const handleSave = async (andReturn = false) => {
     if (isSaving) return;

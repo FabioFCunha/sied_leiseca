@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api/client.js";
 import { ArrowLeft, Users, Shield, Briefcase, User } from "lucide-react";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
@@ -7,6 +7,7 @@ import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileAttendanceParticipantCard from "../../components/mobile/MobileAttendanceParticipantCard.jsx";
 import MobileAttendanceSummaryCard from "../../components/mobile/MobileAttendanceSummaryCard.jsx";
 import { formatDateBR } from "../../utils/date.js";
+import { buildShiftScheduleDetailUrl } from "../../utils/shiftScheduleAttendance.js";
 
 // Função de inferência isolada e testável, conforme requisito
 function getTeamAttendanceStatus(isAbsent) {
@@ -18,6 +19,8 @@ function getTeamAttendanceStatus(isAbsent) {
 export default function MobileShiftAttendancePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const agendaId = searchParams.get("agenda");
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,7 +33,7 @@ export default function MobileShiftAttendancePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api(`/shift-schedules/${id}/`, { signal: abortControllerRef.current.signal });
+      const data = await api(buildShiftScheduleDetailUrl(id, agendaId), { signal: abortControllerRef.current.signal });
       
       // Validação de formato (falha segura se não for o esperado)
       if (!data || !data.members || typeof data.members !== 'object') {
@@ -52,7 +55,7 @@ export default function MobileShiftAttendancePage() {
     return () => {
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, [id]);
+  }, [id, agendaId]);
 
   if (loading) return <MobileLoadingState message="Carregando frequência..." />;
   if (error) {

@@ -1448,7 +1448,7 @@ export default function MobileReportFormPage() {
             }
 
             if (reportSchedule?.id) {
-              navigate(`/app/frequencia/escala/${reportSchedule.id}/editar`);
+              navigate(`/app/frequencia/escala/${reportSchedule.id}/editar?agenda=${encodeURIComponent(agenda.id)}`);
             }
           }}
         >
