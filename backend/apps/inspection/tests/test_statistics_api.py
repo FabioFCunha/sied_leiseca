@@ -29,11 +29,33 @@ class InspectionStatisticsApiTests(APITestCase):
             role=get_user_model().Role.MANAGER,
             sector=self.other_sector,
         )
+        self.fabio_user = get_user_model().objects.create_user(
+            email="fabiocunhaosp@gmail.com",
+            password="secret123",
+            full_name="Fabio Cunha",
+            cpf="08922040793",
+            role=get_user_model().Role.MANAGER,
+            sector=self.other_sector,
+        )
         self.other_visitor = get_user_model().objects.create_user(
             email="visitor-other@example.com",
             password="secret123",
             full_name="Visitante Outro Setor",
             role=get_user_model().Role.VISITOR,
+            sector=self.other_sector,
+        )
+        self.ordinary_user = get_user_model().objects.create_user(
+            email="user@example.com",
+            password="secret123",
+            full_name="Usuario Comum",
+            role=get_user_model().Role.USER,
+            sector=self.other_sector,
+        )
+        self.support_user = get_user_model().objects.create_user(
+            email="support@example.com",
+            password="secret123",
+            full_name="Apoio Bloqueado",
+            role=get_user_model().Role.SUPPORT,
             sector=self.other_sector,
         )
         self.admin_user = get_user_model().objects.create_user(
@@ -149,6 +171,36 @@ class InspectionStatisticsApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
 
+    def test_fabio_cunha_can_include_report_by_cpf(self):
+        self.client.force_authenticate(self.fabio_user)
+
+        response = self.client.post(
+            reverse("inspection-reports-include-in-statistics", args=[self.report.id]),
+            {"classification": {}},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.statistics_status, InspectionReport.StatisticsStatus.INCLUDED)
+        self.assertEqual(self.report.statistics_reviewed_by, self.fabio_user)
+        self.assertIsNotNone(self.report.statistics_reviewed_at)
+
+    def test_fabio_cunha_can_exclude_report_by_cpf(self):
+        self.client.force_authenticate(self.fabio_user)
+
+        response = self.client.post(
+            reverse("inspection-reports-exclude-from-statistics", args=[self.report.id]),
+            {"reason": "Dados aguardam correção da operação."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.statistics_status, InspectionReport.StatisticsStatus.EXCLUDED)
+        self.assertEqual(self.report.statistics_reviewed_by, self.fabio_user)
+        self.assertIsNotNone(self.report.statistics_reviewed_at)
+
     def test_visitor_other_sector_cannot_include_report(self):
         self.client.force_authenticate(self.other_visitor)
 
@@ -169,6 +221,14 @@ class InspectionStatisticsApiTests(APITestCase):
         response = self.client.post(reverse("inspection-reports-include-in-statistics", args=[self.report.id]), {}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_common_user_and_support_cannot_review_report(self):
+        url = reverse("inspection-reports-include-in-statistics", args=[self.report.id])
+
+        for user in (self.ordinary_user, self.support_user):
+            self.client.force_authenticate(user)
+            response = self.client.post(url, {}, format="json")
+            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_supervisor_cannot_include_report(self):
         self.client.force_authenticate(self.supervisor_user)

@@ -2,6 +2,36 @@ from django.conf import settings
 from apps.accounts.models import User
 from rest_framework.permissions import BasePermission
 
+FABIO_CUNHA_CPF = "08922040793"
+FABIO_CUNHA_EMAIL = "fabiocunhaosp@gmail.com"
+
+
+def _only_digits(value):
+    return "".join(character for character in str(value or "") if character.isdigit())
+
+
+def can_review_inspection_report(user):
+    """Returns the restricted set of users allowed to decide inspection reports."""
+    if not user or not user.is_authenticated:
+        return False
+
+    # Existing institutional reviewer access remains unchanged.
+    if (
+        user.role == User.Role.VISITOR
+        and getattr(user, "sector", None) is not None
+        and _normalized_sector_name(user) == "OLS/CooAdm"
+    ):
+        return True
+
+    # Fabio's CPF is the stable primary identifier. Username and email are
+    # compatibility fallbacks for deployments where the login was migrated
+    # without the CPF field.
+    return (
+        _only_digits(getattr(user, "cpf", "")) == FABIO_CUNHA_CPF
+        or _only_digits(getattr(user, "username", "")) == FABIO_CUNHA_CPF
+        or str(getattr(user, "email", "") or "").strip().lower() == FABIO_CUNHA_EMAIL
+    )
+
 
 def _normalized_sector_name(user):
     return str(getattr(getattr(user, "sector", None), "name", "") or "").strip()
@@ -26,17 +56,10 @@ class HasInspectionSyncToken(BasePermission):
 
 
 class CanReviewInspectionStatistics(BasePermission):
-    message = "Apenas usuarios da OLS/CooAdm podem homologar relatorios de Fiscalizacao."
+    message = "Voce nao tem permissao para homologar relatorios de Fiscalizacao."
 
     def has_permission(self, request, view):
-        user = getattr(request, "user", None)
-        if not user or not user.is_authenticated:
-            return False
-        return (
-            user.role == User.Role.VISITOR
-            and getattr(user, "sector", None) is not None
-            and _normalized_sector_name(user) == "OLS/CooAdm"
-        )
+        return can_review_inspection_report(getattr(request, "user", None))
 
 
 class CanViewInspectionStatisticsDashboard(BasePermission):

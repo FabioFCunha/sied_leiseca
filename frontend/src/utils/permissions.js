@@ -22,6 +22,9 @@ const AUDIT_ALLOWED_CPFS = new Set([
   "08922040793",
 ]);
 
+const INSPECTION_REPORT_REVIEWER_CPF = "08922040793";
+const INSPECTION_REPORT_REVIEWER_EMAIL = "fabiocunhaosp@gmail.com";
+
 function onlyDigits(value) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -74,7 +77,14 @@ export function canReviewInspectionStatistics(user) {
   if (!user) return false;
   const role = String(user.role || "").trim().toUpperCase();
   const sectorName = normalizeText(user.sector_name || user.sector?.name);
-  return role === "VISITOR" && sectorName === normalizeText("OLS/CooAdm");
+  if (role === "VISITOR" && sectorName === normalizeText("OLS/CooAdm")) {
+    return true;
+  }
+  return (
+    onlyDigits(user.cpf) === INSPECTION_REPORT_REVIEWER_CPF
+    || onlyDigits(user.username) === INSPECTION_REPORT_REVIEWER_CPF
+    || normalizeText(user.email) === INSPECTION_REPORT_REVIEWER_EMAIL
+  );
 }
 
 export function canViewInspectionStatistics(user) {
