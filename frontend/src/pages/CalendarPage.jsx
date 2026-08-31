@@ -4,6 +4,7 @@ import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR, formatLocalISODate } from "../utils/date.js";
 import { statusClass, statusLabel } from "../utils/status.js";
+import { normalizeCalendarText } from "../utils/calendarText.js";
 
 const WEEKDAY_LABELS = [
   "Dom",
@@ -44,23 +45,7 @@ function valueOrDash(value) {
 }
 
 function cleanText(value) {
-  if (value === undefined || value === null) return "";
-  let text = String(value);
-  if (!text) return "";
-
-  if (/[ÃÂâ]/.test(text)) {
-    try {
-      const bytes = Uint8Array.from([...text].map((char) => char.charCodeAt(0) & 255));
-      const decoded = new TextDecoder("utf-8").decode(bytes);
-      if (decoded && !decoded.includes("�")) {
-        text = decoded;
-      }
-    } catch {
-      // Keep the original text if browser decoding is unavailable.
-    }
-  }
-
-  return text;
+  return normalizeCalendarText(value);
 }
 
 function DetailItem({ label, children, className = "" }) {
