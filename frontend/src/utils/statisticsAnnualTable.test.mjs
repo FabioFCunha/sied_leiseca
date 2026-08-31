@@ -5,9 +5,17 @@ import { buildStatisticsViewModel } from "./statisticsViewModel.js";
 
 assert.deepEqual(
   ANNUAL_TABLE_GROUPS.map((group) => group.title),
-  ["Público", "Palestras total", "Total de ações", "Materiais de distribuição total"]
+  ["PÚBLICO", "PALESTRAS", "AÇÕES", "MATERIAIS DE DISTRIBUIÇÃO"]
 );
-assert.equal(ANNUAL_TABLE_GROUPS.flatMap((group) => group.rows).some(([, label]) => label === "Materiais de divulgação"), false);
+const annualLabels = ANNUAL_TABLE_GROUPS.flatMap((group) => group.rows).map(([, label]) => label);
+assert.equal(annualLabels.includes("Palestras total"), false);
+assert.equal(annualLabels.includes("Materiais de distribuição total"), false);
+assert.ok(annualLabels.includes("Total de palestras"));
+assert.ok(annualLabels.includes("Total de ações"));
+assert.ok(annualLabels.includes("Total de materiais de distribuição"));
+assert.ok(annualLabels.includes("Kit com 7 Revistinhas"));
+assert.ok(annualLabels.includes("Ventarola Futebol"));
+assert.equal(annualLabels.some((label) => label === "Materiais de divulgação"), false);
 assert.deepEqual(
   withAnnualDistributionTotal({
     "MATERIAL - Soprinho": 5,
