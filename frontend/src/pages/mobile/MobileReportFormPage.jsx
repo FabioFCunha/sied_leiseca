@@ -2,17 +2,21 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, FileText, MessageCircle, Plus, Save, Trash2 } from "lucide-react";
 import { api } from "../../api/client.js";
-import { STREET_ACTION_ID } from "../../utils/constants";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../../utils/streetActionTypes.js";
-import { filterOperationalEducationActionTypes, getAgendaOperationalActionTypeName } from "../../utils/actionTypeOptions.js";
+import { filterOperationalEducationActionTypes } from "../../utils/actionTypeOptions.js";
 import {
   EDUCATION_ACTION_AGE_RANGE_OPTIONS,
   REQUESTER_ENTITY_KIND_OPTIONS,
   REQUESTER_ENTITY_NATURE_OPTIONS,
   agreementIndicatorLabel,
-  buildAgreementFieldsFromAgenda,
   getDisplayedAgreementIndicator,
 } from "../../utils/agreementIndicators.js";
+import {
+  applyBlankActionPrefill,
+  buildFirstActionAgendaPrefill,
+  isStreetActionAgenda,
+  normalizeStreetActionType,
+} from "../../utils/reportActionPrefill.js";
 import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import MobileAttendanceSummaryCard from "../../components/mobile/MobileAttendanceSummaryCard.jsx";
@@ -24,31 +28,9 @@ import { agendaPk } from "../../utils/reportPayload.js";
 const numberFields = ["approach"];
 const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
 const agreementFieldNames = new Set(["requester_entity_kind", "requester_entity_nature", "age_range"]);
-const legacyStreetActionTypeMap = {
-  BAR: "Bares",
-  EMPRESA: "Empresas",
-  ESCOLA: "Escolas",
-  ESPORTES: "Praças Esportivas",
-  EVENTO: "Eventos",
-  FESTA_BAIRRO: "Eventos",
-  PARQUE: "Praças/Parques Públicos",
-  PEDAGIO: "Pedágio",
-  PRAIA: "Praia",
-  SHOPPING: "Shopping/Centro Comerciais",
-  UNIVERSIDADE: "Universidades",
-  PONTO_TURISTICO: "Pontos turísticos",
-  SINDICATO: "Outros",
-};
-
 function nullable(value) {
   if (value === "" || value === undefined) return null;
   return value;
-}
-
-function normalizeStreetActionType(value) {
-  const normalized = String(value || "").trim();
-  if (!normalized) return "";
-  return legacyStreetActionTypeMap[normalized] || normalized;
 }
 
 function buildActionPayload(action, formAgenda) {
@@ -114,40 +96,12 @@ const emptyAction = {
   distribution_materials_distributed: ""
 };
 
-function normalizeTypeLabel(value) {
-  return String(value || "").trim().toLocaleLowerCase("pt-BR");
-}
-
-function isStreetActionValue(value) {
-  const normalized = normalizeTypeLabel(value);
-  return String(value) === STREET_ACTION_ID || normalized === "ação de rua" || normalized === "acao de rua";
-}
-
-function isStreetActionAgenda(agenda) {
-  return Boolean(
-    isStreetActionValue(agenda?.action_type_ref) ||
-    isStreetActionValue(agenda?.requester_entity_type) ||
-    isStreetActionValue(agenda?.action_type_ref_name)
-  );
-}
-
 function actionMode(action, agenda, index) {
   if (index === 0) return isStreetActionAgenda(agenda) ? "STREET" : "LECTURE";
   if (action?.action_mode === "STREET" || action?.action_mode === "LECTURE") return action.action_mode;
   return streetActionTypeOptions.includes(normalizeStreetActionType(action?.type_action)) ? "STREET" : "LECTURE";
 }
 
-
-function getAgendaActionPlace(agenda = {}) {
-  const fullAddress = [
-    agenda.address,
-    agenda.neighborhood || agenda.neighborhood_ref_name,
-    agenda.city || agenda.municipality_ref_name,
-    agenda.state,
-  ].filter(Boolean).join(", ");
-
-  return fullAddress || agenda.location || agenda.institution_location || "";
-}
 
 function getAgendaContact(agenda = {}) {
   return [
@@ -344,46 +298,26 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
     };
   }
   const inheritAgendaFields = isFirstAction;
-  const isStreetAction = isStreetActionAgenda(agenda);
-  const inheritedAgreementFields = !isStreetAction && inheritAgendaFields ? buildAgreementFieldsFromAgenda(agenda) : {};
-  const inheritedStreetActionType = (agenda.street_action_details || [])
-    .map((detail) => detail?.type)
-    .find(Boolean) || agenda.action_type_ref_name || agenda.action_type || "";
+  const agendaPrefill = inheritAgendaFields ? buildFirstActionAgendaPrefill(agenda, actionTypes) : {};
+  const actionPrefill = inheritAgendaFields ? applyBlankActionPrefill(action, agendaPrefill) : action;
   return {
     ...action,
-    action_mode: isFirstAction ? (isStreetAction ? "STREET" : "LECTURE") : action.action_mode,
+    action_mode: isFirstAction ? actionPrefill.action_mode : action.action_mode,
     agenda: resolvedAgendaPk || "",
     source_id: action.source_id || (sourceAgendaPk ? `agenda_action:${sourceAgendaPk}` : ""),
-    place_action: action.place_action || (inheritAgendaFields ? getAgendaActionPlace(agenda) : ""),
-    institution_name:
-      action.institution_name ||
-      (inheritAgendaFields ? (agenda.institution_location || agenda.location || "") : ""),
-    type_action:
-      normalizeStreetActionType(action.type_action) ||
-      (inheritAgendaFields
-        ? (isStreetAction
-          ? normalizeStreetActionType(inheritedStreetActionType)
-          : getAgendaOperationalActionTypeName(agenda, actionTypes))
-        : ""),
-    type_audience: action.type_audience || (inheritAgendaFields ? agenda.audience || "" : ""),
-    requester_entity_kind: action.requester_entity_kind || inheritedAgreementFields.requester_entity_kind || "",
-    requester_entity_nature: action.requester_entity_nature || inheritedAgreementFields.requester_entity_nature || "",
-    age_range: action.age_range || inheritedAgreementFields.age_range || "",
+    place_action: actionPrefill.place_action || "",
+    institution_name: actionPrefill.institution_name || "",
+    type_action: normalizeStreetActionType(actionPrefill.type_action),
+    type_audience: actionPrefill.type_audience || "",
+    requester_entity_kind: actionPrefill.requester_entity_kind || "",
+    requester_entity_nature: actionPrefill.requester_entity_nature || "",
+    age_range: actionPrefill.age_range || "",
     agreement_indicator: action.agreement_indicator || "",
     start_time:
-      action.start_time ||
-      (inheritAgendaFields ? agenda.start_time?.slice?.(0, 5) : "") ||
-      "",
+      actionPrefill.start_time || "",
     final_hour:
-      action.final_hour ||
-      (inheritAgendaFields ? agenda.end_time?.slice?.(0, 5) : "") ||
-      "",
-    approach:
-      action.approach !== undefined &&
-      action.approach !== null &&
-      action.approach !== ""
-        ? action.approach
-        : (inheritAgendaFields ? (agenda.quantity || 0) : ""),
+      actionPrefill.final_hour || "",
+    approach: inheritAgendaFields ? actionPrefill.approach : action.approach,
   };
 }
 
@@ -524,7 +458,7 @@ export default function MobileReportFormPage() {
             actions: [hydrateActionFromAgenda({
               ...emptyAction,
               __userCreated: false,
-              approach: fetchedAgenda.quantity || 0,
+              approach: isStreetActionAgenda(fetchedAgenda) ? "" : (fetchedAgenda.quantity || 0),
               type_audience: fetchedAgenda.audience || ""
             }, fetchedAgenda, loadedActionTypes, true)],
             accessibility_conditions_met: "",

@@ -3,23 +3,26 @@ import logoUrl from "../assets/operacao-lei-seca-logo.png";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api/client.js";
-import { STREET_ACTION_ID } from "../utils/constants.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/streetActionTypes.js";
 import { formatDateBR } from "../utils/date.js";
-import { filterOperationalEducationActionTypes, getAgendaOperationalActionTypeName } from "../utils/actionTypeOptions.js";
+import { filterOperationalEducationActionTypes } from "../utils/actionTypeOptions.js";
 import {
   EDUCATION_ACTION_AGE_RANGE_OPTIONS,
   REQUESTER_ENTITY_KIND_OPTIONS,
   REQUESTER_ENTITY_NATURE_OPTIONS,
   agreementIndicatorLabel,
   ageRangeLabel,
-  buildAgreementFieldsFromAgenda,
   deriveAgreementIndicatorFromAgenda,
   getDisplayedAgreementIndicator,
   requesterEntityKindLabel,
   requesterEntityNatureLabel,
 } from "../utils/agreementIndicators.js";
+import {
+  applyBlankActionPrefill,
+  buildFirstActionAgendaPrefill,
+  isStreetActionAgenda,
+} from "../utils/reportActionPrefill.js";
 
 import { buildEducationAgentsText, buildOperationalResponsibility, buildPreview, chiefFromReport, reportName, getReachedAudienceForAction } from "../utils/reportPreview.js";
 import { generateTechnicalReportPdf } from "../utils/reportPdfGenerator.js";
@@ -149,19 +152,6 @@ const exceptionalOccurrenceImpactOptions = [
 
 function normalizeTypeLabel(value) {
   return String(value || "").trim().toLocaleLowerCase("pt-BR");
-}
-
-function isStreetActionValue(value) {
-  const normalized = normalizeTypeLabel(value);
-  return String(value) === STREET_ACTION_ID || normalized === "a\u00e7\u00e3o de rua" || normalized === "acao de rua";
-}
-
-function isStreetActionAgenda(agenda) {
-  return Boolean(
-    isStreetActionValue(agenda?.action_type_ref) ||
-    isStreetActionValue(agenda?.requester_entity_type) ||
-    isStreetActionValue(agenda?.action_type_ref_name)
-  );
 }
 
 function actionMode(action, agenda, index) {
@@ -501,21 +491,10 @@ function buildRequestDetails(report, agenda) {
   return protocolDetails(agenda || report || {}).audience || "";
 }
 
-function getAgendaActionPlace(agenda) {
-  const fullAddress = [
-    agenda?.address,
-    agenda?.neighborhood || agenda?.neighborhood_ref_name,
-    agenda?.city || agenda?.municipality_ref_name,
-    agenda?.state,
-  ].filter(Boolean).join(", ");
-
-  return fullAddress || agenda?.location || agenda?.institution_location || "";
-}
-
-function hydrateForm(report, agenda) {
+function hydrateForm(report, agenda, actionTypes = []) {
   const hasAnySourceId = report.actions?.some((a) => a.source_id) ?? false;
   const reportAgendaPk = agendaPk(report.agenda, agenda);
-  const inheritedAgreementFields = buildAgreementFieldsFromAgenda(agenda);
+  const agendaPrefill = buildFirstActionAgendaPrefill(agenda, actionTypes);
   const inheritedAgreementIndicator = deriveAgreementIndicatorFromAgenda(agenda);
   return {
     ...report,
@@ -530,22 +509,30 @@ function hydrateForm(report, agenda) {
     approximate_public: numericApproximatePublic(report?.approximate_public),
     request_details: buildRequestDetails(report, agenda),
     actions: report.actions?.length
-      ? report.actions.map((action, idx) => ({
+      ? report.actions.map((action, idx) => {
+          const actionPrefill = idx === 0 ? applyBlankActionPrefill(action, agendaPrefill) : action;
+          return {
           ...action,
           agenda: agendaPk(action.agenda, reportAgendaPk) || "",
-          place_action: action.place_action || (idx === 0 ? getAgendaActionPlace(agenda) : ""),
-          requester_entity_kind: action.requester_entity_kind || (idx === 0 ? inheritedAgreementFields.requester_entity_kind : ""),
-          requester_entity_nature: action.requester_entity_nature || (idx === 0 ? inheritedAgreementFields.requester_entity_nature : ""),
-          age_range: action.age_range || (idx === 0 ? inheritedAgreementFields.age_range : ""),
+          action_mode: actionPrefill.action_mode || action.action_mode,
+          place_action: actionPrefill.place_action || "",
+          institution_name: actionPrefill.institution_name || "",
+          type_action: actionPrefill.type_action || "",
+          type_audience: actionPrefill.type_audience || "",
+          requester_entity_kind: actionPrefill.requester_entity_kind || "",
+          requester_entity_nature: actionPrefill.requester_entity_nature || "",
+          age_range: actionPrefill.age_range || "",
+          start_time: actionPrefill.start_time || "",
+          final_hour: actionPrefill.final_hour || "",
+          approach: actionPrefill.approach,
           agreement_indicator: action.agreement_indicator || (idx === 0 ? inheritedAgreementIndicator : ""),
           __userCreated: hasAnySourceId ? !action.source_id : idx > 0,
-        }))
+        }; })
       : [{
           ...emptyAction,
+          ...applyBlankActionPrefill(emptyAction, agendaPrefill),
           agenda: reportAgendaPk || "",
           source_id: reportAgendaPk ? `agenda_action:${reportAgendaPk}` : "",
-          place_action: getAgendaActionPlace(agenda),
-          ...inheritedAgreementFields,
           agreement_indicator: inheritedAgreementIndicator,
           __userCreated: false,
         }],
@@ -990,16 +977,7 @@ export default function TechnicalReportsPage() {
     const buildAgendaAction = (currentAction = {}, isFirstAction = false) => {
       const isUserCreated = currentAction.__userCreated;
       const inheritAgendaFields = isFirstAction && !isUserCreated;
-      const isStreetAction = isStreetActionAgenda(agenda);
-      const inheritedStreetActionType = (agenda.street_action_details || [])
-        .map((detail) => detail?.type)
-        .find(Boolean) || agenda.action_type_ref_name || agenda.action_type || "";
-      const inheritedTypeAction = inheritAgendaFields
-        ? (isStreetAction
-          ? inheritedStreetActionType
-          : getAgendaOperationalActionTypeName(agenda, actionTypes))
-        : "";
-      const inheritedAgreementFields = inheritAgendaFields && !isStreetAction ? buildAgreementFieldsFromAgenda(agenda) : {};
+      const agendaPrefill = inheritAgendaFields ? buildFirstActionAgendaPrefill(agenda, actionTypes) : {};
       if (isUserCreated) {
         return {
           ...emptyAction,
@@ -1009,23 +987,26 @@ export default function TechnicalReportsPage() {
           __userCreated: true,
         };
       }
+      const actionPrefill = inheritAgendaFields
+        ? applyBlankActionPrefill(currentAction, agendaPrefill)
+        : currentAction;
       return {
         ...emptyAction,
         ...currentAction,
-        action_mode: isFirstAction ? (isStreetAction ? "STREET" : "LECTURE") : currentAction.action_mode,
+        action_mode: isFirstAction ? actionPrefill.action_mode : currentAction.action_mode,
         agenda: selectedAgendaPk || "",
         source_id: isUserCreated ? "" : (currentAction.source_id || (selectedAgendaPk ? `agenda_action:${selectedAgendaPk}` : "")),
-        place_action: currentAction.place_action || (inheritAgendaFields ? getAgendaActionPlace(agenda) : ""),
-        institution_name: currentAction.institution_name || (inheritAgendaFields ? agenda.institution_location || "" : ""),
-        type_action: currentAction.type_action || inheritedTypeAction,
-        type_audience: currentAction.type_audience || (inheritAgendaFields ? agenda.audience || "" : ""),
-        requester_entity_kind: currentAction.requester_entity_kind || inheritedAgreementFields.requester_entity_kind || "",
-        requester_entity_nature: currentAction.requester_entity_nature || inheritedAgreementFields.requester_entity_nature || "",
-        age_range: currentAction.age_range || inheritedAgreementFields.age_range || "",
+        place_action: actionPrefill.place_action || "",
+        institution_name: actionPrefill.institution_name || "",
+        type_action: actionPrefill.type_action || "",
+        type_audience: actionPrefill.type_audience || "",
+        requester_entity_kind: actionPrefill.requester_entity_kind || "",
+        requester_entity_nature: actionPrefill.requester_entity_nature || "",
+        age_range: actionPrefill.age_range || "",
         agreement_indicator: currentAction.agreement_indicator || (inheritAgendaFields ? deriveAgreementIndicatorFromAgenda(agenda) : ""),
-        start_time: currentAction.start_time || (inheritAgendaFields ? agenda.start_time?.slice(0, 5) || "" : ""),
-        final_hour: currentAction.final_hour || (inheritAgendaFields ? agenda.end_time?.slice(0, 5) || "" : ""),
-        approach: currentAction.approach || (inheritAgendaFields ? agenda.quantity || 0 : ""),
+        start_time: actionPrefill.start_time || "",
+        final_hour: actionPrefill.final_hour || "",
+        approach: inheritAgendaFields ? actionPrefill.approach : currentAction.approach,
         approached_lectures: currentAction.approached_lectures ?? "",
         approached_actions: (currentAction.approached_actions === 0 || currentAction.approached_actions === "0" || !currentAction.approached_actions) ? "" : currentAction.approached_actions,
         equipment_materials_removed: currentAction.equipment_materials_removed || (inheritAgendaFields ? initialEquipment : ""),
@@ -1306,7 +1287,7 @@ export default function TechnicalReportsPage() {
       setEditing(saved.id);
       const savedAgendaPk = agendaPk(saved.agenda);
       const savedAgenda = agendas.find((agenda) => String(agenda.id) === String(savedAgendaPk));
-      setForm(hydrateForm(saved, savedAgenda));
+      setForm(hydrateForm(saved, savedAgenda, actionTypes));
       setProtocolSearch(savedAgenda?.service_order_number ? serviceOrderLabel(savedAgenda) : savedAgendaPk ? String(savedAgendaPk) : "");
       load();
       return saved.id;
@@ -1501,7 +1482,7 @@ export default function TechnicalReportsPage() {
       const resolvedDetails = report.street_action_details?.length
         ? report.street_action_details
         : (reportAgenda?.street_action_details || []);
-      const hydrated = hydrateForm({ ...report, street_action_details: resolvedDetails }, reportAgenda);
+      const hydrated = hydrateForm({ ...report, street_action_details: resolvedDetails }, reportAgenda, actionTypes);
 
       setEditing(null);
       setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : reportAgendaPk ? String(reportAgendaPk) : "");
@@ -1551,7 +1532,7 @@ export default function TechnicalReportsPage() {
       const hydrated = hydrateForm({
         ...report,
         street_action_details: resolvedDetails
-      }, reportAgenda);
+      }, reportAgenda, actionTypes);
 
       setForm(hydrated);
       setMessage("");
