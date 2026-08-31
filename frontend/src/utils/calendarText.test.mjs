@@ -17,7 +17,21 @@ const calendarPageSource = await readFile(
   "utf8",
 );
 assert.match(calendarPageSource, /agenda\.start_time\?\.slice\(0, 5\)/);
-assert.match(calendarPageSource, /serviceTeamLabel\(agenda\)/);
+assert.match(
+  calendarPageSource,
+  /return cleanText\(agenda\.team_name \|\| agenda\.sector_name \|\| "Equipe não definida"\)/,
+  "o título principal do card normaliza a equipe antes de exibir",
+);
+assert.match(
+  calendarPageSource,
+  /valueOrDash\(agenda\.title\)/,
+  "o subtítulo do card normaliza o título da agenda",
+);
+assert.match(
+  calendarPageSource,
+  /valueOrDash\(selected\.description\)/,
+  "a descrição do modal permanece normalizada",
+);
 assert.match(calendarPageSource, /statusClass\[agenda\.status\]/);
 
 console.log("calendarText.test.mjs: OK");

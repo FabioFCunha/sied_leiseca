@@ -21,7 +21,7 @@ function isTravelAgenda(agenda) {
 }
 
 function serviceTeamLabel(agenda) {
-  return agenda.team_name || agenda.sector_name || "Equipe não definida";
+  return cleanText(agenda.team_name || agenda.sector_name || "Equipe não definida");
 }
 
 function fullAddress(agenda) {
