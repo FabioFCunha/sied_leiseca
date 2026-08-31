@@ -1014,9 +1014,12 @@ ACTION_COUNTER_FIELDS = {
     "praia": "beach",
     "eventos": "events",
     "shopping": "shopping",
-    "shopping/centro comercial": "shopping",
-    "shopping/centro comerciais": "shopping",
-    "pracas/parques publicos": "parks",
+    # normalize_action_choice removes punctuation, including slashes.  Keep the
+    # keys in this map in that canonical form so values displayed by the
+    # report form (for example, "Praças/Parques Públicos") remain valid.
+    "shopping centro comercial": "shopping",
+    "shopping centro comerciais": "shopping",
+    "pracas parques publicos": "parks",
     "pontos turisticos": "tourist_spots",
     "acao social": "social_actions",
     "ao social": "social_actions",

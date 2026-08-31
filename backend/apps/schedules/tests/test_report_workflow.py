@@ -113,6 +113,34 @@ class EducationReportWorkflowTests(APITestCase):
         self.assertEqual(action.educational_actions, 1)
         self.assertEqual(action.events, 1)
 
+    def test_street_action_parks_subtype_is_accepted_for_each_report_action(self):
+        serializer = EducationReportSerializer(
+            instance=self.report,
+            data={
+                "agenda": self.agenda.id,
+                "operation_date": "2026-07-01",
+                "team": "Team A",
+                "status": EducationReport.ReportStatus.DRAFT,
+                "actions": [
+                    {
+                        "type_action": "Praças/Parques Públicos",
+                        "action_mode": "STREET",
+                        "approached_actions": 50,
+                    },
+                    {
+                        "type_action": "Praças/Parques Públicos",
+                        "action_mode": "STREET",
+                        "approached_actions": 25,
+                    },
+                ],
+            },
+        )
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        report = serializer.save()
+        self.assertEqual(report.actions.count(), 2)
+        self.assertTrue(all(action.parks == 1 for action in report.actions.all()))
+
     def test_street_action_rejects_unknown_subtype(self):
         serializer = EducationActionSerializer(data={
             "type_action": "Tipo livre",
