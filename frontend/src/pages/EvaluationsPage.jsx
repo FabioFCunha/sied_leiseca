@@ -1,7 +1,9 @@
-import { Award, BarChart3, BookOpen, Clock3, Download, HeartHandshake, MessageSquare, Mic, Star, StarHalf, Target, ThumbsUp, TrendingDown, TrendingUp, Users, Zap, Accessibility } from "lucide-react";
+import { Award, BarChart3, BookOpen, Clock3, Download, HeartHandshake, Loader2, MessageSquare, Mic, Star, StarHalf, Target, ThumbsUp, TrendingDown, TrendingUp, Users, Zap, Accessibility } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { generateEvaluationsPdf } from "../utils/evaluationsPdfGenerator.js";
+import logoUrl from "../assets/operacao-lei-seca-logo.png";
 
 const emptyFilters = { date_from: "", date_to: "", state: "", region: "", municipality: "", status: "", team: "" };
 
@@ -501,6 +503,7 @@ export default function EvaluationsPage() {
   const [error, setError] = useState(null);
   const { user } = useAuth();
   const canModerate = user?.is_superuser || user?.role === "ADMIN" || user?.role === "MANAGER";
+  const [exporting, setExporting] = useState(false);
 
 
   const loadData = async () => {
@@ -536,22 +539,23 @@ export default function EvaluationsPage() {
       alert(err.message || "Erro ao moderar coment?rio.");
     }
   };
-  const handleExport = async (format, e) => {
-    e.preventDefault();
+  const handleExportPdf = async (e) => {
+    if (e) e.preventDefault();
+    if (exporting) return;
+    setExporting(true);
     try {
-      const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v)).toString();
-      const blob = await api(`/reports/export_${format}/${params ? `?${params}` : ""}`, { responseType: 'blob' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `avaliacoes.${format === "excel" ? "xlsx" : "pdf"}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      await generateEvaluationsPdf({
+        data,
+        filters,
+        issuedAt: new Date(),
+        logoUrl,
+        userName: user?.full_name || user?.username || undefined,
+      });
     } catch (err) {
       console.error(err);
-      alert("Erro ao exportar. Tente novamente.");
+      alert(err.message || "Erro ao exportar. Tente novamente.");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -585,11 +589,8 @@ export default function EvaluationsPage() {
           <p style={{ margin: 0, color: "#d2e1ff", opacity: 0.9, fontSize: "15px", marginTop: "8px" }}>SISTEMA INTEGRADO DA EDUCAÇÃO - OPERAÇÃO LEI SECA</p>
         </div>
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <button onClick={(e) => handleExport("pdf", e)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "8px 16px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontWeight: "600", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.2)"} onMouseOut={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>
-            <Download size={16} /> Exportar PDF
-          </button>
-          <button onClick={(e) => handleExport("excel", e)} style={{ background: "#ffffff", border: "none", color: "#001338", padding: "8px 16px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontWeight: "700", transition: "all 0.2s" }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-2px)"} onMouseOut={(e) => e.currentTarget.style.transform = "none"}>
-            <Download size={16} /> Excel
+          <button disabled={exporting || !data} onClick={(e) => handleExportPdf(e)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "8px 16px", borderRadius: "8px", display: "flex", alignItems: "center", gap: "8px", cursor: exporting ? "wait" : "pointer", fontWeight: "600", transition: "all 0.2s", opacity: exporting ? 0.7 : 1 }} onMouseOver={(e) => !exporting && (e.currentTarget.style.background = "rgba(255,255,255,0.2)")} onMouseOut={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>
+            {exporting ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Download size={16} />} {exporting ? "Gerando..." : "Exportar PDF"}
           </button>
         </div>
       </div>
