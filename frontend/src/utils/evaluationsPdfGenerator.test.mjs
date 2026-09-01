@@ -493,4 +493,43 @@ describe("evaluationsPdfGenerator", () => {
 
     expect(backendViewsContent).toContain("export_excel");
   });
+
+  // ── Ranking and Status column removal verification ─────────────────
+  it("does not include RANKING DE EQUIPES in the exported PDF", async () => {
+    await generateEvaluationsPdf({
+      data: makeFullData(),
+      filters: defaultFilters,
+      ...defaultParams,
+    });
+
+    const allText = mockTextCalls.map((call) => String(call[0])).join(" ");
+    expect(allText).not.toContain("RANKING DE EQUIPES");
+
+    // Ensure no autoTable has head matching Ranking table
+    const rankingTable = mockAutoTableCalls.find(
+      (t) => t.head && t.head[0] && t.head[0].includes("Posição")
+    );
+    expect(rankingTable).toBeUndefined();
+  });
+
+  it("removes the Status column from FEEDBACK DOS RESPONDENTES in exported PDF", async () => {
+    await generateEvaluationsPdf({
+      data: makeFullData(),
+      filters: defaultFilters,
+      ...defaultParams,
+    });
+
+    // Find Feedback table (head contains Data, Equipe, Nota, Comentário)
+    const feedbackTable = mockAutoTableCalls.find(
+      (t) => t.head && t.head[0] && t.head[0].includes("Comentário")
+    );
+    expect(feedbackTable).toBeDefined();
+    expect(feedbackTable.head[0]).toEqual(["Data", "Equipe", "Nota", "Comentário"]);
+    expect(feedbackTable.head[0]).not.toContain("Status");
+
+    // Check row length is 4 instead of 5
+    const firstRow = feedbackTable.body[0];
+    expect(firstRow.length).toBe(4);
+    expect(firstRow).not.toContain("Aprovado");
+  });
 });

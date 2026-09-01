@@ -447,32 +447,7 @@ export async function generateEvaluationsPdf({
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  SECTION 06 — RANKING DE EQUIPES
-    // ════════════════════════════════════════════════════════════════════
-
-    if (data.ranking && data.ranking.length > 0) {
-      startY = ensureSpace(40, startY);
-      startY = drawSectionHeader("RANKING DE EQUIPES", startY);
-
-      autoTable(doc, {
-        startY,
-        head: [["Posição", "Equipe", "Nota Média"]],
-        body: data.ranking.map((item, idx) => [
-          `${idx + 1}º`,
-          item.criteria,
-          fmtDecimal(item.value),
-        ]),
-        ...gridTableDefaults,
-        columnStyles: {
-          0: { halign: "center", cellWidth: 20, fontStyle: "bold" },
-          2: { halign: "right", cellWidth: 30, fontStyle: "bold" },
-        },
-      });
-      startY = doc.lastAutoTable.finalY + 10;
-    }
-
-    // ════════════════════════════════════════════════════════════════════
-    //  SECTION 07 — MAPA DE CALOR — CRITÉRIOS POR MÊS
+    //  SECTION 06 — MAPA DE CALOR — CRITÉRIOS POR MÊS
     // ════════════════════════════════════════════════════════════════════
 
     if (data.heatmap && data.heatmap.length > 0) {
@@ -535,7 +510,7 @@ export async function generateEvaluationsPdf({
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  SECTION 08 — INTELIGÊNCIA
+    //  SECTION 07 — INTELIGÊNCIA
     // ════════════════════════════════════════════════════════════════════
 
     if (data.intelligence) {
@@ -571,7 +546,7 @@ export async function generateEvaluationsPdf({
     }
 
     // ════════════════════════════════════════════════════════════════════
-    //  SECTION 09 — FEEDBACK DOS RESPONDENTES
+    //  SECTION 08 — FEEDBACK DOS RESPONDENTES
     // ════════════════════════════════════════════════════════════════════
 
     const messages = data.satisfaction_panel?.messages || [];
@@ -581,7 +556,7 @@ export async function generateEvaluationsPdf({
 
       autoTable(doc, {
         startY,
-        head: [["Data", "Equipe", "Nota", "Comentário", "Status"]],
+        head: [["Data", "Equipe", "Nota", "Comentário"]],
         body: messages.map((msg) => [
           msg.answered_at
             ? new Date(msg.answered_at).toLocaleDateString("pt-BR")
@@ -591,13 +566,6 @@ export async function generateEvaluationsPdf({
             ? Number(msg.overall_rating).toFixed(1)
             : "—",
           msg.moderated_comment || msg.suggestion || "—",
-          msg.moderation_status === "APPROVED"
-            ? "Aprovado"
-            : msg.moderation_status === "HIDDEN"
-              ? "Oculto"
-              : msg.moderation_status === "REJECTED"
-                ? "Recusado"
-                : "Pendente",
         ]),
         ...gridTableDefaults,
         styles: {
@@ -614,7 +582,6 @@ export async function generateEvaluationsPdf({
           1: { cellWidth: 28 },
           2: { halign: "center", cellWidth: 15 },
           3: { cellWidth: 0 }, // auto-fill remaining
-          4: { halign: "center", cellWidth: 22 },
         },
       });
       startY = doc.lastAutoTable.finalY + 10;
