@@ -9,7 +9,7 @@ from django.db.models.functions import Coalesce
 from apps.schedules.models import Agenda, EducationAction, EducationReport
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
-from apps.statistics.services import _distribution_material_breakdown, _street_entity_from_action_counters, _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
+from apps.statistics.services import _distribution_material_breakdown, _parse_materials, _street_entity_from_action_counters, _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
 from apps.statistics.views import get_hybrid_queryset
 
 
@@ -284,6 +284,47 @@ def _annual_distribution_materials(date_from, date_to, filters):
     return totals_by_year
 
 
+def _report_distribution_payloads(report):
+    report_payload = str(report.distribution_materials_distributed or '').strip()
+    if report_payload:
+        return [report_payload]
+    return list(dict.fromkeys(
+        str(action.distribution_materials_distributed or '').strip()
+        for action in report.actions.all()
+        if str(action.distribution_materials_distributed or '').strip()
+    ))
+
+
+def _distribution_material_card_totals(date_from, date_to, filters):
+    """Totals for KPI cards, sourced only from approved SIED technical reports."""
+    start_date = max(date_from, OPERATIONAL_COMPARISON_START)
+    if date_to < start_date:
+        return {'total': 0, 'kits_with_seven_comics': 0}
+
+    reports = EducationReport.objects.filter(
+        status=EducationReport.ReportStatus.APPROVED,
+        operation_date__range=(start_date, date_to),
+    ).prefetch_related('actions')
+    if filters.get('municipality'):
+        reports = reports.filter(agenda__city__iexact=filters['municipality'])
+    if filters.get('team'):
+        reports = reports.filter(team__iexact=filters['team'])
+    if filters.get('institution'):
+        reports = reports.filter(actions__institution_name__icontains=filters['institution']).distinct()
+    if filters.get('entity'):
+        reports = reports.filter(agenda__requester_entity_type__in=entity_filter_values(filters['entity']))
+    if filters.get('action_type'):
+        reports = reports.filter(actions__type_action__icontains=filters['action_type']).distinct()
+
+    total = 0
+    kits_with_seven_comics = 0
+    for report in reports:
+        for payload in _report_distribution_payloads(report):
+            total += _parse_materials(payload)[0]
+            kits_with_seven_comics += _distribution_material_breakdown(payload)['KIT COM 7 REVISTINHAS']
+    return {'total': total, 'kits_with_seven_comics': kits_with_seven_comics}
+
+
 def _annual_series(date_from, date_to, filters):
     grouped = _grouped_statistics(
         filtered_statistics(date_from, date_to, filters).filter(methodology='SIED_OPERATIONAL'),
@@ -539,12 +580,18 @@ def dashboard_payload(date_from, date_to, filters):
     if cached is not None:
         return cached
     current = derived_totals(aggregate_official_statistics(filtered_statistics(date_from, date_to, filters)))
+    current_materials = _distribution_material_card_totals(date_from, date_to, filters)
+    current['MATERIAL - Geral'] = current_materials['total']
+    current['MATERIAL - Kit com 7 Revistinhas'] = current_materials['kits_with_seven_comics']
     current['EXPECTED_PUBLIC'] = _expected_public_total(date_from, date_to, filters)
     current['REPORTS_WITHOUT_PUBLIC'] = _reports_without_public_total(date_from, date_to, filters)
     comparison = comparison_period(date_from, date_to)
     previous_from = comparison['from']
     previous_to = comparison['to']
     previous = derived_totals(aggregate_official_statistics(filtered_statistics(previous_from, previous_to, filters)))
+    previous_materials = _distribution_material_card_totals(previous_from, previous_to, filters)
+    previous['MATERIAL - Geral'] = previous_materials['total']
+    previous['MATERIAL - Kit com 7 Revistinhas'] = previous_materials['kits_with_seven_comics']
     previous['EXPECTED_PUBLIC'] = _expected_public_total(previous_from, previous_to, filters)
     previous['REPORTS_WITHOUT_PUBLIC'] = _reports_without_public_total(previous_from, previous_to, filters)
     keys = set(current) | set(previous)

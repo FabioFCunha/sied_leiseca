@@ -7,7 +7,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.schedules.models import ActionType, Agenda, EducationAction, EducationReport, Sector
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import _distribution_material_breakdown, _parse_materials, aggregate_official_rows, aggregate_official_statistics, generate_statistics_for_report
-from apps.statistics.dashboard import _category_audience, comparison_period, variation
+from apps.statistics.dashboard import _category_audience, _distribution_material_card_totals, comparison_period, dashboard_payload, variation
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
 from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardFiltersView, StatisticsDashboardView, get_hybrid_queryset
 
@@ -80,6 +80,68 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(totals['MATERIAL - Soprinho'], 5)
         self.assertEqual(totals['MATERIAL - Kit com 7 Revistinhas'], 2)
         self.assertEqual(totals['MATERIAL - Ventarola Futebol'], 3)
+
+    def test_distribution_material_cards_use_only_approved_reports_after_cutoff(self):
+        included = EducationReport.objects.create(
+            operation_date=date(2026, 7, 9),
+            team='ALFA',
+            status=EducationReport.ReportStatus.APPROVED,
+            accessibility_conditions_met='YES',
+            created_by=self.user,
+            distribution_materials_distributed=(
+                'Revistinha Soprinho | 100\n'
+                'Kit com 7 Revistinhas | 20\n'
+                'Ventarola Futebol | 10\n'
+                'Outro material de distribuição | 4'
+            ),
+            equipment_materials_distributed='Material de apoio | 999',
+            materials_spent='Material de dinâmica | 999',
+        )
+        # Report-level data wins over action-level data, preventing duplicate counts.
+        EducationAction.objects.create(
+            report=included,
+            distribution_materials_distributed='Revistinha Soprinho | 100\nKit com 7 Revistinhas | 20\nVentarola Futebol | 10',
+        )
+        action_only = EducationReport.objects.create(
+            operation_date=date(2026, 7, 10),
+            team='ALFA',
+            status=EducationReport.ReportStatus.APPROVED,
+            accessibility_conditions_met='YES',
+            created_by=self.user,
+        )
+        EducationAction.objects.create(
+            report=action_only,
+            distribution_materials_distributed='Kit com 7 Revistinhas | 3',
+        )
+        EducationReport.objects.create(
+            operation_date=date(2026, 7, 8),
+            team='ALFA',
+            status=EducationReport.ReportStatus.APPROVED,
+            accessibility_conditions_met='YES',
+            created_by=self.user,
+            distribution_materials_distributed='Kit com 7 Revistinhas | 999',
+        )
+        EducationReport.objects.create(
+            operation_date=date(2026, 7, 10),
+            team='ALFA',
+            status=EducationReport.ReportStatus.DRAFT,
+            accessibility_conditions_met='YES',
+            created_by=self.user,
+            distribution_materials_distributed='Kit com 7 Revistinhas | 999',
+        )
+
+        totals = _distribution_material_card_totals(
+            date(2026, 7, 1), date(2026, 7, 31), {}
+        )
+
+        self.assertEqual(totals['total'], 137)
+        self.assertEqual(totals['kits_with_seven_comics'], 23)
+        self.assertNotEqual(totals['kits_with_seven_comics'], 23 * 7)
+        self.assertEqual(totals['total'] - totals['kits_with_seven_comics'], 114)
+
+        payload = dashboard_payload(date(2026, 7, 1), date(2026, 7, 31), {})
+        self.assertEqual(payload['summary']['MATERIAL - Geral'], 137)
+        self.assertEqual(payload['summary']['MATERIAL - Kit com 7 Revistinhas'], 23)
 
     @override_settings(STATISTICS_CUTOFF_DATE='2026-07-09')
     def test_hybrid_queryset_respects_period_methodology_and_status(self):
