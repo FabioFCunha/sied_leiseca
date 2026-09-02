@@ -19,7 +19,8 @@ assert.ok(annualLabels.includes("Ação Social"));
 assert.ok(annualLabels.includes("Outros"));
 assert.ok(annualLabels.includes("Ação conjunta com a Fiscalização"));
 const actionRows = ANNUAL_TABLE_GROUPS.find((group) => group.title === "AÇÕES").rows;
-assert.equal(actionRows.at(-1)[0], "STREET_ACTIONS - Geral");
+assert.equal(actionRows[0][0], "STREET_ACTIONS - Geral");
+assert.equal(actionRows[0][1], "Total de ações");
 const final2026Values = {
   "ACTION - Ação Social": 1,
   "ACTION - Outros": 382,
