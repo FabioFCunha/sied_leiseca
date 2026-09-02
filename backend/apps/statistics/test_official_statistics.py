@@ -7,7 +7,7 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.schedules.models import ActionType, Agenda, EducationAction, EducationReport, Sector
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import _distribution_material_breakdown, _parse_materials, aggregate_official_rows, aggregate_official_statistics, generate_statistics_for_report, reached_audience_for_report
-from apps.statistics.dashboard import _category_audience, _distribution_material_card_totals, _rankings, comparison_period, dashboard_payload, variation
+from apps.statistics.dashboard import _annual_series, _category_audience, _distribution_material_card_totals, _rankings, comparison_period, dashboard_payload, derived_totals, variation
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
 from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardFiltersView, StatisticsDashboardView, get_hybrid_queryset
 
@@ -284,6 +284,22 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(annual[2011]['AUDIENCE - Geral'], 766996)
         self.assertEqual(annual[2025]['ACTION - Geral'], 1541)
         self.assertEqual(annual[2026]['AUDIENCE - Geral'], 84803)
+
+    def test_annual_series_hides_only_2018_street_actions_total(self):
+        annual = {
+            row['year']: row['values']
+            for row in _annual_series(date(2026, 7, 1), date.today(), {})
+        }
+
+        self.assertEqual(annual[2018]['STREET_ACTIONS - Geral'], 0)
+        self.assertEqual(annual[2018]['LECTURES - Geral'], 310)
+        self.assertEqual(annual[2018]['ACTION - Geral'], 726)
+        self.assertEqual(
+            annual[2019]['STREET_ACTIONS - Geral'],
+            derived_totals(HISTORICAL_BASELINE[2019])['STREET_ACTIONS - Geral'],
+        )
+        self.assertEqual(HISTORICAL_BASELINE[2018]['ACTION - Geral'], 726)
+        self.assertEqual(HISTORICAL_BASELINE[2018]['LECTURES - Geral'], 310)
 
     def test_annual_2026_hybrid_series_combines_baseline_and_operational_street_actions(self):
         self.stat('ACTION', 231, action=self.action, entity='TOTAL', trace='2026-action-total')

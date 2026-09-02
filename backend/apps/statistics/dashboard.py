@@ -347,6 +347,8 @@ def _annual_series(date_from, date_to, filters):
             
         operational_values = aggregate_official_rows(grouped.get(year, []))
         values = derived_totals(_add_totals(baseline, operational_values))
+        if year == 2018:
+            values['STREET_ACTIONS - Geral'] = 0
         if year == 2026 and baseline:
             # The 2026 baseline already stores street actions, while operational
             # ACTION totals include lectures. Combine each source in its own form.
