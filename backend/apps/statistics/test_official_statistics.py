@@ -8,6 +8,7 @@ from apps.schedules.models import ActionType, Agenda, EducationAction, Education
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.services import _distribution_material_breakdown, _parse_materials, aggregate_official_rows, aggregate_official_statistics, generate_statistics_for_report
 from apps.statistics.dashboard import _category_audience, comparison_period, variation
+from apps.statistics.historical_baseline import HISTORICAL_BASELINE
 from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardFiltersView, StatisticsDashboardView, get_hybrid_queryset
 
 
@@ -150,6 +151,62 @@ class OfficialStatisticsTests(TestCase):
         self.assertEqual(annual[2011]['AUDIENCE - Geral'], 766996)
         self.assertEqual(annual[2025]['ACTION - Geral'], 1541)
         self.assertEqual(annual[2026]['AUDIENCE - Geral'], 84803)
+
+    def test_annual_2026_hybrid_series_combines_baseline_and_operational_street_actions(self):
+        self.stat('ACTION', 231, action=self.action, entity='TOTAL', trace='2026-action-total')
+        self.stat('ACTION', 100, action=self.lecture, entity='ESCOLA', trace='2026-lectures')
+        for entity, value in {
+            'BARES': 11,
+            'ESPORTES': 6,
+            'PRAIA': 3,
+            'EVENTOS': 41,
+            'SHOPPING': 11,
+            'PRACAS': 30,
+            'PONTOS TURISTICOS': 6,
+            'OUTROS': 16,
+            'FISCALIZACAO': 7,
+        }.items():
+            self.stat('ACTION', value, action=self.action, entity=entity, trace=f'2026-{entity}')
+        self.stat('AUDIENCE', 23829, trace='2026-audience-total')
+        self.stat('AUDIENCE', 3904, action=self.lecture, entity='TOTAL', trace='2026-audience-lectures')
+        self.stat('AUDIENCE', 19925, action=self.action, entity='TOTAL', trace='2026-audience-actions')
+
+        request = APIRequestFactory().get('/statistics/dashboard/')
+        force_authenticate(request, user=self.user)
+        response = StatisticsDashboardView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        annual = {row['year']: row['values'] for row in response.data['annual']}
+        values = annual[2026]
+        self.assertEqual(HISTORICAL_BASELINE[2026]['ACTION - Geral'], 502)
+        self.assertEqual(values['STREET_ACTIONS - Geral'], 633)
+        self.assertEqual(values['ACTION - Bares'], 28)
+        self.assertEqual(values['ACTION - Pedágio'], 2)
+        self.assertEqual(values['ACTION - Praças Esportivas'], 13)
+        self.assertEqual(values['ACTION - Praia'], 27)
+        self.assertEqual(values['ACTION - Eventos'], 116)
+        self.assertEqual(values['ACTION - Shopping'], 21)
+        self.assertEqual(values['ACTION - Praças/Parques Públicos'], 30)
+        self.assertEqual(values['ACTION - Pontos turísticos'], 6)
+        self.assertEqual(values['ACTION - Ação Social'], 1)
+        self.assertEqual(values['ACTION - Outros'], 382)
+        self.assertEqual(values['ACTION - Ação conjunta com a fiscalização'], 7)
+        self.assertEqual(sum(values[key] for key in (
+            'ACTION - Bares',
+            'ACTION - Pedágio',
+            'ACTION - Praças Esportivas',
+            'ACTION - Praia',
+            'ACTION - Eventos',
+            'ACTION - Shopping',
+            'ACTION - Praças/Parques Públicos',
+            'ACTION - Pontos turísticos',
+            'ACTION - Ação Social',
+            'ACTION - Outros',
+            'ACTION - Ação conjunta com a fiscalização',
+        )), 633)
+        self.assertEqual(values['AUDIENCE - PALESTRAS'], 18073)
+        self.assertEqual(values['AUDIENCE - ACOES'], 90459)
+        self.assertEqual(values['AUDIENCE - Geral'], 108532)
 
     def test_comparison_period_agosto_completo(self):
         period = comparison_period(date(2026, 8, 1), date(2026, 8, 31))

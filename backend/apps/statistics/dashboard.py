@@ -305,10 +305,17 @@ def _annual_series(date_from, date_to, filters):
         else:
             baseline = {} if (has_dim_filters or has_period_filter) else HISTORICAL_BASELINE.get(year, {})
             
-        values = derived_totals(_add_totals(
-            baseline,
-            aggregate_official_rows(grouped.get(year, [])),
-        ))
+        operational_values = aggregate_official_rows(grouped.get(year, []))
+        values = derived_totals(_add_totals(baseline, operational_values))
+        if year == 2026 and baseline:
+            # The 2026 baseline already stores street actions, while operational
+            # ACTION totals include lectures. Combine each source in its own form.
+            baseline_street = max(
+                float(baseline.get('ACTION - Geral', 0) or 0),
+                sum(float(baseline.get(key, 0) or 0) for key in STREET_KEYS),
+            )
+            operational_street = derived_totals(operational_values)['STREET_ACTIONS - Geral']
+            values['STREET_ACTIONS - Geral'] = baseline_street + operational_street
         # Override the new named lines with source-of-truth report material data
         # to cover historical approved reports without a regeneration/migration.
         values.update(distribution_by_year.get(year, {}))

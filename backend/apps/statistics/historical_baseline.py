@@ -233,7 +233,7 @@ HISTORICAL_BASELINE = {
         'ACTION - Shopping': 8,
         'ACTION - Universidade': 1,
         'AUDIENCE - ACOES': 51751,
-        'AUDIENCE - Geral': 51460,
+        'AUDIENCE - Geral': 55425,
         'AUDIENCE - PALESTRAS': 3674,
         'LECTURES - Geral': 46,
         'MATERIAL - Certificados': 0,

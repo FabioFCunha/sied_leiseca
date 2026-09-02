@@ -15,6 +15,24 @@ assert.ok(annualLabels.includes("Total de ações"));
 assert.ok(annualLabels.includes("Total de materiais de distribuição"));
 assert.ok(annualLabels.includes("Kit com 7 Revistinhas"));
 assert.ok(annualLabels.includes("Ventarola Futebol"));
+assert.ok(annualLabels.includes("Ação Social"));
+assert.ok(annualLabels.includes("Outros"));
+assert.ok(annualLabels.includes("Ação conjunta com a Fiscalização"));
+const actionRows = ANNUAL_TABLE_GROUPS.find((group) => group.title === "AÇÕES").rows;
+assert.equal(actionRows.at(-1)[0], "STREET_ACTIONS - Geral");
+const final2026Values = {
+  "ACTION - Ação Social": 1,
+  "ACTION - Outros": 382,
+  "ACTION - Ação conjunta com a fiscalização": 7,
+};
+const final2026 = buildStatisticsViewModel({
+  dashboardData: { annual: [{ year: 2026, values: final2026Values }] },
+  filteredAgendas: [],
+  futureAgendas: [],
+}).annual[0];
+for (const [key] of actionRows) {
+  if (key in final2026Values) assert.equal(final2026[key], final2026Values[key]);
+}
 assert.equal(annualLabels.some((label) => label === "Materiais de divulgação"), false);
 assert.deepEqual(
   withAnnualDistributionTotal({
