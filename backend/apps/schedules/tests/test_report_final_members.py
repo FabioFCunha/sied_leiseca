@@ -85,14 +85,14 @@ class ReportFinalMembersTests(TestCase):
         self.schedule.removed_agents.add(self.removed_agent)
         self.schedule.extra_agents.add(self.extra_agent, self.kept_agent)
 
-    def test_service_order_composition_drives_report_and_attendance(self):
+    def test_shift_schedule_composition_drives_report_and_attendance(self):
         members = get_effective_members(self.schedule, self.agenda)
         agent_names = [member["name"] for member in members["agents"]]
 
         self.assertEqual(agent_names.count("Agente Mantido"), 1)
         self.assertIn("Agente Extra", agent_names)
         self.assertNotIn("Agente Removido", agent_names)
-        self.assertNotIn("Agente Fora da OS", agent_names)
+        self.assertIn("Agente Fora da OS", agent_names)
         self.assertEqual([member["name"] for member in members["chiefs"]], ["Chefe da OS"])
         self.assertEqual([member["name"] for member in members["supports"]], ["Apoio da OS"])
 
@@ -101,24 +101,25 @@ class ReportFinalMembersTests(TestCase):
             expected,
             {
                 f"CHIEF_{self.chief.id}",
+                f"AGENT_{self.omitted_team_agent.id}",
                 f"AGENT_{self.kept_agent.id}",
                 f"AGENT_{self.extra_agent.id}",
                 f"SUPPORT_{self.support.id}",
             },
         )
 
-    def test_legacy_ignores_non_user_extra_while_context_includes_it_once(self):
+    def test_shift_schedule_without_context_keeps_same_effective_extra_once(self):
         legacy_members = get_effective_members(self.schedule)
         contextual_members = get_effective_members(self.schedule, self.agenda)
 
         legacy_agent_names = [member["name"] for member in legacy_members["agents"]]
         contextual_agent_names = [member["name"] for member in contextual_members["agents"]]
-        self.assertNotIn("Agente Extra", legacy_agent_names)
+        self.assertIn("Agente Extra", legacy_agent_names)
         self.assertIn("Agente Extra", contextual_agent_names)
         self.assertEqual(contextual_agent_names.count("Agente Mantido"), 1)
         self.assertEqual(contextual_agent_names.count("Agente Extra"), 1)
 
-    def test_schedule_payload_uses_the_linked_service_order_composition(self):
+    def test_schedule_payload_uses_the_linked_shift_schedule_composition(self):
         request = APIRequestFactory().get(
             f"/api/shift-schedules/{self.schedule.id}/?agenda={self.agenda.id}"
         )
@@ -133,7 +134,7 @@ class ReportFinalMembersTests(TestCase):
         self.assertEqual(agent_names.count("Agente Mantido"), 1)
         self.assertIn("Agente Extra", agent_names)
         self.assertNotIn("Agente Removido", agent_names)
-        self.assertNotIn("Agente Fora da OS", agent_names)
+        self.assertIn("Agente Fora da OS", agent_names)
         self.assertTrue(payload["members"]["context_resolved"])
 
     def test_context_ignores_inactive_references_and_keeps_two_supports_separate(self):
@@ -146,6 +147,7 @@ class ReportFinalMembersTests(TestCase):
             name="Segundo Apoio",
             team=self.team,
             is_active=True,
+            source_id="user:107",
         )
         self.agenda.agents_ref.set([inactive_agent])
         self.agenda.support_2_ref = second_support
@@ -159,7 +161,7 @@ class ReportFinalMembersTests(TestCase):
             ["Apoio da OS", "Segundo Apoio"],
         )
 
-    def test_context_with_null_references_keeps_only_valid_structured_extras(self):
+    def test_context_with_null_references_still_uses_shift_schedule(self):
         empty_agenda = Agenda.objects.create(
             title="OS sem referencias", description="Teste", date=self.operation_date,
             start_time=time(8), end_time=time(12), location="Centro", responsible=self.admin,
@@ -170,12 +172,12 @@ class ReportFinalMembersTests(TestCase):
         members = get_effective_members(self.schedule, empty_agenda)
 
         self.assertTrue(members["context_resolved"])
-        self.assertEqual(members["chiefs"], [])
+        self.assertEqual([member["name"] for member in members["chiefs"]], ["Chefe da OS"])
         self.assertCountEqual(
             [member["name"] for member in members["agents"]],
-            ["Agente Extra", "Agente Mantido"],
+            ["Agente Extra", "Agente Fora da OS", "Agente Mantido"],
         )
-        self.assertEqual(members["supports"], [])
+        self.assertEqual([member["name"] for member in members["supports"]], ["Apoio da OS"])
 
     def test_contextual_swap_only_replaces_a_member_that_belongs_to_the_service_order(self):
         replacement = Agent.objects.create(name="Substituto", team=self.other_team, is_active=True)
@@ -195,7 +197,7 @@ class ReportFinalMembersTests(TestCase):
         self.assertIn("Substituto", [member["name"] for member in members["agents"]])
         self.assertNotIn("Agente Mantido", [member["name"] for member in members["agents"]])
 
-    def test_contextual_swap_does_not_append_when_source_is_not_in_service_order(self):
+    def test_contextual_swap_replaces_any_member_that_belongs_to_the_shift_schedule(self):
         replacement = Agent.objects.create(name="Substituto Indevido", team=self.other_team, is_active=True)
         ShiftSwapRequest.objects.create(
             schedule=self.schedule,
@@ -210,7 +212,7 @@ class ReportFinalMembersTests(TestCase):
             decided_by=self.admin,
         )
         members = get_effective_members(self.schedule, self.agenda)
-        self.assertNotIn("Substituto Indevido", [member["name"] for member in members["agents"]])
+        self.assertIn("Substituto Indevido", [member["name"] for member in members["agents"]])
 
 
 class ShiftScheduleAgendaContextApiTests(TestCase):

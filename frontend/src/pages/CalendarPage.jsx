@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR, formatLocalISODate } from "../utils/date.js";
+import { getAgendaAgentNames, getAgendaChiefNames, getAgendaStaffWarning, getAgendaSupportNames } from "../utils/agendaStaff.js";
 import { statusClass, statusLabel } from "../utils/status.js";
 import { normalizeCalendarText } from "../utils/calendarText.js";
 
@@ -26,13 +27,6 @@ function serviceTeamLabel(agenda) {
 
 function fullAddress(agenda) {
   return [agenda.address, agenda.neighborhood, agenda.city, agenda.state].filter(Boolean).map(cleanText).join(", ");
-}
-
-function supportTeamLabel(agenda) {
-  const supports = [agenda.support_1, agenda.support_1_ref_name, agenda.support_2, agenda.support_2_ref_name]
-    .map(cleanText)
-    .filter(Boolean);
-  return supports.length ? Array.from(new Set(supports)).join(" - ") : "-";
 }
 
 function mapsUrl(agenda) {
@@ -293,9 +287,10 @@ export default function CalendarPage() {
               {!isVisitor && (
                 <>
                   <dt>Equipe de serviço</dt><dd><Users size={15} /> {serviceTeamLabel(selected)}</dd>
-                  <dt>Chefe</dt><dd>{selected.chief_name || selected.chief_ref_name || "-"}</dd>
-                  <dt>Agentes</dt><dd>{selected.agents || "-"}</dd>
-                  <dt>Apoio</dt><dd>{supportTeamLabel(selected)}</dd>
+                  <dt>Chefe</dt><dd>{getAgendaChiefNames(selected).map(cleanText).join(" - ") || "-"}</dd>
+                  <dt>Agentes</dt><dd>{getAgendaAgentNames(selected).map(cleanText).join(" - ") || "-"}</dd>
+                  <dt>Apoio</dt><dd>{getAgendaSupportNames(selected).map(cleanText).join(" - ") || "-"}</dd>
+                  {getAgendaStaffWarning(selected) && <><dt>Efetivo</dt><dd>{getAgendaStaffWarning(selected)}</dd></>}
                   <dt>Responsável</dt><dd>{selected.responsible_name}</dd>
                   <dt>Nome do solicitante</dt><dd>{valueOrDash(selected.external_responsible)}</dd>
                   <dt>Telefone do solicitante</dt><dd>{valueOrDash(selected.external_responsible_phone)}</dd>

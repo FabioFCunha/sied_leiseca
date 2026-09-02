@@ -1,12 +1,216 @@
 from apps.accounts.models import User
 from django.db.models import Q
 
+
+SHIFT_SCHEDULE_STAFF_SOURCE = "SHIFT_SCHEDULE"
+LEGACY_SERVICE_ORDER_STAFF_SOURCE = "LEGACY_SERVICE_ORDER"
+MISSING_SHIFT_SCHEDULE_STAFF_SOURCE = "MISSING_SHIFT_SCHEDULE"
+
+
+def resolve_shift_schedule_for_agenda(agenda, schedule_map=None):
+    from apps.schedules.models import ShiftSchedule
+
+    if agenda is None or getattr(agenda, "service_order_mode", None) == getattr(agenda.ServiceOrderMode, "DESIGNATED", "DESIGNATED"):
+        return None
+
+    team_id = getattr(agenda, "team_ref_id", None)
+    if team_id:
+        key = (agenda.date, team_id)
+        if schedule_map is not None and key in schedule_map:
+            return schedule_map[key]
+        return (
+            ShiftSchedule.objects.filter(date=agenda.date, team_id=team_id)
+            .select_related("team")
+            .prefetch_related(
+                "extra_chiefs",
+                "extra_agents",
+                "extra_supports",
+                "removed_chiefs",
+                "removed_agents",
+                "removed_supports",
+                "absent_chiefs",
+                "absent_agents",
+                "absent_supports",
+                "absence_records",
+                "manual_inclusions",
+                "swap_requests",
+                "swap_requests__target_team",
+            )
+            .first()
+        )
+
+    team_name = str(getattr(agenda, "team_name", "") or "").strip()
+    if not team_name:
+        return None
+    return (
+        ShiftSchedule.objects.filter(date=agenda.date, team__name__iexact=team_name)
+        .select_related("team")
+        .prefetch_related(
+            "extra_chiefs",
+            "extra_agents",
+            "extra_supports",
+            "removed_chiefs",
+            "removed_agents",
+            "removed_supports",
+            "absent_chiefs",
+            "absent_agents",
+            "absent_supports",
+            "absence_records",
+            "manual_inclusions",
+            "swap_requests",
+            "swap_requests__target_team",
+        )
+        .first()
+    )
+
+
+def build_legacy_agenda_staff(agenda):
+    def legacy_member(member_id, name, *, member_type, team_id=None, team_name=""):
+        return {
+            "id": member_id,
+            "source_id": None,
+            "name": name,
+            "role": member_type,
+            "cpf": "",
+            "team": team_id,
+            "team_name": team_name or "Sem equipe",
+            "is_extra": False,
+            "is_absent": False,
+            "absence_reason": "",
+            "absence_attachment_url": "",
+            "is_legacy": True,
+        }
+
+    team_id = getattr(agenda, "team_ref_id", None)
+    team_name = getattr(getattr(agenda, "team_ref", None), "name", "") or getattr(agenda, "team_name", "") or ""
+    chiefs = []
+    if getattr(agenda, "chief_ref_id", None):
+        chief = getattr(agenda, "chief_ref", None)
+        chiefs.append(
+            legacy_member(
+                agenda.chief_ref_id,
+                getattr(chief, "name", "") or getattr(agenda, "chief_name", ""),
+                member_type="Chefe",
+                team_id=team_id,
+                team_name=team_name,
+            )
+        )
+    elif str(getattr(agenda, "chief_name", "") or "").strip():
+        chiefs.append(
+            legacy_member(
+                None,
+                str(agenda.chief_name).strip(),
+                member_type="Chefe",
+                team_id=team_id,
+                team_name=team_name,
+            )
+        )
+
+    agents = []
+    agenda_agent_refs = list(agenda.agents_ref.all()) if hasattr(agenda, "agents_ref") else []
+    if agenda_agent_refs:
+        for agent in agenda_agent_refs:
+            agents.append(
+                legacy_member(
+                    agent.id,
+                    agent.name,
+                    member_type="Agente",
+                    team_id=getattr(agent, "team_id", team_id),
+                    team_name=getattr(getattr(agent, "team", None), "name", "") or team_name,
+                )
+            )
+    else:
+        raw_agents = [part.strip() for part in str(getattr(agenda, "agents", "") or "").split(" - ") if part.strip()]
+        for agent_name in raw_agents:
+            agents.append(
+                legacy_member(
+                    None,
+                    agent_name,
+                    member_type="Agente",
+                    team_id=team_id,
+                    team_name=team_name,
+                )
+            )
+
+    supports = []
+    for support_ref_attr, support_name_attr in (("support_1_ref", "support_1"), ("support_2_ref", "support_2")):
+        support_ref = getattr(agenda, support_ref_attr, None)
+        support_name = getattr(agenda, support_name_attr, "")
+        if support_ref:
+            supports.append(
+                legacy_member(
+                    support_ref.id,
+                    support_ref.name,
+                    member_type="Apoio",
+                    team_id=getattr(support_ref, "team_id", team_id),
+                    team_name=getattr(getattr(support_ref, "team", None), "name", "") or team_name,
+                )
+            )
+        elif str(support_name or "").strip():
+            supports.append(
+                legacy_member(
+                    None,
+                    str(support_name).strip(),
+                    member_type="Apoio",
+                    team_id=team_id,
+                    team_name=team_name,
+                )
+            )
+
+    return {
+        "chiefs": chiefs,
+        "agents": agents,
+        "supports": supports,
+        "manual": [],
+        "context_resolved": False,
+        "legacy_fallback": True,
+    }
+
+
+def get_agenda_effective_staff_payload(agenda, schedule=None, schedule_map=None):
+    mode = getattr(agenda, "service_order_mode", None) or getattr(agenda.ServiceOrderMode, "TEAM", "TEAM")
+    if mode == getattr(agenda.ServiceOrderMode, "DESIGNATED", "DESIGNATED"):
+        return {
+            "staff_source": None,
+            "staff_source_label": "",
+            "shift_schedule_id": None,
+            "shift_schedule_missing": False,
+            "effective_staff": None,
+            "effective_staff_warning": "",
+        }
+
+    resolved_schedule = schedule or resolve_shift_schedule_for_agenda(agenda, schedule_map=schedule_map)
+    if resolved_schedule is not None:
+        return {
+            "staff_source": SHIFT_SCHEDULE_STAFF_SOURCE,
+            "staff_source_label": "Escala",
+            "shift_schedule_id": resolved_schedule.id,
+            "shift_schedule_missing": False,
+            "effective_staff": get_effective_members(resolved_schedule, agenda),
+            "effective_staff_warning": "",
+        }
+
+    return {
+        "staff_source": LEGACY_SERVICE_ORDER_STAFF_SOURCE if getattr(agenda, "id", None) else MISSING_SHIFT_SCHEDULE_STAFF_SOURCE,
+        "staff_source_label": "Ordem de Serviço legada",
+        "shift_schedule_id": None,
+        "shift_schedule_missing": True,
+        "effective_staff": build_legacy_agenda_staff(agenda),
+        "effective_staff_warning": "Efetivo não localizado na Escala para esta data.",
+    }
+
+
 def get_effective_members(obj, agenda=None):
     from apps.schedules.models import Chief, Agent, Support, ShiftAbsence, ShiftSwapRequest
-    
-    absent_chief_ids = set(obj.absent_chiefs.values_list("id", flat=True))
-    absent_agent_ids = set(obj.absent_agents.values_list("id", flat=True))
-    absent_support_ids = set(obj.absent_supports.values_list("id", flat=True))
+
+    # The team's operational roster is the active account-linked lookup record.
+    # Imported and legacy lookups participate only when explicitly added as extras.
+    def related_items(relation_name):
+        return list(getattr(obj, relation_name).all())
+
+    absent_chief_ids = {member.id for member in related_items("absent_chiefs")}
+    absent_agent_ids = {member.id for member in related_items("absent_agents")}
+    absent_support_ids = {member.id for member in related_items("absent_supports")}
     absence_records = {
         (record.member_type, record.member_id): record
         for record in obj.absence_records.all()
@@ -35,12 +239,15 @@ def get_effective_members(obj, agenda=None):
             "absence_attachment_url": absence.attachment.url if absence and absence.attachment else "",
         }
 
-    removed_chief_ids = set(obj.removed_chiefs.values_list("id", flat=True))
-    removed_agent_ids = set(obj.removed_agents.values_list("id", flat=True))
-    removed_support_ids = set(obj.removed_supports.values_list("id", flat=True))
+    removed_chief_ids = {member.id for member in related_items("removed_chiefs")}
+    removed_agent_ids = {member.id for member in related_items("removed_agents")}
+    removed_support_ids = {member.id for member in related_items("removed_supports")}
 
     from apps.schedules.models import UserTeamTransfer
-    transfers = list(UserTeamTransfer.objects.order_by("effective_date"))
+    staff_context = getattr(obj, "_effective_staff_context", None) or {}
+    transfers = staff_context.get("transfers")
+    if transfers is None:
+        transfers = list(UserTeamTransfer.objects.order_by("effective_date"))
 
     def get_historical_team_id(item):
         if not item.source_id or not item.source_id.startswith("user:"):
@@ -60,62 +267,41 @@ def get_effective_members(obj, agenda=None):
             return item.vacation_start <= obj.date <= item.vacation_end
         return False
 
-    if agenda is not None:
-        # The service order is the source of truth after it has been edited.
-        # Text fields on an old report must not reintroduce a team member.
-        chief_objs = []
-        if agenda.chief_ref_id:
-            chief_objs = list(
-                Chief.objects.filter(
-                    id=agenda.chief_ref_id,
-                    is_active=True,
-                )
-                .exclude(id__in=removed_chief_ids)
-                .select_related("team")
-            )
-        agent_objs = list(
-            agenda.agents_ref.filter(is_active=True)
-            .exclude(id__in=removed_agent_ids)
-            .select_related("team")
-            .order_by("name")
-        )
-        support_ids = [
-            support_id
-            for support_id in (
-                agenda.support_1_ref_id,
-                agenda.support_2_ref_id,
-            )
-            if support_id
-        ]
-        support_objs = list(
-            Support.objects.filter(
-                id__in=support_ids,
+    def base_members(model, attribute, removed_ids):
+        prefetched = getattr(obj.team, attribute, None)
+        if prefetched is None:
+            prefetched = model.objects.filter(
                 is_active=True,
-            )
-            .exclude(id__in=removed_support_ids)
-            .select_related("team")
-            .order_by("name")
-        )
-    else:
-        chief_objs = [c for c in Chief.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_chief_ids).select_related("team").order_by("name") if get_historical_team_id(c) == obj.team_id and not is_on_vacation(c)]
-        agent_objs = [a for a in Agent.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_agent_ids).select_related("team").order_by("name") if get_historical_team_id(a) == obj.team_id and not is_on_vacation(a)]
-        support_objs = [s for s in Support.objects.filter(is_active=True, source_id__startswith="user:").exclude(id__in=removed_support_ids).select_related("team").order_by("name") if get_historical_team_id(s) == obj.team_id and not is_on_vacation(s)]
+                source_id__startswith="user:",
+            ).select_related("team").order_by("name")
+        return [
+            member for member in prefetched
+            if member.id not in removed_ids
+            and get_historical_team_id(member) == obj.team_id
+            and not is_on_vacation(member)
+        ]
+
+    chief_objs = base_members(Chief, "_shift_schedule_chiefs", removed_chief_ids)
+    agent_objs = base_members(Agent, "_shift_schedule_agents", removed_agent_ids)
+    support_objs = base_members(Support, "_shift_schedule_supports", removed_support_ids)
 
     chiefs = [row(item, is_absent=item.id in absent_chief_ids) for item in chief_objs]
     agents = [row(item, is_absent=item.id in absent_agent_ids) for item in agent_objs]
     supports = [row(item, is_absent=item.id in absent_support_ids) for item in support_objs]
 
-    extra_filters = {"is_active": True}
-    if agenda is None:
-        extra_filters["source_id__startswith"] = "user:"
-
-    for item in obj.extra_chiefs.filter(**extra_filters).select_related("team"):
+    for item in related_items("extra_chiefs"):
+        if not item.is_active:
+            continue
         if item.id not in removed_chief_ids and not any(m["id"] == item.id for m in chiefs):
             chiefs.append(row(item, is_extra=True, is_absent=item.id in absent_chief_ids))
-    for item in obj.extra_agents.filter(**extra_filters).select_related("team"):
+    for item in related_items("extra_agents"):
+        if not item.is_active:
+            continue
         if item.id not in removed_agent_ids and not any(m["id"] == item.id for m in agents):
             agents.append(row(item, is_extra=True, is_absent=item.id in absent_agent_ids))
-    for item in obj.extra_supports.filter(**extra_filters).select_related("team"):
+    for item in related_items("extra_supports"):
+        if not item.is_active:
+            continue
         if item.id not in removed_support_ids and not any(m["id"] == item.id for m in supports):
             supports.append(row(item, is_extra=True, is_absent=item.id in absent_support_ids))
 
@@ -149,13 +335,14 @@ def get_effective_members(obj, agenda=None):
         if cpf_key:
             cpf_values.update(cpf_variants(member.get("cpf")))
 
-    active_user_filter = Q()
-    if user_ids:
-        active_user_filter |= Q(id__in=user_ids)
-    if cpf_values:
-        active_user_filter |= Q(cpf__in=cpf_values)
-
-    active_users = User.objects.filter(active_user_filter, is_active=True) if active_user_filter else User.objects.none()
+    active_users = staff_context.get("active_users")
+    if active_users is None:
+        active_user_filter = Q()
+        if user_ids:
+            active_user_filter |= Q(id__in=user_ids)
+        if cpf_values:
+            active_user_filter |= Q(cpf__in=cpf_values)
+        active_users = User.objects.filter(active_user_filter, is_active=True) if active_user_filter else User.objects.none()
     role_by_source = {f"source:user:{user.id}": user.role for user in active_users}
     role_by_cpf = {
         f"cpf:{normalize_cpf(user.cpf)}": user.role
@@ -191,6 +378,7 @@ def get_effective_members(obj, agenda=None):
                 keys.add(source_key)
         return final
 
+    chiefs = deduplicate_group(chiefs)
     supports = deduplicate_group([
         support for support in supports
         if not is_agent_role(get_active_role(support))
@@ -218,7 +406,10 @@ def get_effective_members(obj, agenda=None):
         "supports": supports,
         "manual": manual_inclusions,
     }
-    for swap in obj.swap_requests.filter(status=ShiftSwapRequest.Status.APPROVED):
+    for swap in (
+        swap for swap in obj.swap_requests.all()
+        if swap.status == ShiftSwapRequest.Status.APPROVED
+    ):
         group = {
             ShiftSwapRequest.MemberType.CHIEF: "chiefs",
             ShiftSwapRequest.MemberType.AGENT: "agents",
@@ -254,8 +445,7 @@ def get_effective_members(obj, agenda=None):
                 members[group][index] = replacement
                 break
         else:
-            if agenda is None:
-                members[group].append(replacement)
+            members[group].append(replacement)
     members["context_resolved"] = agenda is not None
     return members
 

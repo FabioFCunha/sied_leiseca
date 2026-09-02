@@ -49,6 +49,8 @@ class AgendaDesignatedModeApiTests(APITestCase):
         self.chief = Chief.objects.create(name="Chefe Alfa", team=self.team_a, is_active=True)
         self.agent = Agent.objects.create(name="Agente Alfa", team=self.team_a, is_active=True)
         self.support = Support.objects.create(name="Apoio Alfa", team=self.team_a, is_active=True)
+        ShiftSchedule.objects.create(date=date(2026, 7, 20), team=self.team_a, created_by=self.admin)
+        ShiftSchedule.objects.create(date=date(2026, 7, 22), team=self.team_a, created_by=self.admin)
         self.client.force_authenticate(self.admin)
         self.url = reverse("agendas-list")
 
@@ -199,10 +201,6 @@ class AgendaDesignatedModeApiTests(APITestCase):
                 "designated_users": [],
                 "team_ref": self.team_a.id,
                 "team_name": self.team_a.name,
-                "chief_ref": self.chief.id,
-                "chief_name": self.chief.name,
-                "agents_ref": [self.agent.id],
-                "agents": self.agent.name,
             },
             format="json",
         )

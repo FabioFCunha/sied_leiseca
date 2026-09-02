@@ -247,7 +247,7 @@ class ShiftScheduleDeleteSyncTests(APITestCase):
         )
         self.agenda.agents_ref.add(self.agent)
 
-    def test_deleting_schedule_clears_agenda_assignment_and_removes_chief_calendar_visibility(self):
+    def test_deleting_schedule_with_linked_team_service_order_is_blocked(self):
         self.client.force_authenticate(self.chief_user)
         before = self.client.get(
             reverse("agendas-list"),
@@ -259,16 +259,8 @@ class ShiftScheduleDeleteSyncTests(APITestCase):
 
         self.client.force_authenticate(self.admin)
         delete_response = self.client.delete(reverse("shift-schedules-detail", args=[self.schedule.id]))
-        self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
-
-        self.agenda.refresh_from_db()
-        self.assertEqual(self.agenda.team_name, "")
-        self.assertIsNone(self.agenda.team_ref)
-        self.assertEqual(self.agenda.chief_name, "")
-        self.assertIsNone(self.agenda.chief_ref)
-        self.assertEqual(self.agenda.team_phone, "")
-        self.assertEqual(self.agenda.agents, "")
-        self.assertFalse(self.agenda.agents_ref.exists())
+        self.assertEqual(delete_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Ordens de Serviço ativas vinculadas", str(delete_response.data))
 
         self.client.force_authenticate(self.chief_user)
         after = self.client.get(
@@ -277,7 +269,7 @@ class ShiftScheduleDeleteSyncTests(APITestCase):
         )
         self.assertEqual(after.status_code, status.HTTP_200_OK)
         after_rows = after.data["results"] if "results" in after.data else after.data
-        self.assertEqual(after_rows, [])
+        self.assertEqual([row["id"] for row in after_rows], [self.agenda.id])
 
 
 class ShiftScheduleAttendanceWorkflowTests(APITestCase):

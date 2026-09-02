@@ -8,7 +8,8 @@ import { STREET_ACTION_TYPE_OPTIONS, streetActionTypeLabel } from "../utils/stre
 import { formatDateBR, normalizeTime, addHoursToTime } from "../utils/date.js";
 import { STREET_ACTION_ID } from "../utils/constants.js";
 import { statusClass, statusLabel } from "../utils/status.js";
-import { buildActiveOperationalUserOptions, buildAvailableAgents, buildServiceOrderAgentOptions, buildSupportOptions, filterDesignatedCandidates, normalizeSelectedAgentIds, setSelectedUserChecked } from "./agendaDesignatedUsers.js";
+import { buildActiveOperationalUserOptions, filterDesignatedCandidates, setSelectedUserChecked } from "./agendaDesignatedUsers.js";
+import { getAgendaAgentNames, getAgendaChiefNames, getAgendaStaffWarning, getAgendaSupportNames } from "../utils/agendaStaff.js";
 
 const emptyForm = {
   service_order_number: "",
@@ -269,6 +270,17 @@ function normalizePayload(form) {
   ].forEach((field) => {
     payload[field] = valueForPayload(payload[field]);
   });
+  if ((payload.service_order_mode || "TEAM") === "TEAM") {
+    delete payload.chief_ref;
+    delete payload.chief_name;
+    delete payload.team_phone;
+    delete payload.agents_ref;
+    delete payload.agents;
+    delete payload.support_1_ref;
+    delete payload.support_1;
+    delete payload.support_2_ref;
+    delete payload.support_2;
+  }
   return payload;
 }
 
@@ -423,6 +435,20 @@ export default function AgendaPage() {
       setScheduledShifts(null);
     }
   }, [form.date]);
+
+  useEffect(() => {
+    if ((form.service_order_mode || "TEAM") !== "TEAM" || !form.team_ref || !Array.isArray(scheduledShifts)) {
+      return;
+    }
+    const stillAvailable = scheduledShifts.some((item) => String(item.team) === String(form.team_ref));
+    if (stillAvailable) return;
+    setForm((current) => ({
+      ...current,
+      team_ref: "",
+      team_name: "",
+    }));
+    setMessage("Nenhuma equipe foi encontrada na Escala para esta data. Cadastre ou ajuste a equipe diretamente na Escala antes de criar a Ordem de Serviço.");
+  }, [form.service_order_mode, form.team_ref, scheduledShifts]);
 
   const goToPage = (url) => {
     if (!url) return;
@@ -672,17 +698,7 @@ export default function AgendaPage() {
     </div>
   );
 
-  const belongsToTeam = (item, teamId, teamName) => {
-    if (!teamId && !teamName) return true;
-    return String(item.team || "") === String(teamId || "") || String(item.team_name || "").toUpperCase() === String(teamName || "").toUpperCase();
-  };
-
-  const isSupportRole = (item) => String(item.role || "").toUpperCase().includes("APOIO");
-
   const staffLabel = (item) => [item.name, item.role, item.team_name].filter(Boolean).join(" - ");
-
-  const selectedTeam = lookups.teams.find((team) => String(team.id) === String(form.team_ref));
-  const selectedTeamName = selectedTeam?.name || form.team_name;
 
   const availableTeams = useMemo(() => {
     if (scheduledShifts && form.date) {
@@ -695,71 +711,26 @@ export default function AgendaPage() {
   const selectedShift = useMemo(() => {
     return scheduledShifts?.find((s) => String(s.team) === String(form.team_ref));
   }, [scheduledShifts, form.team_ref]);
-
-  const teamChiefs = useMemo(() => {
-    if (selectedShift && selectedShift.members) {
-      return selectedShift.members.chiefs.filter(m => !m.is_absent);
+  const selectedAgendaSnapshot = editing ? agendas.find((agenda) => String(agenda.id) === String(editing)) : null;
+  const readOnlyTeamSource = useMemo(() => {
+    if (selectedShift?.members) {
+      return {
+        ...selectedAgendaSnapshot,
+        effective_staff: selectedShift.members,
+        effective_staff_warning: "",
+      };
     }
-    return lookups.chiefs.filter((chief) => belongsToTeam(chief, form.team_ref, selectedTeamName));
-  }, [lookups.chiefs, form.team_ref, selectedTeamName, selectedShift]);
-
-  const allAgents = useMemo(() => buildServiceOrderAgentOptions(lookups.agents), [lookups.agents]);
-
-  const teamAgents = useMemo(() => {
-    if (selectedShift && selectedShift.members) {
-       return selectedShift.members.agents.filter(m => !m.is_absent);
-    }
-    return lookups.agents.filter((agent) => belongsToTeam(agent, form.team_ref, selectedTeamName) && !isSupportRole(agent));
-  }, [lookups.agents, form.team_ref, selectedTeamName, selectedShift]);
-
-  const teamSupports = useMemo(() => {
-    if (selectedShift && selectedShift.members) {
-       return selectedShift.members.supports.filter(m => !m.is_absent);
-    }
-    return lookups.supports.filter((support) => belongsToTeam(support, form.team_ref, selectedTeamName));
-  }, [lookups.supports, form.team_ref, selectedTeamName, selectedShift]);
-
-  const supportOptions1 = useMemo(
-    () => buildSupportOptions(lookups.supports, [form.support_1_ref, form.support_2_ref], form.support_1_ref),
-    [lookups.supports, form.support_1_ref, form.support_2_ref],
-  );
-  const supportOptions2 = useMemo(
-    () => buildSupportOptions(lookups.supports, [form.support_1_ref, form.support_2_ref], form.support_2_ref),
-    [lookups.supports, form.support_1_ref, form.support_2_ref],
-  );
-
-  const selectedAgentIds = normalizeSelectedAgentIds(form.agents_ref || []);
-  const selectedAgents = selectedAgentIds
-    .map((id) => lookups.agents.find((agent) => String(agent.id) === id))
-    .filter(Boolean);
-  const availableAgents = buildAvailableAgents(allAgents, selectedAgentIds);
+    return selectedAgendaSnapshot || form;
+  }, [form, selectedAgendaSnapshot, selectedShift]);
+  const readOnlyChiefNames = getAgendaChiefNames(readOnlyTeamSource);
+  const readOnlyAgentNames = getAgendaAgentNames(readOnlyTeamSource);
+  const readOnlySupportNames = getAgendaSupportNames(readOnlyTeamSource);
+  const readOnlyStaffWarning = getAgendaStaffWarning(readOnlyTeamSource);
   const selectedDesignatedIds = (form.designated_users || []).map(String);
   const selectedDesignatedUsers = selectedDesignatedIds
     .map((id) => activeUserOptions.find((option) => String(option.id) === id))
     .filter(Boolean);
   const designatedCandidates = filterDesignatedCandidates(activeUserOptions, designatedSearch);
-
-  const setAgentSelection = (ids) => {
-    const names = lookups.agents
-      .filter((agent) => ids.includes(String(agent.id)))
-      .map((agent) => agent.name);
-    setForm((current) => ({ ...current, agents_ref: ids, agents: names.join(" - ") }));
-  };
-
-  const addAgent = (value) => {
-    if (!value || selectedAgentIds.includes(String(value))) return;
-    setAgentSelection([...selectedAgentIds, String(value)]);
-  };
-
-  const replaceAgent = (oldValue, newValue) => {
-    if (!newValue) return;
-    const nextIds = selectedAgentIds.map((id) => (id === String(oldValue) ? String(newValue) : id));
-    setAgentSelection(Array.from(new Set(nextIds)));
-  };
-
-  const removeAgent = (value) => {
-    setAgentSelection(selectedAgentIds.filter((id) => id !== String(value)));
-  };
 
   const toggleDesignatedUser = (value, checked) => {
     setForm((current) => ({
@@ -778,26 +749,11 @@ export default function AgendaPage() {
 
   const handleTeamChange = (value) => {
     const team = lookups.teams.find((option) => String(option.id) === String(value));
-    const chiefs = lookups.chiefs.filter((chief) => belongsToTeam(chief, value, team?.name || ""));
-    const chief = chiefs[0];
-    const agents = lookups.agents.filter((agent) => belongsToTeam(agent, value, team?.name || "") && !isSupportRole(agent));
-    const supports = lookups.supports.filter((support) => belongsToTeam(support, value, team?.name || ""));
-    const support1 = supports[0];
-    const support2 = supports[1];
 
     setForm((current) => ({
       ...current,
       team_ref: value,
       team_name: team?.name || "",
-      chief_ref: chief?.id || "",
-      chief_name: chief?.name || "",
-      team_phone: chief?.phone || "",
-      agents_ref: agents.map((agent) => String(agent.id)),
-      agents: agents.map((agent) => agent.name).join(" - "),
-      support_1_ref: support1?.id || "",
-      support_1: support1?.name || "",
-      support_2_ref: support2?.id || "",
-      support_2: support2?.name || "",
     }));
   };
 
@@ -945,12 +901,10 @@ export default function AgendaPage() {
     if (status === "APPROVED") {
       const isDesignatedMode = (agenda.service_order_mode || "TEAM") === "DESIGNATED";
       const hasTeam = agenda.team_ref || agenda.team_name || agenda.sector;
-      const hasChief = agenda.chief_ref || agenda.chief_name;
-      const hasAgents = (agenda.agents_ref || []).length || agenda.agents;
       const hasDesignatedUsers = (agenda.designated_users || []).length;
-      if ((!isDesignatedMode && (!hasTeam || !hasChief || !hasAgents)) || (isDesignatedMode && !hasDesignatedUsers)) {
+      if ((!isDesignatedMode && !hasTeam) || (isDesignatedMode && !hasDesignatedUsers)) {
         reviewAndSchedule(agenda);
-        setMessage(isDesignatedMode ? "Antes de aprovar, selecione ao menos um participante." : "Antes de aprovar, informe equipe, chefe e agentes escalados.");
+        setMessage(isDesignatedMode ? "Antes de aprovar, selecione ao menos um participante." : "Antes de aprovar, informe a data e selecione uma equipe cadastrada na Escala.");
         return;
       }
     }
@@ -1037,10 +991,8 @@ export default function AgendaPage() {
         }
       } else {
         const hasTeam = nextForm.team_ref || nextForm.team_name || nextForm.sector;
-        const hasChief = nextForm.chief_ref || nextForm.chief_name;
-        const hasAgents = (nextForm.agents_ref || []).length || nextForm.agents;
-        if (!hasSchedule || !hasResponsible || !hasLocation || !hasTeam || !hasChief || !hasAgents) {
-          setMessage("Para aprovar, informe data, horário, responsável, local, equipe, chefe e agentes.");
+        if (!hasSchedule || !hasResponsible || !hasLocation || !hasTeam) {
+          setMessage("Para aprovar, informe data, horário, responsável, local e selecione uma equipe cadastrada na Escala.");
           return;
         }
       }
@@ -1619,64 +1571,39 @@ export default function AgendaPage() {
                           </select>
                         </label>
                         <label className="field-label">
-                          <span>Chefe</span>
-                          <select value={form.chief_ref || ""} onChange={(e) => selectLookup("chief_ref", "chief_name", lookups.chiefs, e.target.value, (selected) => ({ team_phone: selected?.phone || form.team_phone }))} required>
-                            <option value="">Selecione o chefe</option>
-                            {teamChiefs.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
-                          </select>
+                          <span>Origem do efetivo</span>
+                          <input value={selectedShift ? "Escala do dia" : (readOnlyStaffWarning ? "Escala não localizada" : "Selecione uma equipe")} readOnly />
                         </label>
                       </div>
+                      {hasMaxAccess && (
+                        <div className="alert" style={{ margin: "0 0 16px" }}>
+                          <strong>Efetivo vinculado à Escala</strong>
+                          <div style={{ marginTop: "6px" }}>
+                            O efetivo desta Ordem de Serviço é definido exclusivamente pela equipe cadastrada na Escala. Para incluir, excluir ou substituir integrantes, realize a alteração diretamente na Escala.
+                          </div>
+                          <a href="/escala" className="button secondary" style={{ display: "inline-flex", alignItems: "center", gap: "8px", marginTop: "10px", textDecoration: "none" }}>
+                            Ir para a Escala
+                          </a>
+                        </div>
+                      )}
+                      {form.date && availableTeams.length === 0 && (
+                        <div className="alert">Nenhuma equipe foi encontrada na Escala para esta data. Cadastre ou ajuste a equipe diretamente na Escala antes de criar a Ordem de Serviço.</div>
+                      )}
+                      {readOnlyStaffWarning && <div className="alert">{readOnlyStaffWarning}</div>}
                       <div className="compact-grid">
                         <label className="field-label">
-                          <span>Telefone do chefe</span>
-                          <input value={form.team_phone} onChange={(e) => update("team_phone", e.target.value)} placeholder="Telefone" />
+                          <span>Chefia</span>
+                          <textarea value={readOnlyChiefNames.join("\n") || "Nenhum chefe encontrado na Escala."} readOnly rows={Math.max(2, readOnlyChiefNames.length || 1)} />
+                        </label>
+                        <label className="field-label">
+                          <span>Agentes</span>
+                          <textarea value={readOnlyAgentNames.join("\n") || "Nenhum agente encontrado na Escala."} readOnly rows={Math.max(3, readOnlyAgentNames.length || 1)} />
                         </label>
                       </div>
                       <label className="field-label">
-                        <span>Agentes escalados</span>
-                        <div className="agent-picker">
-                          <div className="agent-select-list">
-                            {selectedAgents.length ? selectedAgents.map((item) => (
-                              <div className="agent-select-row" key={item.id}>
-                                <select value={item.id} onChange={(e) => replaceAgent(item.id, e.target.value)}>
-                                  {allAgents.map((agent) => (
-                                    <option
-                                      disabled={selectedAgentIds.includes(String(agent.id)) && String(agent.id) !== String(item.id)}
-                                      key={agent.id}
-                                      value={agent.id}
-                                    >
-                                      {staffLabel(agent)}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button type="button" className="icon-soft danger" onClick={() => removeAgent(item.id)} aria-label={`Remover ${item.name}`}>
-                                  <XCircle size={16} />
-                                </button>
-                              </div>
-                            )) : <div className="empty-selection">Nenhum agente escalado.</div>}
-                          </div>
-                          <select value="" onChange={(e) => addAgent(e.target.value)} disabled={!availableAgents.length}>
-                            <option value="">{availableAgents.length ? "Adicionar outro agente" : "Sem agentes disponíveis para adicionar"}</option>
-                            {availableAgents.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
-                          </select>
-                        </div>
+                        <span>Apoios</span>
+                        <textarea value={readOnlySupportNames.join("\n") || "Nenhum apoio encontrado na Escala."} readOnly rows={Math.max(2, readOnlySupportNames.length || 1)} />
                       </label>
-                      <div className="compact-grid">
-                        <label className="field-label">
-                          <span>Apoio 1</span>
-                          <select value={form.support_1_ref || ""} onChange={(e) => selectLookup("support_1_ref", "support_1", lookups.supports, e.target.value)}>
-                            <option value="">Sem Apoio</option>
-                            {supportOptions1.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
-                          </select>
-                        </label>
-                        <label className="field-label">
-                          <span>Apoio 2</span>
-                          <select value={form.support_2_ref || ""} onChange={(e) => selectLookup("support_2_ref", "support_2", lookups.supports, e.target.value)}>
-                            <option value="">Sem Apoio</option>
-                            {supportOptions2.map((item) => <option key={item.id} value={item.id}>{staffLabel(item)}</option>)}
-                          </select>
-                        </label>
-                      </div>
                     </>
                   ) : (
                     <div className="field-label" style={{ gap: "12px" }}>

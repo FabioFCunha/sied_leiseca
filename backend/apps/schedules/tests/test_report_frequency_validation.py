@@ -121,9 +121,7 @@ class ReportFrequencyValidationTest(TestCase):
         
         # Salvar rascunho (PATCH)
         res_patch = self.client.patch(f"/api/education-reports/{self.report.id}/", {
-            "status": "DRAFT",
-            "actions": [{"type_action": "Blitz"}],
-            "accessibility_conditions_met": "YES"
+            "education_agents": "Equipe conferida",
         }, format="json")
         self.assertEqual(res_patch.status_code, 200)
         
@@ -194,7 +192,7 @@ class ReportFrequencyValidationTest(TestCase):
         # Now include the extra agent
         self.schedule.checked_members[f"AGENT_{extra_agent.id}"] = {"is_absent": False, "reason": ""}
         self.schedule.save()
-        patch_data = {"status": "DRAFT", "actions": [{"type_action": "Blitz"}], "accessibility_conditions_met": "YES"}
+        patch_data = {"education_agents": "Equipe conferida"}
         res_patch = self.client.patch(f"/api/education-reports/{self.report.id}/", patch_data, format='json')
         if res_patch.status_code != 200:
             print("PATCH ERROR:", res_patch.data)

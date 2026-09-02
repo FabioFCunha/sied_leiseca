@@ -74,7 +74,7 @@ def classify_operational_status(*, agenda_date, start_time, end_time, agenda_sta
 
 from django.db import OperationalError, ProgrammingError, transaction
 from django.db.models.deletion import ProtectedError
-from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, Value, When
+from django.db.models import Avg, Case, Count, F, IntegerField, Prefetch, Q, Sum, Value, When
 from django.db.models.functions import ExtractMonth, ExtractYear, TruncMonth
 from django.core import signing
 from django.conf import settings
@@ -211,10 +211,28 @@ def chief_agenda_filter(user, prefix=""):
 
 def get_scoped_agendas_queryset(request, allow_calendar_view=False):
     user = request.user
-    queryset = Agenda.objects.select_related("responsible", "sector", "created_by").prefetch_related(
+    queryset = Agenda.objects.select_related(
+        "responsible",
+        "sector",
+        "created_by",
+        "last_edited_by",
+        "vehicle_ref",
+        "team_ref",
+        "chief_ref",
+        "support_1_ref",
+        "support_2_ref",
+        "action_type_ref",
+        "neighborhood_ref",
+        "municipality_ref",
+    ).prefetch_related(
         "history",
         "satisfaction_surveys",
         "designated_users",
+        "absent_designated_users",
+        "agents_ref",
+        "materials",
+        "technical_reports",
+        "event_report",
     ).annotate(linked_requests_count_annotated=Count("linked_requests", distinct=True))
 
     is_calendar_view = allow_calendar_view and request.query_params.get("calendar_view") == "1"
@@ -230,6 +248,15 @@ def get_scoped_agendas_queryset(request, allow_calendar_view=False):
             return queryset
         return queryset.filter(supervisor_agenda_filter(user)).distinct()
     return queryset.filter(agent_agenda_filter(user)).distinct()
+
+
+def shift_schedule_has_approved_report(schedule):
+    return EducationReport.objects.filter(
+        status=EducationReport.ReportStatus.APPROVED,
+        agenda__date=schedule.date,
+        agenda__team_ref_id=schedule.team_id,
+        agenda__service_order_mode=Agenda.ServiceOrderMode.TEAM,
+    ).exists()
 
 
 def filter_active_user_bound_lookups(queryset):
@@ -474,49 +501,34 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
     def perform_update(self, serializer):
+        historical_fields = {
+            "date", "team", "extra_chiefs", "extra_agents", "extra_supports",
+            "removed_chiefs", "removed_agents", "removed_supports",
+            "absent_chiefs", "absent_agents", "absent_supports", "checked_members",
+        }
+        if historical_fields.intersection(serializer.validated_data) and shift_schedule_has_approved_report(serializer.instance):
+            raise ValidationError({
+                "detail": "A composição e a frequência desta Escala estão preservadas porque há um Relatório Técnico aprovado vinculado.",
+            })
         serializer.save(updated_by=self.request.user)
 
-    def _detach_agendas_from_schedule(self, schedule):
-        agendas = list(
-            Agenda.objects.filter(
-                date=schedule.date,
-                team_ref_id=schedule.team_id,
-            )
-            .exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
-            .prefetch_related("agents_ref")
-        )
-        for agenda in agendas:
-            agenda.team_name = ""
-            agenda.team_ref = None
-            agenda.chief_name = ""
-            agenda.chief_ref = None
-            agenda.team_phone = ""
-            agenda.agents = ""
-            agenda.support_1 = ""
-            agenda.support_1_ref = None
-            agenda.support_2 = ""
-            agenda.support_2_ref = None
-            agenda.save(
-                update_fields=[
-                    "team_name",
-                    "team_ref",
-                    "chief_name",
-                    "chief_ref",
-                    "team_phone",
-                    "agents",
-                    "support_1",
-                    "support_1_ref",
-                    "support_2",
-                    "support_2_ref",
-                    "updated_at",
-                ]
-            )
-            agenda.agents_ref.clear()
+    def _ensure_historical_schedule_is_mutable(self, schedule):
+        if shift_schedule_has_approved_report(schedule):
+            raise ValidationError({
+                "detail": "A composição e a frequência desta Escala estão preservadas porque há um Relatório Técnico aprovado vinculado.",
+            })
 
     def perform_destroy(self, instance):
-        with transaction.atomic():
-            self._detach_agendas_from_schedule(instance)
-            super().perform_destroy(instance)
+        linked_agendas = Agenda.objects.filter(
+            date=instance.date,
+            team_ref_id=instance.team_id,
+            service_order_mode=Agenda.ServiceOrderMode.TEAM,
+        ).exclude(status__in=[Agenda.Status.COMPLETED, Agenda.Status.CANCELLED])
+        if linked_agendas.exists():
+            raise ValidationError({
+                "detail": "Esta Escala possui Ordens de Serviço ativas vinculadas. Ajuste ou desvincule as OS antes de excluir a Escala.",
+            })
+        super().perform_destroy(instance)
 
     def _member_model(self, member_type):
         return {
@@ -553,6 +565,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"], url_path="member-change")
     def member_change(self, request, pk=None):
         schedule = self.get_object()
+        self._ensure_historical_schedule_is_mutable(schedule)
         action_value = request.data.get("action")
         member_type = request.data.get("member_type")
         member_id = request.data.get("member_id")
@@ -628,6 +641,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post", "delete"], url_path="absence")
     def absence(self, request, pk=None):
         schedule = self.get_object()
+        self._ensure_historical_schedule_is_mutable(schedule)
         member_type = request.data.get("member_type")
         member_id = request.data.get("member_id")
         lookup_model = self._member_model(member_type)
@@ -675,6 +689,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"], url_path="add-member")
     def add_member(self, request, pk=None):
         schedule = self.get_object()
+        self._ensure_historical_schedule_is_mutable(schedule)
         member_type = request.data.get("member_type")
         member_id = request.data.get("member_id")
         lookup_model = self._member_model(member_type)
@@ -715,6 +730,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post", "delete"], url_path="remove-member")
     def remove_member(self, request, pk=None):
         schedule = self.get_object()
+        self._ensure_historical_schedule_is_mutable(schedule)
         member_type = request.data.get("member_type")
         member_id = request.data.get("member_id")
 
@@ -743,6 +759,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
     def report_attendance(self, request, pk=None):
         from django.utils import timezone
         schedule = self.get_object()
+        self._ensure_historical_schedule_is_mutable(schedule)
         schedule.attendance_reported = True
         schedule.attendance_reported_at = timezone.now()
         schedule.attendance_approved = False
@@ -754,6 +771,7 @@ class ShiftScheduleViewSet(viewsets.ModelViewSet):
     def approve_attendance(self, request, pk=None):
         from django.utils import timezone
         schedule = self.get_object()
+        self._ensure_historical_schedule_is_mutable(schedule)
         schedule.attendance_approved = True
         schedule.attendance_approved_at = timezone.now()
         schedule.save(update_fields=["attendance_approved", "attendance_approved_at"])
@@ -790,6 +808,11 @@ class ShiftSwapRequestViewSet(viewsets.ModelViewSet):
 
     def _decide(self, request, pk, decision):
         swap = self.get_object()
+        if shift_schedule_has_approved_report(swap.schedule):
+            return response.Response(
+                {"detail": "A composição e a frequência desta Escala estão preservadas porque há um Relatório Técnico aprovado vinculado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         can_approve = getattr(request.user, "is_admin_role", False)
         if swap.requester_id == request.user.id and not can_approve:
             return response.Response(
@@ -897,6 +920,74 @@ class AgendaViewSet(viewsets.ModelViewSet):
         return response.Response(serializer.data)
     serializer_class = AgendaSerializer
     permission_classes = [IsAuthenticated, AgendaPermission]
+
+    def _build_shift_schedule_map(self, agendas):
+        keys = {
+            (agenda.date, agenda.team_ref_id)
+            for agenda in agendas
+            if getattr(agenda, "service_order_mode", None) == Agenda.ServiceOrderMode.TEAM and agenda.team_ref_id
+        }
+        if not keys:
+            return {}
+        date_values = sorted({agenda_date for agenda_date, _team_id in keys})
+        team_values = sorted({team_id for _agenda_date, team_id in keys})
+        lookup_prefetches = (
+            Prefetch("team__chiefs", queryset=Chief.objects.filter(is_active=True, source_id__startswith="user:").select_related("team").order_by("name"), to_attr="_shift_schedule_chiefs"),
+            Prefetch("team__agents", queryset=Agent.objects.filter(is_active=True, source_id__startswith="user:").select_related("team").order_by("name"), to_attr="_shift_schedule_agents"),
+            Prefetch("team__supports", queryset=Support.objects.filter(is_active=True, source_id__startswith="user:").select_related("team").order_by("name"), to_attr="_shift_schedule_supports"),
+        )
+        schedules = list(
+            ShiftSchedule.objects.filter(date__in=date_values, team_id__in=team_values)
+            .select_related("team")
+            .prefetch_related(
+                "extra_chiefs",
+                "extra_agents",
+                "extra_supports",
+                "removed_chiefs",
+                "removed_agents",
+                "removed_supports",
+                "absent_chiefs",
+                "absent_agents",
+                "absent_supports",
+                "absence_records",
+                "manual_inclusions",
+                "swap_requests",
+                "swap_requests__target_team",
+                *lookup_prefetches,
+            )
+        )
+        from apps.schedules.models import UserTeamTransfer
+        staff_context = {
+            "transfers": list(UserTeamTransfer.objects.order_by("effective_date")),
+            "active_users": list(User.objects.filter(is_active=True).only("id", "cpf", "role")),
+        }
+        for schedule in schedules:
+            schedule._effective_staff_context = staff_context
+        return {(schedule.date, schedule.team_id): schedule for schedule in schedules}
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["shift_schedule_map"] = getattr(self, "_shift_schedule_map", {})
+        return context
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            self._shift_schedule_map = self._build_shift_schedule_map(page)
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        rows = list(queryset)
+        self._shift_schedule_map = self._build_shift_schedule_map(rows)
+        serializer = self.get_serializer(rows, many=True)
+        return response.Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._shift_schedule_map = self._build_shift_schedule_map([instance])
+        serializer = self.get_serializer(instance)
+        return response.Response(serializer.data)
 
     def get_scoped_queryset(self):
         return get_scoped_agendas_queryset(self.request, allow_calendar_view=True)

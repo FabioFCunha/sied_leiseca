@@ -22,6 +22,7 @@ import MobileLoadingState from "../../components/mobile/MobileLoadingState.jsx";
 import MobileErrorState from "../../components/mobile/MobileErrorState.jsx";
 import { statusLabel, statusClass } from "../../utils/status.js";
 import { normalizeTime, formatDateBR } from "../../utils/date.js";
+import { getAgendaAgentNames, getAgendaChiefNames, getAgendaStaffWarning, getAgendaSupportNames } from "../../utils/agendaStaff.js";
 import { STREET_ACTION_ID } from "../../utils/constants.js";
 import { streetActionTypeLabel } from "../../utils/streetActionTypes.js";
 
@@ -226,17 +227,16 @@ export default function MobileAgendaDetailsPage() {
     .filter(Boolean)
     .join(" - ");
 
-  const agents = normalizeList(agenda.agents);
+  const agents = getAgendaAgentNames(agenda);
   const designatedUsers =
     (Array.isArray(agenda.designated_users_details) &&
       agenda.designated_users_details) ||
     (Array.isArray(agenda.designated_users) && agenda.designated_users) ||
     [];
 
-  const supports = [
-    agenda.support_1_ref_name || agenda.support_1,
-    agenda.support_2_ref_name || agenda.support_2,
-  ].filter(Boolean);
+  const supports = getAgendaSupportNames(agenda);
+  const chiefs = getAgendaChiefNames(agenda);
+  const staffWarning = getAgendaStaffWarning(agenda);
 
   const vehicles = normalizeList(
     agenda.vehicle_name || agenda.vehicle || ""
@@ -955,10 +955,10 @@ export default function MobileAgendaDetailsPage() {
               </p>
             )}
 
-            {(agenda.chief_name || agenda.chief_ref_name) && (
+            {chiefs.length > 0 && (
               <p style={{ margin: 0 }}>
                 <strong>Chefe:</strong>{" "}
-                {agenda.chief_name || agenda.chief_ref_name}
+                {chiefs.join(" - ")}
               </p>
             )}
 
@@ -1020,6 +1020,12 @@ export default function MobileAgendaDetailsPage() {
                   ))}
                 </ul>
               </div>
+            )}
+
+            {staffWarning && (
+              <p style={{ margin: 0, color: "#b45309", fontWeight: 600 }}>
+                {staffWarning}
+              </p>
             )}
           </div>
         </div>

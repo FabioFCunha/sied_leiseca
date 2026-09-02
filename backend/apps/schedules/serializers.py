@@ -35,6 +35,7 @@ from .models import (
     Team,
     Vehicle,
 )
+from .services import get_agenda_effective_staff_payload, resolve_shift_schedule_for_agenda
 
 
 class SectorSerializer(serializers.ModelSerializer):
@@ -502,6 +503,12 @@ class AgendaSerializer(serializers.ModelSerializer):
     designated_users_details = serializers.SerializerMethodField()
     predicted_agreement_indicator = serializers.SerializerMethodField()
     predicted_agreement_indicator_label = serializers.SerializerMethodField()
+    staff_source = serializers.SerializerMethodField()
+    staff_source_label = serializers.SerializerMethodField()
+    effective_staff = serializers.SerializerMethodField()
+    effective_staff_warning = serializers.SerializerMethodField()
+    shift_schedule_id = serializers.SerializerMethodField()
+    shift_schedule_missing = serializers.SerializerMethodField()
 
     class Meta:
         model = Agenda
@@ -530,6 +537,12 @@ class AgendaSerializer(serializers.ModelSerializer):
             "designated_users",
             "absent_designated_users",
             "designated_users_details",
+            "staff_source",
+            "staff_source_label",
+            "effective_staff",
+            "effective_staff_warning",
+            "shift_schedule_id",
+            "shift_schedule_missing",
             "team_name",
             "team_ref",
             "team_ref_name",
@@ -635,6 +648,17 @@ class AgendaSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        TEAM_DIRECT_STAFF_FIELDS = {
+            "chief_ref",
+            "chief_name",
+            "team_phone",
+            "agents_ref",
+            "agents",
+            "support_1_ref",
+            "support_1",
+            "support_2_ref",
+            "support_2",
+        }
         instance = self.instance
         start_time = attrs.get("start_time", getattr(instance, "start_time", None))
         end_time = attrs.get("end_time", getattr(instance, "end_time", None))
@@ -765,7 +789,65 @@ class AgendaSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "designated_users": "Limpe os participantes selecionados para voltar ao modo de equipe operacional.",
                 })
+            direct_staff_fields_sent = [
+                field for field in TEAM_DIRECT_STAFF_FIELDS
+                if field in attrs
+            ]
+            if direct_staff_fields_sent:
+                raise serializers.ValidationError({
+                    "service_order_mode": "No modo equipe operacional, o efetivo é definido exclusivamente pela Escala. Remova campos de chefe, agentes e apoios do payload.",
+                })
+
+            requires_schedule_validation = (
+                instance is None
+                or "date" in attrs
+                or "team_ref" in attrs
+                or "service_order_mode" in attrs
+            )
+            if requires_schedule_validation:
+                if not current_team_ref:
+                    raise serializers.ValidationError({
+                        "team_ref": "Selecione uma equipe cadastrada na Escala para a data desta Ordem de Serviço.",
+                    })
+                probe = instance if instance is not None else Agenda()
+                probe.date = attrs.get("date", getattr(instance, "date", None))
+                probe.team_ref = current_team_ref
+                probe.team_ref_id = getattr(current_team_ref, "id", None)
+                probe.team_name = getattr(current_team_ref, "name", "") or attrs.get("team_name", getattr(instance, "team_name", ""))
+                probe.service_order_mode = service_order_mode
+                schedule = resolve_shift_schedule_for_agenda(probe)
+                if schedule is None:
+                    raise serializers.ValidationError({
+                        "team_ref": "A equipe selecionada não está cadastrada na Escala para a data desta Ordem de Serviço.",
+                    })
         return attrs
+
+    def _effective_staff_payload(self, obj):
+        cached = getattr(obj, "_effective_staff_payload", None)
+        if cached is not None:
+            return cached
+        schedule_map = self.context.get("shift_schedule_map")
+        payload = get_agenda_effective_staff_payload(obj, schedule_map=schedule_map)
+        obj._effective_staff_payload = payload
+        return payload
+
+    def get_staff_source(self, obj):
+        return self._effective_staff_payload(obj)["staff_source"]
+
+    def get_staff_source_label(self, obj):
+        return self._effective_staff_payload(obj)["staff_source_label"]
+
+    def get_effective_staff(self, obj):
+        return self._effective_staff_payload(obj)["effective_staff"]
+
+    def get_effective_staff_warning(self, obj):
+        return self._effective_staff_payload(obj)["effective_staff_warning"]
+
+    def get_shift_schedule_id(self, obj):
+        return self._effective_staff_payload(obj)["shift_schedule_id"]
+
+    def get_shift_schedule_missing(self, obj):
+        return self._effective_staff_payload(obj)["shift_schedule_missing"]
 
     def get_predicted_agreement_indicator(self, obj):
         from .agreement_indicators import derive_from_agenda
@@ -812,7 +894,10 @@ class AgendaSerializer(serializers.ModelSerializer):
         from apps.accounts.serializers import team_for_user
 
         details = []
-        for member in obj.designated_users.filter(is_active=True).order_by("full_name"):
+        for member in sorted(
+            (member for member in obj.designated_users.all() if member.is_active),
+            key=lambda member: member.full_name,
+        ):
             team = team_for_user(member)
             details.append({
                 "id": member.id,
@@ -843,6 +928,10 @@ class AgendaSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         materials_data = validated_data.pop("materials", [])
         designated_users = validated_data.pop("designated_users", [])
+        if validated_data.get("service_order_mode", Agenda.ServiceOrderMode.TEAM) == Agenda.ServiceOrderMode.TEAM:
+            team_ref = validated_data.get("team_ref")
+            if team_ref:
+                validated_data["team_name"] = team_ref.name
         agenda = super().create(validated_data)
         if designated_users:
             agenda.designated_users.set(designated_users)
@@ -852,6 +941,11 @@ class AgendaSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         materials_data = validated_data.pop("materials", None)
         designated_users = validated_data.pop("designated_users", None)
+        next_mode = validated_data.get("service_order_mode", instance.service_order_mode)
+        if next_mode == Agenda.ServiceOrderMode.TEAM:
+            team_ref = validated_data.get("team_ref", instance.team_ref)
+            if team_ref:
+                validated_data["team_name"] = team_ref.name
         request = self.context.get("request")
         next_status = validated_data.get("status")
         is_decision_transition = (
