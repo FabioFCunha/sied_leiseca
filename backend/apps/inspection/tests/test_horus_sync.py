@@ -236,6 +236,8 @@ class HorusSyncFixturesMixin:
             999,
             management_id,
             military_chief_id,
+            f"Chefe civil {team}",
+            f"Chefe militar {team}",
             team,
             operation_date,
             f"Equipe civil {team}",
@@ -246,6 +248,15 @@ class HorusSyncFixturesMixin:
             "",
             f"VTR-{team}",
             "Sem alteracoes",
+            "Sem alteracao de material",
+            section_updated_at,
+            "38 BPM",
+            "54-0934\nSubten exemplo",
+            "54-0934",
+            "Baixa abordagem justificada",
+            "AI-123",
+            "AI-123 detalhado",
+            "Alteracoes diversas",
             datetime.combine(operation_date, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=8),
             section_updated_at,
             candidate_updated_at,
@@ -378,6 +389,14 @@ class HorusSyncUnitTests(HorusSyncFixturesMixin, SimpleTestCase):
         self.assertIsNone(payload["management_id"])
         self.assertEqual(payload["agent_detran"], 2)
         self.assertEqual(payload["number_trailers"], 0)
+        self.assertEqual(payload["civil_chief_name"], "Chefe civil A3")
+        self.assertEqual(payload["support_opm"], "38 BPM")
+        self.assertEqual(payload["support_pmerj_staff"], "54-0934\nSubten exemplo")
+        self.assertEqual(payload["support_vehicles"], "54-0934")
+        self.assertEqual(payload["low_approach_reasons"], "Baixa abordagem justificada")
+        self.assertEqual(payload["team_violation_notices"], "AI-123")
+        self.assertEqual(payload["specified_violation_notices"], "AI-123 detalhado")
+        self.assertEqual(payload["miscellaneous_changes"], "Alteracoes diversas")
         self.assertEqual(payload["operations"][0]["removal_resolutions"], 270)
         self.assertIsNone(payload["operations"][1]["approach"])
         self.assertEqual(payload["operations"][1]["fined"], 0)

@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronDown, ChevronRight, Eye, RefreshCw, Search, X } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, Download, Eye, RefreshCw, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   excludeInspectionReportFromStatistics,
@@ -10,6 +10,7 @@ import {
 import { useAuth } from "../context/AuthContext.jsx";
 import { formatDateBR } from "../utils/date.js";
 import { canReviewInspectionStatistics as canReviewInspectionStatisticsUser } from "../utils/permissions.js";
+import { generateInspectionReportPdf } from "../utils/inspectionReportPdfGenerator.js";
 
 const emptyStatisticsClassification = {
   fugitives: false,
@@ -99,7 +100,7 @@ function DetailField({ label, value }) {
   return (
     <div style={{ display: "grid", gap: "4px" }}>
       <small style={{ color: "var(--pico-muted-color)", fontWeight: 700 }}>{label}</small>
-      <span style={{ color: "var(--text-main)", wordBreak: "break-word" }}>{displayValue(value)}</span>
+      <span style={{ color: "var(--text-main)", wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{displayValue(value)}</span>
     </div>
   );
 }
@@ -472,6 +473,13 @@ export default function InspectionReportsPage() {
                     </div>
                   ) : null}
 
+                  <div className="page-actions" style={{ justifyContent: "flex-end" }}>
+                    <button className="secondary" onClick={() => generateInspectionReportPdf(selectedReport)}>
+                      <Download size={16} />
+                      PDF
+                    </button>
+                  </div>
+
                   {selectedReport.has_source_update_after_statistics_review ? (
                     <div style={{ padding: "14px 16px", borderRadius: "14px", border: "1px solid rgba(180,83,9,0.2)", background: "#fff7ed", color: "#9a3412" }}>
                       O relatório recebeu uma atualização na origem após a homologação estatística.
@@ -510,14 +518,33 @@ export default function InspectionReportsPage() {
 
                   <DetailSection title="Dados da operação">
                     <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-                      <DetailField label="Chefe da equipe militar" value={selectedReport.military_chief_source_id ? "Identificação ainda não resolvida" : null} />
+                      <DetailField label="Chefe da equipe civil" value={selectedReport.civil_chief_name} />
+                      <DetailField label="Chefe da equipe militar" value={selectedReport.military_chief_name} />
                       <DetailField label="Efetivo civil" value={selectedReport.segov_team_civil} />
                       <DetailField label="Efetivo militar" value={selectedReport.segov_team_military} />
                       <DetailField label="Agentes do Detran" value={selectedReport.agent_detran} />
                       <DetailField label="Reboques" value={selectedReport.number_trailers} />
-                      <DetailField label="Viaturas utilizadas" value={selectedReport.cars} />
-                      <DetailField label="Alterações OLS" value={selectedReport.change_ols} />
-                      <DetailField label="Alterações de apoio" value={selectedReport.change_support} />
+                      <DetailField label="Viaturas OLS utilizadas na operação" value={selectedReport.cars} />
+                    </div>
+                  </DetailSection>
+
+                  <DetailSection title="Complemento">
+                    <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                      <DetailField label="OPM de apoio" value={selectedReport.support_opm} />
+                      <DetailField label="Efetivo PMERJ de apoio" value={selectedReport.support_pmerj_staff} />
+                      <DetailField label="Viaturas de apoio" value={selectedReport.support_vehicles} />
+                      <DetailField label="Motivos para baixa abordagem" value={selectedReport.low_approach_reasons} />
+                      <DetailField label="Autos de infração da equipe" value={selectedReport.team_violation_notices} />
+                      <DetailField label="Especifique os AI utilizados" value={selectedReport.specified_violation_notices} />
+                    </div>
+                  </DetailSection>
+
+                  <DetailSection title="Alterações">
+                    <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                      <DetailField label="Efetivo OLS" value={selectedReport.change_ols} />
+                      <DetailField label="Equipe de apoio" value={selectedReport.change_support} />
+                      <DetailField label="Alterações de material/equipamento/viatura" value={selectedReport.changes_material} />
+                      <DetailField label="Geral" value={selectedReport.miscellaneous_changes} />
                       <DetailField label="Observações gerais" value={selectedReport.changes_general} />
                     </div>
                   </DetailSection>

@@ -62,6 +62,8 @@ class InspectionReport(models.Model):
     team = models.CharField(max_length=120, blank=True)
     management_id = models.IntegerField(null=True, blank=True)
     military_chief_source_id = models.UUIDField(null=True, blank=True)
+    civil_chief_name = models.CharField(max_length=255, blank=True)
+    military_chief_name = models.CharField(max_length=255, blank=True)
     segov_team_civil = models.CharField(max_length=255, blank=True)
     segov_team_military = models.CharField(max_length=255, blank=True)
     change_ols = models.TextField(blank=True)
@@ -70,6 +72,15 @@ class InspectionReport(models.Model):
     change_support = models.TextField(blank=True)
     cars = models.CharField(max_length=255, blank=True)
     changes_general = models.TextField(blank=True)
+    changes_material = models.TextField(blank=True)
+    complement_source_updated_at = models.DateTimeField(null=True, blank=True)
+    support_opm = models.CharField(max_length=255, blank=True)
+    support_pmerj_staff = models.TextField(blank=True)
+    support_vehicles = models.CharField(max_length=255, blank=True)
+    low_approach_reasons = models.TextField(blank=True)
+    team_violation_notices = models.CharField(max_length=255, blank=True)
+    specified_violation_notices = models.TextField(blank=True)
+    miscellaneous_changes = models.TextField(blank=True)
     status = models.CharField(
         max_length=20,
         choices=ReportStatus.choices,

@@ -35,6 +35,8 @@ SECTION_FIELDS = [
     "user_id",
     "management_id",
     "militaryChief",
+    "civil_chief_name",
+    "military_chief_name",
     "team",
     "operation_date",
     "segovTeamCivil",
@@ -45,6 +47,15 @@ SECTION_FIELDS = [
     "change_support",
     "cars",
     "changes_general",
+    "changes_material",
+    "complement_source_updated_at",
+    "support_opm",
+    "support_pmerj_staff",
+    "support_vehicles",
+    "low_approach_reasons",
+    "team_violation_notices",
+    "specified_violation_notices",
+    "miscellaneous_changes",
     "created_at",
     "updated_at",
     "candidate_updated_at",
@@ -120,6 +131,14 @@ WITH candidate_sections AS (
                         WHERE st2.rcols_section_id = s.id
                     ),
                     s.updated_at
+                ),
+                COALESCE(
+                    (
+                        SELECT MAX(GREATEST(mc.created_at, mc.updated_at))
+                        FROM mrcols_sections mc
+                        WHERE mc.rcols_section_id = s.id
+                    ),
+                    s.updated_at
                 )
             ),
             s.updated_at
@@ -132,6 +151,8 @@ SELECT
     s.user_id,
     s.management_id,
     s."militaryChief",
+    trim(concat_ws(' ', civil.first_name, civil.last_name)) AS civil_chief_name,
+    trim(concat_ws(' ', military.first_name, military.last_name)) AS military_chief_name,
     s.team,
     s.operation_date,
     s."segovTeamCivil",
@@ -142,11 +163,29 @@ SELECT
     s.change_support,
     s.cars,
     s.changes_general,
+    s.changes_material,
+    m.updated_at AS complement_source_updated_at,
+    m.opm AS support_opm,
+    m.pmerj_team AS support_pmerj_staff,
+    m.support_vehicles,
+    m.low_approach AS low_approach_reasons,
+    m.violation_notices AS team_violation_notices,
+    m.specify_used AS specified_violation_notices,
+    m.miscellaneous_changes,
     s.created_at,
     s.updated_at,
     c.candidate_updated_at
 FROM rcols_sections s
 INNER JOIN candidate_sections c ON c.id = s.id
+LEFT JOIN users civil ON civil.id = s.user_id
+LEFT JOIN users military ON military.id = s."militaryChief"
+LEFT JOIN LATERAL (
+    SELECT *
+    FROM mrcols_sections
+    WHERE rcols_section_id = s.id
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 1
+) m ON TRUE
 WHERE s.operation_date >= %s
   AND (s.operation_date, c.candidate_updated_at, s.id) > (%s, %s, %s)
 ORDER BY s.operation_date, c.candidate_updated_at, s.id
@@ -176,6 +215,14 @@ WITH candidate_sections AS (
                         WHERE st2.rcols_section_id = s.id
                     ),
                     s.updated_at
+                ),
+                COALESCE(
+                    (
+                        SELECT MAX(GREATEST(mc.created_at, mc.updated_at))
+                        FROM mrcols_sections mc
+                        WHERE mc.rcols_section_id = s.id
+                    ),
+                    s.updated_at
                 )
             ),
             s.updated_at
@@ -192,6 +239,12 @@ WITH candidate_sections AS (
         )
         OR EXISTS (
             SELECT 1
+            FROM mrcols_sections mc
+            WHERE mc.rcols_section_id = s.id
+              AND GREATEST(mc.created_at, mc.updated_at) >= %s
+        )
+        OR EXISTS (
+            SELECT 1
             FROM rcols_fineds f
             INNER JOIN rcols_section_twos st2 ON st2.id = f.rcols_section_twos_id
             WHERE st2.rcols_section_id = s.id
@@ -204,6 +257,8 @@ SELECT
     s.user_id,
     s.management_id,
     s."militaryChief",
+    trim(concat_ws(' ', civil.first_name, civil.last_name)) AS civil_chief_name,
+    trim(concat_ws(' ', military.first_name, military.last_name)) AS military_chief_name,
     s.team,
     s.operation_date,
     s."segovTeamCivil",
@@ -214,11 +269,29 @@ SELECT
     s.change_support,
     s.cars,
     s.changes_general,
+    s.changes_material,
+    m.updated_at AS complement_source_updated_at,
+    m.opm AS support_opm,
+    m.pmerj_team AS support_pmerj_staff,
+    m.support_vehicles,
+    m.low_approach AS low_approach_reasons,
+    m.violation_notices AS team_violation_notices,
+    m.specify_used AS specified_violation_notices,
+    m.miscellaneous_changes,
     s.created_at,
     s.updated_at,
     c.candidate_updated_at
 FROM rcols_sections s
 INNER JOIN candidate_sections c ON c.id = s.id
+LEFT JOIN users civil ON civil.id = s.user_id
+LEFT JOIN users military ON military.id = s."militaryChief"
+LEFT JOIN LATERAL (
+    SELECT *
+    FROM mrcols_sections
+    WHERE rcols_section_id = s.id
+    ORDER BY updated_at DESC, id DESC
+    LIMIT 1
+) m ON TRUE
 WHERE s.operation_date >= %s
   AND (c.candidate_updated_at, s.id) > (%s, %s)
 ORDER BY c.candidate_updated_at, s.id
@@ -434,6 +507,8 @@ def map_section_payload(section: dict, operations: list[dict]) -> dict:
         "team": section.get("team") or "",
         "management_id": section.get("management_id"),
         "military_chief_source_id": str(section["militaryChief"]) if section.get("militaryChief") else None,
+        "civil_chief_name": section.get("civil_chief_name") or "",
+        "military_chief_name": section.get("military_chief_name") or "",
         "segov_team_civil": section.get("segovTeamCivil") or "",
         "segov_team_military": section.get("segovTeamMilitar") or "",
         "change_ols": section.get("change_ols") or "",
@@ -442,6 +517,15 @@ def map_section_payload(section: dict, operations: list[dict]) -> dict:
         "change_support": section.get("change_support") or "",
         "cars": section.get("cars") or "",
         "changes_general": section.get("changes_general") or "",
+        "changes_material": section.get("changes_material") or "",
+        "complement_source_updated_at": to_iso_datetime(section.get("complement_source_updated_at")),
+        "support_opm": section.get("support_opm") or "",
+        "support_pmerj_staff": section.get("support_pmerj_staff") or "",
+        "support_vehicles": section.get("support_vehicles") or "",
+        "low_approach_reasons": section.get("low_approach_reasons") or "",
+        "team_violation_notices": section.get("team_violation_notices") or "",
+        "specified_violation_notices": section.get("specified_violation_notices") or "",
+        "miscellaneous_changes": section.get("miscellaneous_changes") or "",
         "operations": operations,
     }
 
@@ -529,7 +613,7 @@ class HorusInspectionSyncer:
         batch_limit: int,
     ) -> tuple[list[dict], bool]:
         start_updated_from = updated_from or normalize_datetime(datetime(1970, 1, 1, tzinfo=timezone.utc))
-        params = [date_from, start_updated_from, start_updated_from, start_updated_from, date_from, start_updated_from, ZERO_UUID, batch_limit + 1]
+        params = [date_from, start_updated_from, start_updated_from, start_updated_from, start_updated_from, date_from, start_updated_from, ZERO_UUID, batch_limit + 1]
         with conn.cursor() as cursor:
             cursor.execute(INCREMENTAL_SECTION_SQL, params)
             rows = rows_to_dicts(cursor.fetchall(), SECTION_FIELDS)

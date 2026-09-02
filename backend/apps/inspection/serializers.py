@@ -65,6 +65,8 @@ class InspectionReportIngestionSerializer(serializers.Serializer):
     team = serializers.CharField(required=False, allow_blank=True, default="")
     management_id = serializers.IntegerField(required=False, allow_null=True, default=None)
     military_chief_source_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    civil_chief_name = serializers.CharField(required=False, allow_blank=True, default="")
+    military_chief_name = serializers.CharField(required=False, allow_blank=True, default="")
     segov_team_civil = serializers.CharField(required=False, allow_blank=True, default="")
     segov_team_military = serializers.CharField(required=False, allow_blank=True, default="")
     change_ols = serializers.CharField(required=False, allow_blank=True, default="")
@@ -73,6 +75,15 @@ class InspectionReportIngestionSerializer(serializers.Serializer):
     change_support = serializers.CharField(required=False, allow_blank=True, default="")
     cars = serializers.CharField(required=False, allow_blank=True, default="")
     changes_general = serializers.CharField(required=False, allow_blank=True, default="")
+    changes_material = serializers.CharField(required=False, allow_blank=True, default="")
+    complement_source_updated_at = serializers.DateTimeField(required=False, allow_null=True, default=None)
+    support_opm = serializers.CharField(required=False, allow_blank=True, default="")
+    support_pmerj_staff = serializers.CharField(required=False, allow_blank=True, default="")
+    support_vehicles = serializers.CharField(required=False, allow_blank=True, default="")
+    low_approach_reasons = serializers.CharField(required=False, allow_blank=True, default="")
+    team_violation_notices = serializers.CharField(required=False, allow_blank=True, default="")
+    specified_violation_notices = serializers.CharField(required=False, allow_blank=True, default="")
+    miscellaneous_changes = serializers.CharField(required=False, allow_blank=True, default="")
     operations = InspectionOperationIngestionSerializer(many=True, required=False, default=list)
 
     def validate(self, attrs):
@@ -360,6 +371,8 @@ class InspectionReportDetailSerializer(serializers.ModelSerializer):
             "team",
             "management_id",
             "military_chief_source_id",
+            "civil_chief_name",
+            "military_chief_name",
             "segov_team_civil",
             "segov_team_military",
             "change_ols",
@@ -368,6 +381,15 @@ class InspectionReportDetailSerializer(serializers.ModelSerializer):
             "change_support",
             "cars",
             "changes_general",
+            "changes_material",
+            "complement_source_updated_at",
+            "support_opm",
+            "support_pmerj_staff",
+            "support_vehicles",
+            "low_approach_reasons",
+            "team_violation_notices",
+            "specified_violation_notices",
+            "miscellaneous_changes",
             "status",
             "statistics_status",
             "statistics_reviewed_by",

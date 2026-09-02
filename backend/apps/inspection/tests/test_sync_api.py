@@ -20,6 +20,8 @@ class InspectionSyncPayloadMixin:
             "team": "A3",
             "management_id": 1,
             "military_chief_source_id": "22222222-2222-2222-2222-222222222222",
+            "civil_chief_name": "Chefe Civil",
+            "military_chief_name": "Chefe Militar",
             "segov_team_civil": "Equipe civil ficticia",
             "segov_team_military": "Equipe militar ficticia",
             "change_ols": "Sem alteracoes",
@@ -28,6 +30,15 @@ class InspectionSyncPayloadMixin:
             "change_support": "",
             "cars": "VTR-01",
             "changes_general": "Sem alteracoes",
+            "changes_material": "Sem alteracao de material",
+            "complement_source_updated_at": "2026-08-10T08:31:00Z",
+            "support_opm": "38 BPM",
+            "support_pmerj_staff": "54-0934\nSubten exemplo",
+            "support_vehicles": "54-0934",
+            "low_approach_reasons": "Baixa abordagem justificada",
+            "team_violation_notices": "AI-123",
+            "specified_violation_notices": "AI-123 detalhado",
+            "miscellaneous_changes": "Alteracoes diversas",
             "operations": [
                 {
                     "source_id": "33333333-3333-3333-3333-333333333333",
@@ -93,6 +104,33 @@ class InspectionSyncServiceTests(InspectionSyncPayloadMixin, TestCase):
         self.assertEqual(result.outcome, "created")
         self.assertEqual(InspectionReport.objects.count(), 1)
         self.assertEqual(InspectionReport.objects.get().statistics_status, InspectionReport.StatisticsStatus.PENDING)
+
+    def test_ingests_confirmed_horus_complement_fields(self):
+        self.service.sync_report(self.validated_payload())
+        report = InspectionReport.objects.get()
+
+        self.assertEqual(report.civil_chief_name, "Chefe Civil")
+        self.assertEqual(report.military_chief_name, "Chefe Militar")
+        self.assertEqual(report.support_opm, "38 BPM")
+        self.assertEqual(report.support_pmerj_staff, "54-0934\nSubten exemplo")
+        self.assertEqual(report.support_vehicles, "54-0934")
+        self.assertEqual(report.low_approach_reasons, "Baixa abordagem justificada")
+        self.assertEqual(report.team_violation_notices, "AI-123")
+        self.assertEqual(report.specified_violation_notices, "AI-123 detalhado")
+        self.assertEqual(report.miscellaneous_changes, "Alteracoes diversas")
+
+    def test_newer_complement_updates_existing_report_idempotently(self):
+        self.service.sync_report(self.validated_payload())
+        updated = self.payload()
+        updated["complement_source_updated_at"] = "2026-08-10T08:45:00Z"
+        updated["support_vehicles"] = "54-0935"
+
+        serializer = InspectionReportIngestionSerializer(data=updated)
+        serializer.is_valid(raise_exception=True)
+        result = self.service.sync_report(serializer.validated_data)
+
+        self.assertEqual(result.outcome, "updated")
+        self.assertEqual(InspectionReport.objects.get().support_vehicles, "54-0935")
 
     def test_creates_multiple_operations(self):
         payload = self.payload()

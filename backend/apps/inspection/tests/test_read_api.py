@@ -225,6 +225,27 @@ class InspectionReadApiTests(APITestCase):
         self.assertEqual(len(response.data["operations"]), 1)
         self.assertEqual(response.data["statistics_status"], "PENDING")
 
+    def test_detail_serializes_confirmed_horus_complement_fields(self):
+        report = self.make_report()
+        report.civil_chief_name = "Chefe Civil"
+        report.military_chief_name = "Chefe Militar"
+        report.support_opm = "38 BPM"
+        report.support_pmerj_staff = "54-0934\nSubten exemplo"
+        report.support_vehicles = "54-0934"
+        report.low_approach_reasons = "Baixa abordagem justificada"
+        report.team_violation_notices = "AI-123"
+        report.specified_violation_notices = "AI-123 detalhado"
+        report.miscellaneous_changes = "Alteracoes diversas"
+        report.save()
+        self.authenticate()
+
+        response = self.client.get(reverse("inspection-reports-detail", args=[report.id]))
+
+        self.assertEqual(response.data["civil_chief_name"], "Chefe Civil")
+        self.assertEqual(response.data["support_opm"], "38 BPM")
+        self.assertEqual(response.data["support_pmerj_staff"], "54-0934\nSubten exemplo")
+        self.assertEqual(response.data["miscellaneous_changes"], "Alteracoes diversas")
+
     def test_detail_includes_multiple_operations(self):
         report = self.make_report()
         self.make_operation(report, source_suffix="1")

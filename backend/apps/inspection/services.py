@@ -22,6 +22,8 @@ REPORT_MUTABLE_FIELDS = [
     "team",
     "management_id",
     "military_chief_source_id",
+    "civil_chief_name",
+    "military_chief_name",
     "segov_team_civil",
     "segov_team_military",
     "change_ols",
@@ -30,6 +32,15 @@ REPORT_MUTABLE_FIELDS = [
     "change_support",
     "cars",
     "changes_general",
+    "changes_material",
+    "complement_source_updated_at",
+    "support_opm",
+    "support_pmerj_staff",
+    "support_vehicles",
+    "low_approach_reasons",
+    "team_violation_notices",
+    "specified_violation_notices",
+    "miscellaneous_changes",
 ]
 
 OPERATION_MUTABLE_FIELDS = [
@@ -129,6 +140,8 @@ def build_statistics_snapshot(report, *, reviewed_at, reviewed_by):
             "team": report.team,
             "management_id": report.management_id,
             "military_chief_source_id": str(report.military_chief_source_id) if report.military_chief_source_id else None,
+            "civil_chief_name": report.civil_chief_name,
+            "military_chief_name": report.military_chief_name,
             "segov_team_civil": report.segov_team_civil,
             "segov_team_military": report.segov_team_military,
             "change_ols": report.change_ols,
@@ -137,6 +150,15 @@ def build_statistics_snapshot(report, *, reviewed_at, reviewed_by):
             "change_support": report.change_support,
             "cars": report.cars,
             "changes_general": report.changes_general,
+            "changes_material": report.changes_material,
+            "complement_source_updated_at": report.complement_source_updated_at.isoformat() if report.complement_source_updated_at else None,
+            "support_opm": report.support_opm,
+            "support_pmerj_staff": report.support_pmerj_staff,
+            "support_vehicles": report.support_vehicles,
+            "low_approach_reasons": report.low_approach_reasons,
+            "team_violation_notices": report.team_violation_notices,
+            "specified_violation_notices": report.specified_violation_notices,
+            "miscellaneous_changes": report.miscellaneous_changes,
         },
         "statistics_classification": dict(
             report.statistics_classification or {}
@@ -306,6 +328,8 @@ class InspectionSyncService:
         tambem os timestamps dos registros filhos.
         """
         timestamps = [payload["source_updated_at"]]
+        if payload.get("complement_source_updated_at") is not None:
+            timestamps.append(payload["complement_source_updated_at"])
 
         for operation_payload in payload.get("operations", []):
             operation_updated_at = operation_payload.get("source_updated_at")
@@ -326,6 +350,8 @@ class InspectionSyncService:
             timestamps.append(
                 report.source_update_after_statistics_review_at
             )
+        if report.complement_source_updated_at is not None:
+            timestamps.append(report.complement_source_updated_at)
 
         operation_updated_at = (
             InspectionReportOperation.objects
