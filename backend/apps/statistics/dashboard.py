@@ -3,13 +3,12 @@ import hashlib
 from datetime import date, timedelta
 
 from django.core.cache import cache
-from django.db.models import Count, Q, Sum
-from django.db.models.functions import Coalesce
+from django.db.models import Count, Prefetch, Q, Sum
 
 from apps.schedules.models import Agenda, EducationAction, EducationReport
 from apps.statistics.models import ConsolidatedStatistic
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
-from apps.statistics.services import _distribution_material_breakdown, _parse_materials, _street_entity_from_action_counters, _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics
+from apps.statistics.services import _distribution_material_breakdown, _parse_materials, _street_entity_from_action_counters, _street_entity_from_details, aggregate_official_rows, aggregate_official_statistics, reached_audience_for_report
 from apps.statistics.views import get_hybrid_queryset
 
 
@@ -411,66 +410,71 @@ def _daily_series(date_from, date_to, filters):
         current += timedelta(days=1)
     return rows
 
-def _action_audience_value(action, report=None, is_palestra=False):
-    primary = getattr(action, 'approached_lectures' if is_palestra else 'approached_actions', 0) or 0
-    return primary or getattr(action, 'approach', 0) or getattr(report, 'approximate_public', 0) or 0
-
 def _category_audience(date_from, date_to, filters):
-    reports = _operational_reports(date_from, date_to, filters)
-    actions = EducationAction.objects.filter(report__in=reports).select_related('agenda', 'report', 'agenda__action_type_ref')
-    result = {key: 0 for key in (*LECTURE_KEYS, *STREET_KEYS)}
-    for action in actions:
-        agenda = action.agenda
-        report = action.report
-        if not agenda or not report:
-            continue
-        street_entity = _street_entity_from_details(
-            getattr(action, 'street_action_details', None),
-            getattr(report, 'street_action_details', None),
-            getattr(agenda, 'street_action_details', None),
-        ) or _street_entity_from_action_counters(action) or _street_entity_from_details(getattr(action, 'type_action', None)) or _street_entity_from_details(getattr(agenda, 'action_type', None))
-        entity = str(street_entity or agenda.requester_entity_type or '').casefold()
-        action_name = str((agenda.action_type_ref.name if agenda.action_type_ref else '') or action.type_action or '').casefold()
-        institution_name = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').casefold()
-        is_school_context = (
-            'escolinha' in action_name
-            or 'escola nota 10' in action_name
-            or 'nota 10' in action_name
-            or 'escola' in institution_name
-            or 'colégio' in institution_name
-            or 'colegio' in institution_name
+    reports = _operational_reports(date_from, date_to, filters).prefetch_related(
+        Prefetch(
+            'actions',
+            queryset=EducationAction.objects.select_related('agenda', 'agenda__action_type_ref').order_by('start_time', 'id'),
         )
-        if 'palestra' in action_name:
-            key = 'ACTION - Universidade' if ('universidade' in entity or 'faculdade' in entity or entity == '1') else 'ACTION - Empresa' if ('empresa' in entity or 'órgão' in entity or 'orgao' in entity or entity == '4') else 'ACTION - Escola'
-        elif 'escola' in entity or ('ensino' in entity and 'universidade' not in entity) or is_school_context: key = 'ACTION - Escola'
-        elif 'bar' in entity or entity == '7': key = 'ACTION - Bares'
-        elif 'pedágio' in entity or 'pedagio' in entity or entity == '10': key = 'ACTION - Pedágio'
-        elif 'esport' in entity or entity == '9': key = 'ACTION - Praças Esportivas'
-        elif 'praia' in entity or entity == '8': key = 'ACTION - Praia'
-        elif 'evento' in entity or entity == '5': key = 'ACTION - Eventos'
-        elif 'shopping' in entity or entity == '12': key = 'ACTION - Shopping'
-        elif 'turíst' in entity or 'turist' in entity or entity == '13': key = 'ACTION - Pontos turísticos'
-        elif 'fiscaliza' in entity or entity == '14': key = 'ACTION - Ação conjunta com a fiscalização'
-        elif 'social' in entity or entity == '15': key = 'ACTION - Ação Social'
-        elif 'praça' in entity or 'praca' in entity or 'parque' in entity or entity == '11': key = 'ACTION - Praças/Parques Públicos'
-        else: key = 'ACTION - Outros'
-        audience = _action_audience_value(action, report, is_palestra=('palestra' in action_name))
-        result[key] += float(audience or 0)
+    )
+    result = {key: 0 for key in (*LECTURE_KEYS, *STREET_KEYS)}
+    for report in reports:
+        for action, audience in reached_audience_for_report(report, report.actions.all(), by_action=True):
+            agenda = action.agenda
+            if not agenda:
+                continue
+            street_entity = _street_entity_from_details(
+                getattr(action, 'street_action_details', None),
+                getattr(report, 'street_action_details', None),
+                getattr(agenda, 'street_action_details', None),
+            ) or _street_entity_from_action_counters(action) or _street_entity_from_details(getattr(action, 'type_action', None)) or _street_entity_from_details(getattr(agenda, 'action_type', None))
+            entity = str(street_entity or agenda.requester_entity_type or '').casefold()
+            action_name = str((agenda.action_type_ref.name if agenda.action_type_ref else '') or action.type_action or '').casefold()
+            institution_name = str(getattr(action, 'institution_name', '') or getattr(agenda, 'institution_location', '') or '').casefold()
+            is_school_context = (
+                'escolinha' in action_name
+                or 'escola nota 10' in action_name
+                or 'nota 10' in action_name
+                or 'escola' in institution_name
+                or 'colégio' in institution_name
+                or 'colegio' in institution_name
+            )
+            if 'palestra' in action_name:
+                key = 'ACTION - Universidade' if ('universidade' in entity or 'faculdade' in entity or entity == '1') else 'ACTION - Empresa' if ('empresa' in entity or 'órgão' in entity or 'orgao' in entity or entity == '4') else 'ACTION - Escola'
+            elif 'escola' in entity or ('ensino' in entity and 'universidade' not in entity) or is_school_context: key = 'ACTION - Escola'
+            elif 'bar' in entity or entity == '7': key = 'ACTION - Bares'
+            elif 'pedágio' in entity or 'pedagio' in entity or entity == '10': key = 'ACTION - Pedágio'
+            elif 'esport' in entity or entity == '9': key = 'ACTION - Praças Esportivas'
+            elif 'praia' in entity or entity == '8': key = 'ACTION - Praia'
+            elif 'evento' in entity or entity == '5': key = 'ACTION - Eventos'
+            elif 'shopping' in entity or entity == '12': key = 'ACTION - Shopping'
+            elif 'turíst' in entity or 'turist' in entity or entity == '13': key = 'ACTION - Pontos turísticos'
+            elif 'fiscaliza' in entity or entity == '14': key = 'ACTION - Ação conjunta com a fiscalização'
+            elif 'social' in entity or entity == '15': key = 'ACTION - Ação Social'
+            elif 'praça' in entity or 'praca' in entity or 'parque' in entity or entity == '11': key = 'ACTION - Praças/Parques Públicos'
+            else: key = 'ACTION - Outros'
+            result[key] += float(audience or 0)
     return result
 def _rankings(date_from, date_to, filters, daily=None):
-    reports = _operational_reports(date_from, date_to, filters)
-    municipalities = list(
-        reports.values('agenda__city')
-        .annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0))
-        .filter(Q(actions__gt=0) | Q(audience__gt=0))
-        .order_by('-actions')[:15]
-    )
-    teams = list(
-        reports.filter(team__in=OFFICIAL_TEAMS)
-        .values('team')
-        .annotate(actions=Count('actions', distinct=True), audience=Coalesce(Sum('approximate_public'), 0))
-        .order_by('-actions')[:8]
-    )
+    reports = _operational_reports(date_from, date_to, filters).prefetch_related('actions')
+    municipality_totals = {}
+    team_totals = {}
+    for report in reports:
+        action_count = len(report.actions.all())
+        audience = reached_audience_for_report(report, report.actions.all())
+        municipality = report.agenda.city if report.agenda else None
+        municipality_row = municipality_totals.setdefault(municipality, {'agenda__city': municipality, 'actions': 0, 'audience': 0})
+        municipality_row['actions'] += action_count
+        municipality_row['audience'] += audience
+        if report.team in OFFICIAL_TEAMS:
+            team_row = team_totals.setdefault(report.team, {'team': report.team, 'actions': 0, 'audience': 0})
+            team_row['actions'] += action_count
+            team_row['audience'] += audience
+    municipalities = sorted(
+        (row for row in municipality_totals.values() if row['actions'] > 0 or row['audience'] > 0),
+        key=lambda row: row['actions'], reverse=True,
+    )[:15]
+    teams = sorted(team_totals.values(), key=lambda row: row['actions'], reverse=True)[:8]
     for row in municipalities + teams:
         row['average'] = round(float(row['audience'] or 0) / row['actions'], 2) if row['actions'] else 0
     daily = daily if daily is not None else _daily_series(date_from, date_to, filters)

@@ -6,8 +6,8 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
 from apps.schedules.models import ActionType, Agenda, EducationAction, EducationReport, Sector
 from apps.statistics.models import ConsolidatedStatistic
-from apps.statistics.services import _distribution_material_breakdown, _parse_materials, aggregate_official_rows, aggregate_official_statistics, generate_statistics_for_report
-from apps.statistics.dashboard import _category_audience, _distribution_material_card_totals, comparison_period, dashboard_payload, variation
+from apps.statistics.services import _distribution_material_breakdown, _parse_materials, aggregate_official_rows, aggregate_official_statistics, generate_statistics_for_report, reached_audience_for_report
+from apps.statistics.dashboard import _category_audience, _distribution_material_card_totals, _rankings, comparison_period, dashboard_payload, variation
 from apps.statistics.historical_baseline import HISTORICAL_BASELINE
 from apps.statistics.views import StatisticsComparisonView, StatisticsDashboardFiltersView, StatisticsDashboardView, get_hybrid_queryset
 
@@ -28,6 +28,77 @@ class OfficialStatisticsTests(TestCase):
             category_entity_type=entity, value=value, methodology=methodology,
             traceability_id=f'{trace}_{ConsolidatedStatistic.objects.count()}', status=status,
         )
+
+    def audience_report(self, *, approximate_public=0, city='Niteroi', team='ALFA', actions=()):
+        sector, _ = Sector.objects.get_or_create(name='Educacao')
+        agenda = Agenda.objects.create(
+            title='Relatorio de publico', description='Teste de publico alcançado',
+            date=date(2026, 7, 12), start_time='09:00', end_time='10:00',
+            location='Local', city=city, created_by=self.user, responsible=self.user,
+            sector=sector, action_type_ref=self.lecture, requester_entity_type='Outro',
+        )
+        report = EducationReport.objects.create(
+            agenda=agenda, operation_date=agenda.date, team=team,
+            approximate_public=approximate_public,
+            status=EducationReport.ReportStatus.APPROVED,
+            statistics_processed=True, created_by=self.user,
+        )
+        for values in actions:
+            EducationAction.objects.create(report=report, agenda=agenda, **values)
+        return report
+
+    def test_reached_audience_uses_pdf_rule_and_ignores_estimated_public(self):
+        report = self.audience_report(
+            approximate_public=500000,
+            actions=({'start_time': '09:00', 'approach': 200, 'approached_lectures': 1200},),
+        )
+
+        self.assertEqual(reached_audience_for_report(report), 1200)
+        generate_statistics_for_report(report)
+        totals = aggregate_official_statistics(
+            ConsolidatedStatistic.objects.filter(traceability_id=f'report_{report.id}', status='ACTIVE')
+        )
+        self.assertEqual(totals['AUDIENCE - Geral'], 1200)
+        self.assertEqual(dashboard_payload(date(2026, 7, 1), date(2026, 7, 31), {})['summary']['AUDIENCE - Geral'], 1200)
+
+    def test_reached_audience_uses_actions_when_first_lecture_is_zero(self):
+        report = self.audience_report(
+            approximate_public=500000,
+            actions=({'start_time': '09:00', 'approach': 200, 'approached_lectures': 0, 'approached_actions': 80},),
+        )
+        self.assertEqual(reached_audience_for_report(report), 80)
+
+    def test_reached_audience_keeps_zero_for_structured_actions(self):
+        report = self.audience_report(
+            approximate_public=999,
+            actions=({'start_time': '09:00', 'approach': 777, 'approached_lectures': 0, 'approached_actions': 0},),
+        )
+        self.assertEqual(reached_audience_for_report(report), 0)
+
+    def test_reached_audience_uses_legacy_approximate_public_only_without_actions(self):
+        report = self.audience_report(approximate_public=64)
+        self.assertEqual(reached_audience_for_report(report), 64)
+
+    def test_reached_audience_orders_actions_like_the_pdf(self):
+        report = self.audience_report(
+            approximate_public=999,
+            actions=(
+                {'start_time': '11:00', 'approached_actions': 40},
+                {'start_time': '08:00', 'approached_lectures': 100, 'approached_actions': 90},
+                {'start_time': '12:00', 'approached_actions': 60},
+            ),
+        )
+        self.assertEqual(reached_audience_for_report(report), 200)
+
+    def test_rankings_use_reached_audience_instead_of_estimated_public(self):
+        report = self.audience_report(
+            approximate_public=500000, city='Cidade PDF', team='ALFA',
+            actions=({'start_time': '09:00', 'approach': 200, 'approached_lectures': 1200},),
+        )
+        rankings = _rankings(date(2026, 7, 1), date(2026, 7, 31), {})
+
+        self.assertEqual(next(row for row in rankings['municipalities'] if row['agenda__city'] == 'Cidade PDF')['audience'], 1200)
+        self.assertEqual(next(row for row in rankings['teams'] if row['team'] == report.team)['audience'], 1200)
 
     def test_audience_general_does_not_sum_subtotals(self):
         self.stat('AUDIENCE', 100)
@@ -405,6 +476,9 @@ class OfficialStatisticsTests(TestCase):
             agenda=agenda,
             type_action='Acao de Rua',
             institution_name='Acao externa',
+            approached_actions=public,
+            approached_lectures=0,
+            approach=0,
             distribution_materials_distributed='',
             bars=1 if label == 'Bares' else 0,
             tolls=1 if label == 'Pedagio' else 0,
@@ -445,6 +519,9 @@ class OfficialStatisticsTests(TestCase):
             agenda=agenda,
             type_action='Acao de Rua',
             institution_name='Acao externa',
+            approached_actions=200,
+            approached_lectures=0,
+            approach=0,
             distribution_materials_distributed='',
             bars=1,
         )
@@ -527,6 +604,7 @@ class OfficialStatisticsTests(TestCase):
             type_action='Acao de Rua',
             institution_name='Local externo',
             approach=0,
+            approached_actions=public,
             **counter_values,
         )
         generate_statistics_for_report(report)

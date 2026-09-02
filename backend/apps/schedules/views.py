@@ -2021,12 +2021,16 @@ class AgendaViewSet(viewsets.ModelViewSet):
         def report_details_payload(report):
             if not report:
                 return None
+            from apps.statistics.services import reached_audience_for_report
+
+            report_actions = sorted(
+                list(report.actions.all()),
+                key=lambda action: (str(action.start_time or ''), action.id or 0),
+            )
             actions = []
-            actions_public_reached = 0
-            for action in report.actions.all():
+            for action in report_actions:
                 action_approach = action.approach or 0
                 action_reported_approaches = action.approached_actions or 0
-                actions_public_reached += action_reported_approaches or action_approach
                 actions.append({
                     "place": action.place_action or action.institution_name or "",
                     "type": action.type_action or "",
@@ -2043,7 +2047,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             return {
                 "id": report.id,
                 "status": report.status,
-                "public_reached": actions_public_reached or report.approximate_public or 0,
+                "public_reached": reached_audience_for_report(report, report_actions),
                 "education_pcd": non_empty_lines(report.education_pcd),
                 "education_agents": non_empty_lines(report.education_agents),
                 "changes_staff": non_empty_lines(report.changes_staff),
@@ -2385,16 +2389,18 @@ class AgendaViewSet(viewsets.ModelViewSet):
         approved_totals = approved_actions.aggregate(
             approved_actions_count=Count("id"),
         )
-        chief_report_totals = chief_reports.aggregate(
-            reports_count=Count("id"),
-            reported_public=Sum("approximate_public"),
-        )
+        from apps.statistics.services import reached_audience_for_report
+
+        chief_report_totals = chief_reports.aggregate(reports_count=Count("id"))
         chief_request_totals = chief_reported_agendas.aggregate(
             requested_public=Sum("quantity"),
             requested_actions=Sum("actions_count"),
         )
         chief_reports_count = chief_report_totals["reports_count"] or 0
-        reported_public = chief_report_totals["reported_public"] or 0
+        reported_public = sum(
+            reached_audience_for_report(report, report.actions.all())
+            for report in chief_reports.prefetch_related("actions")
+        )
         requested_public = chief_request_totals["requested_public"] or 0
         registered_actions = chief_totals["registered_actions"] or 0
         requested_actions = chief_request_totals["requested_actions"] or 0

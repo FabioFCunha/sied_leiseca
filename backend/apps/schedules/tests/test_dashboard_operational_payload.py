@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import User
-from apps.schedules.models import Agenda, EducationReport, Sector
+from apps.schedules.models import Agenda, EducationAction, EducationReport, Sector
 
 
 class DashboardOperationalPayloadTests(APITestCase):
@@ -86,6 +86,23 @@ class DashboardOperationalPayloadTests(APITestCase):
         self.assertTrue(row["chief_report_available"])
         self.assertEqual(row["latest_public_reached"], 87)
         self.assertEqual(row["report_status"], "approved")
+
+    def test_dashboard_reached_public_matches_pdf_rule(self):
+        agenda = self.create_agenda(team_name="ALFA")
+        report = self.create_report(
+            agenda=agenda,
+            team="ALFA",
+            status=EducationReport.ReportStatus.APPROVED,
+            approximate_public=500000,
+        )
+        EducationAction.objects.create(
+            report=report, agenda=agenda, start_time="09:00",
+            approach=200, approached_lectures=1200, approached_actions=0,
+        )
+
+        row = self.dashboard_row(agenda)
+
+        self.assertEqual(row["latest_public_reached"], 1200)
 
     def test_dashboard_team_prefers_matching_team_report(self):
         agenda = self.create_agenda(team_name="ALFA")
