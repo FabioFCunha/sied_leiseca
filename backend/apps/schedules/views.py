@@ -2759,7 +2759,6 @@ class EducationReportViewSet(viewsets.ModelViewSet):
 
         # VISITOR: acesso somente-leitura de relatórios aprovados (caminho independente)
         if user.role == User.Role.VISITOR:
-            from django.db.models import Q
             scoped = queryset.filter(status=EducationReport.ReportStatus.APPROVED)
             params = self.request.query_params
             if params.get("protocol"):
@@ -2782,6 +2781,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                     | Q(agenda__title__icontains=term)
                     | Q(management_name__icontains=term)
                 )
+                if term.isdigit():
+                    search_filter |= Q(agenda_id=int(term)) | Q(agenda__service_order_number=int(term))
                 scoped = scoped.filter(search_filter)
             return scoped.order_by("-operation_date", "-created_at").distinct()
 
