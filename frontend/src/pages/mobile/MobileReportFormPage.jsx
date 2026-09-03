@@ -12,7 +12,7 @@ import {
   getDisplayedAgreementIndicator,
 } from "../../utils/agreementIndicators.js";
 import {
-  applyBlankActionPrefill,
+  applyAgendaOwnedActionPrefill,
   buildFirstActionAgendaPrefill,
   isStreetActionAgenda,
   normalizeStreetActionType,
@@ -299,7 +299,7 @@ function hydrateActionFromAgenda(action = {}, agenda = {}, actionTypes = [], isF
   }
   const inheritAgendaFields = isFirstAction;
   const agendaPrefill = inheritAgendaFields ? buildFirstActionAgendaPrefill(agenda, actionTypes) : {};
-  const actionPrefill = inheritAgendaFields ? applyBlankActionPrefill(action, agendaPrefill) : action;
+  const actionPrefill = inheritAgendaFields ? applyAgendaOwnedActionPrefill(action, agendaPrefill) : action;
   return {
     ...action,
     action_mode: isFirstAction ? actionPrefill.action_mode : action.action_mode,

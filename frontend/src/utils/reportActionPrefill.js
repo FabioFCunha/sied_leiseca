@@ -97,3 +97,16 @@ export function applyBlankActionPrefill(action = {}, prefill = {}) {
     ])
   );
 }
+
+// Fields rendered as read-only for the action inherited from the OS must reflect
+// the current OS. All other fields keep the saved report value so corrections do
+// not erase the chief's operational data.
+export function applyAgendaOwnedActionPrefill(action = {}, prefill = {}) {
+  const merged = applyBlankActionPrefill(action, prefill);
+  return {
+    ...action,
+    ...merged,
+    institution_name: prefill.institution_name || merged.institution_name || "",
+    place_action: prefill.place_action || merged.place_action || "",
+  };
+}

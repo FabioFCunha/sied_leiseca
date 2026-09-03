@@ -7,8 +7,8 @@ const pageSource = fs.readFileSync(new URL("./TechnicalReportsPage.jsx", import.
 test("desktop reutiliza o pré-preenchimento compartilhado da primeira ação", () => {
   assert.match(pageSource, /from "\.\.\/utils\/reportActionPrefill\.js"/);
   assert.match(pageSource, /buildFirstActionAgendaPrefill\(agenda, actionTypes\)/);
-  assert.match(pageSource, /applyBlankActionPrefill\(currentAction, agendaPrefill\)/);
-  assert.match(pageSource, /applyBlankActionPrefill\(action, agendaPrefill\)/);
+  assert.match(pageSource, /applyAgendaOwnedActionPrefill\(currentAction, agendaPrefill\)/);
+  assert.match(pageSource, /applyAgendaOwnedActionPrefill\(action, agendaPrefill\)/);
 });
 
 test("desktop mantém abordagens e acessibilidade fora do pré-preenchimento", () => {

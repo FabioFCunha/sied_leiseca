@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 
-import { applyBlankActionPrefill, buildFirstActionAgendaPrefill } from "./reportActionPrefill.js";
+import {
+  applyAgendaOwnedActionPrefill,
+  applyBlankActionPrefill,
+  buildFirstActionAgendaPrefill,
+} from "./reportActionPrefill.js";
 
 const streetAgenda = {
   requester_entity_type: "6",
@@ -81,6 +85,41 @@ assert.deepEqual(
     approach: 0,
   },
   "rascunho e edições do chefe têm precedência sobre o pré-preenchimento"
+);
+
+assert.deepEqual(
+  applyAgendaOwnedActionPrefill(
+    {
+      institution_name: "Flamengo x Mirassol",
+      place_action: "Endereço antigo",
+      start_time: "18:00",
+      final_hour: "21:30",
+      approached_actions: 280,
+      distribution_materials_distributed: "KIT COM 7 REVISTINHAS | 100",
+      general_observations: "Informação preenchida pelo chefe",
+    },
+    buildFirstActionAgendaPrefill(streetAgenda)
+  ),
+  {
+    ...buildFirstActionAgendaPrefill(streetAgenda),
+    institution_name: "Campo de São Bento",
+    place_action: "Rua Gavião Peixoto, nº 0, Icaraí, Niterói, RJ",
+    start_time: "18:00",
+    final_hour: "21:30",
+    approached_actions: 280,
+    distribution_materials_distributed: "KIT COM 7 REVISTINHAS | 100",
+    general_observations: "Informação preenchida pelo chefe",
+  },
+  "campos somente leitura acompanham a OS sem apagar resultados do chefe"
+);
+
+assert.deepEqual(
+  applyAgendaOwnedActionPrefill(
+    { institution_name: "Local salvo", place_action: "Endereço salvo", approached_actions: 280 },
+    { institution_name: "", place_action: "" }
+  ),
+  { institution_name: "Local salvo", place_action: "Endereço salvo", approached_actions: 280 },
+  "OS sem local ou endereço não apaga os valores já salvos"
 );
 
 console.log("reportActionPrefill.test.mjs: OK");

@@ -19,6 +19,7 @@ import {
   requesterEntityNatureLabel,
 } from "../utils/agreementIndicators.js";
 import {
+  applyAgendaOwnedActionPrefill,
   applyBlankActionPrefill,
   buildFirstActionAgendaPrefill,
   isStreetActionAgenda,
@@ -510,7 +511,7 @@ function hydrateForm(report, agenda, actionTypes = []) {
     request_details: buildRequestDetails(report, agenda),
     actions: report.actions?.length
       ? report.actions.map((action, idx) => {
-          const actionPrefill = idx === 0 ? applyBlankActionPrefill(action, agendaPrefill) : action;
+          const actionPrefill = idx === 0 ? applyAgendaOwnedActionPrefill(action, agendaPrefill) : action;
           return {
           ...action,
           agenda: agendaPk(action.agenda, reportAgendaPk) || "",
@@ -988,7 +989,7 @@ export default function TechnicalReportsPage() {
         };
       }
       const actionPrefill = inheritAgendaFields
-        ? applyBlankActionPrefill(currentAction, agendaPrefill)
+        ? applyAgendaOwnedActionPrefill(currentAction, agendaPrefill)
         : currentAction;
       return {
         ...emptyAction,
