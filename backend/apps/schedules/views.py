@@ -4701,7 +4701,7 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             ("speaker_knowledge", "Palestrante"),
             ("wheelchair_testimony", "Depoimento dos cadeirantes"),
             ("workshops", "Din\u00e2micas"),
-            ("support_material", "Material de apoio"),
+            ("support_material", "Material distribuído"),
             ("punctuality", "Pontualidade"),
             ("team_enthusiasm", "Entusiasmo"),
         ]
@@ -4799,15 +4799,18 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
         punctuality_avg = round(aggregates["punctuality_avg"] or 0, 2)
         enthusiasm_avg = round(aggregates["team_enthusiasm_avg"] or 0, 2)
         workshops_avg = round(aggregates["workshops_avg"] or 0, 2)
-        support_material_avg = round(aggregates["support_material_avg"] or 0, 2)
+        support_material_raw = aggregates["support_material_avg"]
+        support_material_avg = round(support_material_raw, 2) if support_material_raw is not None else None
         wheelchair_avg = round(aggregates["wheelchair_testimony_avg"] or 0, 2)
 
         criteria_averages = {}
         for field, label in CRITERIA_FIELDS:
-            criteria_averages[label] = round(aggregates[f"{field}_avg"] or 0, 2)
+            average = aggregates[f"{field}_avg"]
+            if average is not None:
+                criteria_averages[label] = round(average, 2)
 
-        best_criteria = max(criteria_averages, key=criteria_averages.get)
-        worst_criteria = min(criteria_averages, key=criteria_averages.get)
+        best_criteria = max(criteria_averages, key=criteria_averages.get) if criteria_averages else None
+        worst_criteria = min(criteria_averages, key=criteria_averages.get) if criteria_averages else None
 
         cards = {
             "total_surveys": total_surveys,
@@ -4859,9 +4862,12 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
         # -- Radar ----------------------------------------------------
         radar = []
         for field, label in ALL_CRITERIA:
+            average = aggregates[f"{field}_avg"]
+            if average is None:
+                continue
             radar.append({
                 "criteria": label,
-                "value": round(aggregates[f"{field}_avg"] or 0, 2),
+                "value": round(average, 2),
             })
 
         # -- Ranking (Teams) ------------------------------------------
@@ -4926,10 +4932,13 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
             m = entry["month"]
             if m:
                 for field, label in CRITERIA_FIELDS:
+                    average = entry[f"{field}_avg"]
+                    if average is None:
+                        continue
                     heatmap.append({
                         "criteria": label,
                         "month": m.strftime("%Y-%m"),
-                        "value": round(entry[f"{field}_avg"] or 0, 2),
+                        "value": round(average, 2),
                     })
 
         # -- Comments -------------------------------------------------
@@ -4999,8 +5008,10 @@ class SatisfactionSurveyViewSet(viewsets.ModelViewSet):
 
                     deltas = {}
                     for field, label in CRITERIA_FIELDS:
-                        cur = aggregates.get(f"{field}_avg") or 0
-                        prev = prev_aggregates.get(f"{field}_avg") or 0
+                        cur = aggregates.get(f"{field}_avg")
+                        prev = prev_aggregates.get(f"{field}_avg")
+                        if cur is None or prev is None:
+                            continue
                         deltas[label] = cur - prev
 
                     if deltas:

@@ -82,7 +82,7 @@ function makeFullData() {
       { criteria: "Palestrante", value: 8.45 },
       { criteria: "Depoimento dos cadeirantes", value: 8.90 },
       { criteria: "Dinâmicas", value: 7.85 },
-      { criteria: "Material de apoio", value: 8.12 },
+      { criteria: "Material distribuído", value: 8.12 },
       { criteria: "Pontualidade", value: 9.10 },
       { criteria: "Entusiasmo", value: 8.67 },
       { criteria: "Nota geral", value: 8.43 },

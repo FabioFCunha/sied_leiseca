@@ -332,7 +332,7 @@ export async function generateEvaluationsPdf({
       ["Pontualidade", fmtDecimal(cards.punctuality_avg)],
       ["Entusiasmo da Equipe", fmtDecimal(cards.enthusiasm_avg)],
       ["Dinâmicas", fmtDecimal(cards.workshops_avg)],
-      ["Material de Apoio", fmtDecimal(cards.support_material_avg)],
+      ["Material Distribuído", fmtDecimal(cards.support_material_avg)],
       ["Depoimento Cadeirantes", fmtDecimal(cards.wheelchair_avg)],
       ["Melhor Critério", cards.best_criteria || "—"],
       ["Menor Avaliação", cards.worst_criteria || "—"],

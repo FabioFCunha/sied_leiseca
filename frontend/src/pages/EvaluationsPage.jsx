@@ -572,7 +572,7 @@ export default function EvaluationsPage() {
     { key: "punctuality_avg", label: "Pontualidade", icon: Clock3, tone: "blue", format: "decimal" },
     { key: "enthusiasm_avg", label: "Entusiasmo da Equipe", icon: Users, tone: "cyan", format: "decimal" },
     { key: "workshops_avg", label: "Dinamicas", icon: Zap, tone: "amber", format: "decimal" },
-    { key: "support_material_avg", label: "Material de Apoio", icon: HeartHandshake, tone: "green", format: "decimal" },
+    { key: "support_material_avg", label: "Material Distribuído", icon: HeartHandshake, tone: "green", format: "decimal" },
     { key: "wheelchair_avg", label: "Depoimento Cadeirantes", icon: Accessibility, tone: "violet", format: "decimal" },
     { key: "best_criteria", label: "Melhor Criterio", icon: Award, tone: "green", format: "criteria" },
     { key: "worst_criteria", label: "Menor Avaliação", icon: TrendingDown, tone: "red", format: "criteria" },

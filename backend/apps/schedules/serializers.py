@@ -2005,7 +2005,14 @@ class SatisfactionSurveySerializer(serializers.ModelSerializer):
             "team_enthusiasm",
             "overall_rating",
         ]:
+            if field == "support_material" and field in attrs and attrs[field] is None:
+                continue
             value = attrs.get(field)
             if value is None or value < 1 or value > 10:
-                raise serializers.ValidationError({field: "Informe uma nota de 1 a 10."})
+                message = (
+                    "Informe uma nota de 1 a 10 ou selecione Não se aplica."
+                    if field == "support_material"
+                    else "Informe uma nota de 1 a 10."
+                )
+                raise serializers.ValidationError({field: message})
         return attrs

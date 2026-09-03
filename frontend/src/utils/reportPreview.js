@@ -319,7 +319,7 @@ export function buildPreview(report, selectedAgendaOrShowEstimatedPublic = true,
       `Dom\u00EDnio do palestrante: ${survey.speaker_knowledge ? `${survey.speaker_knowledge}/5` : "N\u00E3o avaliado"}\n` +
       `Oficinas / Din\u00E2micas: ${survey.workshops ? `${survey.workshops}/5` : "N\u00E3o avaliado"}\n` +
       `Recursos audiovisuais: ${survey.audiovisual_resources ? `${survey.audiovisual_resources}/5` : "N\u00E3o avaliado"}\n` +
-      `Material de apoio: ${survey.support_material ? `${survey.support_material}/5` : "N\u00E3o avaliado"}\n` +
+      `Material distribuído: ${survey.support_material ? `${survey.support_material}/5` : "N\u00E3o se aplica"}\n` +
       `Sugest\u00F5es / Coment\u00E1rios:\n"${survey.suggestion || "Nenhum coment\u00E1rio enviado."}"`;
     })() : "")
   );

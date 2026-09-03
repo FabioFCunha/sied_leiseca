@@ -59,6 +59,30 @@ class SatisfactionSurveySerializerTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertEqual(serializer.errors["audiovisual_resources"][0], "Informe uma nota de 1 a 10.")
 
+    def test_accepts_support_material_as_not_applicable(self):
+        payload = self.rating_payload(10)
+        payload["support_material"] = None
+        serializer = SatisfactionSurveySerializer(self.survey, data=payload, partial=True)
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertIsNone(serializer.validated_data["support_material"])
+
+    def test_still_requires_an_explicit_support_material_answer(self):
+        payload = self.rating_payload(10)
+        payload.pop("support_material")
+        serializer = SatisfactionSurveySerializer(self.survey, data=payload, partial=True)
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("support_material", serializer.errors)
+
+    def test_null_remains_invalid_for_other_criteria(self):
+        payload = self.rating_payload(10)
+        payload["speaker_knowledge"] = None
+        serializer = SatisfactionSurveySerializer(self.survey, data=payload, partial=True)
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("speaker_knowledge", serializer.errors)
+
 
 @override_settings(FRONTEND_URL="https://agenda.example.com")
 class AgendaEmailMessageTests(SimpleTestCase):

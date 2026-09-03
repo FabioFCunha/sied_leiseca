@@ -11,7 +11,7 @@ const fields = [
   ["speaker_knowledge", "Clareza, didática e domínio do tema por parte do(a) palestrante."],
   ["wheelchair_testimony", "Depoimento dos cadeirantes."],
   ["workshops", "Dinâmicas/oficinas realizadas."],
-  ["support_material", "Material de apoio às atividades."],
+  ["support_material", "Material distribuído durante a atividade."],
   ["punctuality", "Pontualidade da equipe."],
   ["team_enthusiasm", "Entusiasmo e dinamismo da equipe."],
   ["overall_rating", "Que nota daria de forma geral para a atividade."],
@@ -38,7 +38,10 @@ export default function SatisfactionSurveyPage() {
     setMessage("");
     try {
       const payload = Object.fromEntries(
-        Object.entries(form).map(([key, value]) => [key, key === "suggestion" ? value : Number(value)])
+        Object.entries(form).map(([key, value]) => [
+          key,
+          key === "suggestion" ? value : value === "NOT_APPLICABLE" ? null : Number(value),
+        ])
       );
       const response = await api(`/public/satisfaction-survey/${token}/`, {
         method: "POST",
@@ -76,7 +79,7 @@ export default function SatisfactionSurveyPage() {
               <div className="field-card" key={key}>
                 <strong>{label}</strong>
                 <div className="rating-scale">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
                     <label className="rating-option" key={rating}>
                       <input
                         type="radio"
@@ -87,8 +90,21 @@ export default function SatisfactionSurveyPage() {
                         required
                       />
                       <span>{rating}</span>
-                    </label>
-                  ))}
+                </label>
+              ))}
+              {key === "support_material" && (
+                <label className="rating-option rating-option-na">
+                  <input
+                    type="radio"
+                    name={key}
+                    value="NOT_APPLICABLE"
+                    checked={form[key] === "NOT_APPLICABLE"}
+                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                    required
+                  />
+                  <span>Não se aplica</span>
+                </label>
+              )}
                 </div>
               </div>
             ))}
