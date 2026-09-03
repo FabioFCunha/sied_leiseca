@@ -1512,7 +1512,8 @@ export default function TechnicalReportsPage() {
     if (isEditingLoading) return;
     setIsEditingLoading(true);
     try {
-      const reportAgendaPk = agendaPk(report.agenda);
+      const completeReport = await api(`/education-reports/${report.id}/`);
+      const reportAgendaPk = agendaPk(completeReport.agenda);
       const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(reportAgendaPk));
       let reportAgenda = reportAgendaLocal;
 
@@ -1526,15 +1527,15 @@ export default function TechnicalReportsPage() {
         }
       }
 
-      setEditing(report.id);
+      setEditing(completeReport.id);
       setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : reportAgendaPk ? String(reportAgendaPk) : "");
 
-      const resolvedDetails = report.street_action_details?.length
-        ? report.street_action_details
+      const resolvedDetails = completeReport.street_action_details?.length
+        ? completeReport.street_action_details
         : (reportAgenda?.street_action_details || []);
 
       const hydrated = hydrateForm({
-        ...report,
+        ...completeReport,
         street_action_details: resolvedDetails
       }, reportAgenda, actionTypes);
 
