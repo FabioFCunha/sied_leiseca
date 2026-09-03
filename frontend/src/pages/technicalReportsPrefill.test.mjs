@@ -22,3 +22,10 @@ test("Ação de Rua hidrata a primeira ação e carrega o detalhe da OS antes do
   assert.match(pageSource, /const detailedAgenda = await api\(`\/agendas\/\$\{agendaId\}\/`\)/);
   assert.match(pageSource, /const detailedAgenda = await selectAgendaForReport\(agenda, \{ preserveCurrent: false \}\)/);
 });
+
+test("detalhes da lista reutilizam o mesmo resumo organizado para PDF", () => {
+  assert.match(
+    pageSource,
+    /onClick=\{\(\) => viewReport\(r\)\} title="Visualizar Resumo" disabled=\{isEditingLoading\}/
+  );
+});

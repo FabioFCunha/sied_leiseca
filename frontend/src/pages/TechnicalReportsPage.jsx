@@ -2421,7 +2421,7 @@ export default function TechnicalReportsPage() {
                           </button>
                         ) : (
                           <>
-                            <button className="secondary icon-button" onClick={() => openHistoricalReportPreview(r)} title="Visualizar">
+                            <button className="secondary icon-button" onClick={() => viewReport(r)} title="Visualizar Resumo" disabled={isEditingLoading}>
                               <Eye size={16} />
                             </button>
                             {["DRAFT", "RETURNED"].includes(r.status) ? (
