@@ -1486,14 +1486,15 @@ export default function TechnicalReportsPage() {
     if (isEditingLoading) return;
     setIsEditingLoading(true);
     try {
-      const reportAgendaPk = agendaPk(report.agenda);
+      const completeReport = await api(`/education-reports/${report.id}/`);
+      const reportAgendaPk = agendaPk(completeReport.agenda);
       const reportAgendaLocal = agendas.find((agenda) => String(agenda.id) === String(reportAgendaPk));
       const reportAgenda = reportAgendaPk ? await loadAgendaDetails(reportAgendaLocal || reportAgendaPk) : reportAgendaLocal;
 
-      const resolvedDetails = report.street_action_details?.length
-        ? report.street_action_details
+      const resolvedDetails = completeReport.street_action_details?.length
+        ? completeReport.street_action_details
         : (reportAgenda?.street_action_details || []);
-      const hydrated = hydrateForm({ ...report, street_action_details: resolvedDetails }, reportAgenda, actionTypes);
+      const hydrated = hydrateForm({ ...completeReport, street_action_details: resolvedDetails }, reportAgenda, actionTypes);
 
       setEditing(null);
       setProtocolSearch(reportAgenda?.service_order_number ? serviceOrderLabel(reportAgenda) : reportAgendaPk ? String(reportAgendaPk) : "");
