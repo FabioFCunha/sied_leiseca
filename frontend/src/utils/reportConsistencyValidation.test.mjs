@@ -8,6 +8,7 @@ const lecture = (start, end, publicReached, kits) => ({
   start_time: start,
   final_hour: end,
   approached_lectures: publicReached,
+  approached_actions: publicReached,
   distribution_materials_distributed: `KIT COM 7 REVISTINHAS | ${kits}`,
 });
 
@@ -38,8 +39,16 @@ test("usa abordados em ações para atividade de rua", () => {
   const errors = getReportConsistencyErrors([{
     ...lecture("09:00", "10:00", 0, 31),
     approached_actions: 30,
-  }], () => "STREET");
+  }]);
   assert.match(errors[0], /\(31\).*\(30\)/);
+});
+
+test("usa o número de abordagens quando a primeira ação não tem público de palestra", () => {
+  const errors = getReportConsistencyErrors([{
+    ...lecture("10:00", "11:00", 0, 7),
+    approached_actions: 5,
+  }]);
+  assert.match(errors[0], /\(7\).*\(5\)/);
 });
 
 test("aceita atividade que atravessa a meia-noite", () => {

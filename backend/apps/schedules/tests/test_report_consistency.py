@@ -11,6 +11,7 @@ class EducationReportConsistencyTests(SimpleTestCase):
             "start_time": start,
             "final_hour": end,
             "approached_lectures": public,
+            "approached_actions": public,
             "distribution_materials_distributed": f"KIT COM 7 REVISTINHAS | {kits}",
         }
 
@@ -39,3 +40,11 @@ class EducationReportConsistencyTests(SimpleTestCase):
             self.action("21:00", "01:00", 50, 20),
         ])
         self.assertEqual(errors, {})
+
+    def test_uses_approached_actions_when_first_action_has_no_lecture_audience(self):
+        action = self.action("10:00", "11:00", 0, 7)
+        action["approached_actions"] = 5
+
+        errors = education_action_consistency_errors([action])
+
+        self.assertIn("público alcançado (5)", str(errors))

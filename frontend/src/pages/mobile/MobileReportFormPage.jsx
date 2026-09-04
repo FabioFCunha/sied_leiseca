@@ -755,7 +755,7 @@ export default function MobileReportFormPage() {
       }
 
       const validatableActions = getValidatableActions(form.actions).map(({ action }) => action);
-      assertReportConsistency(validatableActions, (action, index) => actionMode(action, agenda, index));
+      assertReportConsistency(validatableActions);
 
       // 2. Validar frequência
       if (agenda.service_order_mode !== "DESIGNATED") {
@@ -1156,12 +1156,12 @@ export default function MobileReportFormPage() {
                   )}
 
                   <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '14px', fontWeight: '500', color: '#334155' }}>
-                    {!actionIsStreet ? "Abordados em Palestras" : "Número de Abordagens"}
+                    {index === 0 && !actionIsStreet ? "Abordados em Palestras" : "Número de Abordagens"}
                     <input
                       type="number"
                       min="0"
-                      value={!actionIsStreet ? (action.approached_lectures ?? "") : (action.approached_actions ?? "")}
-                      onChange={e => updateAction(index, !actionIsStreet ? "approached_lectures" : "approached_actions", e.target.value)}
+                      value={index === 0 && !actionIsStreet ? (action.approached_lectures ?? "") : (action.approached_actions ?? "")}
+                      onChange={e => updateAction(index, index === 0 && !actionIsStreet ? "approached_lectures" : "approached_actions", e.target.value)}
                       style={{ padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff' }}
                     />
                   </label>

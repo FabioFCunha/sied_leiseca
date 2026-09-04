@@ -2,24 +2,6 @@ import re
 import unicodedata
 
 
-STREET_ACTION_TYPES = {
-    "bares",
-    "pedagio",
-    "esportes",
-    "pracas esportivas",
-    "praia",
-    "eventos",
-    "shopping",
-    "shopping centro comercial",
-    "shopping centro comerciais",
-    "pracas parques publicos",
-    "pontos turisticos",
-    "acao social",
-    "acao conjunta com a fiscalizacao",
-    "outros",
-}
-
-
 def _value(action, field, default=None):
     if isinstance(action, dict):
         return action.get(field, default)
@@ -66,15 +48,19 @@ def _is_kit(name):
     return "kit" in _normalized(name).split()
 
 
-def _action_audience(action):
-    mode = str(_value(action, "action_mode", "") or "").upper()
-    if not mode:
-        mode = "STREET" if _normalized(_value(action, "type_action")) in STREET_ACTION_TYPES else "LECTURE"
-    field = "approached_actions" if mode == "STREET" else "approached_lectures"
+def _numeric_value(action, field):
     try:
         return max(0, int(_value(action, field, 0) or 0))
     except (TypeError, ValueError):
         return 0
+
+
+def _action_audience(action, index):
+    """Use the same audience rule applied by official education statistics."""
+    lectures = _numeric_value(action, "approached_lectures")
+    if index == 0 and lectures > 0:
+        return lectures
+    return _numeric_value(action, "approached_actions")
 
 
 def education_action_consistency_errors(actions):
@@ -87,7 +73,7 @@ def education_action_consistency_errors(actions):
 
     intervals = []
     for index, action in enumerate(actions):
-        audience = _action_audience(action)
+        audience = _action_audience(action, index)
         for material_name, quantity in _material_rows(_value(action, "distribution_materials_distributed", "")):
             if _is_kit(material_name) and quantity > audience:
                 add(

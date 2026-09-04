@@ -21,14 +21,15 @@ function isKit(name) {
   return String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).includes("kit");
 }
 
-export function getReportConsistencyErrors(actions = [], getActionMode = () => "LECTURE") {
+export function getReportConsistencyErrors(actions = []) {
   const errors = [];
   const intervals = [];
 
   actions.forEach((action, index) => {
-    const mode = getActionMode(action, index);
-    const publicField = mode === "STREET" ? "approached_actions" : "approached_lectures";
-    const audience = Math.max(0, Number(action?.[publicField] || 0));
+    const lectures = Math.max(0, Number(action?.approached_lectures || 0));
+    const audience = index === 0 && lectures > 0
+      ? lectures
+      : Math.max(0, Number(action?.approached_actions || 0));
 
     materialRows(action?.distribution_materials_distributed).forEach(({ name, quantity }) => {
       if (isKit(name) && quantity > audience) {
@@ -56,8 +57,8 @@ export function getReportConsistencyErrors(actions = [], getActionMode = () => "
   return errors;
 }
 
-export function assertReportConsistency(actions, getActionMode) {
-  const errors = getReportConsistencyErrors(actions, getActionMode);
+export function assertReportConsistency(actions) {
+  const errors = getReportConsistencyErrors(actions);
   if (errors.length) {
     throw new Error(`Corrija as inconsistências das ações antes de continuar:\n${errors.map((error) => `- ${error}`).join("\n")}`);
   }

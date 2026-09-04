@@ -1371,7 +1371,7 @@ export default function TechnicalReportsPage() {
     }
     const validatableActions = getValidatableActions(form.actions).map(({ action }) => action);
     try {
-      assertReportConsistency(validatableActions, (action, index) => actionMode(action, selectedAgenda, index));
+      assertReportConsistency(validatableActions);
     } catch (err) {
       setMessage(`⚠ Não foi possível enviar o relatório\n\nMotivo:\n${err.message}`);
       return;
