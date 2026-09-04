@@ -67,23 +67,23 @@ def normalize_entity_type(requester_entity_type_str):
         return RequesterEntityKind.PUBLIC, None
 
     text_lower = text.lower()
+    nature = None
+    if any(marker in text_lower for marker in _PUBLIC_MARKERS):
+        nature = RequesterEntityNature.PUBLIC
+    elif any(marker in text_lower for marker in _PRIVATE_MARKERS):
+        nature = RequesterEntityNature.PRIVATE
 
     if any(marker in text_lower for marker in _SCHOOL_MARKERS):
-        nature = None
-        if any(marker in text_lower for marker in _PUBLIC_MARKERS):
-            nature = RequesterEntityNature.PUBLIC
-        elif any(marker in text_lower for marker in _PRIVATE_MARKERS):
-            nature = RequesterEntityNature.PRIVATE
         return RequesterEntityKind.SCHOOL, nature
 
     if "empresa" in text_lower:
-        return RequesterEntityKind.BUSINESS, None
+        return RequesterEntityKind.BUSINESS, nature
 
     if "militar" in text_lower:
-        return RequesterEntityKind.MILITARY, None
+        return RequesterEntityKind.MILITARY, nature
 
     if "órgão" in text_lower or "orgao" in text_lower:
-        return RequesterEntityKind.PUBLIC, None
+        return RequesterEntityKind.PUBLIC, nature
 
     return None, None
 

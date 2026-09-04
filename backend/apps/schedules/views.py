@@ -94,6 +94,12 @@ from apps.accounts.audit import log_audit
 from apps.accounts.models import AuditLog, User
 from apps.accounts.serializers import sync_active_users_for_role
 
+from .agreement_indicators import (
+    RequesterEntityKind,
+    RequesterEntityNature,
+    normalize_entity_type,
+)
+
 from .models import (
     ActionType,
     Agent,
@@ -3919,6 +3925,36 @@ class PublicCepLookupView(APIView):
         )
 
 
+def _resolve_requested_operational_action_type(action_type, requester_entity_type):
+    """Translate the generic request modality into the operational OS type."""
+    requested_name = str(action_type or "").strip()
+    target_name = requested_name
+
+    if requested_name.casefold() == "palestra":
+        kind, nature = normalize_entity_type(requester_entity_type)
+        if kind == RequesterEntityKind.SCHOOL and nature == RequesterEntityNature.PUBLIC:
+            target_name = "Palestra Escola Pública"
+        elif kind == RequesterEntityKind.SCHOOL and nature == RequesterEntityNature.PRIVATE:
+            target_name = "Palestra Escola Privada"
+        elif kind == RequesterEntityKind.BUSINESS:
+            target_name = "Palestra Empresa"
+    elif requested_name.casefold() in {
+        "ação de educação/conscientização",
+        "acao de educacao/conscientizacao",
+    }:
+        target_name = "Ação Educativa"
+
+    action_type_ref = (
+        ActionType.objects
+        .filter(name__iexact=target_name, is_active=True)
+        .exclude(category__isnull=True)
+        .first()
+    )
+    if not action_type_ref:
+        return requested_name, None
+    return action_type_ref.name, action_type_ref
+
+
 class PublicAgendaRequestView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
@@ -3949,6 +3985,9 @@ class PublicAgendaRequestView(APIView):
         serializer = PublicAgendaRequestSerializer(data=request.data, context={"is_internal_request": False})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        resolved_action_type, resolved_action_type_ref = _resolve_requested_operational_action_type(
+            data["action_type"], data["requester_entity_type"]
+        )
         public_sector, _ = Sector.objects.get_or_create(
             name="SolicitaÃ§Ãµes externas",
             defaults={"description": "SolicitaÃ§Ãµes recebidas por formulÃ¡rio pÃºblico"},
@@ -3980,7 +4019,8 @@ class PublicAgendaRequestView(APIView):
             time_2=data.get("time_2"),
             time_3=data.get("time_3"),
             location=data["address"] if data["requester_entity_type"].startswith("AÃ§Ã£o de Rua") else data["institution_location"],
-            action_type=data["action_type"],
+            action_type=resolved_action_type,
+            action_type_ref=resolved_action_type_ref,
             institution_location=data["institution_location"],
             actions_count=data.get("actions_count"),
             address=data["address"],
@@ -4199,6 +4239,9 @@ class InternalAgendaRequestView(APIView):
         serializer = PublicAgendaRequestSerializer(data=request.data, context={"is_internal_request": True})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        resolved_action_type, resolved_action_type_ref = _resolve_requested_operational_action_type(
+            data["action_type"], data["requester_entity_type"]
+        )
         internal_sector, _ = Sector.objects.get_or_create(
             name="SolicitaÃ§Ãµes internas",
             defaults={"description": "SolicitaÃ§Ãµes cadastradas internamente pela equipe"},
@@ -4212,7 +4255,8 @@ class InternalAgendaRequestView(APIView):
             time_2=data.get("time_2"),
             time_3=data.get("time_3"),
             location=data["institution_location"],
-            action_type=data["action_type"],
+            action_type=resolved_action_type,
+            action_type_ref=resolved_action_type_ref,
             institution_location=data["institution_location"],
             actions_count=data.get("actions_count"),
             address=data["address"],

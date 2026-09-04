@@ -333,6 +333,14 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
       setMessage("Selecione pelo menos uma faixa etária do público.");
       return;
     }
+    if (
+      !isStreetRequesterType(form.requester_entity_kind) &&
+      !isAdministrativeRequesterType(form.requester_entity_kind) &&
+      !form.requester_entity_nature
+    ) {
+      setMessage("Informe se a instituição solicitante é pública ou privada.");
+      return;
+    }
     if (!isStreetRequesterType(form.requester_entity_kind)) {
       if (!form.accessibility_access || !form.has_accessible_bathrooms) {
         setMessage("Responda todas as perguntas sobre acessibilidade do local.");
@@ -357,7 +365,10 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
         address: fullAddress,
         title,
         description: form.notes || title,
-        requester_entity_type: internalRequest
+        requester_entity_type: (
+          isStreetRequesterType(form.requester_entity_kind) ||
+          isAdministrativeRequesterType(form.requester_entity_kind)
+        )
           ? form.requester_entity_kind
           : `${form.requester_entity_kind} ${form.requester_entity_nature}`.trim(),
         administrative_demand_type: internalRequest ? (form.administrative_demand_type || "") : "",
@@ -440,7 +451,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                           setForm((current) => ({
                             ...current,
                             requester_entity_kind: option.id,
-                            requester_entity_nature: internalRequest ? "" : current.requester_entity_nature,
+                            requester_entity_nature: (isAcaoRua || isAdministrative) ? "" : current.requester_entity_nature,
                             administrative_demand_type: isAdministrative ? current.administrative_demand_type : "",
                             ...(isAcaoRua ? { quantity: "", participant_range: "", action_type: "", end_time: "" } : {}),
                             ...(isAcaoRua && internalRequest && user ? {
@@ -459,7 +470,10 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                   ))}
                 </div>
               </div>
-              {internalRequest ? (
+              {internalRequest && (
+                isAdministrativeRequesterType(form.requester_entity_kind) ||
+                isStreetRequesterType(form.requester_entity_kind)
+              ) ? (
                 <div className="field-card" style={{ flex: 1 }}>
                   {isAdministrativeRequesterType(form.requester_entity_kind) ? (
                     <label className="field-label" style={{ marginBottom: 0 }}>
@@ -628,7 +642,7 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                           setForm((current) => ({
                             ...current,
                             requester_entity_kind: option.id,
-                            requester_entity_nature: internalRequest ? "" : current.requester_entity_nature,
+                            requester_entity_nature: (isAcaoRua || isAdministrative) ? "" : current.requester_entity_nature,
                             administrative_demand_type: isAdministrative ? current.administrative_demand_type : "",
                             ...(isAcaoRua ? { quantity: "", participant_range: "", action_type: "", end_time: "" } : {}),
                             ...(isAcaoRua && internalRequest && user ? {
@@ -647,7 +661,10 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
                   ))}
                 </div>
               </div>
-              {internalRequest ? (
+              {internalRequest && (
+                isAdministrativeRequesterType(form.requester_entity_kind) ||
+                isStreetRequesterType(form.requester_entity_kind)
+              ) ? (
                 <div className="field-card" style={{ flex: 1 }}>
                   {isAdministrativeRequesterType(form.requester_entity_kind) ? (
                     <label className="field-label" style={{ marginBottom: 0 }}>
@@ -1045,4 +1062,3 @@ export default function PublicAgendaRequestPage({ internalRequest = false }) {
     </main>
   );
 }
-
