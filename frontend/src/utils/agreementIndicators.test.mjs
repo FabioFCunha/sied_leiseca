@@ -28,6 +28,8 @@ assert.equal(normalizeRequesterEntityNature("Não se aplica"), "NOT_APPLICABLE")
 assert.deepEqual(normalizeRequesterEntityType("SCHOOL PUBLIC"), { kind: "SCHOOL", nature: "PUBLIC" });
 assert.deepEqual(normalizeRequesterEntityType("SCHOOL PRIVATE"), { kind: "SCHOOL", nature: "PRIVATE" });
 assert.deepEqual(normalizeRequesterEntityType("Demanda Administrativa"), { kind: "ADMINISTRATIVE", nature: "NOT_APPLICABLE" });
+assert.deepEqual(normalizeRequesterEntityType("Organização de Evento Público"), { kind: "EVENT_ORGANIZATION", nature: "PUBLIC" });
+assert.deepEqual(normalizeRequesterEntityType("Organização de Evento Privado"), { kind: "EVENT_ORGANIZATION", nature: "PRIVATE" });
 
 assert.deepEqual(
   buildAgreementFieldsFromAgenda({

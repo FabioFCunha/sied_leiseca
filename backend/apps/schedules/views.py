@@ -3936,7 +3936,10 @@ def _resolve_requested_operational_action_type(action_type, requester_entity_typ
             target_name = "Palestra Escola Pública"
         elif kind == RequesterEntityKind.SCHOOL and nature == RequesterEntityNature.PRIVATE:
             target_name = "Palestra Escola Privada"
-        elif kind == RequesterEntityKind.BUSINESS:
+        elif kind in {
+            RequesterEntityKind.BUSINESS,
+            RequesterEntityKind.EVENT_ORGANIZATION,
+        }:
             target_name = "Palestra Empresa"
     elif requested_name.casefold() in {
         "ação de educação/conscientização",

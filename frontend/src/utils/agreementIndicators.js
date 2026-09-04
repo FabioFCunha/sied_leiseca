@@ -1,6 +1,7 @@
 export const REQUESTER_ENTITY_KIND_OPTIONS = [
   { value: "SCHOOL", label: "Instituição de Ensino" },
   { value: "BUSINESS", label: "Empresa" },
+  { value: "EVENT_ORGANIZATION", label: "Organização de Evento" },
   { value: "MILITARY", label: "Órgão Militar" },
   { value: "PUBLIC", label: "Órgão Público" },
   { value: "OTHER", label: "Outros" },
@@ -86,6 +87,9 @@ export function normalizeRequesterEntityType(value) {
     return { kind: "SCHOOL", nature };
   }
   if (text === "4" || lower.includes("empresa")) return { kind: "BUSINESS", nature: "" };
+  if (lower.includes("organização de evento") || lower.includes("organizacao de evento")) {
+    return { kind: "EVENT_ORGANIZATION", nature: normalizeRequesterEntityNature(text) };
+  }
   if (lower.includes("militar")) return { kind: "MILITARY", nature: "" };
   if (text === "1" || lower.includes("órgão") || lower.includes("orgao")) return { kind: "PUBLIC", nature: "" };
   return { kind: "", nature: "" };

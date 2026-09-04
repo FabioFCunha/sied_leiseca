@@ -73,6 +73,17 @@ assert.equal(schoolPrefill.requester_entity_kind, "SCHOOL");
 assert.equal(schoolPrefill.requester_entity_nature, "PUBLIC");
 assert.equal(schoolPrefill.age_range, "AGE_05_10");
 
+const eventOrganizationPrefill = buildFirstActionAgendaPrefill({
+  requester_entity_type: "Organização de Evento Público",
+  action_type_ref_name: "Palestra Empresa",
+  institution_location: "Evento Teste",
+  age_ranges: "acima de 18 anos - Adultos",
+}, [{ name: "Palestra Empresa", is_active: true, category: "LECTURE" }]);
+
+assert.equal(eventOrganizationPrefill.type_action, "Palestra Empresa");
+assert.equal(eventOrganizationPrefill.requester_entity_kind, "EVENT_ORGANIZATION");
+assert.equal(eventOrganizationPrefill.requester_entity_nature, "PUBLIC");
+
 assert.deepEqual(
   applyBlankActionPrefill(
     { institution_name: "Local editado", requester_entity_nature: "PRIVATE", approach: 0 },

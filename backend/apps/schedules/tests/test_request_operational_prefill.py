@@ -37,6 +37,9 @@ class RequestedOperationalActionTypeTests(TestCase):
     def test_business_request_becomes_business_lecture(self):
         self.assert_resolution("Empresa/Órgão Privado", "Palestra Empresa")
 
+    def test_event_organization_request_becomes_business_lecture(self):
+        self.assert_resolution("Organização de Evento Público", "Palestra Empresa")
+
     def test_educational_action_uses_active_operational_type(self):
         name, reference = _resolve_requested_operational_action_type(
             "Ação de educação/conscientização",

@@ -16,6 +16,7 @@ class EducationActionAgeRange(models.TextChoices):
 class RequesterEntityKind(models.TextChoices):
     SCHOOL = "SCHOOL", "Instituição de Ensino"
     BUSINESS = "BUSINESS", "Empresa"
+    EVENT_ORGANIZATION = "EVENT_ORGANIZATION", "Organização de Evento"
     MILITARY = "MILITARY", "Órgão Militar"
     PUBLIC = "PUBLIC", "Órgão Público"
     OTHER = "OTHER", "Outros"
@@ -52,6 +53,8 @@ def normalize_entity_type(requester_entity_type_str):
         return RequesterEntityKind.SCHOOL, None
     if text == RequesterEntityKind.BUSINESS:
         return RequesterEntityKind.BUSINESS, None
+    if text == RequesterEntityKind.EVENT_ORGANIZATION:
+        return RequesterEntityKind.EVENT_ORGANIZATION, None
     if text == RequesterEntityKind.MILITARY:
         return RequesterEntityKind.MILITARY, None
     if text == RequesterEntityKind.PUBLIC:
@@ -78,6 +81,9 @@ def normalize_entity_type(requester_entity_type_str):
 
     if "empresa" in text_lower:
         return RequesterEntityKind.BUSINESS, nature
+
+    if "organização de evento" in text_lower or "organizacao de evento" in text_lower:
+        return RequesterEntityKind.EVENT_ORGANIZATION, nature
 
     if "militar" in text_lower:
         return RequesterEntityKind.MILITARY, nature
