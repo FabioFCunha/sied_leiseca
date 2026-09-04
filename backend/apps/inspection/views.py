@@ -42,6 +42,9 @@ from apps.inspection.horus_historical_push import (
     HorusHistoricalPushService,
     HorusHistoricalRainUpdateService,
 )
+from apps.inspection.daily_statistics import (
+    InspectionDailyReportService,
+)
 
 
 SUMMARY_FIELDS = (
@@ -505,6 +508,25 @@ class InspectionTerritorialStatisticsView(
             )
             .get_data()
         )
+
+        return Response(data)
+
+
+class InspectionDailyReportView(APIView):
+    permission_classes = [
+        CanViewInspectionStatisticsDashboard
+    ]
+
+    def get(self, request):
+        try:
+            data = InspectionDailyReportService(
+                request.query_params.get("date")
+            ).get_data()
+        except ValueError:
+            return Response(
+                {"date": ["Informe uma data válida no formato AAAA-MM-DD."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(data)
 

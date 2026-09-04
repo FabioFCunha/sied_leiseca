@@ -63,6 +63,14 @@ export function getInspectionTerritorialStatistics(params = {}) {
   );
 }
 
+export function getInspectionDailyReport(selectedDate = "") {
+  const query = buildQuery({ date: selectedDate });
+
+  return api(
+    `/inspection/statistics/daily-report/${query ? `?${query}` : ""}`
+  );
+}
+
 export function getInspectionTerritorialRanking(params = {}) {
   const query = buildQuery(params);
 

@@ -1,5 +1,15 @@
 # Documentação da API (SIED - Operação Lei Seca)
 
+## Fiscalização — Relatório diário
+
+`GET /api/inspection/statistics/daily-report/?date=AAAA-MM-DD`
+
+Retorna os indicadores homologados da data solicitada e um comparativo anual independente do filtro. Sem `date`, o relatório diário utiliza a data da última operação aprovada. O comparativo sempre termina nessa última data e usa o mesmo dia e mês no ano anterior.
+
+- `daily`: data, indicadores e produção por equipe;
+- `comparison`: períodos explícitos, dias com operação e linhas com diferença, variação percentual e médias diárias;
+- `meta.latest_operation_date`: última data homologada utilizada no comparativo.
+
 Esta aplicação expõe os dados de negócio (Agendas, Relatórios, Metas e Ações) por meio de uma API construída sob a fundação do **Django Rest Framework (DRF)**.
 
 **Importante:** Não gere documentações manuais extensas dos payloads aqui neste arquivo. O DRF é construído em cima de OpenAPI, o que permite introspecção e documentação auto-gerada que evolui juntamente com o código.
