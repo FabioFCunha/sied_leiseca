@@ -46,6 +46,7 @@ def find_lookup(model, user):
     return model.objects.filter(name__iexact=user.full_name).first()
 
 from .models import AuditLog, User
+from .access_control import VALID_ACCESS_AREAS, is_creator, normalized_access_areas
 
 
 USER_LOOKUP_SOURCE_PREFIX = "user:"
@@ -360,6 +361,8 @@ class UserSerializer(serializers.ModelSerializer):
             "cpf",
             "phone",
             "role",
+            "access_areas",
+            "is_read_only",
             "occupation",
             "team",
             "team_id",
@@ -367,6 +370,7 @@ class UserSerializer(serializers.ModelSerializer):
             "sector",
             "sector_name",
             "is_active",
+            "is_superuser",
             "is_on_vacation",
             "vacation_start",
             "vacation_end",
@@ -374,7 +378,7 @@ class UserSerializer(serializers.ModelSerializer):
             "password_setup_link",
             "lgpd_consent_at",
         ]
-        read_only_fields = ["id", "password_setup_link", "lgpd_consent_at"]
+        read_only_fields = ["id", "is_superuser", "password_setup_link", "lgpd_consent_at"]
         extra_kwargs = {
             "full_name": {"required": False, "allow_blank": True},
             "cpf": {"required": False, "allow_blank": True},
@@ -427,7 +431,48 @@ class UserSerializer(serializers.ModelSerializer):
         return digits
 
     def validate(self, attrs):
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        actor_is_creator = is_creator(actor)
+        requested_areas = attrs.get("access_areas")
+        requested_read_only = attrs.get("is_read_only")
+        if actor_is_creator:
+            areas = [
+                str(area).upper()
+                for area in (requested_areas or [])
+                if str(area).upper() in VALID_ACCESS_AREAS
+            ]
+            if requested_areas is not None and not areas:
+                raise serializers.ValidationError(
+                    {"access_areas": "Selecione ao menos uma modalidade."}
+                )
+            if requested_areas is not None:
+                attrs["access_areas"] = sorted(set(areas))
+            if requested_read_only is True:
+                attrs["access_areas"] = sorted(VALID_ACCESS_AREAS)
+        elif self.instance is None:
+            attrs["access_areas"] = sorted(normalized_access_areas(actor))
+            attrs["is_read_only"] = False
+        else:
+            if requested_areas is not None and set(requested_areas) != set(
+                self.instance.access_areas or []
+            ):
+                raise serializers.ValidationError(
+                    {"access_areas": "Somente o Criador pode alterar modalidades."}
+                )
+            if requested_read_only is not None and bool(requested_read_only) != bool(
+                self.instance.is_read_only
+            ):
+                raise serializers.ValidationError(
+                    {"is_read_only": "Somente o Criador pode alterar o modo de acesso."}
+                )
+
         role = attrs.get("role", getattr(self.instance, "role", User.Role.USER))
+        if not actor_is_creator and role == User.Role.MANAGER:
+            if self.instance is None or self.instance.role != User.Role.MANAGER:
+                raise serializers.ValidationError(
+                    {"role": "Somente o Criador pode nomear gestores."}
+                )
         if role in {User.Role.USER, User.Role.SUPPORT}:
             team = attrs.get("team") if "team" in attrs else getattr(self.instance, "team", None) if self.instance else None
             if not team:

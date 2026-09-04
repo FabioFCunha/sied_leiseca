@@ -69,6 +69,8 @@ class CanViewInspectionStatisticsDashboard(BasePermission):
         user = getattr(request, "user", None)
         if not user or not user.is_authenticated:
             return False
+        if getattr(user, "is_read_only", False):
+            return True
         if user.role in {User.Role.ADMIN, User.Role.MANAGER, User.Role.SUPERVISOR}:
             return True
         return (

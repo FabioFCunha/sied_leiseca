@@ -41,7 +41,11 @@ import MobileReportsPage from "./pages/mobile/MobileReportsPage.jsx";
 import MobileReportDetailsPage from "./pages/mobile/MobileReportDetailsPage.jsx";
 
 function HomeRoute() {
-  return <Navigate to="/calendario" replace />;
+  const { user } = useAuth();
+  const inspectionOnly = Array.isArray(user?.access_areas)
+    && user.access_areas.includes("INSPECTION")
+    && !user.access_areas.includes("EDUCATION");
+  return <Navigate to={inspectionOnly ? "/fiscalizacao/estatistica" : "/calendario"} replace />;
 }
 
 export default function App() {
@@ -62,19 +66,19 @@ export default function App() {
         }
       >
         <Route index element={<HomeRoute />} />
-        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="dashboard" element={<ProtectedRoute moduleName="DASHBOARD"><DashboardPage /></ProtectedRoute>} />
         <Route path="agendas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AGENDAS"><AgendaPage /></ProtectedRoute>} />
         <Route path="solicitacao-interna" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AGENDAS"><PublicAgendaRequestPage internalRequest /></ProtectedRoute>} />
-        <Route path="calendario" element={<CalendarPage />} />
+        <Route path="calendario" element={<ProtectedRoute moduleName="CALENDARIO"><CalendarPage /></ProtectedRoute>} />
         <Route path="escala" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "CREATOR"]} moduleName="ESCALA"><ShiftSchedulePage /></ProtectedRoute>} />
         <Route path="relatorio-tecnico" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="RELATORIOS"><TechnicalReportsPage /></ProtectedRoute>} />
         <Route path="fiscalizacao/relatorios" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "USER", "SUPPORT", "VISITOR", "ALMOXARIFADO", "CREATOR"]} moduleName="FISCALIZACAO_RELATORIOS"><InspectionReportsPage /></ProtectedRoute>} />
         <Route path="estatisticas" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="ESTATISTICAS"><Suspense fallback={<div className="page">Carregando estatísticas…</div>}><StatisticsPage /></Suspense></ProtectedRoute>} />
         <Route path="fiscalizacao/estatistica" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR", "VISITOR"]} moduleName="FISCALIZACAO_ESTATISTICAS"><Suspense fallback={<div className="page">Carregando estatísticas de Fiscalização...</div>}><InspectionStatisticsPage /></Suspense></ProtectedRoute>} />
         <Route path="avaliacoes" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "SUPERVISOR"]} moduleName="AVALIACOES"><EvaluationsPage /></ProtectedRoute>} />
-        <Route path="metas" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><GoalsPage /></ProtectedRoute>} />
-        <Route path="cadastros" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]}><LookupsPage /></ProtectedRoute>} />
-        <Route path="usuarios" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "CREATOR"]}><UsersPage /></ProtectedRoute>} />
+        <Route path="metas" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]} moduleName="METAS"><GoalsPage /></ProtectedRoute>} />
+        <Route path="cadastros" element={<ProtectedRoute roles={["ADMIN", "MANAGER"]} moduleName="CADASTROS"><LookupsPage /></ProtectedRoute>} />
+        <Route path="usuarios" element={<ProtectedRoute roles={["ADMIN", "MANAGER", "CREATOR"]} moduleName="USUARIOS"><UsersPage /></ProtectedRoute>} />
         <Route path="auditoria" element={<ProtectedRoute roles={["CREATOR"]} moduleName="AUDITORIA"><AuditLogsPage /></ProtectedRoute>} />
         <Route path="novidades" element={<ReleaseNotesPage />} />
       </Route>
@@ -83,7 +87,7 @@ export default function App() {
       <Route
         path="/app"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute moduleName="CALENDARIO">
             <MobileLayout />
           </ProtectedRoute>
         }

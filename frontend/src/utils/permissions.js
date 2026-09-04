@@ -12,6 +12,45 @@ export function isCreator(user) {
   return Boolean(user?.is_superuser);
 }
 
+export const ACCESS_AREAS = {
+  EDUCATION: "EDUCATION",
+  INSPECTION: "INSPECTION",
+};
+
+const INSPECTION_MODULES = new Set([
+  "FISCALIZACAO_RELATORIOS",
+  "FISCALIZACAO_ESTATISTICAS",
+]);
+
+const EDUCATION_MODULES = new Set([
+  "DASHBOARD", "AGENDAS", "CALENDARIO", "ESCALA", "RELATORIOS",
+  "ESTATISTICAS", "AVALIACOES", "METAS", "CADASTROS",
+]);
+
+const READ_ONLY_VIEWABLE_MODULES = new Set([
+  ...INSPECTION_MODULES,
+  ...EDUCATION_MODULES,
+]);
+
+export function userAccessAreas(user) {
+  if (isCreator(user)) return new Set(Object.values(ACCESS_AREAS));
+  const areas = Array.isArray(user?.access_areas)
+    ? user.access_areas
+    : Object.values(ACCESS_AREAS);
+  return new Set(areas.map((area) => String(area).toUpperCase()));
+}
+
+export function canModify(user) {
+  return Boolean(user && (isCreator(user) || !user.is_read_only));
+}
+
+function canAccessModuleArea(user, moduleName) {
+  const areas = userAccessAreas(user);
+  if (INSPECTION_MODULES.has(moduleName)) return areas.has(ACCESS_AREAS.INSPECTION);
+  if (EDUCATION_MODULES.has(moduleName)) return areas.has(ACCESS_AREAS.EDUCATION);
+  return true;
+}
+
 const AUDIT_ALLOWED_EMAILS = new Set([
   "madelon@pm.rj.gov.br",
   "fabiocunhaosp@gmail.com",
@@ -42,6 +81,11 @@ export function canAccessAudit(user) {
 }
 
 export function canAccessRoute(user, allowedRoles = [], moduleName = null) {
+  if (!user || !canAccessModuleArea(user, moduleName)) return false;
+  if (isCreator(user)) return true;
+  if (user.is_read_only) {
+    return READ_ONLY_VIEWABLE_MODULES.has(moduleName);
+  }
   if (!allowedRoles.length) {
     return true;
   }
