@@ -4,6 +4,7 @@ import {
   CarFront,
   ClipboardCheck,
   CloudRain,
+  Eye,
   Filter,
   Gauge,
   HelpCircle,
@@ -1196,6 +1197,7 @@ function TerritorialContent({ territorial, loading, error, filters }) {
 }
 
 function DailyReportContent({ report, loading, error }) {
+  const [selectedTeam, setSelectedTeam] = useState(null);
   if (loading) {
     return <div className="stats-panel"><div className="stats-loading">Carregando relatório diário...</div></div>;
   }
@@ -1257,27 +1259,29 @@ function DailyReportContent({ report, loading, error }) {
             </div>
           ))}
         </div>
-      </section>
-
-      {teams.length ? (
-        <section className="territorial-section">
-          <h2 className="territorial-section-title">Resultado por equipe</h2>
-          <div className="territorial-tbl-wrap">
-            <table>
-              <thead><tr><th>Equipe</th><th>Ações</th><th>Abordados</th><th>Multados</th><th>Recusas</th></tr></thead>
-              <tbody>{teams.map((team) => (
-                <tr key={team.team || "sem-equipe"}>
-                  <td>{team.team || "Não informada"}</td>
-                  <td>{integer(team.operations)}</td>
-                  <td>{integer(team.approach)}</td>
-                  <td>{integer(team.fined)}</td>
-                  <td>{integer(team.refusal)}</td>
-                </tr>
-              ))}</tbody>
-            </table>
+        <div className="territorial-alc-breakdown">
+          <div className="territorial-alc-item">
+            <div className="alc-num">{integer(metrics.refusal)}</div>
+            <div className="alc-lbl">Recusas</div>
+            <div className="alc-sub">ao etilômetro</div>
           </div>
-        </section>
-      ) : null}
+          <div className="territorial-alc-item">
+            <div className="alc-num">{integer(metrics.administrative_alcohol)}</div>
+            <div className="alc-lbl">ADM · Art. 165</div>
+            <div className="alc-sub">infração administrativa</div>
+          </div>
+          <div className="territorial-alc-item">
+            <div className="alc-num">{integer(metrics.criminal_alcohol)}</div>
+            <div className="alc-lbl">Criminal · Art. 306</div>
+            <div className="alc-sub">crime de trânsito</div>
+          </div>
+          <div className="territorial-alc-item">
+            <div className="alc-num">{integer(metrics.other_evidence)}</div>
+            <div className="alc-lbl">Outros meios</div>
+            <div className="alc-sub">sinais notórios / art. 306</div>
+          </div>
+        </div>
+      </section>
 
       <section className="territorial-section">
         <h2 className="territorial-section-title">Comparativo anual consolidado</h2>
@@ -1316,6 +1320,87 @@ function DailyReportContent({ report, loading, error }) {
           Média por dia com operação: {comparison.previous_period.operation_days} dias em {comparison.previous_period.date_to.slice(0, 4)} e {comparison.current_period.operation_days} dias em {comparison.current_period.date_to.slice(0, 4)}.
         </p>
       </section>
+
+      {teams.length ? (
+        <section className="territorial-section">
+          <h2 className="territorial-section-title">Ranking das equipes</h2>
+          <div className="territorial-tbl-wrap inspection-daily-team-wrap">
+            <table>
+              <thead><tr><th>Posição</th><th>Equipe</th><th>Ações</th><th>Abordados</th><th>Multados</th><th>Recusas</th><th>Alcoolemia</th><th>% Alc.</th><th className="no-print">Detalhes</th></tr></thead>
+              <tbody>{teams.map((team, index) => (
+                <tr key={team.team || "sem-equipe"}>
+                  <td>{index + 1}º</td>
+                  <td className="inspection-daily-team-name">
+                    {team.rain ? (
+                      <span className="territorial-rain-indicator" title="Ocorrência de chuva" aria-label="Ocorrência de chuva">
+                        <CloudRain size={14} /><span>Chuva</span>
+                      </span>
+                    ) : null}
+                    <strong>{team.team || "Não informada"}</strong>
+                  </td>
+                  <td>{integer(team.operations)}</td>
+                  <td>{integer(team.approach)}</td>
+                  <td>{integer(team.fined)}</td>
+                  <td>{integer(team.refusal)}</td>
+                  <td>{integer(team.total_alcohol)}</td>
+                  <td>{percentage(team.alcohol_percentage)}</td>
+                  <td className="no-print"><button type="button" className="inspection-daily-detail-button" onClick={() => setSelectedTeam(team)}><Eye size={14} /> Ver detalhes</button></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {selectedTeam ? (
+        <div className="modal-backdrop inspection-daily-modal-backdrop no-print" onClick={() => setSelectedTeam(null)}>
+          <article className="modal inspection-daily-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <small>Informações registradas no relatório</small>
+                <h2>{selectedTeam.team}</h2>
+              </div>
+              <button type="button" className="inspection-daily-modal-close" onClick={() => setSelectedTeam(null)} aria-label="Fechar">×</button>
+            </div>
+            {selectedTeam.rain ? <div className="inspection-daily-rain-alert"><CloudRain size={16} /> Chuva informada no relatório</div> : null}
+            {(selectedTeam.reports || []).map((teamReport, reportIndex) => (
+              <section className="inspection-daily-report-detail" key={teamReport.id || reportIndex}>
+                {(selectedTeam.reports || []).length > 1 ? <h3>Relatório {reportIndex + 1}</h3> : null}
+                <dl className="inspection-daily-detail-grid">
+                  <dt>Chefia civil</dt><dd>{teamReport.civil_chief || "Não informado"}</dd>
+                  <dt>Chefia militar</dt><dd>{teamReport.military_chief || "Não informado"}</dd>
+                  <dt>Efetivo civil</dt><dd>{teamReport.civil_staff || "Não informado"}</dd>
+                  <dt>Efetivo militar</dt><dd>{teamReport.military_staff || "Não informado"}</dd>
+                  <dt>Apoio</dt><dd>{teamReport.support_opm || teamReport.support_staff || "Não informado"}</dd>
+                  <dt>Viaturas</dt><dd>{teamReport.cars || teamReport.support_vehicles || "Não informado"}</dd>
+                </dl>
+                {(teamReport.operations || []).map((operation, operationIndex) => (
+                  <div className="inspection-daily-operation-detail" key={operation.id || operationIndex}>
+                    <h3>Operação {operationIndex + 1}</h3>
+                    <p><strong>Local:</strong> {[operation.address, operation.number, operation.district, operation.city].filter(Boolean).join(" · ") || "Não informado"}</p>
+                    <p><strong>Horários:</strong> encontro {operation.departure_meeting_point || "-"} · montagem {operation.operation_assembly || "-"} · primeira abordagem {operation.first_approach || "-"} · encerramento {operation.closing || "-"}</p>
+                    <div className="inspection-daily-operation-metrics">
+                      <span>Abordados <strong>{integer(operation.approach)}</strong></span>
+                      <span>Multados <strong>{integer(operation.fined)}</strong></span>
+                      <span>Recusas <strong>{integer(operation.refusal)}</strong></span>
+                      <span>ADM 165 <strong>{integer(operation.administrative_alcohol)}</strong></span>
+                      <span>Criminal 306 <strong>{integer(operation.criminal_alcohol)}</strong></span>
+                      <span>Outros meios <strong>{integer(operation.other_evidence)}</strong></span>
+                      <span>Removidos <strong>{integer(operation.towed)}</strong></span>
+                    </div>
+                    {operation.vehicle_resolutions ? <p><strong>Resoluções de veículos:</strong> {operation.vehicle_resolutions}</p> : null}
+                    {operation.administrative_tests ? <p><strong>Testes administrativos:</strong> {operation.administrative_tests}</p> : null}
+                    {operation.changes_material ? <p><strong>Alterações de material:</strong> {operation.changes_material}</p> : null}
+                  </div>
+                ))}
+                {teamReport.low_approach_reasons ? <p><strong>Justificativa de baixa abordagem:</strong> {teamReport.low_approach_reasons}</p> : null}
+                {teamReport.changes_general ? <p><strong>Alterações gerais:</strong> {teamReport.changes_general}</p> : null}
+                {teamReport.miscellaneous_changes ? <p><strong>Outras informações:</strong> {teamReport.miscellaneous_changes}</p> : null}
+              </section>
+            ))}
+          </article>
+        </div>
+      ) : null}
     </div>
   );
 }
