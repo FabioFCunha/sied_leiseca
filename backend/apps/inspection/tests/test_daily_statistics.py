@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from apps.inspection.daily_statistics import InspectionDailyReportService
 
 
-def dashboard(*, operations, approach, fined, refusal, administrative, criminal, towed, days):
+def dashboard(*, operations, approach, fined, refusal, administrative, criminal, towed, days, other_evidence=0):
     return {
         "summary": {
             "operations": operations,
@@ -21,7 +21,9 @@ def dashboard(*, operations, approach, fined, refusal, administrative, criminal,
         "alcohol_results": {
             "thirtythree_ml": administrative,
             "thirtyfour_ml": criminal,
+            "arrests_means_evidence": other_evidence,
         },
+        "occurrences": {"arrests_means_evidence": other_evidence},
         "time_series": [
             {"operation_date": f"2026-01-{day:02d}", "operations": 1}
             for day in range(1, days + 1)
@@ -31,9 +33,13 @@ def dashboard(*, operations, approach, fined, refusal, administrative, criminal,
 
 
 class InspectionDailyReportServiceTests(SimpleTestCase):
+    @patch.object(InspectionDailyReportService, "_daily_teams", return_value=[])
+    @patch.object(InspectionDailyReportService, "_operation_days", side_effect=[10, 8])
     @patch("apps.inspection.daily_statistics.InspectionStatistic.objects.aggregate")
     @patch.object(InspectionDailyReportService, "_dashboard")
-    def test_daily_filter_does_not_change_comparison_periods(self, dashboard_mock, aggregate_mock):
+    def test_daily_filter_does_not_change_comparison_periods(
+        self, dashboard_mock, aggregate_mock, operation_days_mock, daily_teams_mock
+    ):
         aggregate_mock.return_value = {"value": date(2026, 9, 3)}
         dashboard_mock.side_effect = [
             dashboard(operations=2, approach=100, fined=20, refusal=5, administrative=2, criminal=1, towed=3, days=1),
@@ -64,13 +70,14 @@ class InspectionDailyReportServiceTests(SimpleTestCase):
                 "alcohol_results": {
                     "thirtythree_ml": 3,
                     "thirtyfour_ml": 2,
-                    "arrests_means_evidence": 99,
                 },
+                "occurrences": {"arrests_means_evidence": 99},
             }
         )
 
         self.assertEqual(metrics["total_alcohol"], 9)
         self.assertEqual(metrics["alcohol_percentage"], 9)
+        self.assertEqual(metrics["other_evidence"], 99)
 
     def test_comparison_calculates_difference_variation_and_daily_average(self):
         rows = InspectionDailyReportService._comparison_rows(
