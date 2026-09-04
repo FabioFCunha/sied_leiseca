@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.inspection.views import (
+    InspectionDailyReportView,
     InspectionHistoricalPushView,
     InspectionReportSyncView,
     InspectionTerritorialRankingView,
@@ -21,6 +22,11 @@ router.register(
 
 
 urlpatterns = [
+    path(
+        "statistics/daily-report/",
+        InspectionDailyReportView.as_view(),
+        name="inspection-daily-report",
+    ),
     path(
         "sync/reports/",
         InspectionReportSyncView.as_view(),

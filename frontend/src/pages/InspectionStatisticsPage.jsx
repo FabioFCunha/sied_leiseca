@@ -33,6 +33,7 @@ import {
 
 import territorialLogo from "../assets/operacao-lei-seca-logo.png";
 import {
+  getInspectionDailyReport,
   getInspectionTerritorialRanking,
   getInspectionTerritorialStatistics,
 } from "../api/inspection.js";
@@ -50,6 +51,11 @@ import {
   normalizeTerritorialFilters,
   TERRITORIAL_FILTER_START,
 } from "../utils/inspectionTerritorialViewModel.js";
+import {
+  formatComparisonPeriod,
+  formatDailyReportDate,
+  formatSignedNumber,
+} from "../utils/inspectionDailyReport.js";
 import {
   TAXONOMY_STATUS,
   buildInspectionExecutiveCards,
@@ -1189,6 +1195,131 @@ function TerritorialContent({ territorial, loading, error, filters }) {
   );
 }
 
+function DailyReportContent({ report, loading, error }) {
+  if (loading) {
+    return <div className="stats-panel"><div className="stats-loading">Carregando relatório diário...</div></div>;
+  }
+  if (error) {
+    return <div className="stats-panel"><div className="stats-loading" style={{ color: "var(--danger)" }}>{error}</div></div>;
+  }
+  if (!report?.daily || !report?.comparison) {
+    return <div className="stats-panel"><div className="stats-empty">Nenhuma operação aprovada disponível.</div></div>;
+  }
+
+  const metrics = report.daily.metrics || {};
+  const comparison = report.comparison;
+  const previousLabel = formatComparisonPeriod(comparison.previous_period);
+  const currentLabel = formatComparisonPeriod(comparison.current_period);
+  const teams = report.daily.teams || [];
+  const handlePrint = () => window.print();
+
+  const cards = [
+    ["k1", Users, "Abordados", integer(metrics.approach)],
+    ["k2", CarFront, "Multados", integer(metrics.fined)],
+    ["k3", TestTube2, "Alcoolemia", integer(metrics.total_alcohol)],
+    ["k4", AlertCircle, "Percentual", percentage(metrics.alcohol_percentage)],
+    ["k5", ShieldAlert, "Fiscalizações", integer(metrics.operations)],
+    ["k6", TestTube2, "Recusas", integer(metrics.refusal)],
+  ];
+
+  return (
+    <div className="territorial-report-area inspection-daily-report">
+      <header className="territorial-header">
+        <button className="btn-print no-print" onClick={handlePrint} style={{ position: "absolute", top: 32, right: 44, background: "var(--t-gold)", color: "var(--t-navy)", border: "none", borderRadius: 6, padding: "7px 18px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", zIndex: 10 }}>
+          Exportar PDF
+        </button>
+        <div className="territorial-header-top">
+          <div className="territorial-logo-circle">
+            <img src={territorialLogo} alt="Operação Lei Seca" className="territorial-logo-image" />
+          </div>
+          <div className="territorial-header-text">
+            <p className="territorial-header-institution">Governo do Estado do Rio de Janeiro &nbsp;·&nbsp; Operação Lei Seca</p>
+            <h1 className="territorial-header-title">Relatório Diário da Fiscalização</h1>
+            <p className="territorial-header-sub">Produção dos relatórios aprovados na data selecionada</p>
+          </div>
+        </div>
+        <div className="territorial-badges">
+          <div className="territorial-badge"><small>Data da operação</small><strong>{formatDailyReportDate(report.daily.date)}</strong></div>
+          <div className="territorial-badge"><small>Última operação consolidada</small><strong>{formatDailyReportDate(report.meta?.latest_operation_date)}</strong></div>
+          <div className="territorial-badge"><small>Fonte</small><strong>HORUS / SIED</strong></div>
+        </div>
+      </header>
+      <div className="territorial-stripe" />
+
+      <section className="territorial-section">
+        <h2 className="territorial-section-title">Resultado do dia selecionado</h2>
+        <div className="territorial-kpi-grid">
+          {cards.map(([className, Icon, label, value]) => (
+            <div className={`territorial-kpi ${className}`} key={label}>
+              <div className="territorial-kpi-ico"><Icon size={14} /></div>
+              <p className="territorial-kpi-label">{label}</p>
+              <p className="territorial-kpi-val">{value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {teams.length ? (
+        <section className="territorial-section">
+          <h2 className="territorial-section-title">Resultado por equipe</h2>
+          <div className="territorial-tbl-wrap">
+            <table>
+              <thead><tr><th>Equipe</th><th>Ações</th><th>Abordados</th><th>Multados</th><th>Recusas</th></tr></thead>
+              <tbody>{teams.map((team) => (
+                <tr key={team.team || "sem-equipe"}>
+                  <td>{team.team || "Não informada"}</td>
+                  <td>{integer(team.operations)}</td>
+                  <td>{integer(team.approach)}</td>
+                  <td>{integer(team.fined)}</td>
+                  <td>{integer(team.refusal)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="territorial-section">
+        <h2 className="territorial-section-title">Comparativo anual consolidado</h2>
+        <p className="inspection-daily-comparison-note">
+          Este quadro não é alterado pela data selecionada. Os períodos terminam na data da última operação aprovada.
+        </p>
+        <div className="territorial-tbl-wrap inspection-daily-comparison-wrap">
+          <table>
+            <thead><tr>
+              <th>Indicador</th>
+              <th>{previousLabel}</th>
+              <th>{currentLabel}</th>
+              <th>Diferença</th>
+              <th>Variação (%)</th>
+              <th>Média/dia {comparison.previous_period.date_to.slice(0, 4)}</th>
+              <th>Média/dia {comparison.current_period.date_to.slice(0, 4)}</th>
+            </tr></thead>
+            <tbody>{comparison.rows.map((row) => {
+              const isPercentage = row.key === "alcohol_percentage";
+              const value = (item) => isPercentage ? percentage(item) : integer(item);
+              return (
+                <tr key={row.key} className={row.key === "total_alcohol" ? "inspection-daily-total-row" : ""}>
+                  <td>{row.label}</td>
+                  <td>{value(row.previous)}</td>
+                  <td>{value(row.current)}</td>
+                  <td>{formatSignedNumber(row.difference, { decimals: isPercentage ? 2 : 0, percentagePoints: isPercentage })}</td>
+                  <td>{row.variation_percentage === null ? "-" : `${formatSignedNumber(row.variation_percentage, { decimals: 2 })}%`}</td>
+                  <td>{row.previous_daily_average === null ? "-" : Number(row.previous_daily_average).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td>{row.current_daily_average === null ? "-" : Number(row.current_daily_average).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        </div>
+        <p className="inspection-daily-comparison-note">
+          Média por dia com operação: {comparison.previous_period.operation_days} dias em {comparison.previous_period.date_to.slice(0, 4)} e {comparison.current_period.operation_days} dias em {comparison.current_period.date_to.slice(0, 4)}.
+        </p>
+      </section>
+    </div>
+  );
+}
+
 function TerritorialRankingContent({
   ranking,
   loading,
@@ -1461,10 +1592,18 @@ export default function InspectionStatisticsPage() {
     setRankingError,
   ] = useState("");
 
+  const [dailyDate, setDailyDate] = useState("");
+  const [dailyDraftDate, setDailyDraftDate] = useState("");
+  const [dailyReport, setDailyReport] = useState(null);
+  const [dailyLoading, setDailyLoading] = useState(false);
+  const [dailyError, setDailyError] = useState("");
+
   const isTerritorialTab =
     activeTab === "territorial";
   const isRankingTab =
     activeTab === "ranking";
+  const isDailyTab =
+    activeTab === "daily";
   const isTerritorialLikeTab =
     isTerritorialTab ||
     isRankingTab;
@@ -1538,6 +1677,24 @@ export default function InspectionStatisticsPage() {
       setTerritorialLoading(
         false
       );
+    }
+  };
+
+  const loadDailyReport = async (selectedDate = dailyDate) => {
+    setDailyLoading(true);
+    setDailyError("");
+
+    try {
+      const response = await getInspectionDailyReport(selectedDate);
+      setDailyReport(response);
+      const resolvedDate = response?.daily?.date || selectedDate || "";
+      setDailyDate(resolvedDate);
+      setDailyDraftDate(resolvedDate);
+    } catch (err) {
+      setDailyError(err?.message || "Erro ao carregar relatório diário.");
+      setDailyReport(null);
+    } finally {
+      setDailyLoading(false);
     }
   };
 
@@ -1770,7 +1927,10 @@ export default function InspectionStatisticsPage() {
 
 
   const handleApplyFilters = () => {
-    if (isTerritorialTab) {
+    if (isDailyTab) {
+      setDailyDate(dailyDraftDate);
+      loadDailyReport(dailyDraftDate);
+    } else if (isTerritorialTab) {
       const nextFilters =
         normalizeTerritorialFilters(
           territorialDraftFilters
@@ -1844,7 +2004,11 @@ export default function InspectionStatisticsPage() {
 
 
   const handleClearFilters = () => {
-    if (isTerritorialTab) {
+    if (isDailyTab) {
+      setDailyDate("");
+      setDailyDraftDate("");
+      loadDailyReport("");
+    } else if (isTerritorialTab) {
       const next =
         buildDefaultTerritorialFilters(
           todayIso
@@ -1882,6 +2046,11 @@ export default function InspectionStatisticsPage() {
   const openOfficialTab = () => {
     setActiveTab("official");
     loadDashboard(officialFilters);
+  };
+
+  const openDailyTab = () => {
+    setActiveTab("daily");
+    loadDailyReport(dailyDate);
   };
 
 
@@ -2148,7 +2317,9 @@ export default function InspectionStatisticsPage() {
                 marginBottom: "4px",
               }}
             >
-              {isRankingTab
+              {isDailyTab
+                ? "Produção diária aprovada"
+                : isRankingTab
                 ? "Comparativo municipal"
                 : "Classificação territorial"}
             </div>
@@ -2158,7 +2329,9 @@ export default function InspectionStatisticsPage() {
                 fontSize: "18px",
               }}
             >
-              {isRankingTab
+              {isDailyTab
+                ? "Relatório diário e comparativo anual"
+                : isRankingTab
                 ? "Top municípios por indicador"
                 : "Região Metropolitana × Interior"}
             </strong>
@@ -2170,7 +2343,9 @@ export default function InspectionStatisticsPage() {
                 marginTop: "4px",
               }}
             >
-              {isRankingTab
+              {isDailyTab
+                ? "Data escolhida com acumulado independente"
+                : isRankingTab
                 ? "Ranking territorial unificado por município"
                 : "Municípios e regiões do Estado do Rio de Janeiro"}
             </div>
@@ -2259,6 +2434,22 @@ export default function InspectionStatisticsPage() {
 
         <button
           type="button"
+          onClick={openDailyTab}
+          style={{
+            border: 0,
+            borderRadius: "8px",
+            padding: "10px 18px",
+            cursor: "pointer",
+            fontWeight: 700,
+            background: activeTab === "daily" ? "#0f172a" : "transparent",
+            color: activeTab === "daily" ? "#ffffff" : "#475569",
+          }}
+        >
+          Relatório Diário
+        </button>
+
+        <button
+          type="button"
           onClick={
             openRankingTab
           }
@@ -2290,7 +2481,26 @@ export default function InspectionStatisticsPage() {
       </div>
 
 
-      <div className="stats-filters">
+      {isDailyTab ? (
+        <div className="stats-filters inspection-daily-filter">
+          <div className="stats-filter-title"><Filter size={16} />Relatório do dia</div>
+          <label>
+            Data da operação
+            <input
+              type="date"
+              value={dailyDraftDate}
+              max={dailyReport?.meta?.latest_operation_date || todayIso}
+              onChange={(event) => setDailyDraftDate(event.target.value)}
+            />
+          </label>
+          <div className="stats-filter-actions">
+            <button className="primary" onClick={handleApplyFilters}>Aplicar</button>
+            <button type="button" onClick={handleClearFilters}>Última operação</button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="stats-filters" style={isDailyTab ? { display: "none" } : undefined}>
         <div className="stats-filter-title">
           <Filter size={16} />
           Filtros
@@ -2665,7 +2875,9 @@ export default function InspectionStatisticsPage() {
       ) : null}
 
 
-      {activeTab ===
+      {activeTab === "daily" ? (
+        <DailyReportContent report={dailyReport} loading={dailyLoading} error={dailyError} />
+      ) : activeTab ===
       "territorial" ? (
         <TerritorialContent
           territorial={

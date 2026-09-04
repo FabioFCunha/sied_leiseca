@@ -19,3 +19,9 @@ A plataforma modela também restrições severas de acessibilidade (bloqueios e 
 
 ## 4. O Sistema como Produto Vivo
 O projeto lida com volumes imutáveis de mídia (fotos, relatórios) e um banco de dados relacional extremamente rico que nunca deve ser purgado (`root_postgres_data`). A evolução desse ecossistema deve sempre focar em estabilidade, disponibilidade (alta importância governamental) e zero quebras na base consolidada (migrations).
+
+## 5. Fiscalização — Relatório Diário
+
+O Relatório Diário apresenta somente a produção homologada na data escolhida. Seus cards são Abordados, Multados, Alcoolemia, Percentual, Fiscalizações e Recusas.
+
+O comparativo anual da mesma tela é independente do filtro diário: compara 1º de janeiro até a data da última operação aprovada com o mesmo intervalo do ano anterior. O total comparável de alcoolemia soma Recusas, Art. 165 administrativo e Art. 306 criminal. As médias utilizam a quantidade de dias com operação, e não os dias corridos.

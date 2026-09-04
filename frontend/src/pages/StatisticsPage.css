@@ -185,6 +185,12 @@
 .territorial-alc-item .alc-num { font-family: 'Barlow Condensed', 'Inter', sans-serif; font-size:22px; font-weight:800; color:var(--t-navy); line-height:1; }
 .territorial-alc-item .alc-lbl { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--t-gray-5); margin-top:3px; }
 .territorial-alc-item .alc-sub { font-size:10px; color:var(--t-gray-5); margin-top:1px; }
+.inspection-daily-filter{align-items:end}
+.inspection-daily-comparison-note{margin:-4px 0 14px;color:var(--t-gray-5);font-size:11px;line-height:1.5}
+.inspection-daily-comparison-wrap table{min-width:1120px}
+.inspection-daily-comparison-wrap tbody td:first-child{font-weight:650;color:var(--t-navy);text-align:left}
+.inspection-daily-total-row{background:#eef3ff!important}
+.inspection-daily-total-row td{font-weight:800!important;color:var(--t-navy)!important}
 .territorial-tbl-wrap { border-radius:10px; border:1px solid var(--t-gray-2); overflow-x:auto; box-shadow:0 1px 6px rgba(0,0,0,.06); margin-bottom: 24px; }
 .territorial-tbl-wrap table { width:100%; border-collapse:collapse; font-size:12.5px; white-space: nowrap; }
 .territorial-tbl-wrap thead tr { background:var(--t-navy); }
