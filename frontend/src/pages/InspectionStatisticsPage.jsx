@@ -11,6 +11,7 @@ import {
   MapPinned,
   Minus,
   ShieldAlert,
+  Siren,
   TestTube2,
   TrendingDown,
   TrendingUp,
@@ -1216,6 +1217,7 @@ function DailyReportContent({ report, loading, error }) {
   const previousLabel = formatComparisonPeriod(comparison.previous_period);
   const currentLabel = formatComparisonPeriod(comparison.current_period);
   const teams = report.daily.teams || [];
+  const majorOccurrences = teams.filter((team) => team.major_occurrence);
   const handlePrint = () => window.print();
 
   const cards = [
@@ -1339,6 +1341,29 @@ function DailyReportContent({ report, loading, error }) {
         </div>
       </section>
 
+      {majorOccurrences.length ? (
+        <section className="territorial-section inspection-daily-major-section">
+          <h2 className="territorial-section-title">Ocorrências de grande vulto do dia</h2>
+          <div className="inspection-daily-major-list">
+            {majorOccurrences.map((team) => (
+              <article className="inspection-daily-major-card" key={`major-${team.team}`}>
+                <div className="inspection-daily-major-icon"><Siren size={22} /></div>
+                <div>
+                  <strong>{team.team || "Equipe não informada"}</strong>
+                  <span>Ocorrência de grande vulto</span>
+                  {(team.major_occurrence_descriptions || []).map((description, index) => (
+                    <p key={`${team.team}-description-${index}`}>{description}</p>
+                  ))}
+                </div>
+                <button type="button" className="inspection-daily-detail-button no-print" onClick={() => setSelectedTeam(team)}>
+                  <Eye size={14} /> Ver relatório
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {teams.length ? (
         <section className="territorial-section">
           <h2 className="territorial-section-title">Ranking das equipes</h2>
@@ -1346,9 +1371,14 @@ function DailyReportContent({ report, loading, error }) {
             <table>
               <thead><tr><th>Posição</th><th>Equipe</th><th>Ações</th><th>Abordados</th><th>Multados</th><th>Recusas</th><th>Alcoolemia</th><th>% Alc.</th><th className="no-print">Detalhes</th></tr></thead>
               <tbody>{teams.map((team, index) => (
-                <tr key={team.team || "sem-equipe"}>
+                <tr key={team.team || "sem-equipe"} className={team.major_occurrence ? "inspection-daily-major-row" : ""}>
                   <td>{index + 1}º</td>
                   <td className="inspection-daily-team-name">
+                    {team.major_occurrence ? (
+                      <span className="inspection-daily-major-indicator" title="Ocorrência de grande vulto" aria-label="Ocorrência de grande vulto">
+                        <Siren size={14} /><span>Ocorrência de grande vulto</span>
+                      </span>
+                    ) : null}
                     {team.rain ? (
                       <span className="territorial-rain-indicator" title="Ocorrência de chuva" aria-label="Ocorrência de chuva">
                         <CloudRain size={14} /><span>Chuva</span>
@@ -1381,6 +1411,15 @@ function DailyReportContent({ report, loading, error }) {
               <button type="button" className="inspection-daily-modal-close" onClick={() => setSelectedTeam(null)} aria-label="Fechar">×</button>
             </div>
             {selectedTeam.rain ? <div className="inspection-daily-rain-alert"><CloudRain size={16} /> Chuva informada no relatório</div> : null}
+            {selectedTeam.major_occurrence ? (
+              <div className="inspection-daily-major-alert">
+                <Siren size={18} />
+                <div>
+                  <strong>Ocorrência de grande vulto</strong>
+                  {(selectedTeam.major_occurrence_descriptions || []).map((description, index) => <p key={`modal-major-${index}`}>{description}</p>)}
+                </div>
+              </div>
+            ) : null}
             {(selectedTeam.reports || []).map((teamReport, reportIndex) => (
               <section className="inspection-daily-report-detail" key={teamReport.id || reportIndex}>
                 {(selectedTeam.reports || []).length > 1 ? <h3>Relatório {reportIndex + 1}</h3> : null}

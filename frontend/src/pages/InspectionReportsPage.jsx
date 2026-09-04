@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronDown, ChevronRight, Download, Eye, RefreshCw, Search, X } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, Download, Eye, RefreshCw, Search, Siren, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   excludeInspectionReportFromStatistics,
@@ -25,6 +25,8 @@ const emptyStatisticsClassification = {
   art311: false,
   art306: false,
   rain: false,
+  major_occurrence: false,
+  major_occurrence_description: "",
 };
 
 const statisticsClassificationLabels = {
@@ -586,6 +588,48 @@ export default function InspectionReportsPage() {
                             <span>{label}</span>
                           </label>
                         ))}
+                      </div>
+
+                      {selectedReport.statistics_status === "PENDING" && selectedReport.major_occurrence_analysis?.suspected ? (
+                        <div style={{ display: "grid", gap: "7px", padding: "13px 15px", border: "1px solid #ef4444", borderRadius: "10px", background: "#fff1f2", color: "#991b1b" }}>
+                          <strong style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <Siren size={18} /> Possível ocorrência de grande vulto identificada
+                          </strong>
+                          <span style={{ fontSize: "13px" }}>
+                            Indícios encontrados: {(selectedReport.major_occurrence_analysis.reasons || []).join("; ")}.
+                          </span>
+                          <small>A identificação automática é apenas um aviso. Confirme ou descarte durante a conferência.</small>
+                        </div>
+                      ) : null}
+
+                      <div style={{ display: "grid", gap: "10px", padding: "14px", border: statisticsClassification.major_occurrence ? "2px solid #dc2626" : "1px solid var(--line)", borderRadius: "10px", background: statisticsClassification.major_occurrence ? "#fff1f2" : "#fff" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "9px", margin: 0, cursor: showReviewActions ? "pointer" : "default", fontWeight: 800, color: statisticsClassification.major_occurrence ? "#991b1b" : "inherit" }}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(statisticsClassification.major_occurrence)}
+                            disabled={!showReviewActions || actionLoading}
+                            onChange={() => toggleStatisticsClassification("major_occurrence")}
+                            style={{ margin: 0 }}
+                          />
+                          <Siren size={18} /> Confirmar ocorrência de grande vulto
+                        </label>
+                        {statisticsClassification.major_occurrence ? (
+                          <label style={{ display: "grid", gap: "6px", margin: 0 }}>
+                            <span>Descrição resumida da ocorrência *</span>
+                            <textarea
+                              rows={4}
+                              maxLength={2000}
+                              value={statisticsClassification.major_occurrence_description || ""}
+                              disabled={!showReviewActions || actionLoading}
+                              onChange={(event) => setStatisticsClassification((current) => ({ ...current, major_occurrence_description: event.target.value }))}
+                              placeholder="Informe objetivamente o fato relevante e as providências adotadas."
+                            />
+                          </label>
+                        ) : (
+                          <small style={{ color: "var(--pico-muted-color)" }}>
+                            Deixe desmarcado para descartar o alerta ou quando não houver ocorrência relevante.
+                          </small>
+                        )}
                       </div>
 
                       {!showReviewActions && selectedReport.statistics_status !== "PENDING" ? (

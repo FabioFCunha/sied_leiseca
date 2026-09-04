@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.inspection.major_occurrence import report_major_occurrence_analysis
+
 from apps.inspection.models import (
     InspectionFine,
     InspectionReport,
@@ -111,6 +113,29 @@ class InspectionStatisticsClassificationSerializer(serializers.Serializer):
     art311 = serializers.BooleanField(default=False)
     art306 = serializers.BooleanField(default=False)
     rain = serializers.BooleanField(default=False)
+    major_occurrence = serializers.BooleanField(default=False)
+    major_occurrence_description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        trim_whitespace=True,
+        max_length=2000,
+        default="",
+    )
+
+    def validate(self, attrs):
+        if attrs.get("major_occurrence") and not attrs.get(
+            "major_occurrence_description", ""
+        ).strip():
+            raise serializers.ValidationError(
+                {
+                    "major_occurrence_description": (
+                        "Informe a descrição da ocorrência de grande vulto."
+                    )
+                }
+            )
+        if not attrs.get("major_occurrence"):
+            attrs["major_occurrence_description"] = ""
+        return attrs
 
 
 class InspectionIncludeStatisticsSerializer(serializers.Serializer):
@@ -361,6 +386,10 @@ class InspectionReportDetailSerializer(serializers.ModelSerializer):
     operations = InspectionReportOperationSerializer(many=True, read_only=True)
     statistics_reviewed_by_name = serializers.CharField(source="statistics_reviewed_by.full_name", read_only=True)
     statistics_history = InspectionStatisticsDecisionHistorySerializer(many=True, read_only=True)
+    major_occurrence_analysis = serializers.SerializerMethodField()
+
+    def get_major_occurrence_analysis(self, obj):
+        return report_major_occurrence_analysis(obj)
 
     class Meta:
         model = InspectionReport
@@ -406,4 +435,5 @@ class InspectionReportDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "operations",
             "statistics_history",
+            "major_occurrence_analysis",
         ]

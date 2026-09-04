@@ -4,6 +4,7 @@ from datetime import date, timedelta
 
 from django.db.models import Max, Q
 
+from apps.inspection.major_occurrence import report_major_occurrence_analysis
 from apps.inspection.models import (
     HistoricalSourceType,
     HistoricalTaxonomyEra,
@@ -128,6 +129,23 @@ class InspectionDailyReportService:
             return "chuv" in observation or "chove" in observation
         return classification.get("rain") is True
 
+    @staticmethod
+    def _major_occurrence_data(report):
+        classification = report.statistics_classification or {}
+        if "major_occurrence" not in classification:
+            analysis = report_major_occurrence_analysis(report)
+            if analysis["suspected"]:
+                description = "Indícios identificados: " + "; ".join(
+                    analysis["reasons"]
+                )
+                return True, description
+            return False, ""
+        confirmed = classification.get("major_occurrence") is True
+        description = str(
+            classification.get("major_occurrence_description") or ""
+        ).strip()
+        return confirmed, description if confirmed else ""
+
     @classmethod
     def _operation_detail(cls, operation):
         return {
@@ -182,6 +200,8 @@ class InspectionDailyReportService:
                 "total_alcohol": 0,
                 "towed": 0,
                 "rain": False,
+                "major_occurrence": False,
+                "major_occurrence_descriptions": [],
                 "reports": [],
             }
         )
@@ -203,6 +223,14 @@ class InspectionDailyReportService:
                 statistic.arrests_means_evidence
             )
             item["rain"] = item["rain"] or cls._has_rain(report)
+            is_major_occurrence, major_description = (
+                cls._major_occurrence_data(report)
+            )
+            item["major_occurrence"] = (
+                item["major_occurrence"] or is_major_occurrence
+            )
+            if is_major_occurrence and major_description:
+                item["major_occurrence_descriptions"].append(major_description)
             item["reports"].append(
                 {
                     "id": report.id,
@@ -219,6 +247,8 @@ class InspectionDailyReportService:
                     "low_approach_reasons": report.low_approach_reasons or "",
                     "miscellaneous_changes": report.miscellaneous_changes or "",
                     "rain": cls._has_rain(report),
+                    "major_occurrence": is_major_occurrence,
+                    "major_occurrence_description": major_description,
                     "operations": [
                         cls._operation_detail(operation)
                         for operation in report.operations.all()
