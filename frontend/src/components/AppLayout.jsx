@@ -18,8 +18,8 @@ const items = [
   { to: "/fiscalizacao/estatistica", label: "Estatística Fiscalização", icon: Target, roles: ["ADMIN", "MANAGER", "SUPERVISOR", "VISITOR"], moduleName: "FISCALIZACAO_ESTATISTICAS" },
   { to: "/avaliacoes", label: "Avaliações", icon: Star, roles: ["ADMIN", "MANAGER", "SUPERVISOR"], moduleName: "AVALIACOES" },
 
-  { to: "/cadastros", label: "Cadastros", icon: ListPlus, roles: ["ADMIN", "MANAGER"] },
-  { to: "/usuarios", label: "Usuários", icon: Users, roles: ["ADMIN", "MANAGER", "CREATOR"] },
+  { to: "/cadastros", label: "Cadastros", icon: ListPlus, roles: ["ADMIN", "MANAGER"], moduleName: "CADASTROS" },
+  { to: "/usuarios", label: "Usuários", icon: Users, roles: ["ADMIN", "MANAGER", "CREATOR"], moduleName: "USUARIOS" },
   { to: "/auditoria", label: "Auditoria", icon: ShieldCheck, roles: ["CREATOR"], moduleName: "AUDITORIA" },
 ];
 

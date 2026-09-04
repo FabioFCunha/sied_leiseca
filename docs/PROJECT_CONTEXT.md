@@ -25,3 +25,11 @@ O projeto lida com volumes imutáveis de mídia (fotos, relatórios) e um banco 
 O Relatório Diário apresenta somente a produção homologada na data escolhida. Seus cards são Abordados, Multados, Alcoolemia, Percentual, Fiscalizações e Recusas.
 
 O comparativo anual da mesma tela é independente do filtro diário: compara 1º de janeiro até a data da última operação aprovada com o mesmo intervalo do ano anterior. O total comparável de alcoolemia soma Recusas, Art. 165 administrativo e Art. 306 criminal. As médias utilizam a quantidade de dias com operação, e não os dias corridos.
+## Controle de acesso por modalidade
+
+- O perfil define o nível funcional; `access_areas` define onde o usuário atua.
+- Modalidades válidas: `EDUCATION` e `INSPECTION`, isoladas ou combinadas.
+- Somente o `CREATOR` (`is_superuser`) altera modalidades e o modo `is_read_only`.
+- Gestores são hierarquicamente superiores aos administradores e administram usuários apenas dentro da própria modalidade.
+- Usuários somente leitura visualizam Educação e Fiscalização, mas o backend bloqueia operações de escrita.
+- Contas existentes recebem inicialmente as duas modalidades para preservar compatibilidade.

@@ -2,6 +2,10 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
 
+def default_user_access_areas():
+    return ["EDUCATION", "INSPECTION"]
+
+
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
@@ -39,6 +43,8 @@ class User(AbstractUser):
     cpf = models.CharField(max_length=14, unique=True, null=True, blank=True)
     phone = models.CharField(max_length=160, blank=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.USER)
+    access_areas = models.JSONField(default=default_user_access_areas, blank=True)
+    is_read_only = models.BooleanField(default=False)
     sector = models.ForeignKey(
         "schedules.Sector",
         on_delete=models.SET_NULL,
@@ -66,7 +72,9 @@ class User(AbstractUser):
 
     @property
     def is_admin_role(self):
-        return self.role in {self.Role.ADMIN, self.Role.MANAGER}
+        # A conta de consulta precisa enxergar os dados completos das áreas
+        # autorizadas. O middleware continua bloqueando toda operação de escrita.
+        return self.is_read_only or self.role in {self.Role.ADMIN, self.Role.MANAGER}
 
     @property
     def is_supervisor_role(self):

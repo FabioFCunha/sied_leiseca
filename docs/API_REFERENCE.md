@@ -38,3 +38,7 @@ A especificação exata (incluindo verbos HTTP válidos, payloads requeridos e s
 
 * A API impõe padronização RESTful (códigos `200/201` para sucesso, `400` para Bad Request de validação, `401/403` para bloqueios de autenticação).
 * Erros retornam no formato padrão JSON do DRF ditando qual campo falhou (ex: `{"field_name": ["ErrorMessage"]}`).
+## Controle de acesso de usuários
+
+Os payloads de usuário incluem `access_areas` (`EDUCATION`, `INSPECTION`) e `is_read_only`.
+Somente o Criador pode alterar esses campos. Para usuários somente leitura, requisições de escrita retornam HTTP 403. Endpoints da Fiscalização exigem `INSPECTION`; os demais módulos operacionais exigem `EDUCATION`.

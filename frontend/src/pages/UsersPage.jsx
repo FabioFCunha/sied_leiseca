@@ -2,9 +2,9 @@ import { Mail, Save, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { roleLabel } from "../utils/permissions.js";
+import { isCreator, roleLabel } from "../utils/permissions.js";
 
-const empty = { full_name: "", cpf: "", email: "", phone: "", role: "USER", team: "", sector: "", sector_name: "", is_active: true, is_on_vacation: false, vacation_start: "", vacation_end: "" };
+const empty = { full_name: "", cpf: "", email: "", phone: "", role: "USER", team: "", sector: "", sector_name: "", access_areas: ["EDUCATION", "INSPECTION"], is_read_only: false, is_active: true, is_on_vacation: false, vacation_start: "", vacation_end: "" };
 
 const adminRoles = new Set(["ADMIN", "MANAGER"]);
 const visitorRoles = new Set(["VISITOR"]);
@@ -43,7 +43,8 @@ function uniqueUppercaseTeams(rows) {
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
-  const canEdit = adminRoles.has(currentUser?.role) || Boolean(currentUser?.is_superuser);
+  const creator = isCreator(currentUser);
+  const canEdit = (adminRoles.has(currentUser?.role) || creator) && !currentUser?.is_read_only;
   const [users, setUsers] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -113,6 +114,10 @@ export default function UsersPage() {
         vacation_start: (operationalRoles.has(form.role) && form.is_on_vacation && form.vacation_start) ? form.vacation_start : null,
         vacation_end: (operationalRoles.has(form.role) && form.is_on_vacation && form.vacation_end) ? form.vacation_end : null,
       };
+      if (creator) {
+        payload.access_areas = form.is_read_only ? ["EDUCATION", "INSPECTION"] : form.access_areas;
+        payload.is_read_only = Boolean(form.is_read_only);
+      }
       if (form.role === "VISITOR") {
         payload.sector = sectorId;
       }
@@ -135,7 +140,7 @@ export default function UsersPage() {
   const edit = (user) => {
     setEditing(user.id);
     setPasswordLink(user.password_setup_link || "");
-    setForm({ ...user, cpf: user.cpf || "", team: user.team_id || "", sector: user.sector || "", sector_name: user.sector_name || "", is_active: user.is_active, is_on_vacation: user.is_on_vacation || false, vacation_start: user.vacation_start || "", vacation_end: user.vacation_end || "" });
+    setForm({ ...user, cpf: user.cpf || "", team: user.team_id || "", sector: user.sector || "", sector_name: user.sector_name || "", access_areas: user.access_areas || ["EDUCATION", "INSPECTION"], is_read_only: Boolean(user.is_read_only), is_active: user.is_active, is_on_vacation: user.is_on_vacation || false, vacation_start: user.vacation_start || "", vacation_end: user.vacation_end || "" });
   };
 
   const remove = async (user) => {
@@ -316,6 +321,8 @@ export default function UsersPage() {
                     </select>
                   )}
                 </th>
+                <th style={{ verticalAlign: "top" }}>Modalidade</th>
+                <th style={{ verticalAlign: "top" }}>Acesso</th>
                 {canEdit && <th className="actions-heading" style={{ verticalAlign: "top" }}>Ações</th>}
               </tr>
             </thead>
@@ -329,6 +336,8 @@ export default function UsersPage() {
                   <td>{roleLabel[item.role] || item.role}</td>
                   <td>{item.role === "VISITOR" ? (item.sector_name || "-") : String(item.team_name || item.sector_name || "-").toUpperCase()}</td>
                   <td>{item.is_on_vacation ? <span className="badge warning">Férias</span> : <span className={`badge ${item.is_active ? "success" : "neutral"}`}>{item.is_active ? "Ativo" : "Inativo"}</span>}</td>
+                  <td>{(item.access_areas || []).map((area) => area === "EDUCATION" ? "Educação" : "Fiscalização").join(" / ") || "Sem modalidade"}</td>
+                  <td>{item.is_read_only ? <span className="badge warning">Somente visualização</span> : <span className="badge success">Operacional</span>}</td>
                   {canEdit && (
                   <td>
                     <div className="row-actions">
@@ -364,7 +373,7 @@ export default function UsersPage() {
                 </tr>
               ))}
               {!filteredItems.length && (
-                <tr><td colSpan="8" className="empty-cell">{emptyMessage}</td></tr>
+                <tr><td colSpan="10" className="empty-cell">{emptyMessage}</td></tr>
               )}
             </tbody>
           </table>
@@ -410,12 +419,46 @@ export default function UsersPage() {
               <option value="USER">Agente</option>
               <option value="SUPPORT">Apoio</option>
               <option value="SUPERVISOR">Chefe</option>
-              <option value="MANAGER">Gestor</option>
+              {(creator || form.role === "MANAGER") && <option value="MANAGER">Gestor</option>}
               <option value="VISITOR">Visitante</option>
               <option value="ALMOXARIFADO">Almoxarifado</option>
               <option value="ADMIN">Administração</option>
             </select>
           </label>
+          {creator && (
+            <fieldset style={{ display: "grid", gap: "10px", padding: "12px", border: "1px solid var(--line)", borderRadius: "10px" }}>
+              <legend>Modalidades definidas pelo Criador</legend>
+              {[["EDUCATION", "Educação"], ["INSPECTION", "Fiscalização"]].map(([area, label]) => (
+                <label className="checkbox" key={area}>
+                  <input
+                    type="checkbox"
+                    checked={form.access_areas.includes(area)}
+                    disabled={form.is_read_only}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      access_areas: event.target.checked
+                        ? [...new Set([...current.access_areas, area])]
+                        : current.access_areas.filter((item) => item !== area),
+                    }))}
+                  />
+                  {label}
+                </label>
+              ))}
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.is_read_only}
+                  onChange={(event) => setForm((current) => ({
+                    ...current,
+                    is_read_only: event.target.checked,
+                    access_areas: event.target.checked ? ["EDUCATION", "INSPECTION"] : current.access_areas,
+                  }))}
+                />
+                Somente visualização das duas áreas
+              </label>
+              <small>Somente o Criador pode alterar estas opções.</small>
+            </fieldset>
+          )}
           <label>
             Nome completo
             <input placeholder="Digite o nome completo" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />

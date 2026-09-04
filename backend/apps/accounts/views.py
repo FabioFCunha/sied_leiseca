@@ -27,6 +27,7 @@ from config.email_signature import build_signed_email
 from .audit import log_audit
 from .emails import send_password_setup_email
 from .models import AuditLog, User
+from .access_control import is_creator, is_read_only_user, normalized_access_areas
 from .serializers import AuditLogSerializer, LoginSerializer, UserSerializer
 
 
@@ -40,7 +41,12 @@ def is_system_user(user):
 
 
 def can_manage_users(user):
-    return bool(user and user.is_authenticated and (user.is_superuser or user.is_admin_role))
+    return bool(
+        user
+        and user.is_authenticated
+        and not is_read_only_user(user)
+        and (is_creator(user) or user.is_admin_role)
+    )
 
 
 AUDIT_ALLOWED_EMAILS = {"madelon@pm.rj.gov.br", "fabiocunhaosp@gmail.com"}
@@ -368,8 +374,16 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = User.objects.select_related("sector").exclude(email__in=SYSTEM_USER_EMAILS).order_by("full_name")
         user = self.request.user
-        if can_manage_users(user):
+        if is_creator(user):
             return queryset
+        if can_manage_users(user):
+            queryset = queryset.filter(
+                access_areas=sorted(normalized_access_areas(user))
+            )
+            if user.role == User.Role.MANAGER:
+                return queryset.filter(~Q(role=User.Role.MANAGER) | Q(id=user.id))
+            if user.role == User.Role.ADMIN:
+                return queryset.exclude(role=User.Role.MANAGER)
         return queryset.filter(id=user.id)
 
     @action(detail=False, methods=["post"], url_path="ping", permission_classes=[IsAuthenticated])
