@@ -209,6 +209,19 @@
 .inspection-daily-modal .modal-header h2{margin:3px 0 0;font-size:22px}
 .inspection-daily-modal-close{border:0;background:rgba(255,255,255,.12);border-radius:50%;color:#fff;cursor:pointer;font-size:24px;height:34px;line-height:1;width:34px}
 .inspection-daily-rain-alert{display:flex;align-items:center;gap:7px;margin:18px 22px 0;border:1px solid #93c5fd;border-radius:7px;background:#eff6ff;color:#1d4ed8;padding:9px 12px;font-size:12px;font-weight:750}
+.inspection-daily-major-section{padding-top:0}
+.inspection-daily-major-list{display:grid;gap:10px}
+.inspection-daily-major-card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;border:1px solid #ef4444;border-left:5px solid #dc2626;border-radius:9px;background:#fff1f2;padding:14px 16px}
+.inspection-daily-major-icon{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:#dc2626;color:#fff}
+.inspection-daily-major-card strong,.inspection-daily-major-card span{display:block;color:#991b1b}
+.inspection-daily-major-card strong{font-size:14px}.inspection-daily-major-card span{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.inspection-daily-major-card p{margin:5px 0 0;color:#7f1d1d;font-size:12px;line-height:1.45}
+.inspection-daily-major-indicator{display:inline-flex;align-items:center;gap:4px;margin-right:10px;border-radius:999px;background:#fee2e2;color:#b91c1c;padding:4px 7px;font-size:9px;font-weight:800;text-transform:uppercase}
+.inspection-daily-major-row{background:#fff1f2!important;border-left:4px solid #dc2626}
+.inspection-daily-major-row:hover{background:#ffe4e6!important}
+.inspection-daily-major-alert{display:flex;align-items:flex-start;gap:9px;margin:18px 22px 0;border:1px solid #ef4444;border-radius:7px;background:#fff1f2;color:#991b1b;padding:11px 13px;font-size:12px}
+.inspection-daily-major-alert strong{display:block;text-transform:uppercase}.inspection-daily-major-alert p{margin:4px 0 0;line-height:1.45}
+@media(max-width:720px){.inspection-daily-major-card{grid-template-columns:auto 1fr}.inspection-daily-major-card button{grid-column:1/-1;justify-self:start}}
 .inspection-daily-report-detail{padding:20px 22px;border-bottom:1px solid var(--t-gray-2)}
 .inspection-daily-report-detail:last-child{border-bottom:0}
 .inspection-daily-report-detail h3{margin:0 0 10px;color:var(--t-navy);font-size:14px}

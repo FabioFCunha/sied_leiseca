@@ -1,4 +1,5 @@
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -108,6 +109,56 @@ class InspectionDailyReportServiceTests(SimpleTestCase):
             ),
             date(2023, 2, 28),
         )
+
+    def test_daily_uses_only_confirmed_major_occurrence(self):
+        report = type(
+            "Report",
+            (),
+            {
+                "statistics_classification": {
+                    "major_occurrence": False,
+                    "major_occurrence_description": "",
+                }
+            },
+        )()
+
+        self.assertEqual(
+            InspectionDailyReportService._major_occurrence_data(report),
+            (False, ""),
+        )
+
+        report.statistics_classification = {
+            "major_occurrence": True,
+            "major_occurrence_description": " Ocorrência confirmada. ",
+        }
+
+        self.assertEqual(
+            InspectionDailyReportService._major_occurrence_data(report),
+            (True, "Ocorrência confirmada."),
+        )
+
+    def test_daily_detects_major_occurrence_in_legacy_consolidated_report(self):
+        operations = type("Operations", (), {"all": lambda self: []})()
+        report = SimpleNamespace(
+            statistics_classification={},
+            changes_general=(
+                "Motociclista tentou atropelar uma policial, que foi levada "
+                "ao hospital e permaneceu internada."
+            ),
+            miscellaneous_changes="",
+            change_ols="",
+            change_support="",
+            changes_material="",
+            low_approach_reasons="",
+            operations=operations,
+        )
+
+        confirmed, description = (
+            InspectionDailyReportService._major_occurrence_data(report)
+        )
+
+        self.assertTrue(confirmed)
+        self.assertIn("Atropelamento", description)
 
 
 class InspectionDailyReportEndpointTests(TestCase):
