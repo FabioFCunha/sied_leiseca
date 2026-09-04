@@ -163,6 +163,7 @@ from .serializers import (
     TeamSerializer,
     VehicleSerializer,
 )
+from .report_consistency import education_action_consistency_errors
 
 
 def snapshot_for(agenda):
@@ -2615,7 +2616,8 @@ class EducationReportViewSet(viewsets.ModelViewSet):
     @staticmethod
     def _build_submit_action_errors(report):
         errors = {}
-        for index, action in enumerate(report.actions.all().order_by("id")):
+        actions = list(report.actions.all().order_by("id"))
+        for index, action in enumerate(actions):
             action_errors = {}
             if not str(action.type_action or "").strip():
                 action_errors["type_action"] = [
@@ -2623,6 +2625,10 @@ class EducationReportViewSet(viewsets.ModelViewSet):
                 ]
             if action_errors:
                 errors[str(index)] = action_errors
+        for index, action_errors in education_action_consistency_errors(actions).items():
+            target = errors.setdefault(index, {})
+            for field, messages in action_errors.items():
+                target.setdefault(field, []).extend(messages)
         return errors
 
     def _schema_error_response(self, exc):

@@ -32,6 +32,7 @@ import { buildStaffChanges } from "../utils/reportStaffChanges.js";
 import { agendaPk } from "../utils/reportPayload.js";
 import { buildReportShareSummary } from "../utils/reportShareSummary.js";
 import { executeShare } from "../utils/handleShareReport.js";
+import { assertReportConsistency } from "../utils/reportConsistencyValidation.js";
 
 function memberRows(members = {}) {
   return [
@@ -1366,6 +1367,13 @@ export default function TechnicalReportsPage() {
         el.classList.add("highlight-error");
         setTimeout(() => el.classList.remove("highlight-error"), 3000);
       }
+      return;
+    }
+    const validatableActions = getValidatableActions(form.actions).map(({ action }) => action);
+    try {
+      assertReportConsistency(validatableActions, (action, index) => actionMode(action, selectedAgenda, index));
+    } catch (err) {
+      setMessage(`⚠ Não foi possível enviar o relatório\n\nMotivo:\n${err.message}`);
       return;
     }
     setIsSaving(true);
@@ -2982,4 +2990,3 @@ export default function TechnicalReportsPage() {
     </>
   );
 }
-

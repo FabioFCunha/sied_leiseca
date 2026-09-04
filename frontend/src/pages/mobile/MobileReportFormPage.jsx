@@ -24,6 +24,7 @@ import { getValidatableActions } from "../technicalReportsActionHelpers.js";
 import { buildReportShareSummary } from "../../utils/reportShareSummary.js";
 import { executeShare } from "../../utils/handleShareReport.js";
 import { agendaPk } from "../../utils/reportPayload.js";
+import { assertReportConsistency } from "../../utils/reportConsistencyValidation.js";
 
 const numberFields = ["approach"];
 const streetActionTypeOptions = STREET_ACTION_TYPE_OPTIONS;
@@ -752,6 +753,9 @@ export default function MobileReportFormPage() {
       if (missingFields.length > 0) {
         throw new Error(`Existem campos obrigatórios não preenchidos:\n${missingFields.map(f => `- ${f}`).join('\n')}`);
       }
+
+      const validatableActions = getValidatableActions(form.actions).map(({ action }) => action);
+      assertReportConsistency(validatableActions, (action, index) => actionMode(action, agenda, index));
 
       // 2. Validar frequência
       if (agenda.service_order_mode !== "DESIGNATED") {
