@@ -191,6 +191,13 @@
 .inspection-daily-comparison-wrap tbody td:first-child{font-weight:650;color:var(--t-navy);text-align:left}
 .inspection-daily-total-row{background:#eef3ff!important}
 .inspection-daily-total-row td{font-weight:800!important;color:var(--t-navy)!important}
+.inspection-daily-variation{display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800;line-height:1}
+.inspection-daily-variation.positive{background:#eaf8f0;color:#147a46}
+.inspection-daily-variation.negative{background:#fdecec;color:#b42318}
+.inspection-daily-variation.neutral{background:#eef2f7;color:#526176}
+.inspection-daily-not-applicable{color:var(--t-gray-5);font-size:10.5px;font-style:italic;white-space:nowrap}
+.inspection-daily-comparison-legend{margin:-4px 0 20px;border-left:3px solid var(--t-blue);border-radius:0 6px 6px 0;background:#f3f6fc;color:var(--t-gray-5);padding:9px 12px;font-size:10.5px;line-height:1.45}
+.inspection-daily-comparison-legend strong{color:var(--t-navy)}
 .inspection-daily-team-wrap table{min-width:930px}
 .inspection-daily-team-name{text-align:left!important}
 .inspection-daily-detail-button{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--t-blue);border-radius:6px;background:#fff;color:var(--t-blue);padding:6px 9px;font-size:10px;font-weight:750;cursor:pointer;white-space:nowrap}
