@@ -9,8 +9,11 @@ import {
   Gauge,
   HelpCircle,
   MapPinned,
+  Minus,
   ShieldAlert,
   TestTube2,
+  TrendingDown,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import {
@@ -1302,15 +1305,27 @@ function DailyReportContent({ report, loading, error }) {
             <tbody>{comparison.rows.map((row) => {
               const isPercentage = row.key === "alcohol_percentage";
               const value = (item) => isPercentage ? percentage(item) : integer(item);
+              const variation = row.variation_percentage;
+              const VariationIcon = variation > 0 ? TrendingUp : variation < 0 ? TrendingDown : Minus;
+              const variationClass = variation > 0 ? "positive" : variation < 0 ? "negative" : "neutral";
               return (
                 <tr key={row.key} className={row.key === "total_alcohol" ? "inspection-daily-total-row" : ""}>
                   <td>{row.label}</td>
                   <td>{value(row.previous)}</td>
                   <td>{value(row.current)}</td>
                   <td>{formatSignedNumber(row.difference, { decimals: isPercentage ? 2 : 0, percentagePoints: isPercentage })}</td>
-                  <td>{row.variation_percentage === null ? "-" : `${formatSignedNumber(row.variation_percentage, { decimals: 2 })}%`}</td>
-                  <td>{row.previous_daily_average === null ? "-" : Number(row.previous_daily_average).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                  <td>{row.current_daily_average === null ? "-" : Number(row.current_daily_average).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td>
+                    {variation === null ? (
+                      <span className="inspection-daily-not-applicable">Não se aplica</span>
+                    ) : (
+                      <span className={`inspection-daily-variation ${variationClass}`}>
+                        <VariationIcon size={14} aria-hidden="true" />
+                        {formatSignedNumber(variation, { decimals: 2 })}%
+                      </span>
+                    )}
+                  </td>
+                  <td>{row.previous_daily_average === null ? <span className="inspection-daily-not-applicable">Não se aplica</span> : Number(row.previous_daily_average).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td>{row.current_daily_average === null ? <span className="inspection-daily-not-applicable">Não se aplica</span> : Number(row.current_daily_average).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
               );
             })}</tbody>
@@ -1319,6 +1334,9 @@ function DailyReportContent({ report, loading, error }) {
         <p className="inspection-daily-comparison-note">
           Média por dia com operação: {comparison.previous_period.operation_days} dias em {comparison.previous_period.date_to.slice(0, 4)} e {comparison.current_period.operation_days} dias em {comparison.current_period.date_to.slice(0, 4)}.
         </p>
+        <div className="inspection-daily-comparison-legend">
+          <strong>Não se aplica:</strong> o percentual de alcoolemia já representa a proporção entre o total de casos de alcoolemia e os motoristas abordados; portanto, não possui média diária.
+        </div>
       </section>
 
       {teams.length ? (
